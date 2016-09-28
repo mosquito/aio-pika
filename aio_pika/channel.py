@@ -148,7 +148,10 @@ class Channel(BaseChannel):
     @asyncio.coroutine
     def close(self) -> None:
         self.__channel.close()
-        self._closing.set_result(self)
+
+        if not self._closing.done():
+            self._closing.set_result(self)
+
         self.__channel = None
 
     @BaseChannel._ensure_channel_is_open
