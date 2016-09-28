@@ -17,7 +17,7 @@ class Channel(BaseChannel):
                  'loop', '_futures', '__channel',)
 
     def __init__(self, connection,
-                 loop: asyncio.BaseEventLoop, future_store: FutureStore):
+                 loop: asyncio.AbstractEventLoop, future_store: FutureStore):
 
         super().__init__(loop, future_store.get_child())
 

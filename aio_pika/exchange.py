@@ -21,7 +21,7 @@ class Exchange(BaseChannel):
 
     def __init__(self, channel: Channel, publish_method, name: str,
                  type: ExchangeType=ExchangeType.DIRECT, *, auto_delete: bool,
-                 durable: bool, arguments: dict, loop: asyncio.BaseEventLoop, future_store: FutureStore):
+                 durable: bool, arguments: dict, loop: asyncio.AbstractEventLoop, future_store: FutureStore):
 
         super().__init__(loop, future_store)
 
