@@ -1,8 +1,13 @@
 aio-pika
 ========
 
+.. image:: https://coveralls.io/repos/github/mosquito/aio-pika/badge.svg
+    :target: https://coveralls.io/github/mosquito/aio-pika
+    :alt: Coveralls
+
 .. image:: https://travis-ci.org/mosquito/aio-pika.svg
     :target: https://travis-ci.org/mosquito/aio-pika
+    :alt: Travis CI
 
 .. image:: https://img.shields.io/pypi/v/aio-pika.svg
     :target: https://pypi.python.org/pypi/aio-pika/
