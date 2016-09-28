@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='aio-pika',
-    version='0.5.1',
+    version='0.5.2',
     author="Dmitry Orlov <me@mosquito.su>",
     author_email="me@mosquito.su",
     license="Apache Software License",
