@@ -1,0 +1,109 @@
+import asyncio
+import pika.channel
+import pika.exceptions
+from logging import getLogger
+from functools import wraps
+from enum import Enum, unique
+
+
+log = getLogger(__name__)
+
+
+@unique
+class ConfirmationTypes(Enum):
+    ACK = 'ack'
+    NACK = 'nack'
+
+
+def future_with_timeout(loop, timeout, future=None):
+    loop = loop or asyncio.get_event_loop()
+    f = future or asyncio.Future(loop=loop)
+
+    def on_timeout():
+        if f.done():
+            return
+        f.set_exception(TimeoutError)
+
+    if timeout:
+        loop.call_later(timeout, on_timeout)
+
+    return f
+
+
+class FutureStore:
+    __slots__ = "__collection", "__loop", "__main_store"
+
+    def __init__(self, loop: asyncio.AbstractEventLoop, main_store: 'FutureStore'=None):
+        self.__main_store = main_store
+        self.__collection = set()
+        self.__loop = loop or asyncio.get_event_loop()
+
+    def _on_future_done(self, future):
+        if future in self.__collection:
+            self.__collection.remove(future)
+
+    @staticmethod
+    def _reject_future(future: asyncio.Future, exception: Exception):
+        if future.done():
+            return
+
+        future.set_exception(exception)
+
+    def add(self, future: asyncio.Future):
+        if self.__main_store:
+            self.__main_store.add(future)
+
+        self.__collection.add(future)
+        future.add_done_callback(self._on_future_done)
+
+    def reject_all(self, exception: Exception):
+        for future in list(self.__collection):
+            self.__collection.remove(future)
+            self.__loop.call_soon(self._reject_future, future, exception)
+
+    @staticmethod
+    def _on_timeout(future: asyncio.Future):
+        if future.done():
+            return
+
+        future.set_exception(TimeoutError)
+
+    def create_future(self, timeout=None):
+        future = future_with_timeout(self.__loop, timeout)
+
+        self.add(future)
+
+        if self.__main_store:
+            self.__main_store.add(future)
+
+        return future
+
+    def get_child(self):
+        return FutureStore(self.__loop, main_store=self)
+
+
+class BaseChannel:
+    __slots__ = ('_channel_futures', 'loop', '_futures', '_closing')
+
+    def __init__(self, loop: asyncio.AbstractEventLoop, future_store: FutureStore):
+        self.loop = loop
+        self._futures = future_store
+        self._closing = asyncio.Future(loop=self.loop)
+
+    def _create_future(self, timeout=None):
+        f = self._futures.create_future(timeout)
+        return f
+
+    @staticmethod
+    def _ensure_channel_is_open(func):
+        @wraps(func)
+        def wrap(self, *args, **kwargs):
+            if self._closing.done():
+                raise pika.exceptions.ChannelClosed
+
+            return func(self, *args, **kwargs)
+
+        return wrap
+
+    def __repr__(self):
+        return "<{}: {}>".format(self.__class__.__name__, getattr(self, 'name', id(self)))
