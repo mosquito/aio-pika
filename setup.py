@@ -4,11 +4,12 @@ from setuptools import setup, find_packages
 
 setup(
     name='aio-pika',
-    version='0.5.0',
+    version='0.5.1',
     author="Dmitry Orlov <me@mosquito.su>",
     author_email="me@mosquito.su",
     license="Apache Software License",
     description="Wrapper for the PIKA for asyncio and humans.",
+    long_description=open("README.rst").read(),
     platforms="all",
     classifiers=(
         'License :: OSI Approved :: Apache Software License',
