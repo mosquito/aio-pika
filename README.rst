@@ -1,7 +1,7 @@
 aio-pika
 ========
 
-.. image:: https://coveralls.io/repos/github/mosquito/aio-pika/badge.svg
+.. image:: https://coveralls.io/repos/github/mosquito/aio-pika/badge.svg?branch=master
     :target: https://coveralls.io/github/mosquito/aio-pika
     :alt: Coveralls
 
