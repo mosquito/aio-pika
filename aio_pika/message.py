@@ -60,7 +60,7 @@ class Message:
             "expiration": self.expiration,
             "message_id": self.message_id,
             "timestamp": self.timestamp,
-            "type": self.type,
+            "type": str(self.type),
             "user_id": self.user_id,
             "app_id": self.app_id,
         }
