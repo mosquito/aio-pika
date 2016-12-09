@@ -1,6 +1,5 @@
 import asyncio
 import pika.channel
-from functools import partial
 from logging import getLogger
 from types import FunctionType
 from . import exceptions
