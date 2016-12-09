@@ -39,8 +39,17 @@ class Channel(BaseChannel):
         self._futures.reject_all(exc)
         self._closing.set_exception(exc)
 
+    @staticmethod
+    def _get_future_result(future: asyncio.Future):
+        exc = future.exception()
+
+        if exc:
+            return exc
+
+        return future.result()
+
     def add_close_callback(self, callback: FunctionType):
-        self._closing.add_done_callback(lambda r: callback(r.result()))
+        self._closing.add_done_callback(lambda r: callback(self._get_future_result(r)))
 
     @asyncio.coroutine
     def initialize(self, timeout=None) -> None:
