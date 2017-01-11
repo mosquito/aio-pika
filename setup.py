@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='aio-pika',
-    version='0.5.5',
+    version='0.5.6',
     author="Dmitry Orlov <me@mosquito.su>",
     author_email="me@mosquito.su",
     license="Apache Software License",
@@ -31,6 +31,6 @@ setup(
         'asyncio',
         'shortuuid',
         'pika<0.11',
-        'slimurl>=0.7.6',
+        'yarl',
     ],
 )
