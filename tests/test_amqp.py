@@ -4,7 +4,6 @@ import logging
 import pytest
 import shortuuid
 import aio_pika.exceptions
-from copy import copy
 from aio_pika import connect, connect_url, Message, Connection, Channel, Exchange
 from aio_pika.exceptions import ProbableAuthenticationError, MessageProcessError
 from aio_pika.exchange import ExchangeType
@@ -35,7 +34,6 @@ class TestCase(AsyncTestCase):
 
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
-
 
         self.__closed = False
 
