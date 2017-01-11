@@ -5,7 +5,7 @@ from logging import getLogger
 from pika import ConnectionParameters
 from pika.credentials import PlainCredentials
 from pika.spec import REPLY_SUCCESS
-from slimurl import URL
+from yarl import URL
 from .channel import Channel
 from .common import FutureStore
 from .tools import copy_future
@@ -162,7 +162,7 @@ def connect(url: str=None, *, host: str='localhost',
                   password: str='guest', virtualhost: str='/',
                   ssl: bool=False, loop=None, **kwargs) -> Connection:
     if url:
-        url = URL(url)
+        url = URL(str(url))
         host = url.host or host
         port = url.port or port
         login = url.user or login

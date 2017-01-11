@@ -26,7 +26,7 @@ class Channel(BaseChannel):
         self.__delivery_tag = 0
 
     def __str__(self):
-        return "{0}".format(self.__channel.channel_number)
+        return "{0}".format(self.__channel.channel_number if self.__channel else "Not initialized chanel")
 
     def __repr__(self):
         return '<Channel "%s#%s">' % (self.__connection, self)

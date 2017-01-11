@@ -4,7 +4,7 @@ import logging
 import os
 
 from functools import wraps
-from slimurl import URL
+from yarl import URL
 
 
 log = logging.getLogger(__name__)
