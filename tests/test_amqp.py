@@ -353,9 +353,7 @@ class TestCase(AsyncTestCase):
 
     @pytest.mark.asyncio
     def test_wrong_credentials(self):
-        amqp_url = copy(AMQP_URL)
-        amqp_url.user = uuid.uuid4().hex
-        amqp_url.password = uuid.uuid4().hex
+        amqp_url = AMQP_URL.with_user(uuid.uuid4().hex).with_password(uuid.uuid4().hex)
 
         with self.assertRaises(ProbableAuthenticationError):
             yield from connect(
