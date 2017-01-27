@@ -16,7 +16,9 @@ def iscoroutinepartial(fn):
     return asyncio.iscoroutinefunction(parent)
 
 
-def create_task(*, loop):
+def create_task(*, loop=None):
+    loop = loop or asyncio.get_event_loop()
+
     try:
         return loop.create_task
     except AttributeError:
