@@ -16,7 +16,16 @@ def iscoroutinepartial(fn):
     return asyncio.iscoroutinefunction(parent)
 
 
+def create_future(*, loop):
+        # https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.create_task
+    try:
+        return loop.create_future()
+    except AttributeError:
+        return asyncio.Future(loop=loop)
+
+
 def create_task(*, loop=None):
+    # https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.create_task
     loop = loop or asyncio.get_event_loop()
 
     try:
@@ -35,7 +44,7 @@ def _on_result(future: asyncio.Future, new_future: asyncio.Future=None):
 
 
 def copy_future(future: asyncio.Future, new_future: asyncio.Future=None):
-    new_future = new_future or asyncio.Future(loop=future._loop)
+    new_future = new_future or create_future(loop=future._loop)
 
     handler = partial(_on_result, new_future=new_future)
 
