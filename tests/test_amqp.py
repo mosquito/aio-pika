@@ -251,6 +251,46 @@ class TestCase(AsyncTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    def test_consuming_not_coroutine(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        queue_name = self.get_random_name("tc2")
+        routing_key = self.get_random_name()
+
+        channel = yield from client.channel()
+        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+
+        yield from queue.bind(exchange, routing_key)
+
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        f = asyncio.Future(loop=self.loop)
+
+        def handle(message):
+            message.ack()
+            self.assertEqual(message.body, body)
+            self.assertEqual(message.routing_key, routing_key)
+            f.set_result(True)
+
+        queue.consume(handle)
+
+        yield from exchange.publish(
+            Message(
+                body, content_type='text/plain',
+                headers={'foo': 'bar'}
+            ),
+            routing_key
+        )
+
+        if not f.done():
+            yield from f
+
+        yield from queue.unbind(exchange, routing_key)
+        yield from exchange.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
     def test_ack_reject(self):
         client = yield from connect(AMQP_URL, loop=self.loop)
 
