@@ -1,10 +1,22 @@
 # @copyright (c) 2002-2016 Acronis International GmbH. All rights reserved.
 from setuptools import setup, find_packages
+import sys
+
+
+requires = [
+    'shortuuid',
+    'pika<0.11',
+    'yarl',
+]
+
+
+if sys.version_info < (3, 5):
+    requires.append('asyncio')
 
 
 setup(
     name='aio-pika',
-    version='0.5.6',
+    version='0.5.7',
     author="Dmitry Orlov <me@mosquito.su>",
     author_email="me@mosquito.su",
     license="Apache Software License",
@@ -28,10 +40,5 @@ setup(
         'Programming Language :: Python :: Implementation :: CPython',
     ),
     packages=find_packages(exclude=['tests']),
-    install_requires=[
-        'asyncio',
-        'shortuuid',
-        'pika<0.11',
-        'yarl',
-    ],
+    install_requires=requires,
 )
