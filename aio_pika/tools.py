@@ -17,7 +17,7 @@ def iscoroutinepartial(fn):
 
 
 def create_future(*, loop):
-        # https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.create_task
+        # https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.create_future
     try:
         return loop.create_future()
     except AttributeError:
