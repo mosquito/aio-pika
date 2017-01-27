@@ -2,6 +2,13 @@ import asyncio
 from functools import partial
 
 
+def create_task(*, loop):
+    try:
+        return loop.create_task
+    except AttributeError:
+        return partial(asyncio.ensure_future, loop=loop)
+
+
 def _on_result(future: asyncio.Future, new_future: asyncio.Future=None):
     if not new_future.done():
         exc = future.exception()
