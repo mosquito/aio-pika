@@ -2,6 +2,20 @@ import asyncio
 from functools import partial
 
 
+def iscoroutinepartial(fn):
+    # http://bugs.python.org/issue23519
+
+    while True:
+        parent = fn
+
+        fn = getattr(parent, 'func', None)
+
+        if fn is None:
+            break
+
+    return asyncio.iscoroutinefunction(parent)
+
+
 def create_task(*, loop):
     try:
         return loop.create_task
