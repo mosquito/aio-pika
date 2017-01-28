@@ -11,6 +11,7 @@ env:
   - TOXENV=py34
   - TOXENV=py35
 install:
-  - pip install tox coveralls
+  - virtualenv -p python3 /tmp/env
+  - /tmp/env/bin/pip install tox coveralls
 script:
-  - tox
+  - /tmp/env/bin/tox
