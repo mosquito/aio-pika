@@ -4,7 +4,6 @@ import pika.exceptions
 from logging import getLogger
 from functools import wraps
 from enum import Enum, unique
-from .tools import create_future
 
 
 log = getLogger(__name__)
@@ -18,7 +17,7 @@ class ConfirmationTypes(Enum):
 
 def future_with_timeout(loop, timeout, future=None):
     loop = loop or asyncio.get_event_loop()
-    f = future or create_future(loop=loop)
+    f = future or asyncio.Future(loop=loop)
 
     def on_timeout():
         if f.done():
@@ -89,7 +88,7 @@ class BaseChannel:
     def __init__(self, loop: asyncio.AbstractEventLoop, future_store: FutureStore):
         self.loop = loop
         self._futures = future_store
-        self._closing = create_future(loop=self.loop)
+        self._closing = asyncio.Future(loop=self.loop)
 
     def _create_future(self, timeout=None):
         f = self._futures.create_future(timeout)

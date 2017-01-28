@@ -4,7 +4,7 @@ from logging import getLogger
 from pika.channel import Channel
 from .common import BaseChannel, FutureStore
 from .message import Message
-from .tools import create_future
+
 
 log = getLogger(__name__)
 
@@ -62,7 +62,7 @@ class Exchange(BaseChannel):
     def delete(self, if_unused=False) -> asyncio.Future:
         log.warning("Deleting %r", self)
         self._futures.reject_all(RuntimeError("Exchange was deleted"))
-        future = create_future(loop=self.loop)
+        future = asyncio.Future(loop=self.loop)
         self._channel.exchange_delete(future.set_result, self.name, if_unused=if_unused)
         return future
 

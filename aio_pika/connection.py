@@ -158,9 +158,10 @@ class Connection:
 
 @asyncio.coroutine
 def connect(url: str=None, *, host: str='localhost',
-                  port: int=5672, login: str='guest',
-                  password: str='guest', virtualhost: str='/',
-                  ssl: bool=False, loop=None, **kwargs) -> Connection:
+            port: int=5672, login: str='guest',
+            password: str='guest', virtualhost: str='/',
+            ssl: bool=False, loop=None, **kwargs) -> Connection:
+
     if url:
         url = URL(str(url))
         host = url.host or host
@@ -188,5 +189,3 @@ def connect_url(url: str, loop=None) -> Connection:
 
 
 __all__ = ('connect', 'connect_url', 'Connection')
-
-

@@ -5,7 +5,7 @@ from pika.channel import Channel
 from .exchange import Exchange
 from .message import IncomingMessage
 from .common import BaseChannel, FutureStore
-from .tools import create_task, iscoroutinepartial
+
 
 log = getLogger(__name__)
 
@@ -98,20 +98,20 @@ class Queue(BaseChannel):
                 no_ack: bool = False, exclusive: bool = False, arguments: dict = None):
 
         log.debug("Start to consuming queue: %r", self)
+        callback = asyncio.coroutine(callback)
 
         def consumer(channel: Channel, envelope, properties, body: bytes):
-            message = IncomingMessage(
-                channel=channel,
-                body=body,
-                envelope=envelope,
-                properties=properties,
-                no_ack=no_ack
+            self.loop.create_task(
+                asyncio.coroutine(callback)(
+                    IncomingMessage(
+                        channel=channel,
+                        body=body,
+                        envelope=envelope,
+                        properties=properties,
+                        no_ack=no_ack
+                    )
+                )
             )
-
-            if iscoroutinepartial(callback):
-                create_task(loop=self.loop)(callback(message))
-            else:
-                self.loop.call_soon(callback, message)
 
         self._channel.basic_consume(
             consumer_callback=consumer,

@@ -208,7 +208,6 @@ class TestCase(AsyncTestCase):
         yield from queue.delete()
         yield from wait((client.close(), client.closing), loop=self.loop)
 
-
     @pytest.mark.asyncio
     def test_consuming(self):
         client = yield from connect(AMQP_URL, loop=self.loop)
