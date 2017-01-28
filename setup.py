@@ -10,11 +10,6 @@ requires = [
 ]
 
 
-PY_VER = sys.version_info
-
-if PY_VER <= (3, 4):
-    raise RuntimeError("aio-pika doesn't support Python version prior 3.4")
-
 if sys.version_info < (3, 4):
     raise RuntimeError("aio-pika doesn't support Python version prior 3.4")
 
