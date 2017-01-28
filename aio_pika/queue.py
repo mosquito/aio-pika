@@ -102,7 +102,7 @@ class Queue(BaseChannel):
 
         def consumer(channel: Channel, envelope, properties, body: bytes):
             self.loop.create_task(
-                asyncio.coroutine(callback)(
+                callback(
                     IncomingMessage(
                         channel=channel,
                         body=body,
