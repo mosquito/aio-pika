@@ -12,6 +12,9 @@ requires = [
 if sys.version_info < (3, 5):
     requires.append('asyncio')
 
+if sys.version_info < (3, 4):
+    raise RuntimeError("aio-pika doesn't support Python version prior 3.4")
+
 
 setup(
     name='aio-pika',
@@ -40,4 +43,16 @@ setup(
     ),
     packages=find_packages(exclude=['tests']),
     install_requires=requires,
+    extras_require={
+        'develop': [
+            'asynctest',
+            'coverage!=4.3',
+            'coveralls',
+            'pytest',
+            'pytest-asyncio',
+            'pytest-cov',
+            'timeout-decorator',
+            'tox>=2.4',
+        ],
+    },
 )
