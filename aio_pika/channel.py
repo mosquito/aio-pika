@@ -13,7 +13,7 @@ log = getLogger(__name__)
 
 class Channel(BaseChannel):
     __slots__ = ('__connection', '__closing', '__confirmations', '__delivery_tag',
-                 'loop', '_futures', '__channel',)
+                 'loop', '_futures', '__channel', 'default_exchange')
 
     def __init__(self, connection,
                  loop: asyncio.AbstractEventLoop, future_store: FutureStore):
@@ -24,6 +24,18 @@ class Channel(BaseChannel):
         self.__connection = connection
         self.__confirmations = {}
         self.__delivery_tag = 0
+
+        self.default_exchange = Exchange(
+            self.__channel,
+            self._publish,
+            '',
+            ExchangeType.DIRECT,
+            durable=None,
+            auto_delete=None,
+            arguments=None,
+            loop=self.loop,
+            future_store=self._futures.get_child(),
+        )
 
     def __str__(self):
         return "{0}".format(self.__channel.channel_number if self.__channel else "Not initialized chanel")
