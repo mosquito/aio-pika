@@ -15,14 +15,14 @@ if sys.version_info < (3, 4):
 
 setup(
     name='aio-pika',
-    version='0.6.0',
+    version='0.6.1',
     author="Dmitry Orlov <me@mosquito.su>",
     author_email="me@mosquito.su",
     license="Apache Software License",
     description="Wrapper for the PIKA for asyncio and humans.",
     long_description=open("README.rst").read(),
     platforms="all",
-    classifiers=(
+    classifiers=[
         'License :: OSI Approved :: Apache Software License',
         'Topic :: Internet',
         'Topic :: Software Development',
@@ -37,7 +37,7 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: Implementation :: CPython',
-    ),
+    ],
     packages=find_packages(exclude=['tests']),
     install_requires=requires,
     extras_require={
