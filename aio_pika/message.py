@@ -120,7 +120,7 @@ class Message:
 class IncomingMessage(Message):
     __slots__ = (
         '_loop', '__channel', 'cluster_id', 'consumer_tag',
-        'delivery_tag', 'exchange', 'routing_key',
+        'delivery_tag', 'exchange', 'routing_key', 'synchronous',
         'redelivered', '__no_ack', '__processed'
     )
 
@@ -147,10 +147,12 @@ class IncomingMessage(Message):
         )
 
         self.cluster_id = properties.cluster_id
+        self.consumer_tag = envelope.consumer_tag
         self.delivery_tag = envelope.delivery_tag
         self.exchange = envelope.exchange
         self.routing_key = envelope.routing_key
         self.redelivered = envelope.redelivered
+        self.synchronous = envelope.synchronous
 
     @contextmanager
     def proccess(self, requeue=False):
@@ -189,10 +191,12 @@ class IncomingMessage(Message):
     def info(self):
         info = super(IncomingMessage, self).info()
         info['cluster_id'] = self.cluster_id
+        info['consumer_tag'] = self.consumer_tag
         info['delivery_tag'] = self.delivery_tag
         info['exchange'] = self.exchange
         info['redelivered'] = self.redelivered
         info['routing_key'] = self.routing_key
+        info['synchronous'] = self.synchronous
         return info
 
 
