@@ -90,7 +90,7 @@ class Message:
     def __repr__(self):
         return "{name}:{repr}".format(
             name=self.__class__.__name__,
-            repr=json.dumps(self.info(), indent=1)
+            repr=json.dumps(self.info(), indent=1, sort_keys=True)
         )
 
     def __setattr__(self, key, value):
@@ -185,6 +185,15 @@ class IncomingMessage(Message):
             self.__processed = True
             if not self.locked:
                 self.lock()
+
+    def info(self):
+        info = super(IncomingMessage, self).info()
+        info['cluster_id'] = self.cluster_id
+        info['delivery_tag'] = self.delivery_tag
+        info['exchange'] = self.exchange
+        info['redelivered'] = self.redelivered
+        info['routing_key'] = self.routing_key
+        return info
 
 
 __all__ = ('Message', 'IncomingMessage')
