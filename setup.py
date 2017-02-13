@@ -16,7 +16,7 @@ if sys.version_info < (3, 4):
 
 setup(
     name='aio-pika',
-    version='0.6.1',
+    version='0.6.2',
     author="Dmitry Orlov <me@mosquito.su>",
     author_email="me@mosquito.su",
     license="Apache Software License",
