@@ -48,6 +48,8 @@ setup(
             'pytest',
             'pytest-asyncio',
             'pytest-cov',
+            'sphinx',
+            'sphinx-autobuild',
             'timeout-decorator',
             'tox>=2.4',
         ],
