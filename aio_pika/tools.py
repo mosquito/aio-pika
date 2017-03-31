@@ -2,8 +2,19 @@ import asyncio
 from functools import partial
 
 
+__all__ = 'wait', 'copy_future', 'create_future', 'create_task', 'iscoroutinepartial'
+
+
 def iscoroutinepartial(fn):
-    # http://bugs.python.org/issue23519
+    """
+    Function returns True if function it's a partial instance of coroutine. See additional information here_.
+
+    :param fn: Function
+    :return: bool
+
+    .. _here: https://goo.gl/C0S4sQ
+
+    """
 
     while True:
         parent = fn
@@ -17,7 +28,11 @@ def iscoroutinepartial(fn):
 
 
 def create_future(*, loop):
-        # https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.create_future
+    """ Helper for `create a new future`_ with backward compatibility for Python 3.4
+
+    .. _create a new future: https://goo.gl/YrzGQ6
+    """
+
     try:
         return loop.create_future()
     except AttributeError:
@@ -25,7 +40,11 @@ def create_future(*, loop):
 
 
 def create_task(*, loop=None):
-    # https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.AbstractEventLoop.create_task
+    """ Helper for `create a new Task`_ with backward compatibility for Python 3.4
+
+    .. _create a new Task: https://goo.gl/g4pMV9
+    """
+
     loop = loop or asyncio.get_event_loop()
 
     try:
@@ -44,6 +63,13 @@ def _on_result(future: asyncio.Future, new_future: asyncio.Future=None):
 
 
 def copy_future(future: asyncio.Future, new_future: asyncio.Future=None):
+    """ Creates a copy of passed future instance. Actually another future will be
+    created but result or exception of original future will be passed to created future.
+
+    :param future: :class:`asyncio.Future` instance
+    :param new_future: Target future (:class:`None` by default)
+    :return: :class:`asyncio.Future`
+    """
     new_future = new_future or create_future(loop=future._loop)
 
     handler = partial(_on_result, new_future=new_future)
@@ -54,6 +80,14 @@ def copy_future(future: asyncio.Future, new_future: asyncio.Future=None):
 
 @asyncio.coroutine
 def wait(tasks, loop=None):
+    """
+    Simple helper for gathering all passed :class:`Task`s.
+
+    :param tasks: list of the :class:`asyncio.Task`s
+    :param loop: Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
+    :return: :class:`tuple` of results
+    """
+
     loop = loop or asyncio.get_event_loop()
     done = yield from asyncio.gather(*list(tasks), loop=loop)
     return tuple(map(lambda x: x.result() if isinstance(x, asyncio.Future) else x, done))

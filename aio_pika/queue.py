@@ -11,6 +11,8 @@ log = getLogger(__name__)
 
 
 class Queue(BaseChannel):
+    """ AMQP queue abstraction """
+
     __slots__ = ('name', 'durable', 'exclusive',
                  'auto_delete', 'arguments',
                  '_channel', '__closing')
@@ -38,6 +40,12 @@ class Queue(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     def declare(self, timeout: int = None) -> asyncio.Future:
+        """ Declare queue.
+
+        :param timeout: execution timeout
+        :return: :class:`None`
+        """
+
         log.debug("Declaring queue: %r", self)
 
         f = self._create_future(timeout)
@@ -54,6 +62,19 @@ class Queue(BaseChannel):
     @BaseChannel._ensure_channel_is_open
     def bind(self, exchange: Exchange,
              routing_key: str, *, arguments=None, timeout: int = None) -> asyncio.Future:
+
+        """ A binding is a relationship between an exchange and a queue. This can be
+        simply read as: the queue is interested in messages from this exchange.
+
+        Bindings can take an extra routing_key parameter. To avoid the confusion
+        with a basic_publish parameter we're going to call it a binding key.
+
+        :param exchange: :class:`aio_pika.exchange.Exchange` instance
+        :param routing_key: routing key
+        :param arguments: additional arguments (will be passed to `pika`)
+        :param timeout: execution timeout
+        :return: :class:`None`
+        """
 
         log.debug(
             "Binding queue %r: exchange=%r, routing_key=%r, arguments=%r",
@@ -76,6 +97,15 @@ class Queue(BaseChannel):
     def unbind(self, exchange: Exchange, routing_key: str,
                arguments: dict = None, timeout: int = None) -> asyncio.Future:
 
+        """ Remove binding from exchange for this :class:`Queue` instance
+
+        :param exchange: :class:`aio_pika.exchange.Exchange` instance
+        :param routing_key: routing key
+        :param arguments: additional arguments (will be passed to `pika`)
+        :param timeout: execution timeout
+        :return: :class:`None`
+        """
+
         log.debug(
             "Unbinding queue %r: exchange=%r, routing_key=%r, arguments=%r",
             self, exchange, routing_key, arguments
@@ -96,6 +126,16 @@ class Queue(BaseChannel):
     @BaseChannel._ensure_channel_is_open
     def consume(self, callback: FunctionType,
                 no_ack: bool = False, exclusive: bool = False, arguments: dict = None):
+
+        """ Start to consuming the :class:`Queue`.
+
+        :param callback: Consuming callback
+        :param no_ack: if :class:`True` you don't need to call :func:`aio_pika.message.IncomingMessage.ack`
+        :param exclusive: Makes this queue exclusive. Exclusive queues may only be accessed by the current connection,
+        and are deleted when that connection closes. Passive declaration of an exclusive queue by other connections
+        are not allowed.
+        :return: :class:`None`
+        """
 
         log.debug("Start to consuming queue: %r", self)
 
@@ -125,6 +165,13 @@ class Queue(BaseChannel):
     @asyncio.coroutine
     def get(self, *, no_ack=False, timeout=None) -> IncomingMessage:
 
+        """ Get message from the queue.
+
+        :param no_ack: if :class:`True` you don't need to call :func:`aio_pika.message.IncomingMessage.ack`
+        :param timeout: execution timeout
+        :return: :class:`aio_pika.message.IncomingMessage`
+        """
+
         log.debug("Awaiting message from queue: %r", self)
 
         f = self._create_future(timeout)
@@ -147,6 +194,11 @@ class Queue(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     def purge(self, timeout=None) -> asyncio.Future:
+        """ Purge all messages from the queue.
+
+        :param timeout: execution timeout
+        :return: :class:`None`
+        """
 
         log.warning("Purging queue: %r", self)
 
@@ -156,6 +208,14 @@ class Queue(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     def delete(self, *, if_unused=True, if_empty=True, timeout=None) -> asyncio.Future:
+        """ Delete the queue.
+
+        :param if_unused: Perform delete only when unused
+        :param if_empty: Perform delete only when empty
+        :param timeout: execution timeout
+        :return: :class:`None`
+        """
+
         log.warning("Deleting %r", self)
 
         self._futures.reject_all(RuntimeError("Queue was deleted"))
@@ -172,4 +232,4 @@ class Queue(BaseChannel):
         return future
 
 
-__all__ = ('Queue',)
+__all__ = 'Queue',

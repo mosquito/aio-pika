@@ -45,6 +45,13 @@ class Exchange(BaseChannel):
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
     def publish(self, message: Message, routing_key, *, mandatory=True, immediate=False):
+        """ Publish the message to the queue. :module:`aio_pika` use `publisher confirms`_
+        extension for message delivery.
+
+        .. _publisher confirms: https://www.rabbitmq.com/confirms.html
+
+        """
+
         log.debug("Publishing message via exchange %s: %r", self, message)
 
         return (
