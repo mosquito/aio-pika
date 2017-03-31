@@ -147,7 +147,7 @@ class IncomingMessage(Message):
         )
 
         self.cluster_id = properties.cluster_id
-        self.consumer_tag = envelope.consumer_tag
+        self.consumer_tag = getattr(envelope, 'consumer_tag', None)
         self.delivery_tag = envelope.delivery_tag
         self.exchange = envelope.exchange
         self.routing_key = envelope.routing_key
