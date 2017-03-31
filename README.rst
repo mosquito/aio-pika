@@ -43,7 +43,7 @@ Usage example
     from aio_pika import connect
 
 
-    @acyncio.coroutine
+    @asyncio.coroutine
     def main(loop):
         connection = yield from connect("amqp://guest:guest@127.0.0.1/", loop=loop)
 
