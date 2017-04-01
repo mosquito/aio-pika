@@ -2,6 +2,8 @@ import asyncio
 import warnings
 from functools import wraps
 from logging import getLogger
+from typing import Callable
+
 from pika import ConnectionParameters
 from pika.credentials import PlainCredentials
 from pika.spec import REPLY_SUCCESS
@@ -27,6 +29,8 @@ def _ensure_connection(func):
 
 
 class Connection:
+    """ Connection abstraction """
+
     __slots__ = (
         'loop', '__closing', '_connection', '_futures', '__sender_lock',
         '_io_loop', '__connecting', '__connection_parameters', '__credentials',
@@ -68,11 +72,18 @@ class Connection:
         cls_name = self.__class__.__name__
         return '<{0}: "{1}">'.format(cls_name, str(self))
 
-    def add_close_callback(self, callback):
+    def add_close_callback(self, callback: Callable[[], None]):
+        """ Add callback which will be called after connection will be closed.
+
+        :return: None
+        """
+
         self.__closing.add_done_callback(callback)
 
     @property
     def is_closed(self):
+        """ Is this connection are closed """
+
         if not (self._connection and self._connection.socket):
             return True
 
@@ -83,10 +94,13 @@ class Connection:
 
     @property
     def closing(self):
+        """ Return future which will be finished after connection close. """
         return copy_future(self.__closing)
 
     @asyncio.coroutine
     def connect(self):
+        """ Perform connect. This method should be called after :func:`aio_pika.connection.Connection.__init__`"""
+
         if self.closing.done():
             raise RuntimeError("Invalid connection state")
 
@@ -139,7 +153,7 @@ class Connection:
     @_ensure_connection
     @asyncio.coroutine
     def channel(self) -> Channel:
-
+        """ Get a channel """
         log.debug("Creating AMQP channel for conneciton: %r", self)
 
         channel = Channel(self, self.loop, self._futures)
@@ -151,6 +165,7 @@ class Connection:
 
     @asyncio.coroutine
     def close(self) -> None:
+        """ Close AMQP connection """
         log.debug("Closing AMQP connection")
         self._connection.close()
         yield from self.closing
@@ -161,6 +176,23 @@ def connect(url: str=None, *, host: str='localhost',
                   port: int=5672, login: str='guest',
                   password: str='guest', virtualhost: str='/',
                   ssl: bool=False, loop=None, **kwargs) -> Connection:
+    """ Make connection to the broker
+
+    :param url: `RFC3986`_ formatted broker address. When :class:`None` will be used keyword arguments.
+    :param host: hostname of the broker
+    :param port: broker port 5672 by default
+    :param login: username string. `'guest'` by default.
+    :param password: password string. `'guest'` by default.
+    :param virtualhost: virtualhost parameter. `'/'` by default
+    :param ssl: use SSL for connection. Should be used with addition kwargs. See `pika documentation`_ for more info.
+    :param loop: Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
+    :param kwargs: addition parameters which will be passed to the pika connection.
+    :return: :class:`aio_pika.connection.Connection`
+
+    .. _RFC3986: https://tools.ietf.org/html/rfc3986
+    .. _pika documentation: https://goo.gl/TdVuZ9
+    """
+
     if url:
         url = URL(str(url))
         host = url.host or host
