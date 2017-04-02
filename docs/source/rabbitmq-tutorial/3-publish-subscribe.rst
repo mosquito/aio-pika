@@ -72,5 +72,121 @@ We'll focus on the last one — the fanout. Let's create an exchange of that typ
     async def main():
         ...
 
-        await channel.declare_exchange('logs', ExchangeType.FANOUT)
+        logs_exchange = await channel.declare_exchange('logs', ExchangeType.FANOUT)
 
+The fanout exchange is very simple. As you can probably guess from the name, it just broadcasts
+all the messages it receives to all the queues it knows. And that's exactly what we need for our logger.
+
+.. note::
+
+    **Listing exchanges**
+
+    To list the exchanges on the server you can run the ever useful rabbitmqctl::
+
+        $ sudo rabbitmqctl list_exchanges
+        Listing exchanges ...
+        logs      fanout
+        amq.direct      direct
+        amq.topic       topic
+        amq.fanout      fanout
+        amq.headers     headers
+        ...done.
+
+    In this list there are some `amq.*` exchanges and the default (unnamed) exchange.
+    These are created by default, but it is unlikely you'll need to use them at the moment.
+
+    **Nameless exchange**
+
+    In previous parts of the tutorial we knew nothing about exchanges, but still were able to
+    send messages to queues. That was possible because we were using a default exchange,
+    which we identify by the empty string ("").
+
+    Recall how we published a message before:
+
+    .. code-block:: python
+
+        await channel.default_exchange.publish(
+            Message(message_body),
+            routing_key='hello',
+        )
+
+    The exchange parameter is the name of the exchange. The empty string denotes the
+    default or nameless exchange: messages are routed to the queue with the name specified
+    by routing_key, if it exists.
+
+
+Now, we can publish to our named exchange instead:
+
+.. code-block:: python
+
+    async def main():
+        ...
+
+        await logs_exchange.publish(
+            Message(message_body),
+            routing_key='hello',
+        )
+
+    ...
+
+Temporary queues
+++++++++++++++++
+
+As you may remember previously we were using queues which had a specified name
+(remember `hello` and `task_queue`?). Being able to name a queue was crucial for us — we needed to point
+the workers to the same queue. Giving a queue a name is important when you want to share the
+queue between producers and consumers.
+
+But that's not the case for our logger. We want to hear about all log messages, not just a subset
+of them. We're also interested only in currently flowing messages not in the old ones. To solve
+that we need two things.
+
+Firstly, whenever we connect to Rabbit we need a fresh, empty queue. To do it we could create a
+queue with a random name, or, even better - let the server choose a random queue name for us.
+We can do this by not supplying the queue parameter to `declare_queue`:
+
+.. code-block:: python
+
+    queue = await channel.declare_queue()
+
+Secondly, once we disconnect the consumer the queue should be deleted. There's an exclusive flag for that:
+
+.. code-block:: python
+
+    queue = await channel.declare_queue(exclusive=True)
+
+Bindings
+++++++++
+
+.. image:: https://www.rabbitmq.com/img/tutorials/bindings.png
+   :align: center
+
+We've already created a fanout exchange and a queue. Now we need to tell the exchange to
+send messages to our queue. That relationship between exchange and a queue is called a binding.
+
+.. code-block:: python
+
+    await queue.bind(exchange='logs')
+
+From now on the logs exchange will append messages to our queue.
+
+
+.. note::
+
+    **Listing bindings**
+
+    You can list existing bindings using, you guessed it, `rabbitmqctl list_bindings`.
+
+
+Putting it all together
++++++++++++++++++++++++
+
+.. image:: https://www.rabbitmq.com/img/tutorials/python-three-overall.png
+   :align: center
+
+The producer program, which emits log messages, doesn't look much different from the previous tutorial.
+The most important change is that we now want to publish messages to our logs exchange instead
+of the nameless one. We need to supply a routing_key when sending, but its value is ignored
+for fanout exchanges. Here goes the code for emit_log.py script:
+
+TODO

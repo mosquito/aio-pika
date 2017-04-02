@@ -1,4 +1,5 @@
 import asyncio
+import os
 import uuid
 import logging
 import pytest
@@ -67,6 +68,27 @@ class TestCase(AsyncTestCase):
 
         yield from channel.queue_delete(queue_name)
         yield from channel.exchange_delete(exchange)
+
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
+    def test_temporary_queue(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        channel = yield from client.channel()
+        queue = yield from channel.declare_queue(auto_delete=True)
+
+        self.assertNotEqual(queue.name, '')
+
+        body = os.urandom(32)
+
+        yield from channel.default_exchange.publish(Message(body=body), routing_key=queue.name)
+
+        message = yield from queue.get()
+
+        self.assertEqual(message.body, body)
+
+        yield from channel.queue_delete(queue.name)
 
         yield from wait((client.close(), client.closing), loop=self.loop)
 

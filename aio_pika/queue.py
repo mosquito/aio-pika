@@ -23,7 +23,7 @@ class Queue(BaseChannel):
         super().__init__(loop, future_store)
 
         self._channel = channel
-        self.name = name
+        self.name = name or ''
         self.durable = durable
         self.exclusive = exclusive
         self.auto_delete = auto_delete
@@ -57,11 +57,16 @@ class Queue(BaseChannel):
             exclusive=self.exclusive
         )
 
+        def on_queue_declared(result):
+            self.name = result.result().method.queue
+
+        f.add_done_callback(on_queue_declared)
+
         return f
 
     @BaseChannel._ensure_channel_is_open
     def bind(self, exchange: Exchange,
-             routing_key: str, *, arguments=None, timeout: int = None) -> asyncio.Future:
+             routing_key: str=None, *, arguments=None, timeout: int = None) -> asyncio.Future:
 
         """ A binding is a relationship between an exchange and a queue. This can be
         simply read as: the queue is interested in messages from this exchange.
