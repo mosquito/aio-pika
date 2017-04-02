@@ -148,7 +148,7 @@ class Channel(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
-    def declare_queue(self, name: str = '', *, durable: bool = None, exclusive: bool = False,
+    def declare_queue(self, name: str = None, *, durable: bool = None, exclusive: bool = False,
                       auto_delete: bool = False, arguments: dict = None, timeout: int = None) -> Queue:
         """
 
