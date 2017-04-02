@@ -36,7 +36,7 @@ Welcome to aio-pika's documentation!
 
 
 Tutorial
-========
+++++++++
 
 .. toctree::
    :maxdepth: 3
@@ -44,10 +44,11 @@ Tutorial
    :glob:
 
    rabbitmq-tutorial/*
+   apidoc/*
 
 
 Installation
-------------
+++++++++++++
 
 .. code-block:: shell
 
@@ -55,7 +56,7 @@ Installation
 
 
 Usage example
--------------
++++++++++++++
 
 .. code-block:: python
 
@@ -104,11 +105,3 @@ Usage example
     if __name__ == "__main__":
         loop = asyncio.get_event_loop()
         loop.run_until_complete(main(loop))
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
