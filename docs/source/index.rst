@@ -6,10 +6,6 @@
 Welcome to aio-pika's documentation!
 ====================================
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
 .. image:: https://coveralls.io/repos/github/mosquito/aio-pika/badge.svg?branch=master
     :target: https://coveralls.io/github/mosquito/aio-pika
     :alt: Coveralls
@@ -97,6 +93,17 @@ Usage example
     if __name__ == "__main__":
         loop = asyncio.get_event_loop()
         loop.run_until_complete(main(loop))
+
+
+Tutorial
+========
+
+.. toctree::
+   :maxdepth: 3
+   :caption: RabbitMQ tutorial adopted for aio_pika
+   :glob:
+
+   rabbitmq-tutorial/*
 
 
 Indices and tables
