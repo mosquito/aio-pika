@@ -35,6 +35,17 @@ Welcome to aio-pika's documentation!
 .. _PIKA: https://github.com/pika/pika
 
 
+Tutorial
+========
+
+.. toctree::
+   :maxdepth: 3
+   :caption: RabbitMQ tutorial adopted for aio-pika_
+   :glob:
+
+   rabbitmq-tutorial/*
+
+
 Installation
 ------------
 
@@ -93,17 +104,6 @@ Usage example
     if __name__ == "__main__":
         loop = asyncio.get_event_loop()
         loop.run_until_complete(main(loop))
-
-
-Tutorial
-========
-
-.. toctree::
-   :maxdepth: 3
-   :caption: RabbitMQ tutorial adopted for aio_pika
-   :glob:
-
-   rabbitmq-tutorial/*
 
 
 Indices and tables
