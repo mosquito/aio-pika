@@ -173,9 +173,9 @@ class Connection:
 
 @asyncio.coroutine
 def connect(url: str=None, *, host: str='localhost',
-                  port: int=5672, login: str='guest',
-                  password: str='guest', virtualhost: str='/',
-                  ssl: bool=False, loop=None, **kwargs) -> Connection:
+            port: int=5672, login: str='guest',
+            password: str='guest', virtualhost: str='/',
+            ssl: bool=False, loop=None, **kwargs) -> Connection:
     """ Make connection to the broker
 
     :param url: `RFC3986`_ formatted broker address. When :class:`None` will be used keyword arguments.
@@ -220,5 +220,3 @@ def connect_url(url: str, loop=None) -> Connection:
 
 
 __all__ = ('connect', 'connect_url', 'Connection')
-
-

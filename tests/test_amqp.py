@@ -4,7 +4,7 @@ import logging
 import pytest
 import shortuuid
 import aio_pika.exceptions
-from aio_pika import connect, connect_url, Message, Connection, Channel, Exchange
+from aio_pika import connect, connect_url, Message
 from aio_pika.exceptions import ProbableAuthenticationError, MessageProcessError
 from aio_pika.exchange import ExchangeType
 from aio_pika.tools import wait
@@ -32,8 +32,8 @@ class TestCase(AsyncTestCase):
     def test_channel_close(self):
         client = yield from connect(AMQP_URL, loop=self.loop)
 
-        queue_name = self.get_random_name("test_connection")
-        routing_key = self.get_random_name()
+        self.get_random_name("test_connection")
+        self.get_random_name()
 
         self.__closed = False
 
@@ -127,12 +127,12 @@ class TestCase(AsyncTestCase):
         incoming_message = yield from queue.get(timeout=5)
 
         with self.assertRaises(AssertionError):
-            with incoming_message.proccess(requeue=True) as msg:
+            with incoming_message.proccess(requeue=True):
                 raise AssertionError
 
         incoming_message = yield from queue.get(timeout=5)
 
-        with incoming_message.proccess() as msg:
+        with incoming_message.proccess():
             pass
 
         self.assertEqual(incoming_message.body, body)
@@ -207,7 +207,6 @@ class TestCase(AsyncTestCase):
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
         yield from wait((client.close(), client.closing), loop=self.loop)
-
 
     @pytest.mark.asyncio
     def test_consuming(self):
@@ -417,7 +416,7 @@ class TestCase(AsyncTestCase):
 
     @pytest.mark.asyncio
     def test_dlx(self):
-        client = yield from connect(AMQP_URL, loop=self.loop)    # type: Connection
+        client = yield from connect(AMQP_URL, loop=self.loop)
         direct_queue_name = self.get_random_name("test_dlx", "direct")
         dlx_queue_name = self.get_random_name("test_dlx", "dlx")
 
@@ -483,7 +482,7 @@ class TestCase(AsyncTestCase):
         routing_key = self.get_random_name()
 
         channel = yield from client.channel()    # type: Channel
-        exchange = yield from channel.declare_exchange('direct', auto_delete=True)    # type: Exchange
+        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
 
         try:
             with self.assertRaises(aio_pika.exceptions.ChannelClosed):
