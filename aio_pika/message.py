@@ -1,5 +1,5 @@
 import json
-from enum import IntEnum
+from enum import IntEnum, unique
 from logging import getLogger
 from pika import BasicProperties
 from pika.channel import Channel
@@ -10,6 +10,7 @@ from .exceptions import MessageProcessError
 log = getLogger(__name__)
 
 
+@unique
 class DeliveryMode(IntEnum):
     NOT_PERSISTENT = 1
     PERSISTENT = 2
