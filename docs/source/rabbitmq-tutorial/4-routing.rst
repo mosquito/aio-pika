@@ -84,7 +84,7 @@ is simple — a message goes to the queues whose binding key exactly matches the
 
 To illustrate that, consider the following setup:
 
-.. image:: https://www.rabbitmq.com/img/tutorials/direct-exchange.png
+.. image:: static/direct-exchange.png
    :align: center
 
 In this setup, we can see the *direct* exchange X with two queues bound to it. The first queue is
@@ -99,7 +99,7 @@ All other messages will be discarded.
 Multiple bindings
 +++++++++++++++++
 
-.. image:: https://www.rabbitmq.com/img/tutorials/direct-exchange-multiple.png
+.. image:: static/direct-exchange-multiple.png
    :align: center
 
 It is perfectly legal to bind multiple queues with the same binding key. In our
@@ -164,7 +164,7 @@ going to create a new binding for each severity we're interested in.
 Putting it all together
 +++++++++++++++++++++++
 
-.. image:: https://www.rabbitmq.com/img/tutorials/python-four.png
+.. image:: static/python-four.png
    :align: center
 
 The code for *emit_log_direct.py*:

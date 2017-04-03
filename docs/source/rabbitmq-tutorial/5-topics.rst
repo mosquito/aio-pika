@@ -59,7 +59,7 @@ cases for binding keys:
 
 It's easiest to explain this in an example:
 
-.. image:: https://www.rabbitmq.com/img/tutorials/python-five.png
+.. image:: static/python-five.png
    :align: center
 
 In this example, we're going to send messages which all describe animals. The messages will be sent
@@ -211,4 +211,4 @@ And to emit a log with a routing key `"kern.critical"` type::
 Have fun playing with these programs. Note that the code doesn't make any assumption
 about the routing or binding keys, you may want to play with more than two routing key parameters.
 
-Move on to :rpc:`tutorial 6 <rpc>` to learn about RPC.
+Move on to :ref:`tutorial 6 <rpc>` to learn about RPC.

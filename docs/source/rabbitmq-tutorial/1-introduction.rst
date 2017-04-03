@@ -34,7 +34,7 @@ RabbitMQ, and messaging in general, uses some jargon.
 
 We'll draw it like that, with "P":
 
-.. image:: https://www.rabbitmq.com/img/tutorials/producer.png
+.. image:: static/producer.png
    :align: center
 
 * A queue is the name for a mailbox. It lives inside RabbitMQ.
@@ -46,7 +46,7 @@ We'll draw it like that, with "P":
 
 A queue will be drawn as like that, with its name above it:
 
-.. image:: https://www.rabbitmq.com/img/tutorials/queue.png
+.. image:: static/queue.png
    :align: center
 
 * Consuming has a similar meaning to receiving. A consumer is a
@@ -54,7 +54,7 @@ A queue will be drawn as like that, with its name above it:
 
 On our drawings it's shown with "C":
 
-.. image:: https://www.rabbitmq.com/img/tutorials/consumer.png
+.. image:: static/consumer.png
    :align: center
 
 .. note::
@@ -74,7 +74,7 @@ message and one that receives and prints it.
 
 Our overall design will look like:
 
-.. image:: https://www.rabbitmq.com/img/tutorials/python-one-overall.png
+.. image:: static/python-one-overall.png
    :align: center
 
 Producer sends messages to the "hello" queue. The consumer receives messages from that queue.
@@ -96,7 +96,7 @@ Producer sends messages to the "hello" queue. The consumer receives messages fro
 Sending
 +++++++
 
-.. image:: https://www.rabbitmq.com/img/tutorials/sending.png
+.. image:: static/sending.png
    :align: center
 
 Our first program *send.py* will send a single message to the queue. The first
@@ -184,7 +184,7 @@ message was actually delivered to RabbitMQ. We can do it by gently closing the c
 Receiving
 +++++++++
 
-.. image:: https://www.rabbitmq.com/img/tutorials/receiving.png
+.. image:: static/receiving.png
    :align: center
 
 Our second program *receive.py* will receive messages from the queue and print them on the screen.
