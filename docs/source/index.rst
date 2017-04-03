@@ -44,7 +44,7 @@ Tutorial
    :glob:
 
    rabbitmq-tutorial/*
-   apidoc/*
+   apidoc
 
 
 Installation
