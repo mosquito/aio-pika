@@ -149,12 +149,12 @@ class TestCase(AsyncTestCase):
         incoming_message = yield from queue.get(timeout=5)
 
         with self.assertRaises(AssertionError):
-            with incoming_message.proccess(requeue=True):
+            with incoming_message.process(requeue=True):
                 raise AssertionError
 
         incoming_message = yield from queue.get(timeout=5)
 
-        with incoming_message.proccess():
+        with incoming_message.process():
             pass
 
         self.assertEqual(incoming_message.body, body)
