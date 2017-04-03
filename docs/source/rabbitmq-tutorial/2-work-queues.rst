@@ -22,7 +22,7 @@ Work Queues
 
     .. _contact us: https://groups.google.com/forum/#!forum/rabbitmq-users
 
-.. image:: https://www.rabbitmq.com/img/tutorials/python-two.png
+.. image:: static/python-two.png
    :align: center
 
 In the :ref:`first tutorial <introduction>` we wrote programs to send and receive messages
@@ -178,6 +178,20 @@ from the worker, once we're done with a task.
         message.ack()
 
 
+or using special context processor:
+
+
+.. code-block:: python
+
+    from aio_pika import connect, IncomingMessage
+
+    def on_message(message: IncomingMessage):
+        with message.process():
+            print(" [x] Received message %r" % message)
+            print("     Message body is: %r" % message.body)
+
+
+If context processor will catch an exception, the message will be returned to the queue.
 
 Using this code we can be sure that even if you kill a worker using CTRL+C while
 it was processing a message, nothing will be lost. Soon after the worker dies all
@@ -288,7 +302,7 @@ the queue. It doesn't look at the number of unacknowledged messages for a consum
 It just blindly dispatches every n-th message to the n-th consumer.
 
 
-.. image:: https://www.rabbitmq.com/img/tutorials/prefetch-count.png
+.. image:: static/prefetch-count.png
    :align: center
 
 

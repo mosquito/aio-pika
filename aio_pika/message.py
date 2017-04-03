@@ -208,10 +208,10 @@ class IncomingMessage(Message):
         self.synchronous = envelope.synchronous
 
     @contextmanager
-    def proccess(self, requeue=False, reject_on_redelivered=False):
+    def process(self, requeue=False, reject_on_redelivered=False):
         """ Context manager for processing the message
 
-            >>> def on_message_received():
+            >>> def on_message_received(message: IncomingMessage):
             ...    with message.process():
             ...        # When exception will be raised
             ...        # the message will be rejected
