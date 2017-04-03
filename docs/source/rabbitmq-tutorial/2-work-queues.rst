@@ -346,8 +346,7 @@ Final code of our *new_task.py* script:
 
     if __name__ == "__main__":
         loop = asyncio.get_event_loop()
-        loop.add_callback(main(loop))
-        loop.run_until_complete()
+        loop.run_until_complete(main(loop))
 
 
 And our *worker.py*:
