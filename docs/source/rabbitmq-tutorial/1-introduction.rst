@@ -304,8 +304,7 @@ Full code for *send.py*:
 
     if __name__ == "__main__":
         loop = asyncio.get_event_loop()
-        loop.add_callback(main(loop))
-        loop.run_until_complete()
+        loop.run_until_complete(main(loop))
 
 Full *receive.py* code:
 
@@ -314,9 +313,11 @@ Full *receive.py* code:
     import asyncio
     from aio_pika import connect, IncomingMessage
 
+
     def on_message(message: IncomingMessage):
         print(" [x] Received message %r" % message)
         print("     Message body is: %r" % message.body)
+
 
     async def main(loop):
         # Perform connection
@@ -330,6 +331,7 @@ Full *receive.py* code:
 
         # Start listening the queue with name 'hello'
         await queue.consume(on_message, no_ack=True)
+
 
     if __name__ == "__main__":
         loop = asyncio.get_event_loop()

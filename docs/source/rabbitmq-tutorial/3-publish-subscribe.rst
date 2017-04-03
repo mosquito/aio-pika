@@ -187,6 +187,117 @@ Putting it all together
 The producer program, which emits log messages, doesn't look much different from the previous tutorial.
 The most important change is that we now want to publish messages to our logs exchange instead
 of the nameless one. We need to supply a routing_key when sending, but its value is ignored
-for fanout exchanges. Here goes the code for emit_log.py script:
+for fanout exchanges. Here goes the code for *emit_log.py* script:
 
-TODO
+
+.. code-block:: python
+
+    import sys
+    import asyncio
+    from aio_pika import connect, Message
+
+    async def main(loop):
+        # Perform connection
+        connection = await connect("amqp://guest:guest@localhost/", loop=loop)
+
+        # Creating a channel
+        channel = await connection.channel()
+
+        logs_exchange = await channel.declare_exchange('logs', ExchangeType.FANOUT)
+
+        message_body = b' '.join(sys.argv[1:]) or b"Hello World!"
+
+        message = Message(
+            message_body,
+            delivery_mode=DeliveryMode.PERSISTENT
+        )
+
+        # Sending the message
+        await logs_exchange.publish(message, routing_key='task_queue')
+
+        print(" [x] Sent %r" % message)
+
+        await connection.close()
+
+    if __name__ == "__main__":
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(main(loop))
+
+
+As you see, after establishing the connection we declared the exchange. This step is
+necessary as publishing to a non-existing exchange is forbidden.
+
+The messages will be lost if no queue is bound to the exchange yet, but that's okay for
+us; if no consumer is listening yet we can safely discard the message.
+
+The code for *receive_logs.py*:
+
+.. code-block:: python
+
+    import asyncio
+    from aio_pika import connect, IncomingMessage
+
+
+    loop = asyncio.get_event_loop()
+
+
+    def on_message(message: IncomingMessage):
+        print("[x] %r" % message.body)
+
+
+    async def main():
+        # Perform connection
+        connection = await connect("amqp://guest:guest@localhost/", loop=loop)
+
+        # Creating a channel
+        channel = await connection.channel()
+        await channel.set_qos(prefetch_count=1)
+
+        logs_exchange = await channel.declare_exchange(
+            'logs',
+            ExchangeType.FANOUT
+        )
+
+        # Declaring queue
+        queue = await channel.declare_queue(exclusive=True)
+
+        # Binding the queue to the exchange
+        await queue.bind(logs_exchange)
+
+        # Start listening the queue with name 'task_queue'
+        await queue.consume(on_message)
+
+
+    if __name__ == "__main__":
+        loop = asyncio.get_event_loop()
+        loop.add_callback(main())
+
+        # we enter a never-ending loop that waits for data and runs callbacks whenever necessary.
+        print(' [*] Waiting for logs. To exit press CTRL+C')
+        loop.run_forever()
+
+We're done. If you want to save logs to a file, just open a console and type::
+
+    $ python receive_logs.py > logs_from_rabbit.log
+
+If you wish to see the logs on your screen, spawn a new terminal and run::
+
+    $ python receive_logs.py
+
+And of course, to emit logs type::
+
+    $ python emit_log.py
+
+Using *rabbitmqctl list_bindings* you can verify that the code actually creates bindings and
+queues as we want. With two *receive_logs.py* programs running you should see something like::
+
+    $ sudo rabbitmqctl list_bindings
+    Listing bindings ...
+    logs    exchange        amq.gen-JzTY20BRgKO-HjmUJj0wLg  queue           []
+    logs    exchange        amq.gen-vso0PVvyiRIL2WoV3i48Yg  queue           []
+    ...done.
+
+The interpretation of the result is straightforward: data from exchange logs goes to two queues
+with server-assigned names. And that's exactly what we intended.
+
+To find out how to listen for a subset of messages, let's move on to :ref:`tutorial 4 <routing>`
