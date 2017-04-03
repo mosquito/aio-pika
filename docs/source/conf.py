@@ -19,12 +19,8 @@
 #
 import os
 import sys
-from sphinx.apidoc import main as apidoc_main
 
 sys.path.insert(0, os.path.abspath(os.path.dirname('__file__')))
-
-
-apidoc_main(['-f', '--no-toc', '-o', 'apidoc', '../../aio_pika/'])
 
 
 # -- General configuration ------------------------------------------------
