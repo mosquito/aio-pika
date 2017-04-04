@@ -1,6 +1,9 @@
 import json
+from datetime import datetime, timedelta
 from enum import IntEnum, unique
 from logging import getLogger
+from typing import Union
+
 from pika import BasicProperties
 from pika.channel import Channel
 from contextlib import contextmanager
@@ -16,6 +19,9 @@ class DeliveryMode(IntEnum):
     PERSISTENT = 2
 
 
+DateType = Union[int, datetime, float, timedelta, None]
+
+
 class Message:
     """ AMQP message abstraction """
 
@@ -29,8 +35,9 @@ class Message:
     def __init__(self, body: bytes, *, headers: dict = None, content_type: str = None,
                  content_encoding: str = None, delivery_mode: DeliveryMode = DeliveryMode.NOT_PERSISTENT,
                  priority: int = None, correlation_id=None,
-                 reply_to: str = None, expiration: int = None,
-                 message_id: str = None, timestamp: int = None,
+                 reply_to: str = None, expiration: DateType = None,
+                 message_id: str = None,
+                 timestamp: DateType = None,
                  type: str = None, user_id: str = None,
                  app_id: str = None):
 
@@ -44,7 +51,7 @@ class Message:
         :param priority: priority
         :param correlation_id: correlation id
         :param reply_to: reply to
-        :param expiration: expiration
+        :param expiration: expiration in seconds (or datetime or timedelta)
         :param message_id: message id
         :param timestamp: timestamp
         :param type: type
@@ -59,14 +66,28 @@ class Message:
         self.content_encoding = content_encoding
         self.delivery_mode = DeliveryMode(int(delivery_mode)).value
         self.priority = priority
-        self.correlation_id = correlation_id
+        self.correlation_id = bytes(str(correlation_id), 'utf-8')
         self.reply_to = reply_to
-        self.expiration = int(expiration) if expiration else None
+        self.expiration = self._convert_timestamp(expiration) * 1000 if timestamp else None
         self.message_id = message_id
-        self.timestamp = timestamp
+        self.timestamp = int(self._convert_timestamp(timestamp)) if timestamp else None
         self.type = type
-        self.user_id = user_id
-        self.app_id = app_id
+        self.user_id = str(user_id) if user_id else None
+        self.app_id = str(app_id) if app_id else None
+
+    @staticmethod
+    def _convert_timestamp(value):
+        if isinstance(value, datetime):
+            now = datetime.now()
+            return int((value - now).total_seconds())
+        elif isinstance(value, (int, float)):
+            return value
+        elif isinstance(value, timedelta):
+            return int(value.total_seconds())
+        elif value is None:
+            return
+        else:
+            raise ValueError('Invalid expiration type: %r' % type(value), value)
 
     def info(self):
         return {
@@ -78,7 +99,7 @@ class Message:
             "priority": self.priority,
             "correlation_id": self.correlation_id,
             "reply_to": self.reply_to,
-            "expiration": self.expiration,
+            "expiration": self.expiration / 1000,
             "message_id": self.message_id,
             "timestamp": self.timestamp,
             "type": str(self.type),
@@ -104,7 +125,7 @@ class Message:
             priority=self.priority,
             correlation_id=self.correlation_id,
             reply_to=self.reply_to,
-            expiration=str(self.expiration) if self.expiration else None,
+            expiration=str(int(self.expiration)) if self.expiration else None,
             message_id=self.message_id,
             timestamp=self.timestamp,
             type=self.type,
@@ -132,12 +153,19 @@ class Message:
 
     def __copy__(self):
         return Message(
-            body=self.body, headers={k: v for k, v in self.headers.items()},
-            content_encoding=self.content_encoding, content_type=self.content_type,
-            delivery_mode=self.delivery_mode, priority=self.priority,
-            correlation_id=self.correlation_id, reply_to=self.reply_to,
-            expiration=self.expiration, message_id=self.message_id,
-            timestamp=self.timestamp, type=self.type, user_id=self.user_id,
+            body=self.body,
+            headers={k: v for k, v in self.headers.items()} if self.headers else {},
+            content_encoding=self.content_encoding,
+            content_type=self.content_type,
+            delivery_mode=self.delivery_mode,
+            priority=self.priority,
+            correlation_id=self.correlation_id,
+            reply_to=self.reply_to,
+            expiration=self.expiration,
+            message_id=self.message_id,
+            timestamp=self.timestamp,
+            type=self.type,
+            user_id=self.user_id,
             app_id=self.app_id
         )
 
@@ -182,6 +210,10 @@ class IncomingMessage(Message):
         self.__no_ack = no_ack
         self.__processed = False
 
+        expiration = None
+        if properties.expiration:
+            expiration = self._convert_timestamp(float(properties.expiration) / 1000.)
+
         super().__init__(
             body=body,
             content_type=properties.content_type,
@@ -191,9 +223,9 @@ class IncomingMessage(Message):
             priority=properties.priority,
             correlation_id=properties.correlation_id,
             reply_to=properties.reply_to,
-            expiration=properties.expiration,
+            expiration=expiration,
             message_id=properties.message_id,
-            timestamp=properties.timestamp,
+            timestamp=self._convert_timestamp(float(properties.timestamp)) if properties.timestamp else None,
             type=properties.type,
             user_id=properties.user_id,
             app_id=properties.app_id,
@@ -243,11 +275,12 @@ class IncomingMessage(Message):
 
         if self.__processed:
             raise MessageProcessError("Message already processed")
-        else:
-            self.__channel.basic_ack(delivery_tag=self.delivery_tag)
-            self.__processed = True
-            if not self.locked:
-                self.lock()
+
+        self.__channel.basic_ack(delivery_tag=self.delivery_tag)
+        self.__processed = True
+
+        if not self.locked:
+            self.lock()
 
     def reject(self, requeue=False):
         """ When `requeue=True` the message will be returned to queue. Otherwise message will be dropped.
@@ -259,11 +292,11 @@ class IncomingMessage(Message):
 
         if self.__processed:
             raise MessageProcessError("Message already processed")
-        else:
-            self.__channel.basic_reject(delivery_tag=self.delivery_tag, requeue=requeue)
-            self.__processed = True
-            if not self.locked:
-                self.lock()
+
+        self.__channel.basic_reject(delivery_tag=self.delivery_tag, requeue=requeue)
+        self.__processed = True
+        if not self.locked:
+            self.lock()
 
     def info(self):
         """ Method returns dict representation of the message """
