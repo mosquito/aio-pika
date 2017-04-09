@@ -3,6 +3,9 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+`aio_pika`_ it's a wrapper for the `PIKA`_ for asyncio and humans.
+
+
 Welcome to aio-pika's documentation!
 ====================================
 
@@ -26,9 +29,6 @@ Welcome to aio-pika's documentation!
 
 .. image:: https://img.shields.io/pypi/l/aio-pika.svg
     :target: https://pypi.python.org/pypi/aio-pika/
-
-
-`aio_pika`_ it's a wrapper for the `PIKA`_ for asyncio and humans.
 
 
 .. _aio_pika: https://github.com/mosquito/aio-pika
@@ -105,3 +105,16 @@ Usage example
     if __name__ == "__main__":
         loop = asyncio.get_event_loop()
         loop.run_until_complete(main(loop))
+
+
+
+Thanks for contributing
++++++++++++++++++++++++
+
+* `@mosquito`_ (author)
+* `@hellysmile`_ (bug fixes and smart ideas)
+* `@adelkhafizova`_ (helps with documentation)
+
+.. _@mosquito: https://github.com/mosquito
+.. _@hellysmile: https://github.com/hellysmile
+.. _@adelkhafizova: https://github.com/adelkhafizova
