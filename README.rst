@@ -1,5 +1,11 @@
+.. _documentation: https://aio-pika.readthedocs.org/
+
 aio-pika
 ========
+
+.. image:: http://aio-pika.readthedocs.io/en/latest/?badge=latest
+    :target: https://aio-pika.readthedocs.org/
+    :alt: ReadTheDocs
 
 .. image:: https://coveralls.io/repos/github/mosquito/aio-pika/badge.svg?branch=master
     :target: https://coveralls.io/github/mosquito/aio-pika
@@ -23,7 +29,7 @@ aio-pika
     :target: https://pypi.python.org/pypi/aio-pika/
 
 
-Wrapper for the PIKA for asyncio and humans.
+Wrapper for the PIKA for asyncio and humans. See examples and the tutorial in `documentation`_.
 
 
 Installation
@@ -86,3 +92,6 @@ Usage example
     if __name__ == "__main__":
         loop = asyncio.get_event_loop()
         loop.run_until_complete(main(loop))
+
+
+See another examples and the tutorial in `documentation`_.
