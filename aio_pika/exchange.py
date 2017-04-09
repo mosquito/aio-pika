@@ -18,6 +18,8 @@ class ExchangeType(Enum):
 
 
 class Exchange(BaseChannel):
+    """ Exchange abstraction """
+
     __slots__ = 'name', '__type', '__publish_method', 'arguments', 'durable', 'auto_delete', '_channel'
 
     def __init__(self, channel: Channel, publish_method, name: str,
@@ -45,6 +47,13 @@ class Exchange(BaseChannel):
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
     def publish(self, message: Message, routing_key, *, mandatory=True, immediate=False):
+        """ Publish the message to the queue. `aio_pika` use `publisher confirms`_
+        extension for message delivery.
+
+        .. _publisher confirms: https://www.rabbitmq.com/confirms.html
+
+        """
+
         log.debug("Publishing message via exchange %s: %r", self, message)
 
         return (
@@ -60,6 +69,10 @@ class Exchange(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     def delete(self, if_unused=False) -> asyncio.Future:
+        """ Delete the queue
+
+        :param if_unused: perform deletion when queue has no bindings.
+        """
         log.warning("Deleting %r", self)
         self._futures.reject_all(RuntimeError("Exchange was deleted"))
         future = create_future(loop=self.loop)
