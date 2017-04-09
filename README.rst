@@ -3,7 +3,7 @@
 aio-pika
 ========
 
-.. image:: http://aio-pika.readthedocs.io/en/latest/?badge=latest
+.. image:: https://readthedocs.org/projects/aio-pika/badge/?version=latest
     :target: https://aio-pika.readthedocs.org/
     :alt: ReadTheDocs
 
