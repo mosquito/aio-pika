@@ -91,7 +91,7 @@ todo_include_todos = False
 #
 html_theme = 'alabaster'
 html_theme_options = {
-    'logo': 'images/logo.png',
+    'logo': 'logo2x.png',
     'github_user': 'mosquito',
     'github_repo': 'aio-pika',
 }
