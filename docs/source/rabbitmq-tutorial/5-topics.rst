@@ -2,6 +2,7 @@
 .. _pull request: https://github.com/mosquito/aio-pika/compare
 .. _aio-pika: https://github.com/mosquito/aio-pika
 .. _syslog: http://en.wikipedia.org/wiki/Syslog
+.. _official tutorial: https://www.rabbitmq.com/tutorials/tutorial-five-python.html
 .. _topics:
 
 Topics
@@ -9,7 +10,7 @@ Topics
 
 .. warning::
 
-    This is a beta version of the port from official tutorial. Please when you found an
+    This is a beta version of the port from `official tutorial`_. Please when you found an
     error create `issue`_ or `pull request`_ for me.
 
 
