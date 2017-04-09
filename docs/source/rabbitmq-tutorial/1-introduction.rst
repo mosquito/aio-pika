@@ -106,7 +106,7 @@ thing we need to do is to establish a connection with RabbitMQ server.
 .. code-block:: python
 
     import asyncio
-    from aio_pika import connect
+    from aio_pika import connect, Message
 
     async def main(loop):
         # Perform connection
@@ -152,7 +152,7 @@ message should go. The queue name needs to be specified in the *routing_key* par
         ...
 
         await channel.default_exchange.publish(
-            Message(b'Hello World!')
+            Message(b'Hello World!'),
             routing_key='hello',
         )
         print(" [x] Sent 'Hello World!'")
