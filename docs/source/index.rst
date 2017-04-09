@@ -40,7 +40,7 @@ Tutorial
 
 .. toctree::
    :maxdepth: 3
-   :caption: RabbitMQ tutorial adopted for aio-pika_
+   :caption: RabbitMQ tutorial adopted for aio-pika
    :glob:
 
    rabbitmq-tutorial/*
