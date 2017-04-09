@@ -122,13 +122,13 @@ Clone the project:
     cd aio-pika
 
 
-Create a new virtualenv for `aio-pika`_:
+Create a new virtualenv for `aio_pika`_:
 
 .. code-block:: shell
 
     virtualenv -p python3.5 env
 
-Install all requirements for `aio-pika`_:
+Install all requirements for `aio_pika`_:
 
 .. code-block:: shell
 
