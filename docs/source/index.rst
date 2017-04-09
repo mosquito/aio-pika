@@ -39,9 +39,24 @@ Welcome to aio-pika's documentation!
 Installation
 ++++++++++++
 
+Installation with pip:
+
 .. code-block:: shell
 
     pip install aio-pika
+
+
+Installation from git:
+
+.. code-block:: shell
+
+    # via pip
+    pip install https://github.com/mosquito/aio-pika/archive/master.zip
+
+    # manually
+    git clone https://github.com/mosquito/aio-pika.git
+    cd aio-pika
+    python setup.py install
 
 
 Usage example
@@ -94,6 +109,30 @@ Usage example
     if __name__ == "__main__":
         loop = asyncio.get_event_loop()
         loop.run_until_complete(main(loop))
+
+
+Development
++++++++++++
+
+Clone the project:
+
+.. code-block:: shell
+
+    git clone https://github.com/mosquito/aio-pika.git
+    cd aio-pika
+
+
+Create a new virtualenv for `aio-pika`_:
+
+.. code-block:: shell
+
+    virtualenv -p python3.5 env
+
+Install all requirements for `aio-pika`_:
+
+.. code-block:: shell
+
+    env/bin/pip install -e '.[develop]'
 
 
 Tutorial
