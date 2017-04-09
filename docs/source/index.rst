@@ -36,18 +36,6 @@ Welcome to aio-pika's documentation!
 `aio_pika`_ it's a wrapper for the `PIKA`_ for `asyncio`_ and humans.
 
 
-Tutorial
-++++++++
-
-.. toctree::
-   :maxdepth: 3
-   :caption: RabbitMQ tutorial adopted for aio-pika
-   :glob:
-
-   rabbitmq-tutorial/*
-   apidoc
-
-
 Installation
 ++++++++++++
 
@@ -107,6 +95,17 @@ Usage example
         loop = asyncio.get_event_loop()
         loop.run_until_complete(main(loop))
 
+
+Tutorial
+++++++++
+
+.. toctree::
+   :maxdepth: 3
+   :caption: RabbitMQ tutorial adopted for aio-pika
+   :glob:
+
+   rabbitmq-tutorial/*
+   apidoc
 
 
 Thanks for contributing
