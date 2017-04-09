@@ -7,9 +7,6 @@
 .. _PIKA: https://github.com/pika/pika
 
 
-`aio_pika`_ it's a wrapper for the `PIKA`_ for asyncio and humans.
-
-
 Welcome to aio-pika's documentation!
 ====================================
 
@@ -33,6 +30,9 @@ Welcome to aio-pika's documentation!
 
 .. image:: https://img.shields.io/pypi/l/aio-pika.svg
     :target: https://pypi.python.org/pypi/aio-pika/
+
+
+`aio_pika`_ it's a wrapper for the `PIKA`_ for asyncio and humans.
 
 
 Tutorial
