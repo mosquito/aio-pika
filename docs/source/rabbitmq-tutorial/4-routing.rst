@@ -1,8 +1,16 @@
+.. _issue: https://github.com/mosquito/aio-pika/issues
+.. _pull request: https://github.com/mosquito/aio-pika/compare
 .. _aio-pika: https://github.com/mosquito/aio-pika
 .. _routing:
 
 Routing
 =======
+
+.. warning::
+
+    This is a beta version of the port from official tutorial. Please when you found an
+    error create `issue`_ or `pull request`_ for me.
+
 
 .. note::
     Using the `aio-pika`_ async Python client
