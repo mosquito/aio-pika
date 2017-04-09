@@ -4,6 +4,7 @@
    contain the root `toctree` directive.
 
 .. _aio_pika: https://github.com/mosquito/aio-pika
+.. _asyncio: https://docs.python.org/3/library/asyncio.html
 .. _PIKA: https://github.com/pika/pika
 
 
@@ -32,7 +33,7 @@ Welcome to aio-pika's documentation!
     :target: https://pypi.python.org/pypi/aio-pika/
 
 
-`aio_pika`_ it's a wrapper for the `PIKA`_ for asyncio and humans.
+`aio_pika`_ it's a wrapper for the `PIKA`_ for `asyncio`_ and humans.
 
 
 Tutorial
