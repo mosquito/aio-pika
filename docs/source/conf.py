@@ -90,17 +90,24 @@ todo_include_todos = False
 # a list of builtin themes.
 #
 html_theme = 'alabaster'
-html_theme_options = {
-    'logo': 'logo2x.png',
-    'github_user': 'mosquito',
-    'github_repo': 'aio-pika',
-}
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
 # html_theme_options = {}
+html_theme_options = {
+    'codecov_button': True,
+    'description': 'Wrapper for the PIKA for asyncio and humans',
+    'github_banner': True,
+    'github_button': True,
+    'github_repo': 'aio-pika',
+    'github_type': 'star',
+    'github_user': 'mosquito',
+    'logo': 'logo.png',
+    'travis_button': True,
+}
+
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -119,11 +126,11 @@ htmlhelp_basename = 'aio-pikadoc'
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
     #
-    # 'papersize': 'letterpaper',
+    'papersize': 'a4paper',
 
     # The font size ('10pt', '11pt' or '12pt').
     #
-    # 'pointsize': '10pt',
+    'pointsize': '12pt',
 
     # Additional stuff for the LaTeX preamble.
     #
@@ -131,7 +138,7 @@ latex_elements = {
 
     # Latex figure (float) alignment
     #
-    # 'figure_align': 'htbp',
+    'figure_align': 'htbp',
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
@@ -187,3 +194,5 @@ epub_copyright = copyright
 epub_exclude_files = ['search.html']
 
 
+html_logo = 'logo2x.png'
+html_favicon = 'icon.png'

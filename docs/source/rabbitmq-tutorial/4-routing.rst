@@ -93,7 +93,7 @@ is simple — a message goes to the queues whose binding key exactly matches the
 
 To illustrate that, consider the following setup:
 
-.. image:: static/direct-exchange.png
+.. image:: /_static/tutorial/direct-exchange.png
    :align: center
 
 In this setup, we can see the *direct* exchange X with two queues bound to it. The first queue is
@@ -108,7 +108,7 @@ All other messages will be discarded.
 Multiple bindings
 +++++++++++++++++
 
-.. image:: static/direct-exchange-multiple.png
+.. image:: /_static/tutorial/direct-exchange-multiple.png
    :align: center
 
 It is perfectly legal to bind multiple queues with the same binding key. In our
@@ -173,7 +173,7 @@ going to create a new binding for each severity we're interested in.
 Putting it all together
 +++++++++++++++++++++++
 
-.. image:: static/python-four.png
+.. image:: /_static/tutorial/python-four.png
    :align: center
 
 The code for *emit_log_direct.py*:
@@ -276,3 +276,8 @@ And, for example, to emit an error log message just type::
     [x] Sent 'error':'Run. Run. Or it will explode.'
 
 Move on to :ref:`tutorial 5 <topics>` to find out how to listen for messages based on a pattern.
+
+
+.. note::
+
+    This material was adopted from `official tutorial`_ on **rabbitmq.org**.

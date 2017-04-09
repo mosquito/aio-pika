@@ -31,7 +31,7 @@ Work Queues
 
     .. _contact us: https://groups.google.com/forum/#!forum/rabbitmq-users
 
-.. image:: static/python-two.png
+.. image:: /_static/tutorial/python-two.png
    :align: center
 
 In the :ref:`first tutorial <introduction>` we wrote programs to send and receive messages
@@ -311,7 +311,7 @@ the queue. It doesn't look at the number of unacknowledged messages for a consum
 It just blindly dispatches every n-th message to the n-th consumer.
 
 
-.. image:: static/prefetch-count.png
+.. image:: /_static/tutorial/prefetch-count.png
    :align: center
 
 
@@ -417,3 +417,8 @@ options let the tasks survive even if RabbitMQ is restarted.
 
 Now we can move on to :ref:`tutorial 3 <publish-subscribe>` and learn how to deliver the
 same message to many consumers.
+
+
+.. note::
+
+    This material was adopted from `official tutorial`_ on **rabbitmq.org**.
