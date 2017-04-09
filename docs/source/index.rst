@@ -1,11 +1,13 @@
-.. _documentation: https://aio-pika.readthedocs.org/
+.. aio-pika documentation master file, created by
+   sphinx-quickstart on Fri Mar 31 17:03:20 2017.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
 
-aio-pika
-========
+`aio_pika`_ it's a wrapper for the `PIKA`_ for asyncio and humans.
 
-.. image:: http://aio-pika.readthedocs.io/en/latest/?badge=latest
-    :target: https://aio-pika.readthedocs.org/
-    :alt: ReadTheDocs
+
+Welcome to aio-pika's documentation!
+====================================
 
 .. image:: https://coveralls.io/repos/github/mosquito/aio-pika/badge.svg?branch=master
     :target: https://coveralls.io/github/mosquito/aio-pika
@@ -29,11 +31,24 @@ aio-pika
     :target: https://pypi.python.org/pypi/aio-pika/
 
 
-Wrapper for the PIKA for asyncio and humans. See examples and the tutorial in `documentation`_.
+.. _aio_pika: https://github.com/mosquito/aio-pika
+.. _PIKA: https://github.com/pika/pika
+
+
+Tutorial
+++++++++
+
+.. toctree::
+   :maxdepth: 3
+   :caption: RabbitMQ tutorial adopted for aio-pika_
+   :glob:
+
+   rabbitmq-tutorial/*
+   apidoc
 
 
 Installation
-------------
+++++++++++++
 
 .. code-block:: shell
 
@@ -41,35 +56,33 @@ Installation
 
 
 Usage example
---------------
++++++++++++++
 
 .. code-block:: python
 
-    import asyncio
     from aio_pika import connect
 
 
-    @asyncio.coroutine
-    def main(loop):
-        connection = yield from connect("amqp://guest:guest@127.0.0.1/", loop=loop)
+    async def main(loop):
+        connection = await connect("amqp://guest:guest@127.0.0.1/", loop=loop)
 
         queue_name = "test_queue"
         routing_key = "test_queue"
 
         # Creating channel
-        channel = yield from connection.channel()
+        channel = await connection.channel()
 
         # Declaring exchange
-        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
+        exchange = await channel.declare_exchange('direct', auto_delete=True)
 
         # Declaring queue
-        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+        queue = await channel.declare_queue(queue_name, auto_delete=True)
 
         # Binding queue
-        yield from queue.bind(exchange, routing_key)
+        await queue.bind(exchange, routing_key)
 
 
-        yield from exchange.publish(
+        await exchange.publish(
             Message(
                 bytes('Hello', 'utf-8'),
                 content_type='text/plain',
@@ -79,14 +92,14 @@ Usage example
         )
 
         # Receiving message
-        incoming_message = yield from queue.get(timeout=5)
+        incoming_message = await queue.get(timeout=5)
 
         # Confirm message
         incoming_message.ack()
 
-        yield from queue.unbind(exchange, routing_key)
-        yield from queue.delete()
-        yield from connection.close()
+        await queue.unbind(exchange, routing_key)
+        await queue.delete()
+        await connection.close()
 
 
     if __name__ == "__main__":
@@ -94,4 +107,14 @@ Usage example
         loop.run_until_complete(main(loop))
 
 
-See another examples and the tutorial in `documentation`_.
+
+Thanks for contributing
++++++++++++++++++++++++
+
+* `@mosquito`_ (author)
+* `@hellysmile`_ (bug fixes and smart ideas)
+* `@adelkhafizova`_ (helps with documentation)
+
+.. _@mosquito: https://github.com/mosquito
+.. _@hellysmile: https://github.com/hellysmile
+.. _@adelkhafizova: https://github.com/adelkhafizova

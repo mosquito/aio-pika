@@ -13,10 +13,12 @@ requires = [
 if sys.version_info < (3, 4):
     raise RuntimeError("aio-pika doesn't support Python version prior 3.4")
 
+if sys.version_info < (3, 5):
+    requires.append('typing')
 
 setup(
     name='aio-pika',
-    version='0.6.4',
+    version='0.9.0',
     author="Dmitry Orlov <me@mosquito.su>",
     author_email="me@mosquito.su",
     license="Apache Software License",
@@ -37,6 +39,8 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: Implementation :: PyPy',
         'Programming Language :: Python :: Implementation :: CPython',
     ],
     packages=find_packages(exclude=['tests']),
@@ -46,9 +50,12 @@ setup(
             'asynctest',
             'coverage!=4.3',
             'coveralls',
+            'pylama',
             'pytest',
             'pytest-asyncio',
             'pytest-cov',
+            'sphinx',
+            'sphinx-autobuild',
             'timeout-decorator',
             'tox>=2.4',
         ],

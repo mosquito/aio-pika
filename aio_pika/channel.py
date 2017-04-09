@@ -12,12 +12,19 @@ log = getLogger(__name__)
 
 
 class Channel(BaseChannel):
+    """ Channel abstraction """
+
     __slots__ = ('__connection', '__closing', '__confirmations', '__delivery_tag',
                  'loop', '_futures', '__channel', 'default_exchange')
 
     def __init__(self, connection,
                  loop: asyncio.AbstractEventLoop, future_store: FutureStore):
+        """
 
+        :param connection: :class:`aio_pika.adapter.AsyncioConnection` instance
+        :param loop: Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
+        :param future_store: :class:`aio_pika.common.FutureStore` instance
+        """
         super().__init__(loop, future_store.get_child())
 
         self.__channel = None  # type: pika.channel.Channel
@@ -141,8 +148,20 @@ class Channel(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
-    def declare_queue(self, name: str = '', *, durable: bool = None, exclusive: bool = False,
+    def declare_queue(self, name: str = None, *, durable: bool = None, exclusive: bool = False,
                       auto_delete: bool = False, arguments: dict = None, timeout: int = None) -> Queue:
+        """
+
+        :param name: queue name
+        :param durable: Durability (queue survive broker restart)
+        :param exclusive: Makes this queue exclusive. Exclusive queues may only be \
+        accessed by the current connection, and are deleted when that connection \
+        closes. Passive declaration of an exclusive queue by other connections are not allowed.
+        :param auto_delete: Delete queue when channel will be closed.
+        :param arguments: pika additional arguments
+        :param timeout: execution timeout
+        :return: :class:`aio_pika.queue.Queue` instance
+        """
 
         if auto_delete and durable is None:
             durable = False

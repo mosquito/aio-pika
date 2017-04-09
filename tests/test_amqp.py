@@ -1,13 +1,18 @@
 import asyncio
+import os
 import uuid
 import logging
 import pytest
 import shortuuid
+import time
+import unittest
 import aio_pika.exceptions
-from aio_pika import connect, connect_url, Message, Connection, Channel, Exchange
+from copy import copy
+from aio_pika import connect, connect_url, Message, DeliveryMode
 from aio_pika.exceptions import ProbableAuthenticationError, MessageProcessError
 from aio_pika.exchange import ExchangeType
 from aio_pika.tools import wait
+from unittest import mock
 from . import AsyncTestCase, AMQP_URL
 
 
@@ -32,8 +37,8 @@ class TestCase(AsyncTestCase):
     def test_channel_close(self):
         client = yield from connect(AMQP_URL, loop=self.loop)
 
-        queue_name = self.get_random_name("test_connection")
-        routing_key = self.get_random_name()
+        self.get_random_name("test_connection")
+        self.get_random_name()
 
         self.__closed = False
 
@@ -71,6 +76,27 @@ class TestCase(AsyncTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    def test_temporary_queue(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        channel = yield from client.channel()
+        queue = yield from channel.declare_queue(auto_delete=True)
+
+        self.assertNotEqual(queue.name, '')
+
+        body = os.urandom(32)
+
+        yield from channel.default_exchange.publish(Message(body=body), routing_key=queue.name)
+
+        message = yield from queue.get()
+
+        self.assertEqual(message.body, body)
+
+        yield from channel.queue_delete(queue.name)
+
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
     def test_simple_publish_and_receive(self):
         client = yield from connect(AMQP_URL, loop=self.loop)
 
@@ -102,6 +128,75 @@ class TestCase(AsyncTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    def test_incoming_message_info(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        queue_name = self.get_random_name("test_connection")
+        routing_key = self.get_random_name()
+
+        channel = yield from client.channel()
+        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+
+        yield from queue.bind(exchange, routing_key)
+
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        info = {
+            'headers': {"foo": "bar"},
+            'content_type': "application/json",
+            'content_encoding': "text",
+            'delivery_mode': DeliveryMode.PERSISTENT.value,
+            'priority': 0,
+            'correlation_id': b'1',
+            'reply_to': 'test',
+            'expiration': 1.5,
+            'message_id': shortuuid.uuid(),
+            'timestamp': int(time.time()),
+            'type': '0',
+            'user_id': 'guest',
+            'app_id': 'test',
+            'body_size': len(body)
+        }
+
+        msg = Message(
+            body=body,
+            headers={'foo': 'bar'},
+            content_type='application/json',
+            content_encoding='text',
+            delivery_mode=DeliveryMode.PERSISTENT,
+            priority=0,
+            correlation_id=1,
+            reply_to='test',
+            expiration=1.5,
+            message_id=info['message_id'],
+            timestamp=info['timestamp'],
+            type='0',
+            user_id='guest',
+            app_id='test'
+        )
+
+        yield from exchange.publish(msg, routing_key)
+
+        incoming_message = yield from queue.get(timeout=5)
+        incoming_message.ack()
+
+        info['synchronous'] = incoming_message.synchronous
+        info['routing_key'] = incoming_message.routing_key
+        info['redelivered'] = incoming_message.redelivered
+        info['exchange'] = incoming_message.exchange
+        info['delivery_tag'] = incoming_message.delivery_tag
+        info['consumer_tag'] = incoming_message.consumer_tag
+        info['cluster_id'] = incoming_message.cluster_id
+
+        self.assertEqual(incoming_message.body, body)
+        self.assertDictEqual(incoming_message.info(), info)
+
+        yield from queue.unbind(exchange, routing_key)
+        yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
     def test_context_process(self):
         client = yield from connect(AMQP_URL, loop=self.loop)
 
@@ -127,13 +222,57 @@ class TestCase(AsyncTestCase):
         incoming_message = yield from queue.get(timeout=5)
 
         with self.assertRaises(AssertionError):
-            with incoming_message.proccess(requeue=True) as msg:
+            with incoming_message.process(requeue=True):
                 raise AssertionError
 
         incoming_message = yield from queue.get(timeout=5)
 
-        with incoming_message.proccess() as msg:
+        with incoming_message.process():
             pass
+
+        self.assertEqual(incoming_message.body, body)
+        yield from queue.unbind(exchange, routing_key)
+        yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
+    def test_context_process_redelivery(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        queue_name = self.get_random_name("test_connection")
+        routing_key = self.get_random_name()
+
+        channel = yield from client.channel()
+        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+
+        yield from queue.bind(exchange, routing_key)
+
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        yield from exchange.publish(
+            Message(
+                body, content_type='text/plain',
+                headers={'foo': 'bar'}
+            ),
+            routing_key
+        )
+
+        incoming_message = yield from queue.get(timeout=5)
+
+        with self.assertRaises(AssertionError):
+            with incoming_message.process(requeue=True, reject_on_redelivered=True):
+                raise AssertionError
+
+        incoming_message = yield from queue.get(timeout=5)
+
+        with mock.patch('aio_pika.message.log') as message_logger:
+            with self.assertRaises(Exception):
+                with incoming_message.process(requeue=True, reject_on_redelivered=True):
+                    raise Exception
+
+            self.assertTrue(message_logger.info.called)
+            self.assertEqual(message_logger.info.mock_calls[0][1][1].body, incoming_message.body)
 
         self.assertEqual(incoming_message.body, body)
         yield from queue.unbind(exchange, routing_key)
@@ -207,7 +346,6 @@ class TestCase(AsyncTestCase):
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
         yield from wait((client.close(), client.closing), loop=self.loop)
-
 
     @pytest.mark.asyncio
     def test_consuming(self):
@@ -417,7 +555,7 @@ class TestCase(AsyncTestCase):
 
     @pytest.mark.asyncio
     def test_dlx(self):
-        client = yield from connect(AMQP_URL, loop=self.loop)    # type: Connection
+        client = yield from connect(AMQP_URL, loop=self.loop)
         direct_queue_name = self.get_random_name("test_dlx", "direct")
         dlx_queue_name = self.get_random_name("test_dlx", "dlx")
 
@@ -483,7 +621,7 @@ class TestCase(AsyncTestCase):
         routing_key = self.get_random_name()
 
         channel = yield from client.channel()    # type: Channel
-        exchange = yield from channel.declare_exchange('direct', auto_delete=True)    # type: Exchange
+        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
 
         try:
             with self.assertRaises(aio_pika.exceptions.ChannelClosed):
@@ -497,3 +635,52 @@ class TestCase(AsyncTestCase):
         finally:
             yield from exchange.delete()
             yield from wait((client.close(), client.closing), loop=self.loop)
+
+
+class MessageTestCase(unittest.TestCase):
+    def test_message_copy(self):
+        msg1 = Message(bytes(shortuuid.uuid(), 'utf-8'))
+        msg2 = copy(msg1)
+
+        msg1.lock()
+
+        self.assertFalse(msg2.locked)
+
+    def test_message_info(self):
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        info = {
+            'headers': {"foo": "bar"},
+            'content_type': "application/json",
+            'content_encoding': "text",
+            'delivery_mode': DeliveryMode.PERSISTENT.value,
+            'priority': 0,
+            'correlation_id': b'1',
+            'reply_to': 'test',
+            'expiration': 1.5,
+            'message_id': shortuuid.uuid(),
+            'timestamp': int(time.time()),
+            'type': '0',
+            'user_id': 'guest',
+            'app_id': 'test',
+            'body_size': len(body)
+        }
+
+        msg = Message(
+            body=body,
+            headers={'foo': 'bar'},
+            content_type='application/json',
+            content_encoding='text',
+            delivery_mode=DeliveryMode.PERSISTENT,
+            priority=0,
+            correlation_id=1,
+            reply_to='test',
+            expiration=1.5,
+            message_id=info['message_id'],
+            timestamp=info['timestamp'],
+            type='0',
+            user_id='guest',
+            app_id='test'
+        )
+
+        self.assertDictEqual(info, msg.info())
