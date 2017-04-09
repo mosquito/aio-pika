@@ -68,7 +68,7 @@ cases for binding keys:
 
 It's easiest to explain this in an example:
 
-.. image:: static/python-five.png
+.. image:: /_static/tutorial/python-five.png
    :align: center
 
 In this example, we're going to send messages which all describe animals. The messages will be sent
@@ -221,3 +221,8 @@ Have fun playing with these programs. Note that the code doesn't make any assump
 about the routing or binding keys, you may want to play with more than two routing key parameters.
 
 Move on to :ref:`tutorial 6 <rpc>` to learn about RPC.
+
+
+.. note::
+
+    This material was adopted from `official tutorial`_ on **rabbitmq.org**.

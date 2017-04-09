@@ -147,7 +147,7 @@ ideally be idempotent.
 Summary
 +++++++
 
-.. image:: static/python-six.png
+.. image:: /_static/tutorial/python-six.png
    :align: center
 
 Our RPC will work like this:
@@ -306,11 +306,11 @@ The client code is slightly more involved:
 * (15) We establish a connection, channel and declare an exclusive 'callback' queue for replies.
 * (19) We subscribe to the 'callback' queue, so that we can receive RPC responses.
 * (23) The 'on_response' callback executed on every response is doing a very simple job,
- for every response message it checks if the correlation_id is the one we're looking for.
- If so, it saves the response in self.response and breaks the consuming loop.
+  for every response message it checks if the correlation_id is the one we're looking for.
+  If so, it saves the response in self.response and breaks the consuming loop.
 * (27) Next, we define our main call method - it does the actual RPC request.
 * (28) In this method, first we generate a unique correlation_id number and save it - the 'on_response' callback
- function will use this value to catch the appropriate response.
+  function will use this value to catch the appropriate response.
 * (33) Next, we publish the request message, with two properties: reply_to and correlation_id.
 * (42) And finally we return the response back to the user.
 
@@ -343,3 +343,8 @@ complex (but important) problems, like:
 .. note::
 
     If you want to experiment, you may find the rabbitmq-management plugin useful for viewing the queues.
+
+
+.. note::
+
+    This material was adopted from `official tutorial`_ on **rabbitmq.org**.

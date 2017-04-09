@@ -43,7 +43,7 @@ RabbitMQ, and messaging in general, uses some jargon.
 
 We'll draw it like that, with "P":
 
-.. image:: static/producer.png
+.. image:: /_static/tutorial/producer.png
    :align: center
 
 * A queue is the name for a mailbox. It lives inside RabbitMQ.
@@ -55,7 +55,7 @@ We'll draw it like that, with "P":
 
 A queue will be drawn as like that, with its name above it:
 
-.. image:: static/queue.png
+.. image:: /_static/tutorial/queue.png
    :align: center
 
 * Consuming has a similar meaning to receiving. A consumer is a
@@ -63,7 +63,7 @@ A queue will be drawn as like that, with its name above it:
 
 On our drawings it's shown with "C":
 
-.. image:: static/consumer.png
+.. image:: /_static/tutorial/consumer.png
    :align: center
 
 .. note::
@@ -83,7 +83,7 @@ message and one that receives and prints it.
 
 Our overall design will look like:
 
-.. image:: static/python-one-overall.png
+.. image:: /_static/tutorial/python-one-overall.png
    :align: center
 
 Producer sends messages to the "hello" queue. The consumer receives messages from that queue.
@@ -105,7 +105,7 @@ Producer sends messages to the "hello" queue. The consumer receives messages fro
 Sending
 +++++++
 
-.. image:: static/sending.png
+.. image:: /_static/tutorial/sending.png
    :align: center
 
 Our first program *send.py* will send a single message to the queue. The first
@@ -193,7 +193,7 @@ message was actually delivered to RabbitMQ. We can do it by gently closing the c
 Receiving
 +++++++++
 
-.. image:: static/receiving.png
+.. image:: /_static/tutorial/receiving.png
    :align: center
 
 Our second program *receive.py* will receive messages from the queue and print them on the screen.
@@ -369,3 +369,8 @@ Try to run *send.py* again in a new terminal.
 
 We've learned how to send and receive a message from a named queue. It's time to
 move on to :ref:`part 2 <work-queues>` and build a simple work queue.
+
+
+.. note::
+
+    This material was adopted from `official tutorial`_ on **rabbitmq.org**.

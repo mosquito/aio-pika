@@ -67,7 +67,7 @@ pushes them to queues. The exchange must know exactly what to do with a message 
 Should it be appended to a particular queue? Should it be appended to many queues?
 Or should it get discarded. The rules for that are defined by the exchange type.
 
-.. image:: static/exchanges.png
+.. image:: /_static/tutorial/exchanges.png
    :align: center
 
 There are a few exchange types available: `DIRECT`, `TOPIC`, `HEADERS` and `FANOUT`
@@ -167,7 +167,7 @@ Secondly, once we disconnect the consumer the queue should be deleted. There's a
 Bindings
 ++++++++
 
-.. image:: static/bindings.png
+.. image:: /_static/tutorial/bindings.png
    :align: center
 
 We've already created a fanout exchange and a queue. Now we need to tell the exchange to
@@ -190,7 +190,7 @@ From now on the logs exchange will append messages to our queue.
 Putting it all together
 +++++++++++++++++++++++
 
-.. image:: static/python-three-overall.png
+.. image:: /_static/tutorial/python-three-overall.png
    :align: center
 
 The producer program, which emits log messages, doesn't look much different from the previous tutorial.
@@ -310,3 +310,8 @@ The interpretation of the result is straightforward: data from exchange logs goe
 with server-assigned names. And that's exactly what we intended.
 
 To find out how to listen for a subset of messages, let's move on to :ref:`tutorial 4 <routing>`
+
+
+.. note::
+
+    This material was adopted from `official tutorial`_ on **rabbitmq.org**.
