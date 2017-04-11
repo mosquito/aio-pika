@@ -225,12 +225,35 @@ class TestCase(AsyncTestCase):
             with incoming_message.process(requeue=True):
                 raise AssertionError
 
+        self.assertEqual(incoming_message.locked, True)
+
         incoming_message = yield from queue.get(timeout=5)
 
         with incoming_message.process():
             pass
 
         self.assertEqual(incoming_message.body, body)
+
+        yield from exchange.publish(
+            Message(
+                body, content_type='text/plain',
+                headers={'foo': 'bar'}
+            ),
+            routing_key
+        )
+
+        incoming_message = yield from queue.get(timeout=5)
+        with self.assertRaises(AssertionError):
+            with incoming_message.process(requeue=True, reject_on_redelivered=True):
+                raise AssertionError
+
+        incoming_message = yield from queue.get(timeout=5)
+        with self.assertRaises(AssertionError):
+            with incoming_message.process(requeue=True, reject_on_redelivered=True):
+                raise AssertionError
+
+        self.assertEqual(incoming_message.locked, True)
+
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
         yield from wait((client.close(), client.closing), loop=self.loop)
