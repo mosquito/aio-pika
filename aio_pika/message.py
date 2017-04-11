@@ -260,8 +260,8 @@ class IncomingMessage(Message):
             if reject_on_redelivered and self.redelivered:
                 log.info("Message %r was redelivered and will be rejected.", self)
                 self.reject(requeue=False)
-
-            self.reject(requeue=requeue)
+            else:
+                self.reject(requeue=requeue)
             raise
 
     def ack(self):
