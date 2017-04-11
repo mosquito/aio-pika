@@ -153,7 +153,9 @@ Thanks for contributing
 * `@mosquito`_ (author)
 * `@hellysmile`_ (bug fixes and smart ideas)
 * `@adelkhafizova`_ (helps with documentation)
+* `@alternativehood`_ (bugfixes)
 
 .. _@mosquito: https://github.com/mosquito
 .. _@hellysmile: https://github.com/hellysmile
 .. _@adelkhafizova: https://github.com/adelkhafizova
+.. _@alternativehood: https://github.com/alternativehood
