@@ -77,9 +77,9 @@ class Message:
 
     @staticmethod
     def _as_bytes(value):
-        if isinstance(correlation_id, bytes):
+        if isinstance(value, bytes):
             return value
-        elif isinstance(correlation_id, str):
+        elif isinstance(value, str):
             return value.encode()
         else:
             return str(value).encode()
