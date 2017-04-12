@@ -66,14 +66,23 @@ class Message:
         self.content_encoding = content_encoding
         self.delivery_mode = DeliveryMode(int(delivery_mode)).value
         self.priority = priority
-        self.correlation_id = bytes(str(correlation_id), 'utf-8')
+        self.correlation_id = self._as_bytes(correlation_id)
         self.reply_to = reply_to
-        self.expiration = self._convert_timestamp(expiration) * 1000 if timestamp else None
+        self.expiration = self._convert_timestamp(expiration) * 1000 if expiration else None
         self.message_id = message_id
         self.timestamp = int(self._convert_timestamp(timestamp)) if timestamp else None
         self.type = type
         self.user_id = str(user_id) if user_id else None
         self.app_id = str(app_id) if app_id else None
+
+    @staticmethod
+    def _as_bytes(value):
+        if isinstance(correlation_id, bytes):
+            return value
+        elif isinstance(correlation_id, str):
+            return value.encode()
+        else:
+            return str(value).encode()
 
     @staticmethod
     def _convert_timestamp(value):
@@ -99,7 +108,7 @@ class Message:
             "priority": self.priority,
             "correlation_id": self.correlation_id,
             "reply_to": self.reply_to,
-            "expiration": self.expiration / 1000,
+            "expiration": self.expiration / 1000 if self.expiration else None,
             "message_id": self.message_id,
             "timestamp": self.timestamp,
             "type": str(self.type),
@@ -136,7 +145,7 @@ class Message:
     def __repr__(self):
         return "{name}:{repr}".format(
             name=self.__class__.__name__,
-            repr=json.dumps(self.info(), indent=1, sort_keys=True)
+            repr=json.dumps(self.info(), indent=1, sort_keys=True, default=repr)
         )
 
     def __setattr__(self, key, value):
