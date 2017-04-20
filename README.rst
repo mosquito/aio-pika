@@ -1,4 +1,5 @@
 .. _documentation: https://aio-pika.readthedocs.org/
+.. _adopted official RabbitMQ tutorial: https://aio-pika.readthedocs.io/en/latest/rabbitmq-tutorial/1-introduction.html
 
 aio-pika
 ========
@@ -30,6 +31,8 @@ aio-pika
 
 
 Wrapper for the PIKA for asyncio and humans. See examples and the tutorial in `documentation`_.
+
+If you are newcomer in the RabbitMQ let's start the `adopted official RabbitMQ tutorial`_
 
 
 Installation
