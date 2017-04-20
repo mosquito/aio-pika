@@ -74,14 +74,9 @@ There are a few exchange types available: `DIRECT`, `TOPIC`, `HEADERS` and `FANO
 (see :class:`aio_pika.ExchangeType`).
 We'll focus on the last one — the fanout. Let's create an exchange of that type, and call it `logs`:
 
-.. code-block:: python
-
-    from aio_pika import ExchangeType
-
-    async def main():
-        ...
-
-        logs_exchange = await channel.declare_exchange('logs', ExchangeType.FANOUT)
+.. literalinclude:: examples/3-publish-subscribe/emit_log.py
+   :language: python
+   :lines: 13
 
 The fanout exchange is very simple. As you can probably guess from the name, it just broadcasts
 all the messages it receives to all the queues it knows. And that's exactly what we need for our logger.
@@ -126,17 +121,10 @@ all the messages it receives to all the queues it knows. And that's exactly what
 
 Now, we can publish to our named exchange instead:
 
-.. code-block:: python
+.. literalinclude:: examples/3-publish-subscribe/emit_log.py
+   :language: python
+   :lines: 13-23
 
-    async def main():
-        ...
-
-        await logs_exchange.publish(
-            Message(message_body),
-            routing_key='hello',
-        )
-
-    ...
 
 Temporary queues
 ++++++++++++++++
@@ -160,9 +148,9 @@ We can do this by not supplying the queue parameter to `declare_queue`:
 
 Secondly, once we disconnect the consumer the queue should be deleted. There's an exclusive flag for that:
 
-.. code-block:: python
-
-    queue = await channel.declare_queue(exclusive=True)
+.. literalinclude:: examples/3-publish-subscribe/receive_logs.py
+   :language: python
+   :lines: 24-25
 
 Bindings
 ++++++++
@@ -173,9 +161,9 @@ Bindings
 We've already created a fanout exchange and a queue. Now we need to tell the exchange to
 send messages to our queue. That relationship between exchange and a queue is called a binding.
 
-.. code-block:: python
-
-    await queue.bind(exchange='logs')
+.. literalinclude:: examples/3-publish-subscribe/receive_logs.py
+   :language: python
+   :lines: 19-28
 
 From now on the logs exchange will append messages to our queue.
 
@@ -196,41 +184,12 @@ Putting it all together
 The producer program, which emits log messages, doesn't look much different from the previous tutorial.
 The most important change is that we now want to publish messages to our logs exchange instead
 of the nameless one. We need to supply a routing_key when sending, but its value is ignored
-for fanout exchanges. Here goes the code for *emit_log.py* script:
+for fanout exchanges.
+Here goes the code for :download:`emit_log.py <examples/3-publish-subscribe/emit_log.py>` script:
 
 
-.. code-block:: python
-
-    import sys
-    import asyncio
-    from aio_pika import connect, Message
-
-    async def main(loop):
-        # Perform connection
-        connection = await connect("amqp://guest:guest@localhost/", loop=loop)
-
-        # Creating a channel
-        channel = await connection.channel()
-
-        logs_exchange = await channel.declare_exchange('logs', ExchangeType.FANOUT)
-
-        message_body = b' '.join(sys.argv[1:]) or b"Hello World!"
-
-        message = Message(
-            message_body,
-            delivery_mode=DeliveryMode.PERSISTENT
-        )
-
-        # Sending the message
-        await logs_exchange.publish(message, routing_key='task_queue')
-
-        print(" [x] Sent %r" % message)
-
-        await connection.close()
-
-    if __name__ == "__main__":
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(main(loop))
+.. literalinclude:: examples/3-publish-subscribe/emit_log.py
+   :language: python
 
 
 As you see, after establishing the connection we declared the exchange. This step is
@@ -239,51 +198,11 @@ necessary as publishing to a non-existing exchange is forbidden.
 The messages will be lost if no queue is bound to the exchange yet, but that's okay for
 us; if no consumer is listening yet we can safely discard the message.
 
-The code for *receive_logs.py*:
+The code for :download:`emit_log.py <examples/3-publish-subscribe/receive_logs.py>` script:
 
-.. code-block:: python
+.. literalinclude:: examples/3-publish-subscribe/receive_logs.py
+   :language: python
 
-    import asyncio
-    from aio_pika import connect, IncomingMessage
-
-
-    loop = asyncio.get_event_loop()
-
-
-    def on_message(message: IncomingMessage):
-        print("[x] %r" % message.body)
-
-
-    async def main():
-        # Perform connection
-        connection = await connect("amqp://guest:guest@localhost/", loop=loop)
-
-        # Creating a channel
-        channel = await connection.channel()
-        await channel.set_qos(prefetch_count=1)
-
-        logs_exchange = await channel.declare_exchange(
-            'logs',
-            ExchangeType.FANOUT
-        )
-
-        # Declaring queue
-        queue = await channel.declare_queue(exclusive=True)
-
-        # Binding the queue to the exchange
-        await queue.bind(logs_exchange)
-
-        # Start listening the queue with name 'task_queue'
-        await queue.consume(on_message)
-
-
-    if __name__ == "__main__":
-        loop = asyncio.get_event_loop()
-        loop.add_callback(main())
-
-        # we enter a never-ending loop that waits for data and runs callbacks whenever necessary.
-        print(' [*] Waiting for logs. To exit press CTRL+C')
-        loop.run_forever()
 
 We're done. If you want to save logs to a file, just open a console and type::
 
