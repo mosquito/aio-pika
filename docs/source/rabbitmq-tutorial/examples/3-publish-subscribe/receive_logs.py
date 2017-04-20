@@ -28,7 +28,7 @@ async def main():
     await queue.bind(logs_exchange)
 
     # Start listening the queue with name 'task_queue'
-    await queue.consume(on_message)
+    queue.consume(on_message)
 
 
 if __name__ == "__main__":
