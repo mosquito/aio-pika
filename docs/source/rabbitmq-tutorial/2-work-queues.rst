@@ -61,43 +61,17 @@ We will slightly modify the send.py code from our previous example, to allow arb
 messages to be sent from the command line. This program will schedule tasks to our work
 queue, so let's name it *new_task.py*:
 
-.. code-block:: python
-
-    import sys
-    from aio_pika import connect, Message
-
-    async def main(loop):
-        ...
-
-        message = ' '.join(sys.argv[1:]) or "Hello World!"
-
-        # Sending the message
-        await channel.default_exchange.publish(
-            Message(message_body),
-            routing_key='task_queue',
-        )
-
-        print(" [x] Sent %r" % message)
-
-    ...
+.. literalinclude:: examples/2-work-queues/new_task.py
+   :language: python
+   :lines: 13-25
 
 Our old receive.py script also requires some changes: it needs to fake a second of work
 for every dot in the message body. It will pop messages from the queue and perform the task,
 so let's call it *worker.py*:
 
-.. code-block:: python
-
-    import asyncio
-    from aio_pika import connect, IncomingMessage
-
-
-    loop = asyncio.get_event_loop()
-
-
-    def on_message(message: IncomingMessage):
-        print(" [x] Received %r" % body)
-        await asyncio.sleep(message.body.count(b'.'), loop=loop)
-        print(" [x] Done")
+.. literalinclude:: examples/2-work-queues/worker.py
+   :language: python
+   :lines: 5-7
 
 
 Round-robin dispatching
@@ -179,25 +153,17 @@ from the worker, once we're done with a task.
 
 .. code-block:: python
 
-    from aio_pika import connect, IncomingMessage
-
-    def on_message(message: IncomingMessage):
-        print(" [x] Received message %r" % message)
-        print("     Message body is: %r" % message.body)
+    async def on_message(message: IncomingMessage):
+        print(" [x] Received %r" % message.body)
+        await asyncio.sleep(message.body.count(b'.'), loop=loop)
+        print(" [x] Done")
         message.ack()
-
 
 or using special context processor:
 
-
-.. code-block:: python
-
-    from aio_pika import connect, IncomingMessage
-
-    def on_message(message: IncomingMessage):
-        with message.process():
-            print(" [x] Received message %r" % message)
-            print("     Message body is: %r" % message.body)
+.. literalinclude:: examples/2-work-queues/worker.py
+   :language: python
+   :lines: 8-12
 
 
 If context processor will catch an exception, the message will be returned to the queue.
@@ -235,13 +201,9 @@ Two things are required to make sure that messages aren't lost: we need to mark 
 First, we need to make sure that RabbitMQ will never lose our queue. In order to do so,
 we need to declare it as *durable*:
 
-.. code-block:: python
-
-    async def main(loop):
-        ...
-
-        # Declaring queue
-        queue = await channel.declare_queue('hello', durable=True)
+.. literalinclude:: examples/2-work-queues/worker.py
+   :language: python
+   :lines: 17-18
 
 
 Although this command is correct by itself, it won't work in our setup.
@@ -250,14 +212,9 @@ RabbitMQ doesn't allow you to redefine an existing queue with different paramete
 and will return an error to any program that tries to do that.
 But there is a quick workaround - let's declare a queue with different name, for example task_queue:
 
-.. code-block:: python
-
-    async def main(loop):
-        ...
-
-        # Declaring queue
-        queue = await channel.declare_queue('task_queue', durable=True)
-
+.. literalinclude:: examples/2-work-queues/worker.py
+   :language: python
+   :lines: 22-23
 
 This queue_declare change needs to be applied to both the producer and consumer code.
 
@@ -265,21 +222,9 @@ At that point we're sure that the task_queue queue won't be lost even if RabbitM
 Now we need to mark our messages as persistent - by supplying a delivery_mode
 property with a value `PERSISTENT` (see enum :class:`aio_pika.DeliveryMode`).
 
-.. code-block:: python
-
-    async def main(loop):
-        ...
-        message_body = b' '.join(sys.argv[1:]) or b"Hello World!"
-
-        message = Message(
-            message_body,
-            delivery_mode=DeliveryMode.PERSISTENT
-        )
-
-        # Sending the message
-        await channel.default_exchange.publish(message, routing_key='task_queue')
-
-        print(" [x] Sent %r" % message)
+.. literalinclude:: examples/2-work-queues/new_task.py
+   :language: python
+   :pyobject: main
 
 .. note::
 
@@ -320,12 +265,9 @@ This tells RabbitMQ not to give more than one message to a worker at a time. Or,
 in other words, don't dispatch a new message to a worker until it has processed and
 acknowledged the previous one. Instead, it will dispatch it to the next worker that is not still busy.
 
-.. code-block:: python
-
-    async def main(loop):
-        ...
-
-        await channel.set_qos(prefetch_count=1)
+.. literalinclude:: examples/2-work-queues/worker.py
+   :language: python
+   :lines: 20
 
 
 .. note::
@@ -338,79 +280,15 @@ acknowledged the previous one. Instead, it will dispatch it to the next worker t
 Putting it all together
 +++++++++++++++++++++++
 
-Final code of our *new_task.py* script:
+Final code of our :download:`new_task.py <examples/2-work-queues/new_task.py>` script:
 
-.. code-block:: python
+.. literalinclude:: examples/2-work-queues/new_task.py
+   :language: python
 
-    import sys
-    import asyncio
-    from aio_pika import connect, Message
+And our :download:`worker.py <examples/2-work-queues/worker.py>`:
 
-    async def main(loop):
-        # Perform connection
-        connection = await connect("amqp://guest:guest@localhost/", loop=loop)
-
-        # Creating a channel
-        channel = await connection.channel()
-
-        message_body = b' '.join(sys.argv[1:]) or b"Hello World!"
-
-        message = Message(
-            message_body,
-            delivery_mode=DeliveryMode.PERSISTENT
-        )
-
-        # Sending the message
-        await channel.default_exchange.publish(message, routing_key='task_queue')
-
-        print(" [x] Sent %r" % message)
-
-        await connection.close()
-
-    if __name__ == "__main__":
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(main(loop))
-
-
-And our *worker.py*:
-
-.. code-block:: python
-
-    import asyncio
-    from aio_pika import connect, IncomingMessage
-
-
-    loop = asyncio.get_event_loop()
-
-
-    def on_message(message: IncomingMessage):
-        print(" [x] Received %r" % body)
-        await asyncio.sleep(message.body.count(b'.'), loop=loop)
-        print(" [x] Done")
-
-
-    async def main():
-        # Perform connection
-        connection = await connect("amqp://guest:guest@localhost/", loop=loop)
-
-        # Creating a channel
-        channel = await connection.channel()
-        await channel.set_qos(prefetch_count=1)
-
-        # Declaring queue
-        queue = await channel.declare_queue('task_queue', durable=True)
-
-        # Start listening the queue with name 'task_queue'
-        await queue.consume(on_message)
-
-
-    if __name__ == "__main__":
-        loop = asyncio.get_event_loop()
-        loop.add_callback(main())
-
-        # we enter a never-ending loop that waits for data and runs callbacks whenever necessary.
-        print(" [*] Waiting for messages. To exit press CTRL+C")
-        loop.run_forever()
+.. literalinclude:: examples/2-work-queues/worker.py
+   :language: python
 
 Using message acknowledgments and prefetch_count you can set up a work queue. The durability
 options let the tasks survive even if RabbitMQ is restarted.
