@@ -112,21 +112,9 @@ Our first program *send.py* will send a single message to the queue. The first
 thing we need to do is to establish a connection with RabbitMQ server.
 
 
-.. code-block:: python
-
-    import asyncio
-    from aio_pika import connect, Message
-
-    async def main(loop):
-        # Perform connection
-        connection = await connect("amqp://guest:guest@localhost/", loop=loop)
-
-        # Creating a channel
-        channel = await connection.channel()
-
-    if __name__ == "__main__":
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(main(loop))
+.. literalinclude:: examples/1-introduction/send.py
+   :language: python
+   :lines: 5-7
 
 We're connected now, to a broker on the local machine - hence the localhost.
 If we wanted to connect to a broker on a different machine we'd simply specify
@@ -136,14 +124,9 @@ Next, before sending we need to make sure the recipient queue exists.
 If we send a message to non-existing location, RabbitMQ will just trash the message.
 Let's create a queue to which the message will be delivered, let's name it *hello*:
 
-.. code-block:: python
-
-    async def main(loop):
-        ...
-
-        # Declaring queue
-        queue = await channel.declare_queue('hello')
-
+.. literalinclude:: examples/1-introduction/receive.py
+   :language: python
+   :lines: 17-18
 
 At that point we're ready to send a message. Our first message will just contain a
 string Hello World! and we want to send it to our hello queue.
@@ -155,26 +138,16 @@ know now is how to use a default exchange identified by an empty string.
 This exchange is special ‒ it allows us to specify exactly to which queue the
 message should go. The queue name needs to be specified in the *routing_key* parameter:
 
-.. code-block:: python
-
-    async def main(loop):
-        ...
-
-        await channel.default_exchange.publish(
-            Message(b'Hello World!'),
-            routing_key='hello',
-        )
-        print(" [x] Sent 'Hello World!'")
+.. literalinclude:: examples/1-introduction/send.py
+   :language: python
+   :lines: 9-18
 
 Before exiting the program we need to make sure the network buffers were flushed and our
 message was actually delivered to RabbitMQ. We can do it by gently closing the connection.
 
-.. code-block:: python
-
-    async def main(loop):
-        ...
-
-        await connection.close()
+.. literalinclude:: examples/1-introduction/send.py
+   :language: python
+   :lines: 20-21
 
 .. note::
 
@@ -205,14 +178,9 @@ The next step, just like before, is to make sure that the queue exists.
 Creating a queue using *queue_declare* is idempotent ‒ we can run the
 command as many times as we like, and only one will be created.
 
-.. code-block:: python
-
-    async def main(loop):
-        ...
-
-        # Declaring queue
-        queue = await channel.declare_queue('hello')
-
+.. literalinclude:: examples/1-introduction/receive.py
+   :language: python
+   :lines: 11-19
 
 You may ask why we declare the queue again ‒ we have already declared it in
 our previous code. We could avoid that if we were sure that the queue already exists.
@@ -240,115 +208,31 @@ get`.
 Whenever we receive a message, this callback function is called by the `aio-pika`_ library.
 In our case this function will print on the screen the contents of the message.
 
-.. code-block:: python
-
-    import asyncio
-    from aio_pika import IncomingMessage
-
-    def on_message(message: IncomingMessage):
-        print(" [x] Received message %r" % message)
-        print("     Message body is: %r" % message.body)
-
+.. literalinclude:: examples/1-introduction/receive.py
+   :language: python
+   :pyobject: on_message
 
 Next, we need to tell RabbitMQ that this particular callback function should receive
 messages from our hello queue:
 
-.. code-block:: python
-
-    import asyncio
-    from aio_pika import connect, IncomingMessage
-
-    def on_message(message: IncomingMessage):
-        print(" [x] Received message %r" % message)
-        print("     Message body is: %r" % message.body)
-
-    async def main(loop):
-        # Perform connection
-        connection = await connect("amqp://guest:guest@localhost/", loop=loop)
-
-        # Creating a channel
-        channel = await connection.channel()
-
-        # Declaring queue
-        queue = await channel.declare_queue('hello')
-
-        # Start listening the queue with name 'hello'
-        await queue.consume(on_message, no_ack=True)
-
-    if __name__ == "__main__":
-        loop = asyncio.get_event_loop()
-        loop.add_callback(main(loop))
-
-        # we enter a never-ending loop that waits for data and runs callbacks whenever necessary.
-        loop.run_forever()
+.. literalinclude:: examples/1-introduction/receive.py
+   :language: python
+   :pyobject: main
 
 The *no_ack* parameter will be described :ref:`later on <work-queues>`.
 
 Putting it all together
 +++++++++++++++++++++++
 
-Full code for *send.py*:
+Full code for :download:`send.py <examples/1-introduction/send.py>`:
 
-.. code-block:: python
+.. literalinclude:: examples/1-introduction/send.py
+   :language: python
 
-    import asyncio
-    from aio_pika import connect, Message
+Full :download:`receive.py <examples/1-introduction/receive.py>` code:
 
-    async def main(loop):
-        # Perform connection
-        connection = await connect("amqp://guest:guest@localhost/", loop=loop)
-
-        # Creating a channel
-        channel = await connection.channel()
-
-        # Sending the message
-        await channel.default_exchange.publish(
-            Message(b'Hello World!')
-            routing_key='hello',
-        )
-
-        print(" [x] Sent 'Hello World!'")
-
-        await connection.close()
-
-    if __name__ == "__main__":
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(main(loop))
-
-Full *receive.py* code:
-
-.. code-block:: python
-
-    import asyncio
-    from aio_pika import connect, IncomingMessage
-
-
-    def on_message(message: IncomingMessage):
-        print(" [x] Received message %r" % message)
-        print("     Message body is: %r" % message.body)
-
-
-    async def main(loop):
-        # Perform connection
-        connection = await connect("amqp://guest:guest@localhost/", loop=loop)
-
-        # Creating a channel
-        channel = await connection.channel()
-
-        # Declaring queue
-        queue = await channel.declare_queue('hello')
-
-        # Start listening the queue with name 'hello'
-        await queue.consume(on_message, no_ack=True)
-
-
-    if __name__ == "__main__":
-        loop = asyncio.get_event_loop()
-        loop.add_callback(main(loop))
-
-        # we enter a never-ending loop that waits for data and runs callbacks whenever necessary.
-        print(" [*] Waiting for messages. To exit press CTRL+C")
-        loop.run_forever()
+.. literalinclude:: examples/1-introduction/receive.py
+   :language: python
 
 Now we can try out our programs in a terminal. First, let's send a message using our send.py program::
 
@@ -358,8 +242,30 @@ Now we can try out our programs in a terminal. First, let's send a message using
 The producer program send.py will stop after every run. Let's receive it::
 
      $ python receive.py
-     [*] Waiting for messages. To exit press CTRL+C
-     [x] Received 'Hello World!'
+     [x] Received message IncomingMessage:{
+      "app_id": null,
+      "body_size": 12,
+      "cluster_id": null,
+      "consumer_tag": "ctag1.11fa33f5f4fa41f6a6488648181656e0",
+      "content_encoding": null,
+      "content_type": null,
+      "correlation_id": "b'None'",
+      "delivery_mode": 1,
+      "delivery_tag": 1,
+      "exchange": "",
+      "expiration": null,
+      "headers": null,
+      "message_id": null,
+      "priority": null,
+      "redelivered": false,
+      "reply_to": null,
+      "routing_key": "hello",
+      "synchronous": false,
+      "timestamp": null,
+      "type": "None",
+      "user_id": null
+     }
+     Message body is: b'Hello World!'
 
 Hurray! We were able to send our first message through RabbitMQ. As you might have noticed,
 the *receive.py* program doesn't exit. It will stay ready to receive further messages,
