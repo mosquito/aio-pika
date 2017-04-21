@@ -14,7 +14,6 @@ def fib(n):
 
 async def on_message(exchange: Exchange, message: IncomingMessage):
     with message.process():
-        print(message)
         n = int(message.body.decode())
 
         print(" [.] fib(%d)" % n)
