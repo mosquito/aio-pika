@@ -79,7 +79,7 @@ class Channel(BaseChannel):
         future = self.__confirmations.pop(method_frame.method.delivery_tag, None)
 
         if not future:
-            log.warning(
+            log.info(
                 "Unknown delivery tag %d for message confirmation \"%s\"",
                 method_frame.method.delivery_tag, method_frame.method.NAME)
             return

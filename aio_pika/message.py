@@ -279,7 +279,7 @@ class IncomingMessage(Message):
         :return: None
         """
         if self.__no_ack:
-            log.warning("Can't ack message with \"no_ack\" flag")
+            log.info("Can't ack message with \"no_ack\" flag")
             return False
 
         if self.__processed:

@@ -205,7 +205,7 @@ class Queue(BaseChannel):
         :return: :class:`None`
         """
 
-        log.warning("Purging queue: %r", self)
+        log.info("Purging queue: %r", self)
 
         f = self._create_future(timeout)
         self._channel.queue_purge(f.set_result, self.name)
@@ -221,7 +221,7 @@ class Queue(BaseChannel):
         :return: :class:`None`
         """
 
-        log.warning("Deleting %r", self)
+        log.info("Deleting %r", self)
 
         self._futures.reject_all(RuntimeError("Queue was deleted"))
 
