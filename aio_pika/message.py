@@ -33,7 +33,7 @@ class Message:
     )
 
     def __init__(self, body: bytes, *, headers: dict = None, content_type: str = None,
-                 content_encoding: str = None, delivery_mode: DeliveryMode = DeliveryMode.NOT_PERSISTENT,
+                 content_encoding: str = None, delivery_mode: DeliveryMode = None,
                  priority: int = None, correlation_id=None,
                  reply_to: str = None, expiration: DateType = None,
                  message_id: str = None,
@@ -64,7 +64,7 @@ class Message:
         self.headers = headers
         self.content_type = content_type
         self.content_encoding = content_encoding
-        self.delivery_mode = DeliveryMode(int(delivery_mode)).value
+        self.delivery_mode = DeliveryMode(int(delivery_mode or DeliveryMode.NOT_PERSISTENT)).value
         self.priority = priority
         self.correlation_id = self._as_bytes(correlation_id)
         self.reply_to = reply_to
