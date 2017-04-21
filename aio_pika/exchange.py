@@ -73,7 +73,7 @@ class Exchange(BaseChannel):
 
         :param if_unused: perform deletion when queue has no bindings.
         """
-        log.warning("Deleting %r", self)
+        log.info("Deleting %r", self)
         self._futures.reject_all(RuntimeError("Exchange was deleted"))
         future = create_future(loop=self.loop)
         self._channel.exchange_delete(future.set_result, self.name, if_unused=if_unused)
