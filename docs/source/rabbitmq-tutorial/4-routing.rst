@@ -213,52 +213,15 @@ The code for *emit_log_direct.py*:
         loop.run_until_complete(main(loop))
 
 
-The code for *receive_logs_direct.py*:
+The code for :download:`receive_logs_direct.py <examples/4-routing/receive_logs_direct.py>`:
 
-.. code-block:: python
+.. literalinclude:: examples/4-routing/receive_logs_direct.py
+   :language: python
 
-    import asyncio
-    from aio_pika import connect, IncomingMessage
+The code for :download:`emit_log_direct.py <examples/4-routing/emit_log_direct.py>`:
 
-
-    def on_message(message: IncomingMessage):
-        print(" [x] %r:%r" % (message.routing_key, message.body))
-
-
-    async def main(loop):
-        # Perform connection
-        connection = await connect("amqp://guest:guest@localhost/", loop=loop)
-
-        # Creating a channel
-        channel = await connection.channel()
-        await channel.set_qos(prefetch_count=1)
-
-        severities = sys.argv[1:]
-        if not severities:
-            sys.stderr.write("Usage: %s [info] [warning] [error]\n" % sys.argv[0])
-            sys.exit(1)
-
-        # Declare an exchange
-        direct_logs_exchange = await channel.declare_exchange('logs', ExchangeType.DIRECT)
-
-        # Declaring queue
-        queue = await channel.declare_queue('task_queue', durable=True)
-
-        for severity in severities:
-            await queue.bind(direct_logs_exchange, routing_key=severity)
-
-        # Start listening the queue with name 'task_queue'
-        await queue.consume(on_message)
-
-
-    if __name__ == "__main__":
-        loop = asyncio.get_event_loop()
-        loop.add_callback(main(loop))
-
-        # we enter a never-ending loop that waits for data and runs callbacks whenever necessary.
-        print(" [*] Waiting for messages. To exit press CTRL+C")
-        loop.run_forever()
-
+.. literalinclude:: examples/4-routing/emit_log_direct.py
+   :language: python
 
 If you want to save only *'warning'* and *'error'* (and not *'info'*) log messages to a file,
 just open a console and type::
