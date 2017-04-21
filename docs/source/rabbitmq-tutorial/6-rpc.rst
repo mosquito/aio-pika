@@ -172,10 +172,11 @@ The code for :download:`rpc_server.py <examples/6-rpc/rpc_server.py>`:
 
 .. literalinclude:: examples/6-rpc/rpc_server.py
    :language: python
+   :linenos:
 
 The server code is rather straightforward:
 
-* (33) As usual we start by establishing the connection and declaring the queue.
+* (34) As usual we start by establishing the connection and declaring the queue.
 * (6) We declare our fibonacci function. It assumes only valid positive integer input.
   (Don't expect this one to work for big numbers, it's probably the slowest recursive implementation possible).
 * (15) We declare a callback for basic_consume, the core of the RPC server.
@@ -186,20 +187,21 @@ The code for :download:`rpc_client.py <examples/6-rpc/rpc_client.py>`:
 
 .. literalinclude:: examples/6-rpc/rpc_server.py
    :language: python
+   :linenos:
 
 
 The client code is slightly more involved:
 
 * (15) We establish a connection, channel and declare an exclusive 'callback' queue for replies.
-* (19) We subscribe to the 'callback' queue, so that we can receive RPC responses.
-* (23) The 'on_response' callback executed on every response is doing a very simple job,
+* (18) We subscribe to the 'callback' queue, so that we can receive RPC responses.
+* (22) The 'on_response' callback executed on every response is doing a very simple job,
   for every response message it checks if the correlation_id is the one we're looking for.
   If so, it saves the response in self.response and breaks the consuming loop.
-* (27) Next, we define our main call method - it does the actual RPC request.
-* (28) In this method, first we generate a unique correlation_id number and save it - the 'on_response' callback
+* (26) Next, we define our main call method - it does the actual RPC request.
+* (27) In this method, first we generate a unique correlation_id number and save it - the 'on_response' callback
   function will use this value to catch the appropriate response.
-* (33) Next, we publish the request message, with two properties: reply_to and correlation_id.
-* (42) And finally we return the response back to the user.
+* (32) Next, we publish the request message, with two properties: reply_to and correlation_id.
+  And finally we return the response back to the user.
 
 Our RPC service is now ready. We can start the server::
 
