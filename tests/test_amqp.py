@@ -128,6 +128,38 @@ class TestCase(AsyncTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    def test_simple_publish_and_receive_delivery_mode_explicitly_none(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        queue_name = self.get_random_name("test_connection")
+        routing_key = self.get_random_name()
+
+        channel = yield from client.channel()
+        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+
+        yield from queue.bind(exchange, routing_key)
+
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        yield from exchange.publish(
+            Message(
+                body, content_type='text/plain',
+                headers={'foo': 'bar'},
+                delivery_mode=None
+            ),
+            routing_key
+        )
+
+        incoming_message = yield from queue.get(timeout=5)
+        incoming_message.ack()
+
+        self.assertEqual(incoming_message.body, body)
+        yield from queue.unbind(exchange, routing_key)
+        yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
     def test_incoming_message_info(self):
         client = yield from connect(AMQP_URL, loop=self.loop)
 
