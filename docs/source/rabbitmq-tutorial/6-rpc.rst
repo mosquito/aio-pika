@@ -168,68 +168,10 @@ Our RPC will work like this:
 Putting it all together
 +++++++++++++++++++++++
 
-The code for *rpc_server.py*:
+The code for :download:`rpc_server.py <examples/6-rpc/rpc_server.py>`:
 
-.. code-block:: python
-    :linenos:
-
-    import asyncio
-    from functools import partial
-    from aio_pika import connect, IncomingMessage, Exchange, Message
-
-
-    def fib(n):
-        if n == 0:
-            return 0
-        elif n == 1:
-            return 1
-        else:
-            return fib(n-1) + fib(n-2)
-
-
-    def on_message(exchange: Exchange, message: IncomingMessage):
-        with message.process():
-            n = int(body)
-
-            print(" [.] fib(%s)" % n)
-            response = fib(n)
-
-            exchange.publish(
-                Message(
-                    body=str(response)
-                    correlation_id=message.correlation_id
-                ),
-                routing_key=message.reply_to
-            )
-
-
-    async def main(loop):
-        # Perform connection
-        connection = await connect("amqp://guest:guest@localhost/", loop=loop)
-
-        # Creating a channel
-        channel = await connection.channel()
-
-        # Declaring queue
-        queue = await channel.declare_queue('rpc_queue')
-
-        # Start listening the queue with name 'hello'
-        await queue.consume(
-            partial(
-                on_message,
-                channel.default_exchange
-            )
-        )
-
-
-    if __name__ == "__main__":
-        loop = asyncio.get_event_loop()
-        loop.add_callback(main(loop))
-
-        # we enter a never-ending loop that waits for data and runs callbacks whenever necessary.
-        print(" [x] Awaiting RPC requests")
-        loop.run_forever()
-
+.. literalinclude:: examples/6-rpc/rpc_server.py
+   :language: python
 
 The server code is rather straightforward:
 
@@ -240,66 +182,11 @@ The server code is rather straightforward:
   It's executed when the request is received. It does the work and sends the response back.
 
 
-The code for rpc_client.py:
+The code for :download:`rpc_client.py <examples/6-rpc/rpc_client.py>`:
 
+.. literalinclude:: examples/6-rpc/rpc_server.py
+   :language: python
 
-.. code-block:: python
-    :linenos:
-
-    import asyncio
-    from functools import partial
-    from aio_pika import connect, IncomingMessage, Message
-
-
-    class FibonacciRpcClient:
-        def __init__(self, loop):
-            self.connection = None
-            self.channel = None
-            self.callback_queue = None
-            self.futures = {}
-            self.loop = loop
-
-        async def connect(self):
-            self.connection = await connect("amqp://guest:guest@localhost/", loop=loop)
-            self.channel = await connection.channel()
-            self.callback_queue = await channel.declare_queue(exclusive=True)
-
-            await queue.consume(self.on_response)
-
-            return self
-
-        def on_response(self, message: IncomingMessage):
-            future = self.futures.pop(message.correlation_id)
-            future.set_result(message.body)
-
-        async def call(self, n):
-            correlation_id = str(uuid.uuid4())
-            future = loop.create_future()
-
-            self.futures[correlation_id] = future
-
-            self.channel.default_exchange.publish(
-                Message(
-                    bytes(n),
-                    correlation_id=correlation_id,
-                    reply_to=self.callback_queue.name,
-                ),
-                routing_key='rpc_queue',
-            )
-
-            return int(await future)
-
-
-    async def main(loop):
-        fibonacci_rpc = await FibonacciRpcClient(loop).connect()
-        print(" [x] Requesting fib(30)")
-        response = await fibonacci_rpc.call(30)
-        print(" [.] Got %r" % response)
-
-
-    if __name__ == "__main__":
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(main())
 
 The client code is slightly more involved:
 

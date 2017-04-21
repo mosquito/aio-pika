@@ -114,88 +114,15 @@ that the routing keys of logs will have two words: `"<facility>.<severity>"`.
 
 The code is almost the same as in the :ref:`previous tutorial <routing>`.
 
-The code for *emit_log_topic.py*:
+The code for :download:`emit_log_topic.py <examples/5-topics/emit_log_topic.py>`:
 
-.. code-block:: python
+.. literalinclude:: examples/5-topics/emit_log_topic.py
+   :language: python
 
-    import sys
-    import asyncio
-    from aio_pika import connect, Message
+The code for :download:`receive_logs_topic.py <examples/5-topics/receive_logs_topic.py>`:
 
-    async def main(loop):
-        # Perform connection
-        connection = await connect("amqp://guest:guest@localhost/", loop=loop)
-
-        # Creating a channel
-        channel = await connection.channel()
-
-        topic_logs_exchange = await channel.declare_exchange('topic_logs', ExchangeType.TOPIC)
-
-        routing_key = sys.argv[1] if len(sys.argv) > 2 else 'anonymous.info'
-        message_body = b' '.join(sys.argv[2:]) or b"Hello World!"
-
-        message = Message(
-            message_body,
-            delivery_mode=DeliveryMode.PERSISTENT
-        )
-
-        # Sending the message
-        await topic_logs_exchange.publish(message, routing_key=routing_key)
-
-        print(" [x] Sent %r" % message)
-
-        await connection.close()
-
-    if __name__ == "__main__":
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(main(loop))
-
-The code for *receive_logs_topic.py*:
-
-.. code-block:: python
-
-    import asyncio
-    from aio_pika import connect, IncomingMessage
-
-
-    def on_message(message: IncomingMessage):
-        print(" [x] %r:%r" % (message.routing_key, message.body))
-
-
-    async def main(loop):
-        # Perform connection
-        connection = await connect("amqp://guest:guest@localhost/", loop=loop)
-
-        # Creating a channel
-        channel = await connection.channel()
-        await channel.set_qos(prefetch_count=1)
-
-        # Declare an exchange
-        topic_logs_exchange = await channel.declare_exchange('topic_logs', ExchangeType.TOPIC)
-
-        # Declaring queue
-        queue = await channel.declare_queue('task_queue', durable=True)
-
-        binding_keys = sys.argv[1:]
-
-        if not binding_keys:
-            sys.stderr.write("Usage: %s [binding_key]...\n" % sys.argv[0])
-            sys.exit(1)
-
-        for binding_key in binding_keys:
-            await queue.bind(topic_logs_exchange, routing_key=binding_key)
-
-        # Start listening the queue with name 'task_queue'
-        await queue.consume(on_message)
-
-
-    if __name__ == "__main__":
-        loop = asyncio.get_event_loop()
-        loop.add_callback(main(loop))
-
-        # we enter a never-ending loop that waits for data and runs callbacks whenever necessary.
-        print(" [*] Waiting for messages. To exit press CTRL+C")
-        loop.run_forever()
+.. literalinclude:: examples/5-topics/receive_logs_topic.py
+   :language: python
 
 To receive all the logs run::
 

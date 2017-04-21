@@ -150,7 +150,7 @@ Secondly, once we disconnect the consumer the queue should be deleted. There's a
 
 .. literalinclude:: examples/3-publish-subscribe/receive_logs.py
    :language: python
-   :lines: 24-25
+   :lines: 20-23
 
 Bindings
 ++++++++
@@ -163,7 +163,7 @@ send messages to our queue. That relationship between exchange and a queue is ca
 
 .. literalinclude:: examples/3-publish-subscribe/receive_logs.py
    :language: python
-   :lines: 19-28
+   :lines: 20-29
 
 From now on the logs exchange will append messages to our queue.
 
