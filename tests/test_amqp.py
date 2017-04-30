@@ -97,6 +97,35 @@ class TestCase(AsyncTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    def test_internal_exchange(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        routing_key = self.get_random_name()
+        exchange_name = self.get_random_name("internal", "exchange")
+
+        channel = yield from client.channel()
+        exchange = yield from channel.declare_exchange(exchange_name, auto_delete=True, internal=True)
+        queue = yield from channel.declare_queue(auto_delete=True)
+
+        yield from queue.bind(exchange, routing_key)
+
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        with self.assertRaises(ValueError):
+            f = exchange.publish(
+                Message(
+                    body, content_type='text/plain',
+                    headers={'foo': 'bar'}
+                ),
+                routing_key
+            )
+            yield from f
+
+        yield from queue.unbind(exchange, routing_key)
+        yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
     def test_simple_publish_and_receive(self):
         client = yield from connect(AMQP_URL, loop=self.loop)
 
@@ -156,6 +185,42 @@ class TestCase(AsyncTestCase):
 
         self.assertEqual(incoming_message.body, body)
         yield from queue.unbind(exchange, routing_key)
+        yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
+    def test_simple_publish_and_receive_to_bound_exchange(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        routing_key = self.get_random_name()
+        src_name = self.get_random_name("source", "exchange")
+        dest_name = self.get_random_name("destination", "exchange")
+
+        channel = yield from client.channel()
+        src_exchange = yield from channel.declare_exchange(src_name, auto_delete=True)
+        dest_exchange = yield from channel.declare_exchange(dest_name, auto_delete=True)
+        queue = yield from channel.declare_queue(auto_delete=True)
+
+        yield from queue.bind(dest_exchange, routing_key)
+        yield from dest_exchange.bind(src_exchange, routing_key)
+
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        yield from src_exchange.publish(
+            Message(
+                body, content_type='text/plain',
+                headers={'foo': 'bar'}
+            ),
+            routing_key
+        )
+
+        incoming_message = yield from queue.get(timeout=5)
+        incoming_message.ack()
+
+        self.assertEqual(incoming_message.body, body)
+
+        yield from dest_exchange.unbind(src_exchange, routing_key)
+        yield from queue.unbind(dest_exchange, routing_key)
         yield from queue.delete()
         yield from wait((client.close(), client.closing), loop=self.loop)
 
