@@ -20,11 +20,12 @@ class ExchangeType(Enum):
 class Exchange(BaseChannel):
     """ Exchange abstraction """
 
-    __slots__ = 'name', '__type', '__publish_method', 'arguments', 'durable', 'auto_delete', '_channel'
+    __slots__ = 'name', '__type', '__publish_method', 'arguments', 'durable', 'auto_delete', 'internal', '_channel'
 
     def __init__(self, channel: Channel, publish_method, name: str,
                  type: ExchangeType=ExchangeType.DIRECT, *, auto_delete: bool,
-                 durable: bool, arguments: dict, loop: asyncio.AbstractEventLoop, future_store: FutureStore):
+                 durable: bool, internal: bool, arguments: dict, loop: asyncio.AbstractEventLoop,
+                 future_store: FutureStore):
 
         super().__init__(loop, future_store)
 
@@ -34,6 +35,7 @@ class Exchange(BaseChannel):
         self.name = name
         self.auto_delete = auto_delete
         self.durable = durable
+        self.internal = internal
         self.arguments = arguments
 
     def __str__(self):
@@ -43,6 +45,70 @@ class Exchange(BaseChannel):
         return "<Exchange(%s): auto_delete=%s, durable=%s, arguments=%r)>" % (
             self, self.auto_delete, self.durable, self.arguments
         )
+
+    @BaseChannel._ensure_channel_is_open
+    def bind(self, exchange,
+             routing_key: str='', *, arguments=None, timeout: int = None) -> asyncio.Future:
+
+        """ A binding can also be a relationship between two exchanges. This can be
+        simply read as: this exchange is interested in messages from another exchange.
+
+        Bindings can take an extra routing_key parameter. To avoid the confusion
+        with a basic_publish parameter we're going to call it a binding key.
+
+        :param exchange: :class:`aio_pika.exchange.Exchange` instance
+        :param routing_key: routing key
+        :param arguments: additional arguments (will be passed to `pika`)
+        :param timeout: execution timeout
+        :return: :class:`None`
+        """
+
+        log.debug(
+            "Binding exchange %r to exchange %r, routing_key=%r, arguments=%r",
+            self, exchange, routing_key, arguments
+        )
+
+        f = self._create_future(timeout)
+
+        self._channel.exchange_bind(
+            f.set_result,
+            self.name,
+            exchange.name,
+            routing_key=routing_key,
+            arguments=arguments
+        )
+
+        return f
+
+    @BaseChannel._ensure_channel_is_open
+    def unbind(self, exchange, routing_key: str = '',
+               arguments: dict = None, timeout: int = None) -> asyncio.Future:
+
+        """ Remove exchange-to-exchange binding for this :class:`Exchange` instance
+
+        :param exchange: :class:`aio_pika.exchange.Exchange` instance
+        :param routing_key: routing key
+        :param arguments: additional arguments (will be passed to `pika`)
+        :param timeout: execution timeout
+        :return: :class:`None`
+        """
+
+        log.debug(
+            "Unbinding exchange %r from exchange %r, routing_key=%r, arguments=%r",
+            self, exchange, routing_key, arguments
+        )
+
+        f = self._create_future(timeout)
+
+        self._channel.exchange_unbind(
+            f.set_result,
+            self.name,
+            exchange.name,
+            routing_key=routing_key,
+            arguments=arguments
+        )
+
+        return f
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
@@ -55,6 +121,9 @@ class Exchange(BaseChannel):
         """
 
         log.debug("Publishing message via exchange %s: %r", self, message)
+        if self.internal:
+            # Caught on the client side to prevent channel closure
+            raise ValueError("cannot publish to internal exchange: '%s'!" % self.name)
 
         return (
             yield from self.__publish_method(

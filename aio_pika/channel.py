@@ -39,6 +39,7 @@ class Channel(BaseChannel):
             ExchangeType.DIRECT,
             durable=None,
             auto_delete=None,
+            internal=None,
             arguments=None,
             loop=self.loop,
             future_store=self._futures.get_child(),
@@ -100,7 +101,7 @@ class Channel(BaseChannel):
     @asyncio.coroutine
     def declare_exchange(self, name: str, type: ExchangeType = ExchangeType.DIRECT,
                          durable: bool = None, auto_delete: bool = False,
-                         arguments: dict = None, timeout: int = None) -> Exchange:
+                         internal: bool = False, arguments: dict = None, timeout: int = None) -> Exchange:
 
         if auto_delete and durable is None:
             durable = False
@@ -110,15 +111,15 @@ class Channel(BaseChannel):
         self.__channel.exchange_declare(
             f.set_result,
             name, ExchangeType(type).value, durable=durable,
-            auto_delete=auto_delete, arguments=arguments
+            auto_delete=auto_delete, internal=internal, arguments=arguments
         )
 
         yield from f
 
         exchange = Exchange(
             self.__channel, self._publish, name, type,
-            durable=durable, auto_delete=auto_delete, arguments=arguments,
-            loop=self.loop, future_store=self._futures.get_child(),
+            durable=durable, auto_delete=auto_delete, internal=internal,
+            arguments=arguments, loop=self.loop, future_store=self._futures.get_child(),
         )
 
         log.debug("Exchange declared %r", exchange)
