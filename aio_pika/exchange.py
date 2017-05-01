@@ -56,6 +56,22 @@ class Exchange(BaseChannel):
         Bindings can take an extra routing_key parameter. To avoid the confusion
         with a basic_publish parameter we're going to call it a binding key.
 
+        .. code-block:: python
+
+            client = await connect()
+
+            routing_key = 'simple_routing_key'
+            src_exchange_name = "source_exchange"
+            dest_exchange_name = "destination_exchange"
+
+            channel = await client.channel()
+            src_exchange = await channel.declare_exchange(src_exchange_name, auto_delete=True)
+            dest_exchange = await channel.declare_exchange(dest_exchange_name, auto_delete=True)
+            queue = await channel.declare_queue(auto_delete=True)
+
+            await queue.bind(dest_exchange, routing_key)
+            await dest_exchange.bind(src_exchange, routing_key)
+
         :param exchange: :class:`aio_pika.exchange.Exchange` instance
         :param routing_key: routing key
         :param arguments: additional arguments (will be passed to `pika`)
