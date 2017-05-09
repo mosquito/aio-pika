@@ -150,7 +150,7 @@ Secondly, once we disconnect the consumer the queue should be deleted. There's a
 
 .. literalinclude:: examples/3-publish-subscribe/receive_logs.py
    :language: python
-   :lines: 20-23
+   :lines: 26
 
 Bindings
 ++++++++
