@@ -400,6 +400,85 @@ class TestCase(AsyncTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    def test_no_ack_redelivery(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        queue_name = self.get_random_name("test_connection")
+        routing_key = self.get_random_name()
+
+        channel = yield from client.channel()
+        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
+        queue = yield from channel.declare_queue(queue_name, auto_delete=False)
+
+        yield from queue.bind(exchange, routing_key)
+
+        # publish 2 messages
+        for _ in range(2):
+            body = bytes(shortuuid.uuid(), 'utf-8')
+            msg = Message(body)
+            yield from exchange.publish(msg, routing_key)
+
+        # ack 1 message out of 2
+        first_message = yield from queue.get(timeout=5)
+
+        last_message = yield from queue.get(timeout=5)
+        last_message.ack()
+
+        # close channel, not acked message should be redelivered
+        yield from channel.close()
+
+        channel = yield from client.channel()
+        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
+        queue = yield from channel.declare_queue(queue_name, auto_delete=False)
+
+        # receive not acked message
+        message = yield from queue.get(timeout=5)
+        self.assertEqual(message.body, first_message.body)
+        message.ack()
+
+        yield from queue.unbind(exchange, routing_key)
+        yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
+    def test_ack_multiple(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        queue_name = self.get_random_name("test_connection")
+        routing_key = self.get_random_name()
+
+        channel = yield from client.channel()
+        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
+        queue = yield from channel.declare_queue(queue_name, auto_delete=False)
+
+        yield from queue.bind(exchange, routing_key)
+
+        # publish 2 messages
+        for _ in range(2):
+            body = bytes(shortuuid.uuid(), 'utf-8')
+            msg = Message(body)
+            yield from exchange.publish(msg, routing_key)
+
+        # ack only last mesage with multiple flag, first message should be acked too
+        yield from queue.get(timeout=5)
+        last_message = yield from queue.get(timeout=5)
+        last_message.ack(multiple=True)
+
+        # close channel, no messages should be redelivered
+        yield from channel.close()
+
+        channel = yield from client.channel()
+        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
+        queue = yield from channel.declare_queue(queue_name, auto_delete=False)
+
+        with self.assertRaises(TimeoutError):
+            yield from queue.get(timeout=1)
+
+        yield from queue.unbind(exchange, routing_key)
+        yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
     def test_ack_twice(self):
         client = yield from connect(AMQP_URL, loop=self.loop)
 

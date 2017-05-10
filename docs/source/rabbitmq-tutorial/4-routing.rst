@@ -144,7 +144,7 @@ And we're ready to send a message:
 
         await direct_logs_exchange.publish(
             Message(message_body),
-            routing_key=severity',
+            routing_key=severity,
         )
 
 To simplify things we will assume that `'severity'` can be one of `'info'`, `'warning'`, `'error'`.
@@ -175,43 +175,6 @@ Putting it all together
 
 .. image:: /_static/tutorial/python-four.png
    :align: center
-
-The code for *emit_log_direct.py*:
-
-.. code-block:: python
-
-    import sys
-    import asyncio
-    from aio_pika import connect, Message
-
-    async def main(loop):
-        # Perform connection
-        connection = await connect("amqp://guest:guest@localhost/", loop=loop)
-
-        # Creating a channel
-        channel = await connection.channel()
-
-        direct_logs_exchange = await channel.declare_exchange('logs', ExchangeType.DIRECT)
-
-        severity = sys.argv[1] if len(sys.argv) > 2 else 'info'
-        message_body = b' '.join(sys.argv[2:]) or b"Hello World!"
-
-        message = Message(
-            message_body,
-            delivery_mode=DeliveryMode.PERSISTENT
-        )
-
-        # Sending the message
-        await direct_logs_exchange.publish(message, routing_key=severity)
-
-        print(" [x] Sent %r" % message)
-
-        await connection.close()
-
-    if __name__ == "__main__":
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(main(loop))
-
 
 The code for :download:`receive_logs_direct.py <examples/4-routing/receive_logs_direct.py>`:
 
