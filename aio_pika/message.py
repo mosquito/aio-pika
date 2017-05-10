@@ -273,9 +273,13 @@ class IncomingMessage(Message):
                 self.reject(requeue=requeue)
             raise
 
-    def ack(self):
+    def ack(self, multiple: bool = False):
         """ Send basic.ack is used for positive acknowledgements
 
+        :param multiple: If set to True, the message's delivery tag is treated as
+                         "up to and including", so that multiple messages
+                         can be acknowledged with a single method. If set
+                         to False, the ack refers to a single message.
         :return: None
         """
         if self.__no_ack:
@@ -285,7 +289,7 @@ class IncomingMessage(Message):
         if self.__processed:
             raise MessageProcessError("Message already processed")
 
-        self.__channel.basic_ack(delivery_tag=self.delivery_tag)
+        self.__channel.basic_ack(delivery_tag=self.delivery_tag, multiple=multiple)
         self.__processed = True
 
         if not self.locked:
