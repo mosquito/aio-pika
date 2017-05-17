@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timedelta
 from enum import IntEnum, unique
 from functools import singledispatch
@@ -26,7 +25,7 @@ DateType = Union[int, datetime, float, timedelta, None]
 
 @singledispatch
 def convert_timestamp(value) -> Optional[int]:
-    raise ValueError('Invalid expiration type: %r' % type(value), value)
+    raise ValueError('Invalid timestamp type: %r' % type(value), value)
 
 
 @convert_timestamp.register(datetime)
@@ -36,9 +35,13 @@ def _convert_datetime(value):
 
 
 @convert_timestamp.register(int)
+def _convert_int(value):
+    return value
+
+
 @convert_timestamp.register(float)
 def _convert_numbers(value):
-    return value
+    return int(value)
 
 
 @convert_timestamp.register(timedelta)
@@ -46,7 +49,7 @@ def _convert_timedelta(value):
     return int(value.total_seconds())
 
 
-@convert_timestamp.register(None)
+@convert_timestamp.register(type(None))
 def _convert_none(_):
     return None
 
@@ -97,7 +100,7 @@ class Message:
         self.priority = priority
         self.correlation_id = self._as_bytes(correlation_id)
         self.reply_to = reply_to
-        self.expiration = convert_timestamp(expiration) * 1000 if expiration else None
+        self.expiration = expiration
         self.message_id = message_id
         self.timestamp = convert_timestamp(timestamp)
         self.type = type
@@ -149,7 +152,7 @@ class Message:
             priority=self.priority,
             correlation_id=self.correlation_id,
             reply_to=self.reply_to,
-            expiration=str(int(self.expiration)) if self.expiration else None,
+            expiration=str(convert_timestamp(self.expiration * 1000)) if self.expiration else None,
             message_id=self.message_id,
             timestamp=self.timestamp,
             type=self.type,
@@ -236,7 +239,7 @@ class IncomingMessage(Message):
 
         expiration = None
         if properties.expiration:
-            expiration = self._convert_timestamp(float(properties.expiration) / 1000.)
+            expiration = convert_timestamp(float(properties.expiration))
 
         super().__init__(
             body=body,
@@ -247,9 +250,9 @@ class IncomingMessage(Message):
             priority=properties.priority,
             correlation_id=properties.correlation_id,
             reply_to=properties.reply_to,
-            expiration=expiration / 1000 if expiration else None,
+            expiration=expiration / 1000. if expiration else None,
             message_id=properties.message_id,
-            timestamp=self._convert_timestamp(float(properties.timestamp)) if properties.timestamp else None,
+            timestamp=convert_timestamp(float(properties.timestamp)) if properties.timestamp else None,
             type=properties.type,
             user_id=properties.user_id,
             app_id=properties.app_id,
