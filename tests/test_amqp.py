@@ -654,7 +654,8 @@ class TestCase(AsyncTestCase):
 
         incoming_message = yield from queue.get(timeout=5, no_ack=True)
 
-        self.assertFalse(incoming_message.ack())
+        with self.assertRaises(TypeError):
+            incoming_message.ack()
 
         yield from exchange.publish(
             Message(
