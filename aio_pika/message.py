@@ -106,7 +106,7 @@ class Message:
             "content_encoding": self.content_encoding,
             "delivery_mode": self.delivery_mode,
             "priority": self.priority,
-            "correlation_id": self.correlation_id,
+            "correlation_id": self.correlation_id.decode() if self.correlation_id else None,
             "reply_to": self.reply_to,
             "expiration": self.expiration / 1000 if self.expiration else None,
             "message_id": self.message_id,
