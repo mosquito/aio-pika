@@ -240,6 +240,8 @@ class TestCase(AsyncTestCase):
 
         body = bytes(shortuuid.uuid(), 'utf-8')
 
+        self.maxDiff = None
+
         info = {
             'headers': {"foo": "bar"},
             'content_type': "application/json",
@@ -891,6 +893,54 @@ class TestCase(AsyncTestCase):
         returned = yield from f
 
         self.assertEqual(returned.body, body)
+
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
+    def test_expiration(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        channel = yield from client.channel()  # type: aio_pika.Channel
+
+        dlx_queue = yield from channel.declare_queue(
+            self.get_random_name("test_dlx")
+        )   # type: aio_pika.Queue
+
+        dlx_exchange = yield from channel.declare_exchange(
+            self.get_random_name("dlx"),
+        )   # type: aio_pika.Exchange
+
+        yield from dlx_queue.bind(dlx_exchange, routing_key=dlx_queue.name)
+
+        queue = yield from channel.declare_queue(
+            self.get_random_name("test_expiration"),
+            arguments={
+                "x-message-ttl": 10000,
+                "x-dead-letter-exchange": dlx_exchange.name,
+                "x-dead-letter-routing-key": dlx_queue.name,
+            }
+        )  # type: aio_pika.Queue
+
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        yield from channel.default_exchange.publish(
+            Message(
+                body,
+                content_type='text/plain',
+                headers={'foo': 'bar'},
+                expiration=0.5
+            ),
+            queue.name
+        )
+
+        f = asyncio.Future(loop=self.loop)
+
+        dlx_queue.consume(f.set_result, no_ack=True)
+
+        message = yield from f
+
+        self.assertEqual(message.body, body)
+        self.assertEqual(message.headers['x-death'][0]['original-expiration'], '500')
 
         yield from wait((client.close(), client.closing), loop=self.loop)
 
