@@ -1,8 +1,10 @@
 import json
 from datetime import datetime, timedelta
 from enum import IntEnum, unique
+from functools import singledispatch
 from logging import getLogger
-from typing import Union
+from pprint import pformat
+from typing import Union, Optional
 
 from pika import BasicProperties
 from pika.channel import Channel
@@ -20,6 +22,33 @@ class DeliveryMode(IntEnum):
 
 
 DateType = Union[int, datetime, float, timedelta, None]
+
+
+@singledispatch
+def convert_timestamp(value) -> Optional[int]:
+    raise ValueError('Invalid expiration type: %r' % type(value), value)
+
+
+@convert_timestamp.register(datetime)
+def _convert_datetime(value):
+    now = datetime.now()
+    return int((value - now).total_seconds())
+
+
+@convert_timestamp.register(int)
+@convert_timestamp.register(float)
+def _convert_numbers(value):
+    return value
+
+
+@convert_timestamp.register(timedelta)
+def _convert_timedelta(value):
+    return int(value.total_seconds())
+
+
+@convert_timestamp.register(None)
+def _convert_none(_):
+    return None
 
 
 class Message:
@@ -68,9 +97,9 @@ class Message:
         self.priority = priority
         self.correlation_id = self._as_bytes(correlation_id)
         self.reply_to = reply_to
-        self.expiration = self._convert_timestamp(expiration) * 1000 if expiration else None
+        self.expiration = convert_timestamp(expiration) * 1000 if expiration else None
         self.message_id = message_id
-        self.timestamp = int(self._convert_timestamp(timestamp)) if timestamp else None
+        self.timestamp = convert_timestamp(timestamp)
         self.type = type
         self.user_id = str(user_id) if user_id else None
         self.app_id = str(app_id) if app_id else None
@@ -84,20 +113,6 @@ class Message:
         else:
             return str(value).encode()
 
-    @staticmethod
-    def _convert_timestamp(value):
-        if isinstance(value, datetime):
-            now = datetime.now()
-            return int((value - now).total_seconds())
-        elif isinstance(value, (int, float)):
-            return value
-        elif isinstance(value, timedelta):
-            return int(value.total_seconds())
-        elif value is None:
-            return
-        else:
-            raise ValueError('Invalid expiration type: %r' % type(value), value)
-
     def info(self) -> dict:
         return {
             "body_size": len(self.body) if self.body else 0,
@@ -106,7 +121,7 @@ class Message:
             "content_encoding": self.content_encoding,
             "delivery_mode": self.delivery_mode,
             "priority": self.priority,
-            "correlation_id": self.correlation_id.decode() if self.correlation_id else None,
+            "correlation_id": self.correlation_id,
             "reply_to": self.reply_to,
             "expiration": self.expiration,
             "message_id": self.message_id,
@@ -125,7 +140,7 @@ class Message:
         return bool(self.__lock)
 
     @property
-    def properties(self):
+    def properties(self) -> BasicProperties:
         return BasicProperties(
             content_type=self.content_type,
             content_encoding=self.content_encoding,
@@ -145,7 +160,7 @@ class Message:
     def __repr__(self):
         return "{name}:{repr}".format(
             name=self.__class__.__name__,
-            repr=json.dumps(self.info(), indent=1, sort_keys=True, default=repr)
+            repr=pformat(self.info())
         )
 
     def __setattr__(self, key, value):
