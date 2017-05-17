@@ -98,7 +98,7 @@ class Message:
         else:
             raise ValueError('Invalid expiration type: %r' % type(value), value)
 
-    def info(self):
+    def info(self) -> dict:
         return {
             "body_size": len(self.body) if self.body else 0,
             "headers": self.headers,
@@ -108,7 +108,7 @@ class Message:
             "priority": self.priority,
             "correlation_id": self.correlation_id.decode() if self.correlation_id else None,
             "reply_to": self.reply_to,
-            "expiration": self.expiration / 1000 if self.expiration else None,
+            "expiration": self.expiration,
             "message_id": self.message_id,
             "timestamp": self.timestamp,
             "type": str(self.type),
@@ -117,12 +117,12 @@ class Message:
         }
 
     @property
-    def locked(self):
+    def locked(self) -> bool:
         """ is message locked
 
         :return: :class:`bool`
         """
-        return self.__lock
+        return bool(self.__lock)
 
     @property
     def properties(self):
@@ -232,7 +232,7 @@ class IncomingMessage(Message):
             priority=properties.priority,
             correlation_id=properties.correlation_id,
             reply_to=properties.reply_to,
-            expiration=expiration,
+            expiration=expiration / 1000 if expiration else None,
             message_id=properties.message_id,
             timestamp=self._convert_timestamp(float(properties.timestamp)) if properties.timestamp else None,
             type=properties.type,
