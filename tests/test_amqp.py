@@ -933,9 +933,11 @@ class TestCase(AsyncTestCase):
             queue.name
         )
 
-        yield from asyncio.sleep(1, loop=self.loop)
+        f = asyncio.Future(loop=self.loop)
 
-        message = yield from dlx_queue.get(timeout=1, no_ack=True)
+        dlx_queue.consume(f.set_result, no_ack=True)
+
+        message = yield from f
 
         self.assertEqual(message.body, body)
         self.assertEqual(message.headers['x-death'][0]['original-expiration'], '500')
