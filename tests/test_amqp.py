@@ -6,6 +6,7 @@ import pytest
 import shortuuid
 import time
 import unittest
+import aio_pika
 import aio_pika.exceptions
 from copy import copy
 from aio_pika import connect, connect_url, Message, DeliveryMode
@@ -815,7 +816,7 @@ class TestCase(AsyncTestCase):
 
     @pytest.mark.asyncio
     def test_connection_close(self):
-        client = yield from connect(AMQP_URL, loop=self.loop)  # type: Connection
+        client = yield from connect(AMQP_URL, loop=self.loop)  # type: aio_pika.connection.Connection
 
         routing_key = self.get_random_name()
 
@@ -834,6 +835,33 @@ class TestCase(AsyncTestCase):
         finally:
             yield from exchange.delete()
             yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
+    def test_basic_return(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        channel = yield from client.channel()   # type: aio_pika.Channel
+
+        f = asyncio.Future(loop=self.loop)
+
+        channel.add_on_return_callback(f.set_result)
+
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        yield from channel.default_exchange.publish(
+            Message(
+                body,
+                content_type='text/plain',
+                headers={'foo': 'bar'}
+            ),
+            self.get_random_name("test_basic_return")
+        )
+
+        returned = yield from f
+
+        self.assertEqual(returned.body, body)
+
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
 
 class MessageTestCase(unittest.TestCase):
