@@ -314,7 +314,7 @@ class IncomingMessage(Message):
         if not self.locked:
             self.lock()
 
-    def info(self):
+    def info(self) -> dict:
         """ Method returns dict representation of the message """
 
         info = super(IncomingMessage, self).info()
@@ -336,4 +336,4 @@ class ReturnedMessage(IncomingMessage):
     pass
 
 
-__all__ = 'Message', 'IncomingMessage',
+__all__ = 'Message', 'IncomingMessage', 'ReturnedMessage',
