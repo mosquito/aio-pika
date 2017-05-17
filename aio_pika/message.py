@@ -242,11 +242,15 @@ class IncomingMessage(Message):
 
         self.cluster_id = properties.cluster_id
         self.consumer_tag = getattr(envelope, 'consumer_tag', None)
-        self.delivery_tag = envelope.delivery_tag
+        self.delivery_tag = getattr(envelope, 'delivery_tag', None)
         self.exchange = envelope.exchange
         self.routing_key = envelope.routing_key
-        self.redelivered = envelope.redelivered
+        self.redelivered = getattr(envelope, 'redelivered', None)
         self.synchronous = envelope.synchronous
+
+        if no_ack or not self.delivery_tag:
+            self.lock()
+            self.__processed = True
 
     @contextmanager
     def process(self, requeue=False, reject_on_redelivered=False):
@@ -283,8 +287,7 @@ class IncomingMessage(Message):
         :return: None
         """
         if self.__no_ack:
-            log.info("Can't ack message with \"no_ack\" flag")
-            return False
+            raise TypeError("Can't ack message with \"no_ack\" flag")
 
         if self.__processed:
             raise MessageProcessError("Message already processed")
@@ -323,6 +326,14 @@ class IncomingMessage(Message):
         info['routing_key'] = self.routing_key
         info['synchronous'] = self.synchronous
         return info
+
+    @property
+    def processed(self):
+        return self.__processed
+
+
+class ReturnedMessage(IncomingMessage):
+    pass
 
 
 __all__ = 'Message', 'IncomingMessage',

@@ -1,21 +1,28 @@
 import asyncio
+from typing import Callable, Any, Union
+
 import pika.channel
 from logging import getLogger
 from types import FunctionType
+
 from . import exceptions
+from .compat import Awaitable
 from .exchange import Exchange, ExchangeType
+from .message import IncomingMessage, ReturnedMessage
 from .queue import Queue
 from .common import BaseChannel, FutureStore, ConfirmationTypes
 
 
 log = getLogger(__name__)
 
+FunctionOrCoroutine = Union[Callable[[IncomingMessage], Any], Awaitable[IncomingMessage]]
+
 
 class Channel(BaseChannel):
     """ Channel abstraction """
 
     __slots__ = ('__connection', '__closing', '__confirmations', '__delivery_tag',
-                 'loop', '_futures', '__channel', 'default_exchange')
+                 'loop', '_futures', '__channel', '__on_return_callbacks', 'default_exchange')
 
     def __init__(self, connection,
                  loop: asyncio.AbstractEventLoop, future_store: FutureStore):
@@ -30,6 +37,7 @@ class Channel(BaseChannel):
         self.__channel = None  # type: pika.channel.Channel
         self.__connection = connection
         self.__confirmations = {}
+        self.__on_return_callbacks = set()
         self.__delivery_tag = 0
 
         self.default_exchange = Exchange(
@@ -58,8 +66,22 @@ class Channel(BaseChannel):
         self._futures.reject_all(exc)
         self._closing.set_exception(exc)
 
-    def add_close_callback(self, callback: FunctionType):
+    def _on_return(self, channel, message, properties, body):
+        msg = ReturnedMessage(channel=channel, body=body, envelope=message, properties=properties)
+
+        for cb in self.__on_return_callbacks:
+            try:
+                result = cb(msg)
+                if asyncio.iscoroutine(result):
+                    self.loop.create_task(result)
+            except:
+                log.exception("Error when handling callback: %r", cb)
+
+    def add_close_callback(self, callback: FunctionType) -> None:
         self._closing.add_done_callback(lambda r: callback(r))
+
+    def add_on_return_callback(self, callback: FunctionOrCoroutine) -> None:
+        self.__on_return_callbacks.add(callback)
 
     @asyncio.coroutine
     def initialize(self, timeout=None) -> None:
@@ -73,6 +95,7 @@ class Channel(BaseChannel):
         channel = yield from future  # type: pika.channel.Channel
         channel.confirm_delivery(self._on_delivery_confirmation)
         channel.add_on_close_callback(self._on_channel_close)
+        channel.add_on_return_callback(self._on_return)
 
         self.__channel = channel
 
