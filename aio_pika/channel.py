@@ -1,5 +1,5 @@
 import asyncio
-from typing import Callable, Any, Union, Awaitable
+from typing import Callable, Any, Union
 
 import pika.channel
 from logging import getLogger
@@ -10,6 +10,26 @@ from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage, ReturnedMessage
 from .queue import Queue
 from .common import BaseChannel, FutureStore, ConfirmationTypes
+
+
+try:
+    from typing import Awaitable
+except ImportError:
+    from typing import Generic, TypeVar
+    from abc import ABCMeta, abstractmethod
+
+    T_co = TypeVar('T_co', covariant=True)
+
+    class _Awaitable(metaclass=ABCMeta):
+
+        __slots__ = ()
+
+        @abstractmethod
+        def __await__(self):
+            yield
+
+    class Awaitable(Generic[T_co], extra=_Awaitable):
+        __slots__ = ()
 
 
 log = getLogger(__name__)
