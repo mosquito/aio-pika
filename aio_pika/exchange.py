@@ -1,6 +1,8 @@
 import asyncio
 from enum import Enum, unique
 from logging import getLogger
+from typing import Optional
+
 from pika.channel import Channel
 from .common import BaseChannel, FutureStore
 from .message import Message
@@ -23,11 +25,15 @@ class Exchange(BaseChannel):
     __slots__ = 'name', '__type', '__publish_method', 'arguments', 'durable', 'auto_delete', 'internal', '_channel'
 
     def __init__(self, channel: Channel, publish_method, name: str,
-                 type: ExchangeType=ExchangeType.DIRECT, *, auto_delete: bool,
-                 durable: bool, internal: bool, arguments: dict, loop: asyncio.AbstractEventLoop,
+                 type: ExchangeType=ExchangeType.DIRECT, *, auto_delete: Optional[bool],
+                 durable: Optional[bool], internal: Optional[bool],
+                 arguments: dict=None, loop: asyncio.AbstractEventLoop,
                  future_store: FutureStore):
 
         super().__init__(loop, future_store)
+
+        if not arguments:
+            arguments = {}
 
         self._channel = channel
         self.__publish_method = publish_method
