@@ -862,6 +862,36 @@ class TestCase(AsyncTestCase):
 
         self.assertEqual(returned.body, body)
 
+        # handler with exception
+        f = asyncio.Future(loop=self.loop)
+
+        yield from channel.close()
+
+        channel = yield from client.channel()  # type: aio_pika.Channel
+
+        def bad_handler(message):
+            try:
+                raise ValueError
+            finally:
+                f.set_result(message)
+
+        channel.add_on_return_callback(bad_handler)
+
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        yield from channel.default_exchange.publish(
+            Message(
+                body,
+                content_type='text/plain',
+                headers={'foo': 'bar'}
+            ),
+            self.get_random_name("test_basic_return")
+        )
+
+        returned = yield from f
+
+        self.assertEqual(returned.body, body)
+
         yield from wait((client.close(), client.closing), loop=self.loop)
 
 
