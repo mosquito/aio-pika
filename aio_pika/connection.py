@@ -33,7 +33,7 @@ class Connection:
 
     __slots__ = (
         'loop', '__closing', '_connection', '_futures', '__sender_lock',
-        '_io_loop', '__connecting', '__connection_parameters', '__credentials',
+        '_io_loop', '__connection_parameters', '__credentials',
         '__connection_lock',
     )
 
@@ -57,8 +57,7 @@ class Connection:
 
         self._connection = None
         self.__connection_lock = asyncio.Lock(loop=self.loop)
-        self.__connecting = self._futures.create_future()
-        self.__closing = self._futures.create_future()
+        self.__closing = self.loop.create_future()
 
     def __str__(self):
         return 'amqp://{credentials}{host}:{port}/{vhost}'.format(
@@ -109,7 +108,7 @@ class Connection:
 
             log.debug("Creating a new AMQP connection: %s", self)
 
-            f = self._futures.create_future()
+            f = self.loop.create_future()
 
             def _on_connection_refused(connection, message: str):
                 _on_connection_lost(connection, code=500, reason=ConnectionRefusedError(message))
@@ -128,7 +127,6 @@ class Connection:
                 else:
                     exc = ConnectionError(reason, code)
 
-                self.__closing.set_exception(exc)
                 self._futures.reject_all(exc)
 
                 if f.done():
