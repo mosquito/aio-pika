@@ -955,6 +955,37 @@ class TestCase(AsyncTestCase):
 
         self.assertTrue(f.done())
 
+    @pytest.mark.asyncio
+    def test_big_message(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        queue_name = self.get_random_name("test_big")
+        routing_key = self.get_random_name()
+
+        channel = yield from client.channel()
+        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+
+        yield from queue.bind(exchange, routing_key)
+
+        body = bytes(shortuuid.uuid(), 'utf-8') * 9999999
+
+        yield from exchange.publish(
+            Message(
+                body, content_type='text/plain',
+                headers={'foo': 'bar'}
+            ),
+            routing_key
+        )
+
+        incoming_message = yield from queue.get(timeout=5)
+        incoming_message.ack()
+
+        self.assertEqual(incoming_message.body, body)
+        yield from queue.unbind(exchange, routing_key)
+        yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
 
 class MessageTestCase(unittest.TestCase):
     def test_message_copy(self):
