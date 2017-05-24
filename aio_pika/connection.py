@@ -10,7 +10,7 @@ from pika.spec import REPLY_SUCCESS
 from yarl import URL
 from .channel import Channel
 from .common import FutureStore
-from .tools import copy_future
+from .tools import copy_future, create_future
 from .adapter import AsyncioConnection
 
 
@@ -33,7 +33,7 @@ class Connection:
 
     __slots__ = (
         'loop', '__closing', '_connection', '_futures', '__sender_lock',
-        '_io_loop', '__connecting', '__connection_parameters', '__credentials',
+        '_io_loop', '__connection_parameters', '__credentials',
         '__connection_lock',
     )
 
@@ -57,8 +57,7 @@ class Connection:
 
         self._connection = None
         self.__connection_lock = asyncio.Lock(loop=self.loop)
-        self.__connecting = self._futures.create_future()
-        self.__closing = self._futures.create_future()
+        self.__closing = None
 
     def __str__(self):
         return 'amqp://{credentials}{host}:{port}/{vhost}'.format(
@@ -95,13 +94,16 @@ class Connection:
     @property
     def closing(self):
         """ Return future which will be finished after connection close. """
+        if self.__closing is None:
+            self.__closing = self._futures.create_future()
+
         return copy_future(self.__closing)
 
     @asyncio.coroutine
     def connect(self):
         """ Perform connect. This method should be called after :func:`aio_pika.connection.Connection.__init__`"""
 
-        if self.closing.done():
+        if self.__closing and self.__closing.done():
             raise RuntimeError("Invalid connection state")
 
         with (yield from self.__connection_lock):
@@ -109,7 +111,7 @@ class Connection:
 
             log.debug("Creating a new AMQP connection: %s", self)
 
-            f = self._futures.create_future()
+            f = create_future(loop=self.loop)
 
             def _on_connection_refused(connection, message: str):
                 _on_connection_lost(connection, code=500, reason=ConnectionRefusedError(message))
@@ -117,7 +119,7 @@ class Connection:
             def _on_connection_lost(_, code, reason):
                 nonlocal f
 
-                if self.__closing.done():
+                if self.__closing and self.__closing.done():
                     return
 
                 if code == REPLY_SUCCESS:
@@ -128,7 +130,6 @@ class Connection:
                 else:
                     exc = ConnectionError(reason, code)
 
-                self.__closing.set_exception(exc)
                 self._futures.reject_all(exc)
 
                 if f.done():
