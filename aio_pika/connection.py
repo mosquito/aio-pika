@@ -10,7 +10,7 @@ from pika.spec import REPLY_SUCCESS
 from yarl import URL
 from .channel import Channel
 from .common import FutureStore
-from .tools import copy_future
+from .tools import copy_future, create_future
 from .adapter import AsyncioConnection
 
 
@@ -111,7 +111,7 @@ class Connection:
 
             log.debug("Creating a new AMQP connection: %s", self)
 
-            f = self.loop.create_future()
+            f = create_future(loop=self.loop)
 
             def _on_connection_refused(connection, message: str):
                 _on_connection_lost(connection, code=500, reason=ConnectionRefusedError(message))
