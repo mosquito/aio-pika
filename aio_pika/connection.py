@@ -57,7 +57,7 @@ class Connection:
 
         self._connection = None
         self.__connection_lock = asyncio.Lock(loop=self.loop)
-        self.__closing = self.loop.create_future()
+        self.__closing = None
 
     def __str__(self):
         return 'amqp://{credentials}{host}:{port}/{vhost}'.format(
@@ -94,13 +94,16 @@ class Connection:
     @property
     def closing(self):
         """ Return future which will be finished after connection close. """
+        if self.__closing is None:
+            self.__closing = self._futures.create_future()
+
         return copy_future(self.__closing)
 
     @asyncio.coroutine
     def connect(self):
         """ Perform connect. This method should be called after :func:`aio_pika.connection.Connection.__init__`"""
 
-        if self.closing.done():
+        if self.__closing and self.__closing.done():
             raise RuntimeError("Invalid connection state")
 
         with (yield from self.__connection_lock):
@@ -116,7 +119,7 @@ class Connection:
             def _on_connection_lost(_, code, reason):
                 nonlocal f
 
-                if self.__closing.done():
+                if self.__closing and self.__closing.done():
                     return
 
                 if code == REPLY_SUCCESS:
