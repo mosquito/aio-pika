@@ -34,7 +34,7 @@ class Connection:
     __slots__ = (
         'loop', '__closing', '_connection', '_futures', '__sender_lock',
         '_io_loop', '__connection_parameters', '__credentials',
-        '__connection_lock',
+        '__write_lock'
     )
 
     def __init__(self, host: str = 'localhost', port: int = 5672, login: str = 'guest',
@@ -56,8 +56,8 @@ class Connection:
         )
 
         self._connection = None
-        self.__connection_lock = asyncio.Lock(loop=self.loop)
         self.__closing = None
+        self.__write_lock = asyncio.Lock(loop=self.loop)
 
     def __str__(self):
         return 'amqp://{credentials}{host}:{port}/{vhost}'.format(
@@ -106,7 +106,7 @@ class Connection:
         if self.__closing and self.__closing.done():
             raise RuntimeError("Invalid connection state")
 
-        with (yield from self.__connection_lock):
+        with (yield from self.__write_lock):
             self._connection = None
 
             log.debug("Creating a new AMQP connection: %s", self)
@@ -155,14 +155,15 @@ class Connection:
     @asyncio.coroutine
     def channel(self) -> Channel:
         """ Get a channel """
-        log.debug("Creating AMQP channel for conneciton: %r", self)
+        with (yield from self.__write_lock):
+            log.debug("Creating AMQP channel for conneciton: %r", self)
 
-        channel = Channel(self, self.loop, self._futures)
+            channel = Channel(self, self.loop, self._futures)
 
-        yield from channel.initialize()
+            yield from channel.initialize()
 
-        log.debug("Channel created: %r", channel)
-        return channel
+            log.debug("Channel created: %r", channel)
+            return channel
 
     @asyncio.coroutine
     def close(self) -> None:
