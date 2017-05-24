@@ -12,7 +12,7 @@ from copy import copy
 from aio_pika import connect, connect_url, Message, DeliveryMode
 from aio_pika.exceptions import ProbableAuthenticationError, MessageProcessError
 from aio_pika.exchange import ExchangeType
-from aio_pika.tools import wait
+from aio_pika.tools import wait, create_future
 from unittest import mock
 from . import AsyncTestCase, AMQP_URL
 
@@ -943,6 +943,17 @@ class TestCase(AsyncTestCase):
         self.assertEqual(message.headers['x-death'][0]['original-expiration'], '500')
 
         yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
+    def test_add_close_callback(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        f = create_future(loop=self.loop)
+
+        client.add_close_callback(f.set_result)
+        yield from client.close()
+
+        self.assertTrue(f.done())
 
 
 class MessageTestCase(unittest.TestCase):

@@ -77,7 +77,7 @@ class Connection:
         :return: None
         """
 
-        self.__closing.add_done_callback(callback)
+        self._closing.add_done_callback(callback)
 
     @property
     def is_closed(self):
@@ -92,12 +92,16 @@ class Connection:
         return False
 
     @property
-    def closing(self):
-        """ Return future which will be finished after connection close. """
+    def _closing(self):
         if self.__closing is None:
             self.__closing = self._futures.create_future()
 
-        return copy_future(self.__closing)
+        return self.__closing
+
+    @property
+    def closing(self):
+        """ Return future which will be finished after connection close. """
+        return copy_future(self._closing)
 
     @asyncio.coroutine
     def connect(self):
