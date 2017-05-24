@@ -1,2 +1,3 @@
 [run]
 omit = aio_pika/compat.py
+branch = True

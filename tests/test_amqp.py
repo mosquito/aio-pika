@@ -12,7 +12,7 @@ from copy import copy
 from aio_pika import connect, connect_url, Message, DeliveryMode
 from aio_pika.exceptions import ProbableAuthenticationError, MessageProcessError
 from aio_pika.exchange import ExchangeType
-from aio_pika.tools import wait
+from aio_pika.tools import wait, create_future
 from unittest import mock
 from . import AsyncTestCase, AMQP_URL
 
@@ -942,6 +942,48 @@ class TestCase(AsyncTestCase):
         self.assertEqual(message.body, body)
         self.assertEqual(message.headers['x-death'][0]['original-expiration'], '500')
 
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
+    def test_add_close_callback(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        f = create_future(loop=self.loop)
+
+        client.add_close_callback(f.set_result)
+        yield from client.close()
+
+        self.assertTrue(f.done())
+
+    @pytest.mark.asyncio
+    def test_big_message(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        queue_name = self.get_random_name("test_big")
+        routing_key = self.get_random_name()
+
+        channel = yield from client.channel()
+        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+
+        yield from queue.bind(exchange, routing_key)
+
+        body = bytes(shortuuid.uuid(), 'utf-8') * 9999999
+
+        yield from exchange.publish(
+            Message(
+                body, content_type='text/plain',
+                headers={'foo': 'bar'}
+            ),
+            routing_key
+        )
+
+        incoming_message = yield from queue.get(timeout=5)
+        incoming_message.ack()
+
+        self.assertEqual(incoming_message.body, body)
+        yield from queue.unbind(exchange, routing_key)
+        yield from queue.delete()
         yield from wait((client.close(), client.closing), loop=self.loop)
 
 
