@@ -107,9 +107,13 @@ Thanks for contributing
 * `@mosquito`_ (author)
 * `@hellysmile`_ (bug fixes and ideas)
 * `@alternativehood`_ (bugfixes)
-* `@akhoronko`_ 
+* `@akhoronko`_
+* `@zyp`_
+* `@decaz`_ 
 
 .. _@mosquito: https://github.com/mosquito
 .. _@hellysmile: https://github.com/hellysmile
 .. _@alternativehood: https://github.com/alternativehood
 .. _@akhoronko: https://github.com/akhoronko
+.. _@zyp: https://github.com/zyp
+.. _@decaz: https://github.com/decaz
