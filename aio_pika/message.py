@@ -58,7 +58,7 @@ class Message:
     """ AMQP message abstraction """
 
     __slots__ = (
-        "body", "headers", "content_type", "content_encoding",
+        "body", "headers", "content_type", "content_encoding", "body_size",
         "delivery_mode", "priority", "correlation_id", "reply_to",
         "expiration", "message_id", "timestamp", "type", "user_id", "app_id",
         "__lock"
@@ -93,6 +93,7 @@ class Message:
 
         self.__lock = False
         self.body = body if isinstance(body, bytes) else bytes(body)
+        self.body_size = len(self.body) if self.body else 0
         self.headers = headers
         self.content_type = content_type
         self.content_encoding = content_encoding
@@ -118,7 +119,7 @@ class Message:
 
     def info(self) -> dict:
         return {
-            "body_size": len(self.body) if self.body else 0,
+            "body_size": self.body_size,
             "headers": self.headers,
             "content_type": self.content_type,
             "content_encoding": self.content_encoding,
