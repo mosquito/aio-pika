@@ -66,7 +66,6 @@ class Channel(BaseChannel):
         log.error("Channel %r closed: %d - %s", channel, code, reason)
 
         self._futures.reject_all(exc)
-        self._closing.set_exception(exc)
 
     def _on_return(self, channel, message, properties, body):
         msg = ReturnedMessage(channel=channel, body=body, envelope=message, properties=properties)
