@@ -52,7 +52,7 @@ setup(
             'coveralls',
             'pylama',
             'pytest',
-            'pytest-asyncio',
+            'pytest-asyncio<0.6',
             'pytest-cov',
             'sphinx',
             'sphinx-autobuild',
