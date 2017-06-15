@@ -1,21 +1,29 @@
 import asyncio
+from typing import Callable, Any, Union
+
 import pika.channel
 from logging import getLogger
 from types import FunctionType
+
 from . import exceptions
+from .compat import Awaitable
 from .exchange import Exchange, ExchangeType
+from .message import IncomingMessage, ReturnedMessage
 from .queue import Queue
 from .common import BaseChannel, FutureStore, ConfirmationTypes
 
 
 log = getLogger(__name__)
 
+FunctionOrCoroutine = Union[Callable[[IncomingMessage], Any], Awaitable[IncomingMessage]]
+
 
 class Channel(BaseChannel):
     """ Channel abstraction """
 
     __slots__ = ('__connection', '__closing', '__confirmations', '__delivery_tag',
-                 'loop', '_futures', '__channel', 'default_exchange')
+                 'loop', '_futures', '__channel', '__on_return_callbacks',
+                 'default_exchange', '__write_lock')
 
     def __init__(self, connection,
                  loop: asyncio.AbstractEventLoop, future_store: FutureStore):
@@ -30,7 +38,9 @@ class Channel(BaseChannel):
         self.__channel = None  # type: pika.channel.Channel
         self.__connection = connection
         self.__confirmations = {}
+        self.__on_return_callbacks = set()
         self.__delivery_tag = 0
+        self.__write_lock = asyncio.Lock(loop=self.loop)
 
         self.default_exchange = Exchange(
             self.__channel,
@@ -56,25 +66,40 @@ class Channel(BaseChannel):
         log.error("Channel %r closed: %d - %s", channel, code, reason)
 
         self._futures.reject_all(exc)
-        self._closing.set_exception(exc)
 
-    def add_close_callback(self, callback: FunctionType):
+    def _on_return(self, channel, message, properties, body):
+        msg = ReturnedMessage(channel=channel, body=body, envelope=message, properties=properties)
+
+        for cb in self.__on_return_callbacks:
+            try:
+                result = cb(msg)
+                if asyncio.iscoroutine(result):
+                    self.loop.create_task(result)
+            except:
+                log.exception("Error when handling callback: %r", cb)
+
+    def add_close_callback(self, callback: FunctionType) -> None:
         self._closing.add_done_callback(lambda r: callback(r))
+
+    def add_on_return_callback(self, callback: FunctionOrCoroutine) -> None:
+        self.__on_return_callbacks.add(callback)
 
     @asyncio.coroutine
     def initialize(self, timeout=None) -> None:
-        if self._closing.done():
-            raise RuntimeError("Can't initialize closed channel")
+        with (yield from self.__write_lock):
+            if self._closing.done():
+                raise RuntimeError("Can't initialize closed channel")
 
-        future = self._create_future(timeout=timeout)
+            future = self._create_future(timeout=timeout)
 
-        self.__connection._connection.channel(future.set_result)
+            self.__connection._connection.channel(future.set_result)
 
-        channel = yield from future  # type: pika.channel.Channel
-        channel.confirm_delivery(self._on_delivery_confirmation)
-        channel.add_on_close_callback(self._on_channel_close)
+            channel = yield from future  # type: pika.channel.Channel
+            channel.confirm_delivery(self._on_delivery_confirmation)
+            channel.add_on_close_callback(self._on_channel_close)
+            channel.add_on_return_callback(self._on_return)
 
-        self.__channel = channel
+            self.__channel = channel
 
     def _on_delivery_confirmation(self, method_frame):
         future = self.__confirmations.pop(method_frame.method.delivery_tag, None)
@@ -103,49 +128,51 @@ class Channel(BaseChannel):
                          durable: bool = None, auto_delete: bool = False,
                          internal: bool = False, arguments: dict = None, timeout: int = None) -> Exchange:
 
-        if auto_delete and durable is None:
-            durable = False
+        with (yield from self.__write_lock):
+            if auto_delete and durable is None:
+                durable = False
 
-        f = self._create_future(timeout=timeout)
+            f = self._create_future(timeout=timeout)
 
-        self.__channel.exchange_declare(
-            f.set_result,
-            name, ExchangeType(type).value, durable=durable,
-            auto_delete=auto_delete, internal=internal, arguments=arguments
-        )
+            self.__channel.exchange_declare(
+                f.set_result,
+                name, ExchangeType(type).value, durable=durable,
+                auto_delete=auto_delete, internal=internal, arguments=arguments
+            )
 
-        yield from f
+            yield from f
 
-        exchange = Exchange(
-            self.__channel, self._publish, name, type,
-            durable=durable, auto_delete=auto_delete, internal=internal,
-            arguments=arguments, loop=self.loop, future_store=self._futures.get_child(),
-        )
+            exchange = Exchange(
+                self.__channel, self._publish, name, type,
+                durable=durable, auto_delete=auto_delete, internal=internal,
+                arguments=arguments, loop=self.loop, future_store=self._futures.get_child(),
+            )
 
-        log.debug("Exchange declared %r", exchange)
+            log.debug("Exchange declared %r", exchange)
 
-        return exchange
+            return exchange
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
     def _publish(self, queue_name, routing_key, body, properties, mandatory, immediate):
-        while self.__connection.is_closed:
-            log.debug("Can't publish message because connection is inactive")
-            yield from asyncio.sleep(1, loop=self.loop)
+        with (yield from self.__write_lock):
+            while self.__connection.is_closed:
+                log.debug("Can't publish message because connection is inactive")
+                yield from asyncio.sleep(1, loop=self.loop)
 
-        f = self._create_future()
+            f = self._create_future()
 
-        try:
-            self.__channel.basic_publish(queue_name, routing_key, body, properties, mandatory, immediate)
-        except (AttributeError, RuntimeError) as exc:
-            log.exception("Failed to send data to client. Conection unexpected closed.")
-            self._on_channel_close(self.__channel, -1, exc)
-            self.__connection.close(reply_code=500, reply_text="Incorrect state")
-        else:
-            self.__delivery_tag += 1
-            self.__confirmations[self.__delivery_tag] = f
+            try:
+                self.__channel.basic_publish(queue_name, routing_key, body, properties, mandatory, immediate)
+            except (AttributeError, RuntimeError) as exc:
+                log.exception("Failed to send data to client. Conection unexpected closed.")
+                self._on_channel_close(self.__channel, -1, exc)
+                self.__connection.close(reply_code=500, reply_text="Incorrect state")
+            else:
+                self.__delivery_tag += 1
+                self.__confirmations[self.__delivery_tag] = f
 
-        return (yield from f)
+            return (yield from f)
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
@@ -164,66 +191,73 @@ class Channel(BaseChannel):
         :return: :class:`aio_pika.queue.Queue` instance
         """
 
-        if auto_delete and durable is None:
-            durable = False
+        with (yield from self.__write_lock):
+            if auto_delete and durable is None:
+                durable = False
 
-        queue = Queue(
-            self.loop, self._futures.get_child(), self.__channel, name,
-            durable, exclusive, auto_delete, arguments
-        )
+            queue = Queue(
+                self.loop, self._futures.get_child(), self.__channel, name,
+                durable, exclusive, auto_delete, arguments
+            )
 
-        yield from queue.declare(timeout)
-        return queue
+            yield from queue.declare(timeout)
+            return queue
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
     def close(self) -> None:
-        self.__channel.close()
+        with (yield from self.__write_lock):
+            self.__channel.close()
 
-        if not self._closing.done():
-            self._closing.set_result(self)
+            if not self._closing.done():
+                self._closing.set_result(self)
 
-        self.__channel = None
+            self.__channel = None
 
     @BaseChannel._ensure_channel_is_open
+    @asyncio.coroutine
     def set_qos(self, prefetch_count: int = 0, prefetch_size: int = 0, all_channels=False, timeout: int = None):
-        f = self._create_future(timeout=timeout)
+        with (yield from self.__write_lock):
+            f = self._create_future(timeout=timeout)
 
-        self.__channel.basic_qos(
-            f.set_result,
-            prefetch_count=prefetch_count,
-            prefetch_size=prefetch_size,
-            all_channels=all_channels
-        )
+            self.__channel.basic_qos(
+                f.set_result,
+                prefetch_count=prefetch_count,
+                prefetch_size=prefetch_size,
+                all_channels=all_channels
+            )
 
-        return f
+            return (yield from f)
 
     @BaseChannel._ensure_channel_is_open
+    @asyncio.coroutine
     def queue_delete(self, queue_name: str, timeout: int = None,
                      if_unused: bool = False, if_empty: bool = False, nowait: bool = False):
 
-        f = self._create_future(timeout=timeout)
+        with (yield from self.__write_lock):
+            f = self._create_future(timeout=timeout)
 
-        self.__channel.queue_delete(
-            callback=f.set_result,
-            queue=queue_name,
-            if_unused=if_unused,
-            if_empty=if_empty,
-            nowait=nowait
-        )
+            self.__channel.queue_delete(
+                callback=f.set_result,
+                queue=queue_name,
+                if_unused=if_unused,
+                if_empty=if_empty,
+                nowait=nowait
+            )
 
-        return f
+            return (yield from f)
 
     @BaseChannel._ensure_channel_is_open
+    @asyncio.coroutine
     def exchange_delete(self, exchange_name: str, timeout: int = None, if_unused=False, nowait=False):
+        with (yield from self.__write_lock):
+            f = self._create_future(timeout=timeout)
 
-        f = self._create_future(timeout=timeout)
+            self.__channel.exchange_delete(
+                callback=f.set_result, exchange=exchange_name, if_unused=if_unused, nowait=nowait
+            )
 
-        self.__channel.exchange_delete(
-            callback=f.set_result, exchange=exchange_name, if_unused=if_unused, nowait=nowait
-        )
-
-        return f
+            return (yield from f)
 
 
 __all__ = ('Channel',)

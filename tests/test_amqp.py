@@ -6,12 +6,13 @@ import pytest
 import shortuuid
 import time
 import unittest
+import aio_pika
 import aio_pika.exceptions
 from copy import copy
 from aio_pika import connect, connect_url, Message, DeliveryMode
 from aio_pika.exceptions import ProbableAuthenticationError, MessageProcessError
 from aio_pika.exchange import ExchangeType
-from aio_pika.tools import wait
+from aio_pika.tools import wait, create_future
 from unittest import mock
 from . import AsyncTestCase, AMQP_URL
 
@@ -238,6 +239,8 @@ class TestCase(AsyncTestCase):
         yield from queue.bind(exchange, routing_key)
 
         body = bytes(shortuuid.uuid(), 'utf-8')
+
+        self.maxDiff = None
 
         info = {
             'headers': {"foo": "bar"},
@@ -653,7 +656,8 @@ class TestCase(AsyncTestCase):
 
         incoming_message = yield from queue.get(timeout=5, no_ack=True)
 
-        self.assertFalse(incoming_message.ack())
+        with self.assertRaises(TypeError):
+            incoming_message.ack()
 
         yield from exchange.publish(
             Message(
@@ -815,7 +819,7 @@ class TestCase(AsyncTestCase):
 
     @pytest.mark.asyncio
     def test_connection_close(self):
-        client = yield from connect(AMQP_URL, loop=self.loop)  # type: Connection
+        client = yield from connect(AMQP_URL, loop=self.loop)  # type: aio_pika.connection.Connection
 
         routing_key = self.get_random_name()
 
@@ -834,6 +838,153 @@ class TestCase(AsyncTestCase):
         finally:
             yield from exchange.delete()
             yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
+    def test_basic_return(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        channel = yield from client.channel()   # type: aio_pika.Channel
+
+        f = asyncio.Future(loop=self.loop)
+
+        channel.add_on_return_callback(f.set_result)
+
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        yield from channel.default_exchange.publish(
+            Message(
+                body,
+                content_type='text/plain',
+                headers={'foo': 'bar'}
+            ),
+            self.get_random_name("test_basic_return")
+        )
+
+        returned = yield from f
+
+        self.assertEqual(returned.body, body)
+
+        # handler with exception
+        f = asyncio.Future(loop=self.loop)
+
+        yield from channel.close()
+
+        channel = yield from client.channel()  # type: aio_pika.Channel
+
+        def bad_handler(message):
+            try:
+                raise ValueError
+            finally:
+                f.set_result(message)
+
+        channel.add_on_return_callback(bad_handler)
+
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        yield from channel.default_exchange.publish(
+            Message(
+                body,
+                content_type='text/plain',
+                headers={'foo': 'bar'}
+            ),
+            self.get_random_name("test_basic_return")
+        )
+
+        returned = yield from f
+
+        self.assertEqual(returned.body, body)
+
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
+    def test_expiration(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        channel = yield from client.channel()  # type: aio_pika.Channel
+
+        dlx_queue = yield from channel.declare_queue(
+            self.get_random_name("test_dlx")
+        )   # type: aio_pika.Queue
+
+        dlx_exchange = yield from channel.declare_exchange(
+            self.get_random_name("dlx"),
+        )   # type: aio_pika.Exchange
+
+        yield from dlx_queue.bind(dlx_exchange, routing_key=dlx_queue.name)
+
+        queue = yield from channel.declare_queue(
+            self.get_random_name("test_expiration"),
+            arguments={
+                "x-message-ttl": 10000,
+                "x-dead-letter-exchange": dlx_exchange.name,
+                "x-dead-letter-routing-key": dlx_queue.name,
+            }
+        )  # type: aio_pika.Queue
+
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        yield from channel.default_exchange.publish(
+            Message(
+                body,
+                content_type='text/plain',
+                headers={'foo': 'bar'},
+                expiration=0.5
+            ),
+            queue.name
+        )
+
+        f = asyncio.Future(loop=self.loop)
+
+        dlx_queue.consume(f.set_result, no_ack=True)
+
+        message = yield from f
+
+        self.assertEqual(message.body, body)
+        self.assertEqual(message.headers['x-death'][0]['original-expiration'], '500')
+
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
+    def test_add_close_callback(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        f = create_future(loop=self.loop)
+
+        client.add_close_callback(f.set_result)
+        yield from client.close()
+
+        self.assertTrue(f.done())
+
+    @pytest.mark.asyncio
+    def test_big_message(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        queue_name = self.get_random_name("test_big")
+        routing_key = self.get_random_name()
+
+        channel = yield from client.channel()
+        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+
+        yield from queue.bind(exchange, routing_key)
+
+        body = bytes(shortuuid.uuid(), 'utf-8') * 9999999
+
+        yield from exchange.publish(
+            Message(
+                body, content_type='text/plain',
+                headers={'foo': 'bar'}
+            ),
+            routing_key
+        )
+
+        incoming_message = yield from queue.get(timeout=5)
+        incoming_message.ack()
+
+        self.assertEqual(incoming_message.body, body)
+        yield from queue.unbind(exchange, routing_key)
+        yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
 
 class MessageTestCase(unittest.TestCase):

@@ -1,8 +1,9 @@
-import json
 from datetime import datetime, timedelta
 from enum import IntEnum, unique
+from functools import singledispatch
 from logging import getLogger
-from typing import Union
+from pprint import pformat
+from typing import Union, Optional
 
 from pika import BasicProperties
 from pika.channel import Channel
@@ -22,11 +23,42 @@ class DeliveryMode(IntEnum):
 DateType = Union[int, datetime, float, timedelta, None]
 
 
+@singledispatch
+def convert_timestamp(value) -> Optional[int]:
+    raise ValueError('Invalid timestamp type: %r' % type(value), value)
+
+
+@convert_timestamp.register(datetime)
+def _convert_datetime(value):
+    now = datetime.now()
+    return int((value - now).total_seconds())
+
+
+@convert_timestamp.register(int)
+def _convert_int(value):
+    return value
+
+
+@convert_timestamp.register(float)
+def _convert_numbers(value):
+    return int(value)
+
+
+@convert_timestamp.register(timedelta)
+def _convert_timedelta(value):
+    return int(value.total_seconds())
+
+
+@convert_timestamp.register(type(None))
+def _convert_none(_):
+    return None
+
+
 class Message:
     """ AMQP message abstraction """
 
     __slots__ = (
-        "body", "headers", "content_type", "content_encoding",
+        "body", "headers", "content_type", "content_encoding", "body_size",
         "delivery_mode", "priority", "correlation_id", "reply_to",
         "expiration", "message_id", "timestamp", "type", "user_id", "app_id",
         "__lock"
@@ -61,6 +93,7 @@ class Message:
 
         self.__lock = False
         self.body = body if isinstance(body, bytes) else bytes(body)
+        self.body_size = len(self.body) if self.body else 0
         self.headers = headers
         self.content_type = content_type
         self.content_encoding = content_encoding
@@ -68,9 +101,9 @@ class Message:
         self.priority = priority
         self.correlation_id = self._as_bytes(correlation_id)
         self.reply_to = reply_to
-        self.expiration = self._convert_timestamp(expiration) * 1000 if expiration else None
+        self.expiration = expiration
         self.message_id = message_id
-        self.timestamp = int(self._convert_timestamp(timestamp)) if timestamp else None
+        self.timestamp = convert_timestamp(timestamp)
         self.type = type
         self.user_id = str(user_id) if user_id else None
         self.app_id = str(app_id) if app_id else None
@@ -84,23 +117,9 @@ class Message:
         else:
             return str(value).encode()
 
-    @staticmethod
-    def _convert_timestamp(value):
-        if isinstance(value, datetime):
-            now = datetime.now()
-            return int((value - now).total_seconds())
-        elif isinstance(value, (int, float)):
-            return value
-        elif isinstance(value, timedelta):
-            return int(value.total_seconds())
-        elif value is None:
-            return
-        else:
-            raise ValueError('Invalid expiration type: %r' % type(value), value)
-
-    def info(self):
+    def info(self) -> dict:
         return {
-            "body_size": len(self.body) if self.body else 0,
+            "body_size": self.body_size,
             "headers": self.headers,
             "content_type": self.content_type,
             "content_encoding": self.content_encoding,
@@ -108,7 +127,7 @@ class Message:
             "priority": self.priority,
             "correlation_id": self.correlation_id,
             "reply_to": self.reply_to,
-            "expiration": self.expiration / 1000 if self.expiration else None,
+            "expiration": self.expiration,
             "message_id": self.message_id,
             "timestamp": self.timestamp,
             "type": str(self.type),
@@ -117,15 +136,15 @@ class Message:
         }
 
     @property
-    def locked(self):
+    def locked(self) -> bool:
         """ is message locked
 
         :return: :class:`bool`
         """
-        return self.__lock
+        return bool(self.__lock)
 
     @property
-    def properties(self):
+    def properties(self) -> BasicProperties:
         return BasicProperties(
             content_type=self.content_type,
             content_encoding=self.content_encoding,
@@ -134,7 +153,7 @@ class Message:
             priority=self.priority,
             correlation_id=self.correlation_id,
             reply_to=self.reply_to,
-            expiration=str(int(self.expiration)) if self.expiration else None,
+            expiration=str(convert_timestamp(self.expiration * 1000)) if self.expiration else None,
             message_id=self.message_id,
             timestamp=self.timestamp,
             type=self.type,
@@ -145,7 +164,7 @@ class Message:
     def __repr__(self):
         return "{name}:{repr}".format(
             name=self.__class__.__name__,
-            repr=json.dumps(self.info(), indent=1, sort_keys=True, default=repr)
+            repr=pformat(self.info())
         )
 
     def __setattr__(self, key, value):
@@ -221,7 +240,7 @@ class IncomingMessage(Message):
 
         expiration = None
         if properties.expiration:
-            expiration = self._convert_timestamp(float(properties.expiration) / 1000.)
+            expiration = convert_timestamp(float(properties.expiration))
 
         super().__init__(
             body=body,
@@ -232,9 +251,9 @@ class IncomingMessage(Message):
             priority=properties.priority,
             correlation_id=properties.correlation_id,
             reply_to=properties.reply_to,
-            expiration=expiration,
+            expiration=expiration / 1000. if expiration else None,
             message_id=properties.message_id,
-            timestamp=self._convert_timestamp(float(properties.timestamp)) if properties.timestamp else None,
+            timestamp=convert_timestamp(float(properties.timestamp)) if properties.timestamp else None,
             type=properties.type,
             user_id=properties.user_id,
             app_id=properties.app_id,
@@ -242,11 +261,15 @@ class IncomingMessage(Message):
 
         self.cluster_id = properties.cluster_id
         self.consumer_tag = getattr(envelope, 'consumer_tag', None)
-        self.delivery_tag = envelope.delivery_tag
+        self.delivery_tag = getattr(envelope, 'delivery_tag', None)
         self.exchange = envelope.exchange
         self.routing_key = envelope.routing_key
-        self.redelivered = envelope.redelivered
+        self.redelivered = getattr(envelope, 'redelivered', None)
         self.synchronous = envelope.synchronous
+
+        if no_ack or not self.delivery_tag:
+            self.lock()
+            self.__processed = True
 
     @contextmanager
     def process(self, requeue=False, reject_on_redelivered=False):
@@ -283,8 +306,7 @@ class IncomingMessage(Message):
         :return: None
         """
         if self.__no_ack:
-            log.info("Can't ack message with \"no_ack\" flag")
-            return False
+            raise TypeError("Can't ack message with \"no_ack\" flag")
 
         if self.__processed:
             raise MessageProcessError("Message already processed")
@@ -311,7 +333,7 @@ class IncomingMessage(Message):
         if not self.locked:
             self.lock()
 
-    def info(self):
+    def info(self) -> dict:
         """ Method returns dict representation of the message """
 
         info = super(IncomingMessage, self).info()
@@ -324,5 +346,13 @@ class IncomingMessage(Message):
         info['synchronous'] = self.synchronous
         return info
 
+    @property
+    def processed(self):
+        return self.__processed
 
-__all__ = 'Message', 'IncomingMessage',
+
+class ReturnedMessage(IncomingMessage):
+    pass
+
+
+__all__ = 'Message', 'IncomingMessage', 'ReturnedMessage',

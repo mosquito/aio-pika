@@ -134,3 +134,4 @@ crashlytics-build.properties
 fabric.properties
 
 /htmlcov
+/temp
