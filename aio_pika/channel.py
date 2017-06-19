@@ -176,7 +176,7 @@ class Channel(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
-    def declare_queue(self, name: str = None, *, durable: bool = None, exclusive: bool = False,
+    def declare_queue(self, name: str = None, *, durable: bool = None, exclusive: bool = False, passive: bool = False,
                       auto_delete: bool = False, arguments: dict = None, timeout: int = None) -> Queue:
         """
 
@@ -185,6 +185,7 @@ class Channel(BaseChannel):
         :param exclusive: Makes this queue exclusive. Exclusive queues may only be \
         accessed by the current connection, and are deleted when that connection \
         closes. Passive declaration of an exclusive queue by other connections are not allowed.
+        :param passive: Only check to see if the queue exists.
         :param auto_delete: Delete queue when channel will be closed.
         :param arguments: pika additional arguments
         :param timeout: execution timeout
@@ -200,7 +201,7 @@ class Channel(BaseChannel):
                 durable, exclusive, auto_delete, arguments
             )
 
-            yield from queue.declare(timeout)
+            yield from queue.declare(timeout, passive=passive)
             return queue
 
     @BaseChannel._ensure_channel_is_open

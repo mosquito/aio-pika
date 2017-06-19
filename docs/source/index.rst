@@ -110,6 +110,7 @@ Thanks for contributing
 * `@akhoronko`_
 * `@zyp`_
 * `@decaz`_ 
+* `@kajetanj`_ 
 
 .. _@mosquito: https://github.com/mosquito
 .. _@hellysmile: https://github.com/hellysmile
@@ -117,3 +118,4 @@ Thanks for contributing
 .. _@akhoronko: https://github.com/akhoronko
 .. _@zyp: https://github.com/zyp
 .. _@decaz: https://github.com/decaz
+.. _@kajetanj: https://github.com/kajetanj

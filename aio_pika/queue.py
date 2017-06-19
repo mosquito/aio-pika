@@ -39,10 +39,11 @@ class Queue(BaseChannel):
         )
 
     @BaseChannel._ensure_channel_is_open
-    def declare(self, timeout: int = None) -> asyncio.Future:
+    def declare(self, timeout: int = None, passive: bool = False) -> asyncio.Future:
         """ Declare queue.
 
         :param timeout: execution timeout
+        :param passive: Only check to see if the queue exists.
         :return: :class:`None`
         """
 
@@ -53,7 +54,8 @@ class Queue(BaseChannel):
         self._channel.queue_declare(
             f.set_result,
             self.name, durable=self.durable,
-            auto_delete=self.auto_delete, arguments=self.arguments,
+            auto_delete=self.auto_delete, passive=passive,
+            arguments=self.arguments,
             exclusive=self.exclusive
         )
 
