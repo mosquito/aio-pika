@@ -86,7 +86,7 @@ class Connection:
         if not (self._connection and self._connection.socket):
             return True
 
-        if self.closing.done():
+        if self._closing.done():
             return True
 
         return False
