@@ -136,16 +136,16 @@ class Queue(BaseChannel):
     @BaseChannel._ensure_channel_is_open
     def consume(self, callback: FunctionType,
                 no_ack: bool = False, exclusive: bool = False, arguments: dict = None) -> ConsumerTag:
-
         """ Start to consuming the :class:`Queue`.
 
         :param callback: Consuming callback
         :param no_ack: if :class:`True` you don't need to call :func:`aio_pika.message.IncomingMessage.ack`
-        :param exclusive: Makes this queue exclusive. Exclusive queues may only be accessed by the current connection,
-        and are deleted when that connection closes. Passive declaration of an exclusive queue by other connections
-        are not allowed.
+        :param exclusive: Makes this queue exclusive. Exclusive queues may only be accessed by the current
+                          connection, and are deleted when that connection closes. Passive declaration of an
+                          exclusive queue by other connections are not allowed.
         :param arguments: extended arguments for pika
         :return: consumer tag :class:`str`
+
         """
 
         log.debug("Start to consuming queue: %r", self)
