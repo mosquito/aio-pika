@@ -105,7 +105,7 @@ You feel free to create pull request, but you should describe your cases and add
 
 The changes should follow simple rules:
 
-* When your changes break public API you must increase the major version.
+* When your changes breaks public API you must increase the major version.
 * When your changes is safe for public API (e.g. added an argument with default value)
 * You have to add test cases (see `tests/` folder)
 * You must add docstrings
