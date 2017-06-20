@@ -299,6 +299,10 @@ class IncomingMessage(Message):
     def ack(self, multiple: bool = False):
         """ Send basic.ack is used for positive acknowledgements
 
+        .. note::
+            This method looks like a blocking-method, but actually it's just send bytes to the
+            socket and not required any responses from the broker.
+
         :param multiple: If set to True, the message's delivery tag is treated as
                          "up to and including", so that multiple messages
                          can be acknowledged with a single method. If set
@@ -319,6 +323,10 @@ class IncomingMessage(Message):
 
     def reject(self, requeue=False):
         """ When `requeue=True` the message will be returned to queue. Otherwise message will be dropped.
+
+        .. note::
+            This method looks like a blocking-method, but actually it's just send bytes to the
+            socket and not required any responses from the broker.
 
         :param requeue: bool
         """
