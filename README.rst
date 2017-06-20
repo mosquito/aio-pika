@@ -96,3 +96,20 @@ Usage example
 
 
 See another examples and the tutorial in `documentation`_.
+
+
+For contributors
+----------------
+
+You feel free to create pull request, but you should describe your cases and add some examples.
+
+The changes should follow simple rules:
+
+* When your changes break public API you must increase the major version.
+* When your changes is safe for public API (e.g. added an argument with default value)
+* You have to add test cases (see `tests/` folder)
+* You must add docstrings
+* You feel free to add yourself to `"thank's to" section`_
+
+
+.. _"thank's to" section: https://github.com/mosquito/aio-pika/blob/master/docs/source/index.rst#thanks-for-contributing
