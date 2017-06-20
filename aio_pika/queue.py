@@ -173,8 +173,7 @@ class Queue(BaseChannel):
         )
 
     @BaseChannel._ensure_channel_is_open
-    @asyncio.coroutine
-    def cancel(self, consumer_tag: ConsumerTag, timeout=None):
+    def cancel(self, consumer_tag: ConsumerTag, timeout=None, nowait: bool=False):
         """ This method cancels a consumer. This does not affect already
         delivered messages, but it does mean the server will not send any more
         messages for that consumer. The client may receive an arbitrary number
@@ -187,12 +186,20 @@ class Queue(BaseChannel):
 
         :param consumer_tag: consumer tag returned by :func:`~aio_pika.Queue.consume`
         :param timeout: execution timeout
+        :param bool nowait: Do not expect a Basic.CancelOk response
         :return: Basic.CancelOk when operation completed successfully
         """
         f = self._create_future(timeout)
-        self._channel.basic_cancel(f.set_result, consumer_tag=consumer_tag, nowait=False)
+        self._channel.basic_cancel(
+            None if nowait else f.set_result,
+            consumer_tag=consumer_tag,
+            nowait=nowait
+        )
 
-        return (yield from f)
+        if nowait:
+            f.set_result(None)
+
+        return f
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
