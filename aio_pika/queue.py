@@ -10,6 +10,9 @@ from .tools import create_task, iscoroutinepartial
 log = getLogger(__name__)
 
 
+ConsumerTag = str
+
+
 class Queue(BaseChannel):
     """ AMQP queue abstraction """
 
@@ -132,7 +135,7 @@ class Queue(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     def consume(self, callback: FunctionType,
-                no_ack: bool = False, exclusive: bool = False, arguments: dict = None):
+                no_ack: bool = False, exclusive: bool = False, arguments: dict = None) -> ConsumerTag:
 
         """ Start to consuming the :class:`Queue`.
 
@@ -141,7 +144,8 @@ class Queue(BaseChannel):
         :param exclusive: Makes this queue exclusive. Exclusive queues may only be accessed by the current connection,
         and are deleted when that connection closes. Passive declaration of an exclusive queue by other connections
         are not allowed.
-        :return: :class:`None`
+        :param arguments: extended arguments for pika
+        :return: consumer tag :class:`str`
         """
 
         log.debug("Start to consuming queue: %r", self)
@@ -160,13 +164,35 @@ class Queue(BaseChannel):
             else:
                 self.loop.call_soon(callback, message)
 
-        self._channel.basic_consume(
+        return self._channel.basic_consume(
             consumer_callback=consumer,
             queue=self.name,
             no_ack=no_ack,
             exclusive=exclusive,
             arguments=arguments
         )
+
+    @BaseChannel._ensure_channel_is_open
+    @asyncio.coroutine
+    def cancel(self, consumer_tag: ConsumerTag, timeout=None):
+        """ This method cancels a consumer. This does not affect already
+        delivered messages, but it does mean the server will not send any more
+        messages for that consumer. The client may receive an arbitrary number
+        of messages in between sending the cancel method and receiving the
+        cancel-ok reply. It may also be sent from the server to the client in
+        the event of the consumer being unexpectedly cancelled (i.e. cancelled
+        for any reason other than the server receiving the corresponding
+        basic.cancel from the client). This allows clients to be notified of
+        the loss of consumers due to events such as queue deletion.
+
+        :param consumer_tag: consumer tag returned by :func:`~aio_pika.Queue.consume`
+        :param timeout: execution timeout
+        :return: Basic.CancelOk when operation completed successfully
+        """
+        f = self._create_future(timeout)
+        self._channel.basic_cancel(f.set_result, consumer_tag=consumer_tag, nowait=False)
+
+        return (yield from f)
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine

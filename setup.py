@@ -1,6 +1,11 @@
 from setuptools import setup, find_packages
 import sys
+import os
 
+from importlib.machinery import SourceFileLoader
+
+
+module = SourceFileLoader("version", os.path.join("aio_pika", "version.py")).load_module()
 
 requires = [
     'shortuuid',
@@ -15,13 +20,14 @@ if sys.version_info < (3, 4):
 if sys.version_info < (3, 5):
     requires.append('typing')
 
+
 setup(
     name='aio-pika',
-    version='0.11.1',
-    author="Dmitry Orlov <me@mosquito.su>",
-    author_email="me@mosquito.su",
-    license="Apache Software License",
-    description="Wrapper for the PIKA for asyncio and humans.",
+    version=module.__version__,
+    author=module.__author__,
+    author_email=module.team_email,
+    license=module.package_license,
+    description=module.package_info,
     long_description=open("README.rst").read(),
     platforms="all",
     classifiers=[
