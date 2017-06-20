@@ -118,6 +118,29 @@ class Message:
             return str(value).encode()
 
     def info(self) -> dict:
+        """ Create a dict with message attributes
+
+        ::
+
+            {
+                "body_size": 100,
+                "headers": {},
+                "content_type": "text/plain",
+                "content_encoding": "",
+                "delivery_mode": DeliveryMode.NOT_PERSISTENT,
+                "priority": 0,
+                "correlation_id": "",
+                "reply_to": "",
+                "expiration": "",
+                "message_id": "",
+                "timestamp": "",
+                "type": "",
+                "user_id": "",
+                "app_id": "",
+            }
+
+        """
+
         return {
             "body_size": self.body_size,
             "headers": self.headers,
@@ -145,6 +168,7 @@ class Message:
 
     @property
     def properties(self) -> BasicProperties:
+        """ Build :class:`pika.BasicProperties` object """
         return BasicProperties(
             content_type=self.content_type,
             content_encoding=self.content_encoding,
@@ -177,6 +201,7 @@ class Message:
         return iter(self.body)
 
     def lock(self):
+        """ Set lock flag to `True`"""
         self.__lock = True
 
     def __copy__(self):
