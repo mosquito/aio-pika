@@ -98,6 +98,43 @@ class TestCase(AsyncTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    def test_queue_message_count(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        queue_name = self.get_random_name("test_connection")
+
+        channel = yield from client.channel()
+
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+        self.assertEqual(queue.message_count, 0)
+
+        yield from channel.default_exchange.publish(Message(body=b'test'), routing_key=queue_name)
+
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+        self.assertEqual(queue.message_count, 1)
+
+        yield from channel.queue_delete(queue_name)
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
+    def test_queue_consumer_count(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        queue_name = self.get_random_name("test_connection")
+
+        channel = yield from client.channel()
+
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+        self.assertEqual(queue.consumer_count, 0)
+
+        queue.consume(lambda *args: None)
+
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+        self.assertEqual(queue.consumer_count, 1)
+
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
     def test_internal_exchange(self):
         client = yield from connect(AMQP_URL, loop=self.loop)
 

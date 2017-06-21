@@ -18,6 +18,7 @@ class Queue(BaseChannel):
 
     __slots__ = ('name', 'durable', 'exclusive',
                  'auto_delete', 'arguments',
+                 'message_count', 'consumer_count',
                  '_channel', '__closing')
 
     def __init__(self, loop: asyncio.AbstractEventLoop, future_store: FutureStore,
@@ -31,6 +32,8 @@ class Queue(BaseChannel):
         self.exclusive = exclusive
         self.auto_delete = auto_delete
         self.arguments = arguments
+        self.message_count = None
+        self.consumer_count = None
 
     def __str__(self):
         return "%s" % self.name
@@ -63,7 +66,10 @@ class Queue(BaseChannel):
         )
 
         def on_queue_declared(result):
-            self.name = result.result().method.queue
+            method = result.result().method
+            self.name = method.queue
+            self.message_count = method.message_count
+            self.consumer_count = method.consumer_count
 
         f.add_done_callback(on_queue_declared)
 
