@@ -170,6 +170,10 @@ class Connection:
             return channel
 
     @asyncio.coroutine
+    def _create_pika_channel(self):
+        pass
+
+    @asyncio.coroutine
     def close(self) -> None:
         """ Close AMQP connection """
         log.debug("Closing AMQP connection")
