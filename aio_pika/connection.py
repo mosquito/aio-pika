@@ -19,12 +19,11 @@ log = getLogger(__name__)
 
 def _ensure_connection(func):
     @wraps(func)
-    @asyncio.coroutine
     def wrap(self, *args, **kwargs):
         if self.is_closed:
             raise RuntimeError("Connection closed")
 
-        return (yield from func(self, *args, **kwargs))
+        return func(self, *args, **kwargs)
     return wrap
 
 
@@ -32,17 +31,19 @@ class Connection:
     """ Connection abstraction """
 
     __slots__ = (
-        'loop', '__closing', '_connection', '_futures', '__sender_lock',
+        'loop', '__closing', '_connection', 'future_store', '__sender_lock',
         '_io_loop', '__connection_parameters', '__credentials',
         '__write_lock'
     )
+
+    CHANNEL_CLASS = Channel
 
     def __init__(self, host: str = 'localhost', port: int = 5672, login: str = 'guest',
                  password: str = 'guest', virtual_host: str = '/',
                  ssl: bool = False, *, loop=None, **kwargs):
 
         self.loop = loop if loop else asyncio.get_event_loop()
-        self._futures = FutureStore(loop=self.loop)
+        self.future_store = FutureStore(loop=self.loop)
 
         self.__credentials = PlainCredentials(login, password) if login else None
 
@@ -52,7 +53,7 @@ class Connection:
             credentials=self.__credentials,
             virtual_host=virtual_host,
             ssl=ssl,
-            **kwargs
+            **kwargs,
         )
 
         self._connection = None
@@ -93,10 +94,12 @@ class Connection:
 
     @property
     def _closing(self):
-        if self.__closing is None:
-            self.__closing = self._futures.create_future()
-
+        self._create_closing_future()
         return self.__closing
+
+    def _create_closing_future(self, force=False):
+        if self.__closing is None or force:
+            self.__closing = self.future_store.create_future()
 
     @property
     def closing(self):
@@ -134,7 +137,7 @@ class Connection:
                 else:
                     exc = ConnectionError(reason, code)
 
-                self._futures.reject_all(exc)
+                self.future_store.reject_all(exc)
 
                 if f.done():
                     return
@@ -162,8 +165,7 @@ class Connection:
         with (yield from self.__write_lock):
             log.debug("Creating AMQP channel for conneciton: %r", self)
 
-            channel = Channel(self, self.loop, self._futures)
-
+            channel = self.CHANNEL_CLASS(self, self.loop, self.future_store)
             yield from channel.initialize()
 
             log.debug("Channel created: %r", channel)
@@ -181,7 +183,7 @@ class Connection:
 def connect(url: str=None, *, host: str='localhost',
             port: int=5672, login: str='guest',
             password: str='guest', virtualhost: str='/',
-            ssl: bool=False, loop=None, **kwargs) -> Connection:
+            ssl: bool=False, loop=None, connection_class=Connection, **kwargs) -> Connection:
     """ Make connection to the broker
 
     :param url: `RFC3986`_ formatted broker address. When :class:`None` will be used keyword arguments.
@@ -192,6 +194,7 @@ def connect(url: str=None, *, host: str='localhost',
     :param virtualhost: virtualhost parameter. `'/'` by default
     :param ssl: use SSL for connection. Should be used with addition kwargs. See `pika documentation`_ for more info.
     :param loop: Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
+    :param connection_class: Factory of a new connection
     :param kwargs: addition parameters which will be passed to the pika connection.
     :return: :class:`aio_pika.connection.Connection`
 
@@ -207,7 +210,7 @@ def connect(url: str=None, *, host: str='localhost',
         password = url.password or password
         virtualhost = url.path[1:] if url.path else virtualhost
 
-    connection = Connection(
+    connection = connection_class(
         host=host, port=port, login=login, password=password,
         virtual_host=virtualhost, ssl=ssl, loop=loop, **kwargs
     )
@@ -219,7 +222,7 @@ def connect(url: str=None, *, host: str='localhost',
 @asyncio.coroutine
 def connect_url(url: str, loop=None) -> Connection:
     warnings.warn(
-        'Please use reconnect(url) instead connect_url(url)', DeprecationWarning
+        'Please use connect(url) instead connect_url(url)', DeprecationWarning
     )
 
     return (yield from connect(url, loop=loop))

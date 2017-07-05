@@ -1,11 +1,15 @@
 import asyncio
 import logging
+import platform
 from functools import partial
 
 from pika.adapters import base_connection
+from .version import __version__
 
 
 LOGGER = logging.getLogger(__name__)
+
+PRODUCT = 'aio-pika'
 
 
 class IOLoopAdapter:
@@ -149,3 +153,20 @@ class AsyncioConnection(base_connection.BaseConnection):
             super()._handle_write()
         except Exception as e:
             self._on_disconnect(-1, e)
+
+    @property
+    def _client_properties(self) -> dict:
+        """ Return the client properties dictionary. """
+        return {
+            'product': PRODUCT,
+            'platform': 'Python %s' % platform.python_version(),
+            'capabilities': {
+                'authentication_failure_close': True,
+                'basic.nack': True,
+                'connection.blocked': True,
+                'consumer_cancel_notify': True,
+                'publisher_confirms': True
+            },
+            'information': 'See https://aio-pika.readthedocs.io/',
+            'version': __version__
+        }
