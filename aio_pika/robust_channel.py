@@ -1,16 +1,23 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import asyncio
-
+import logging
 import pika.channel
 
 from aio_pika import Channel, Connection, ExchangeType
-from aio_pika.common import FutureStore
-from aio_pika.tools import create_future
+from .common import FutureStore
+from .tools import create_future
+from .robust_queue import RobustQueue
+from .robust_exchange import RobustExchange
+
+log = logging.getLogger(__name__)
 
 
 class RobustChannel(Channel):
-    __slots__ = '__exchanges', '__queues', '_closing', '__connection', '__channel', '__qos'
+    __slots__ = '__exchanges', '__queues', '_closing', '_connection', '__channel', '__qos'
+
+    QUEUE_CLASS = RobustQueue
+    EXCHANGE_CLASS = RobustExchange
 
     def __init__(self, connection, loop: asyncio.AbstractEventLoop, future_store: FutureStore):
         super().__init__(connection, loop, future_store)
@@ -24,9 +31,17 @@ class RobustChannel(Channel):
 
     @asyncio.coroutine
     def set_connection(self, connection: Connection):
+        log.debug("Setting a new connection %r for channel %r", connection, self)
+
         self._closing = create_future(loop=self.loop)
-        self.__connection = connection
+        self._connection = connection
         self.__channel = yield from self._create_channel()
+
+        for exchange in self.__exchanges.values():     # type: RobustExchange
+            yield from exchange.set_channel(self.__channel)
+
+        for queue in self.__queues.values():     # type: RobustQueue
+            yield from queue.set_channel(self.__channel)
 
     @asyncio.coroutine
     def declare_exchange(self, name: str, type: ExchangeType = ExchangeType.DIRECT,

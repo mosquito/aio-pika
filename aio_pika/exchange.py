@@ -170,5 +170,24 @@ class Exchange(BaseChannel):
         self._channel.exchange_delete(future.set_result, self.name, if_unused=if_unused)
         return future
 
+    @BaseChannel._ensure_channel_is_open
+    def declare(self, timeout=None):
+        f = self._create_future(timeout=timeout)
+
+        self._channel.exchange_declare(
+            f.set_result,
+            self.name,
+            self.__type,
+            durable=self.durable,
+            auto_delete=self.auto_delete,
+            internal=self.internal,
+            arguments=self.arguments
+        )
+
+        yield from f
+
+    def __await__(self):
+        return self.declare()
+
 
 __all__ = ('Exchange',)

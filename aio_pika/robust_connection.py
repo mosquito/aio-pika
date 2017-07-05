@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+from .channel import Channel
 from .connection import Connection, connect as _connect
 from .robust_channel import RobustChannel
 
@@ -12,6 +13,7 @@ log = logging.getLogger(__name__)
 class RobustConnection(Connection):
 
     CHANNEL_CLASS = RobustChannel
+    RECONNECT_TIMEOUT = 5
 
     __slots__ = ('__connection', '__connection_args', '__channels', '__loop')
 
@@ -21,20 +23,32 @@ class RobustConnection(Connection):
         self.__channels = set()
         super().__init__(host, port, login, password, virtual_host, ssl, loop=loop, **kwargs)
 
-    def _on_connection_close(self, result):
+    def _on_connection_close(self, _):
         self._create_closing_future(force=True)
         self.loop.create_task(self.connect())
 
     @asyncio.coroutine
     def connect(self):
-        yield from super().connect()
+        try:
+            while True:
+                yield from super().connect()
+                break
+        except:
+            # self._create_closing_future(force=True)
+            log.exception("Error when connecting to %r. Reconnecting after %s",
+                          self, self.RECONNECT_TIMEOUT)
+            yield from asyncio.sleep(self.RECONNECT_TIMEOUT, loop=self.loop)
+
         self.add_close_callback(self._on_connection_close)
+
+        while not self._connection:
+            yield from asyncio.sleep(0, loop=self.loop)
 
         for channel in self.__channels:
             yield from channel.set_connection(self)
 
     @asyncio.coroutine
-    def channel(self):
+    def channel(self) -> Channel:
         channel = yield from super().channel()
         self.__channels.add(channel)
 

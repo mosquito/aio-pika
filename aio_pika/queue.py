@@ -18,7 +18,7 @@ class Queue(BaseChannel):
 
     __slots__ = ('name', 'durable', 'exclusive',
                  'auto_delete', 'arguments',
-                 '_channel', '__closing')
+                 '_channel', '__closing', '_passive')
 
     def __init__(self, loop: asyncio.AbstractEventLoop, future_store: FutureStore,
                  channel: Channel, name, durable, exclusive, auto_delete, arguments):
@@ -31,6 +31,7 @@ class Queue(BaseChannel):
         self.exclusive = exclusive
         self.auto_delete = auto_delete
         self.arguments = arguments
+        self._passive = False
 
     def __str__(self):
         return "%s" % self.name
@@ -53,6 +54,7 @@ class Queue(BaseChannel):
         log.debug("Declaring queue: %r", self)
 
         f = self._create_future(timeout)
+        self._passive = passive
 
         self._channel.queue_declare(
             f.set_result,
@@ -270,6 +272,9 @@ class Queue(BaseChannel):
         )
 
         return future
+
+    def __await__(self):
+        return self.declare()
 
 
 __all__ = 'Queue',
