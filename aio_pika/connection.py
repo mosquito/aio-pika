@@ -53,7 +53,7 @@ class Connection:
             credentials=self.__credentials,
             virtual_host=virtual_host,
             ssl=ssl,
-            **kwargs,
+            **kwargs
         )
 
         self._connection = None
