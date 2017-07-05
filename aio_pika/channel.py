@@ -55,8 +55,16 @@ class Channel(BaseChannel):
             future_store=self._futures.get_child(),
         )
 
+    @property
+    def _channel_maker(self):
+        return self.__connection._connection.channel
+
+    @property
+    def number(self):
+        return self.__channel.channel_number
+
     def __str__(self):
-        return "{0}".format(self.__channel.channel_number if self.__channel else "Not initialized chanel")
+        return "{0}".format(self.number if self.__channel else "Not initialized chanel")
 
     def __repr__(self):
         return '<Channel "%s#%s">' % (self.__connection, self)
@@ -85,29 +93,32 @@ class Channel(BaseChannel):
         self.__on_return_callbacks.add(callback)
 
     @asyncio.coroutine
+    def _create_channel(self, timeout=None):
+        future = self._create_future(timeout=timeout)
+
+        self._channel_maker(future.set_result)
+
+        channel = yield from future  # type: pika.channel.Channel
+        channel.confirm_delivery(self._on_delivery_confirmation)
+        channel.add_on_close_callback(self._on_channel_close)
+        channel.add_on_return_callback(self._on_return)
+
+        return channel
+
+    @asyncio.coroutine
     def initialize(self, timeout=None) -> None:
         with (yield from self.__write_lock):
             if self._closing.done():
                 raise RuntimeError("Can't initialize closed channel")
 
-            future = self._create_future(timeout=timeout)
-
-            self.__connection._connection.channel(future.set_result)
-
-            channel = yield from future  # type: pika.channel.Channel
-            channel.confirm_delivery(self._on_delivery_confirmation)
-            channel.add_on_close_callback(self._on_channel_close)
-            channel.add_on_return_callback(self._on_return)
-
-            self.__channel = channel
+            self.__channel = yield from self._create_channel(timeout)
 
     def _on_delivery_confirmation(self, method_frame):
         future = self.__confirmations.pop(method_frame.method.delivery_tag, None)
 
         if not future:
-            log.info(
-                "Unknown delivery tag %d for message confirmation \"%s\"",
-                method_frame.method.delivery_tag, method_frame.method.NAME)
+            log.info("Unknown delivery tag %d for message confirmation \"%s\"",
+                     method_frame.method.delivery_tag, method_frame.method.NAME)
             return
 
         try:
