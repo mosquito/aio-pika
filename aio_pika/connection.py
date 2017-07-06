@@ -102,6 +102,16 @@ class Connection:
         if self.__closing is None or force:
             self.__closing = self.future_store.create_future()
 
+    @asyncio.coroutine
+    def ready(self):
+        while not self._connection:
+            yield from asyncio.sleep(0.1, loop=self.loop)
+
+        while not self._connection.is_open:
+            yield from asyncio.sleep(0.1, loop=self.loop)
+
+        return True
+
     @property
     @asyncio.coroutine
     def closing(self):
@@ -136,11 +146,11 @@ class Connection:
 
         log.debug("Performing connection for object %r", self)
 
-        if self.__closing and self.__closing.done():
-            raise RuntimeError("Invalid connection state")
-
         with (yield from self.__write_lock):
             self._connection = None
+
+            # if self.__closing and self.__closing.done():
+            #     raise RuntimeError("Invalid connection state")
 
             log.debug("Creating a new AMQP connection: %s", self)
 
@@ -164,6 +174,8 @@ class Connection:
     @asyncio.coroutine
     def channel(self) -> Channel:
         """ Get a channel """
+        yield from self.ready()
+
         with (yield from self.__write_lock):
             log.debug("Creating AMQP channel for connection: %r", self)
 
@@ -172,10 +184,6 @@ class Connection:
 
             log.debug("Channel created: %r", channel)
             return channel
-
-    @asyncio.coroutine
-    def _create_pika_channel(self):
-        pass
 
     @asyncio.coroutine
     def close(self) -> None:
