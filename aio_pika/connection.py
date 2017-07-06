@@ -2,7 +2,7 @@ import asyncio
 import warnings
 from functools import wraps, partial
 from logging import getLogger
-from typing import Callable
+from typing import Callable, Any, Generator
 
 from pika import ConnectionParameters
 from pika.credentials import PlainCredentials
@@ -10,7 +10,7 @@ from pika.spec import REPLY_SUCCESS
 from yarl import URL
 from .channel import Channel
 from .common import FutureStore
-from .tools import copy_future, create_future
+from .tools import create_future
 from .adapter import AsyncioConnection
 
 
@@ -103,9 +103,10 @@ class Connection:
             self.__closing = self.future_store.create_future()
 
     @property
+    @asyncio.coroutine
     def closing(self):
         """ Return future which will be finished after connection close. """
-        return copy_future(self._closing)
+        return (yield from self._closing)
 
     def _on_connection_refused(self, future, connection, message: str):
         self._on_connection_lost(future, connection, code=500, reason=ConnectionRefusedError(message))
@@ -188,7 +189,7 @@ class Connection:
 def connect(url: str=None, *, host: str='localhost',
             port: int=5672, login: str='guest',
             password: str='guest', virtualhost: str='/',
-            ssl: bool=False, loop=None, connection_class=Connection, **kwargs) -> Connection:
+            ssl: bool=False, loop=None, connection_class=Connection, **kwargs) -> Generator[Any, None, Connection]:
     """ Make connection to the broker
 
     :param url: `RFC3986`_ formatted broker address. When :class:`None` will be used keyword arguments.
