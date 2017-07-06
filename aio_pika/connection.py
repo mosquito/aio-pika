@@ -203,7 +203,7 @@ class Connection:
 
     @_ensure_connection
     @asyncio.coroutine
-    def channel(self) -> Channel:
+    def channel(self) -> Generator[Any, None, Channel]:
         """ Get a channel """
         yield from self.ready()
 
