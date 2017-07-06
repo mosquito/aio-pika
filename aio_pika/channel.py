@@ -1,5 +1,5 @@
 import asyncio
-from typing import Callable, Any, Union
+from typing import Callable, Any, Generator, Union
 
 import pika.channel
 from logging import getLogger
@@ -137,7 +137,8 @@ class Channel(BaseChannel):
     @asyncio.coroutine
     def declare_exchange(self, name: str, type: ExchangeType = ExchangeType.DIRECT,
                          durable: bool = None, auto_delete: bool = False,
-                         internal: bool = False, arguments: dict = None, timeout: int = None) -> Exchange:
+                         internal: bool = False, arguments: dict = None, timeout: int = None
+                         ) -> Generator[Any, None, Exchange]:
 
         with (yield from self.__write_lock):
             if auto_delete and durable is None:
@@ -188,7 +189,8 @@ class Channel(BaseChannel):
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
     def declare_queue(self, name: str = None, *, durable: bool = None, exclusive: bool = False, passive: bool = False,
-                      auto_delete: bool = False, arguments: dict = None, timeout: int = None) -> Queue:
+                      auto_delete: bool = False, arguments: dict = None, timeout: int = None
+                      ) -> Generator[Any, None, Queue]:
         """
 
         :param name: queue name
