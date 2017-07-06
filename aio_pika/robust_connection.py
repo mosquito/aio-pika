@@ -24,20 +24,20 @@ class RobustConnection(Connection):
         super().__init__(host, port, login, password, virtual_host, ssl, loop=loop, **kwargs)
 
     def _on_connection_close(self, _):
-        self._create_closing_future(force=True)
-        self.loop.create_task(self.connect())
+        if not self.is_initialized:
+            self.loop.create_task(self.connect())
 
     @asyncio.coroutine
     def connect(self):
-        try:
-            while True:
+        while True:
+            try:
                 yield from super().connect()
+                yield from self.ready()
                 break
-        except:
-            # self._create_closing_future(force=True)
-            log.exception("Error when connecting to %r. Reconnecting after %s",
-                          self, self.RECONNECT_TIMEOUT)
-            yield from asyncio.sleep(self.RECONNECT_TIMEOUT, loop=self.loop)
+            except:
+                log.exception("Error when connecting to %r. Reconnecting after %s seconds",
+                              self, self.RECONNECT_TIMEOUT)
+                yield from asyncio.sleep(self.RECONNECT_TIMEOUT, loop=self.loop)
 
         self.add_close_callback(self._on_connection_close)
 

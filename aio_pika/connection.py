@@ -1,5 +1,6 @@
 import asyncio
 import warnings
+from enum import IntEnum, unique
 from functools import wraps, partial
 from logging import getLogger
 from typing import Callable, Any, Generator
@@ -17,6 +18,14 @@ from .adapter import AsyncioConnection
 log = getLogger(__name__)
 
 
+@unique
+class ConnectionState(IntEnum):
+    INITIALIZED = 0
+    CONNECTING = 1
+    READY = 2
+    CLOSED = 3
+
+
 def _ensure_connection(func):
     @wraps(func)
     def wrap(self, *args, **kwargs):
@@ -31,9 +40,9 @@ class Connection:
     """ Connection abstraction """
 
     __slots__ = (
-        'loop', '__closing', '_connection', 'future_store', '__sender_lock',
+        'loop', '__state', '_connection', 'future_store', '__sender_lock',
         '_io_loop', '__connection_parameters', '__credentials',
-        '__write_lock'
+        '__write_lock', '__close_callbacks',
     )
 
     CHANNEL_CLASS = Channel
@@ -58,8 +67,9 @@ class Connection:
         )
 
         self._connection = None
-        self.__closing = None
+        self.__state = ConnectionState.INITIALIZED
         self.__write_lock = asyncio.Lock(loop=self.loop)
+        self.__close_callbacks = set()
 
     def __str__(self):
         return 'amqp://{credentials}{host}:{port}/{vhost}'.format(
@@ -78,8 +88,7 @@ class Connection:
 
         :return: None
         """
-
-        self._closing.add_done_callback(callback)
+        self.__close_callbacks.add(callback)
 
     @property
     def is_closed(self):
@@ -88,45 +97,54 @@ class Connection:
         if not (self._connection and self._connection.socket):
             return True
 
-        if self._closing.done():
+        if self.is_closed:
             return True
 
         return False
 
     @property
-    def _closing(self):
-        self._create_closing_future()
-        return self.__closing
+    def is_closed(self):
+        """ Returns True if connection is closed """
+        return self.__state == ConnectionState.CLOSED
 
-    def _create_closing_future(self, force=False):
-        if self.__closing is None or force:
-            self.__closing = self.future_store.create_future()
+    @property
+    def is_initialized(self):
+        """ Returns True if connection in initialized state """
+        return self.__state == ConnectionState.INITIALIZED
+
+    @property
+    def is_opened(self):
+        """ Returns True if connection is ready """
+
+        if not self._connection:
+            return False
+        elif not self._connection.is_open:
+            return False
+        return self.__state == ConnectionState.READY
 
     @asyncio.coroutine
     def ready(self):
-        while not self._connection:
-            yield from asyncio.sleep(0.1, loop=self.loop)
-
-        while not self._connection.is_open:
-            yield from asyncio.sleep(0.1, loop=self.loop)
-
+        while not self.is_opened:
+            yield
         return True
 
     @property
     @asyncio.coroutine
     def closing(self):
-        """ Return future which will be finished after connection close. """
-        return (yield from self._closing)
+        """ Return coroutine which will be finished after connection close. """
+        while not self.is_closed:
+            yield
+        return True
 
     def _on_connection_refused(self, future, connection, message: str):
         self._on_connection_lost(future, connection, code=500, reason=ConnectionRefusedError(message))
 
     def _on_connection_lost(self, future, _, code, reason):
-        if self.__closing and self.__closing.done():
+        if self.__state == ConnectionState.CLOSED:
             return
 
         if code == REPLY_SUCCESS:
-            return self.__closing.set_result(reason)
+            return self.__state.set_result(reason)
 
         if isinstance(reason, Exception):
             exc = reason
@@ -135,40 +153,53 @@ class Connection:
 
         self.future_store.reject_all(exc)
 
+        for cb in map(asyncio.coroutine, self.__close_callbacks):
+            self.loop.create_task(cb(exc))
+
         if future.done():
             return
 
+        self.__state = ConnectionState.CLOSED
         future.set_exception(exc)
 
     @asyncio.coroutine
-    def connect(self):
-        """ Perform connect. This method should be called after :func:`aio_pika.connection.Connection.__init__`"""
-
-        log.debug("Performing connection for object %r", self)
-
+    def _create_pika_connection(self):
         with (yield from self.__write_lock):
-            self._connection = None
-
-            # if self.__closing and self.__closing.done():
-            #     raise RuntimeError("Invalid connection state")
-
             log.debug("Creating a new AMQP connection: %s", self)
 
-            f = create_future(loop=self.loop)
+            future = create_future(loop=self.loop)
 
             connection = AsyncioConnection(
                 parameters=self.__connection_parameters,
                 loop=self.loop,
-                on_open_callback=f.set_result,
-                on_close_callback=partial(self._on_connection_lost, f),
-                on_open_error_callback=partial(self._on_connection_refused, f),
+                on_open_callback=future.set_result,
+                on_close_callback=partial(self._on_connection_lost, future),
+                on_open_error_callback=partial(self._on_connection_refused, future),
             )
 
-            yield from f
+            try:
+                yield from future
+            except:
+                connection.close()
+                raise
 
             log.debug("Connection %r ready.", self)
 
-            self._connection = connection
+            return connection
+
+    @asyncio.coroutine
+    def connect(self):
+        """ Perform connect. This method should be called after :func:`aio_pika.connection.Connection.__init__`"""
+        log.debug("Performing connection for object %r", self)
+
+        self.__state = ConnectionState.CONNECTING
+        try:
+            self._connection = yield from self._create_pika_connection()
+        except:
+            self.__state = ConnectionState.INITIALIZED
+            raise
+        else:
+            self.__state = ConnectionState.READY
 
     @_ensure_connection
     @asyncio.coroutine
