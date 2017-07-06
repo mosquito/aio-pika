@@ -2,7 +2,7 @@ import asyncio
 from functools import partial
 
 
-__all__ = 'wait', 'copy_future', 'create_future', 'create_task', 'iscoroutinepartial'
+__all__ = 'wait', 'create_future', 'create_task', 'iscoroutinepartial'
 
 
 def iscoroutinepartial(fn):
@@ -51,31 +51,6 @@ def create_task(*, loop=None):
         return loop.create_task
     except AttributeError:
         return partial(asyncio.ensure_future, loop=loop)
-
-
-def _on_result(future: asyncio.Future, new_future: asyncio.Future=None):
-    if not new_future.done():
-        exc = future.exception()
-        if exc:
-            return new_future.set_exception(exc)
-
-        new_future.set_result(future.result())
-
-
-def copy_future(future: asyncio.Future, new_future: asyncio.Future=None):
-    """ Creates a copy of passed future instance. Actually another future will be
-    created but result or exception of original future will be passed to created future.
-
-    :param future: :class:`asyncio.Future` instance
-    :param new_future: Target future (:class:`None` by default)
-    :return: :class:`asyncio.Future`
-    """
-    new_future = new_future or create_future(loop=future._loop)
-
-    handler = partial(_on_result, new_future=new_future)
-
-    future.add_done_callback(handler)
-    return new_future
 
 
 @asyncio.coroutine
