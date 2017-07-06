@@ -2,7 +2,7 @@ import asyncio
 import warnings
 from functools import wraps
 from logging import getLogger
-from typing import Callable, Generator
+from typing import Callable, Any, Generator
 
 from pika import ConnectionParameters
 from pika.credentials import PlainCredentials
@@ -183,7 +183,7 @@ class Connection:
 def connect(url: str=None, *, host: str='localhost',
             port: int=5672, login: str='guest',
             password: str='guest', virtualhost: str='/',
-            ssl: bool=False, loop=None, connection_class=Connection, **kwargs) -> Generator[Connection]:
+            ssl: bool=False, loop=None, connection_class=Connection, **kwargs) -> Generator[Any, None, Connection]:
     """ Make connection to the broker
 
     :param url: `RFC3986`_ formatted broker address. When :class:`None` will be used keyword arguments.
