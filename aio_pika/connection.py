@@ -10,7 +10,7 @@ from pika.spec import REPLY_SUCCESS
 from yarl import URL
 from .channel import Channel
 from .common import FutureStore
-from .tools import copy_future, create_future
+from .tools import create_future
 from .adapter import AsyncioConnection
 
 
@@ -102,9 +102,10 @@ class Connection:
             self.__closing = self.future_store.create_future()
 
     @property
+    @asyncio.coroutine
     def closing(self):
         """ Return future which will be finished after connection close. """
-        return copy_future(self._closing)
+        return (yield from self._closing)
 
     @asyncio.coroutine
     def connect(self):
