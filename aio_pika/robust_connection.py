@@ -57,4 +57,3 @@ class RobustConnection(Connection):
 
 def connect(*args, **kwargs):
     return _connect(connection_class=RobustConnection, *args, **kwargs)
-

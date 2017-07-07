@@ -92,19 +92,11 @@ class Connection:
 
     @property
     def is_closed(self):
-        """ Is this connection are closed """
+        """ Returns True if connection is closed """
 
         if not (self._connection and self._connection.socket):
             return True
 
-        if self.is_closed:
-            return True
-
-        return False
-
-    @property
-    def is_closed(self):
-        """ Returns True if connection is closed """
         return self.__state == ConnectionState.CLOSED
 
     @property

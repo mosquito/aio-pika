@@ -1,5 +1,4 @@
 import asyncio
-from types import FunctionType
 from typing import Optional
 
 from .common import FutureStore
