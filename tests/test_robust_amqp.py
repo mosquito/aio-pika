@@ -12,14 +12,23 @@ from copy import copy
 from aio_pika import connect, connect_url, Message, DeliveryMode
 from aio_pika.exceptions import ProbableAuthenticationError, MessageProcessError
 from aio_pika.exchange import ExchangeType
-from aio_pika.tools import create_future
+from aio_pika.tools import wait, create_future
 from unittest import mock
 from . import AsyncTestCase, AMQP_URL
+
 
 log = logging.getLogger(__name__)
 
 
 class TestCase(AsyncTestCase):
+    def get_random_name(self, *args):
+        prefix = ['test']
+        for item in args:
+            prefix.append(item)
+        prefix.append(shortuuid.uuid())
+
+        return ".".join(prefix)
+
     @pytest.mark.asyncio
     def test_connection_url_deprecated(self):
         with self.assertWarns(DeprecationWarning):
@@ -27,7 +36,7 @@ class TestCase(AsyncTestCase):
 
     @pytest.mark.asyncio
     def test_channel_close(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         self.get_random_name("test_connection")
         self.get_random_name()
@@ -49,9 +58,11 @@ class TestCase(AsyncTestCase):
         with self.assertRaises(RuntimeError):
             yield from channel.initialize()
 
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
     @pytest.mark.asyncio
     def test_delete_queue_and_exchange(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         queue_name = self.get_random_name("test_connection")
         exchange = self.get_random_name()
@@ -63,9 +74,11 @@ class TestCase(AsyncTestCase):
         yield from channel.queue_delete(queue_name)
         yield from channel.exchange_delete(exchange)
 
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
     @pytest.mark.asyncio
     def test_temporary_queue(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         channel = yield from client.channel()
         queue = yield from channel.declare_queue(auto_delete=True)
@@ -82,9 +95,11 @@ class TestCase(AsyncTestCase):
 
         yield from channel.queue_delete(queue.name)
 
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
     @pytest.mark.asyncio
     def test_internal_exchange(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         routing_key = self.get_random_name()
         exchange_name = self.get_random_name("internal", "exchange")
@@ -109,10 +124,11 @@ class TestCase(AsyncTestCase):
 
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_simple_publish_and_receive(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
@@ -139,10 +155,11 @@ class TestCase(AsyncTestCase):
         self.assertEqual(incoming_message.body, body)
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_simple_publish_and_receive_delivery_mode_explicitly_none(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
@@ -170,10 +187,11 @@ class TestCase(AsyncTestCase):
         self.assertEqual(incoming_message.body, body)
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_simple_publish_and_receive_to_bound_exchange(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         routing_key = self.get_random_name()
         src_name = self.get_random_name("source", "exchange")
@@ -205,10 +223,11 @@ class TestCase(AsyncTestCase):
         yield from dest_exchange.unbind(src_exchange, routing_key)
         yield from queue.unbind(dest_exchange, routing_key)
         yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_incoming_message_info(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
@@ -275,10 +294,11 @@ class TestCase(AsyncTestCase):
 
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_context_process(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
@@ -336,10 +356,11 @@ class TestCase(AsyncTestCase):
 
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_context_process_redelivery(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
@@ -379,10 +400,11 @@ class TestCase(AsyncTestCase):
         self.assertEqual(incoming_message.body, body)
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_no_ack_redelivery(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
@@ -419,10 +441,11 @@ class TestCase(AsyncTestCase):
 
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_ack_multiple(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
@@ -456,10 +479,11 @@ class TestCase(AsyncTestCase):
 
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_ack_twice(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
@@ -489,10 +513,11 @@ class TestCase(AsyncTestCase):
         self.assertEqual(incoming_message.body, body)
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_reject_twice(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
@@ -522,10 +547,11 @@ class TestCase(AsyncTestCase):
         self.assertEqual(incoming_message.body, body)
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_consuming(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         queue_name = self.get_random_name("tc2")
         routing_key = self.get_random_name()
@@ -562,10 +588,11 @@ class TestCase(AsyncTestCase):
 
         yield from queue.unbind(exchange, routing_key)
         yield from exchange.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_consuming_not_coroutine(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         queue_name = self.get_random_name("tc2")
         routing_key = self.get_random_name()
@@ -601,10 +628,11 @@ class TestCase(AsyncTestCase):
 
         yield from queue.unbind(exchange, routing_key)
         yield from exchange.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_ack_reject(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         queue_name = self.get_random_name("test_connection3")
         routing_key = self.get_random_name()
@@ -662,10 +690,11 @@ class TestCase(AsyncTestCase):
 
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_purge_queue(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         queue_name = self.get_random_name("test_connection4")
         routing_key = self.get_random_name()
@@ -694,6 +723,7 @@ class TestCase(AsyncTestCase):
         except:
             yield from queue.unbind(exchange, routing_key)
             yield from queue.delete()
+            yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_connection_refused(self):
@@ -712,14 +742,15 @@ class TestCase(AsyncTestCase):
 
     @pytest.mark.asyncio
     def test_set_qos(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         channel = yield from client.channel()
         yield from channel.set_qos(prefetch_count=1, all_channels=True)
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_exchange_delete(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
         channel = yield from client.channel()
         exchange = yield from channel.declare_exchange("test", auto_delete=True)
         yield from exchange.delete()
@@ -727,7 +758,7 @@ class TestCase(AsyncTestCase):
 
     @pytest.mark.asyncio
     def test_dlx(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
         direct_queue_name = self.get_random_name("test_dlx", "direct")
         dlx_queue_name = self.get_random_name("test_dlx", "dlx")
 
@@ -788,7 +819,7 @@ class TestCase(AsyncTestCase):
 
     @pytest.mark.asyncio
     def test_connection_close(self):
-        client = yield from self.create_client() # type: aio_pika.connection.Connection
+        client = yield from connect(AMQP_URL, loop=self.loop)  # type: aio_pika.connection.Connection
 
         routing_key = self.get_random_name()
 
@@ -806,10 +837,11 @@ class TestCase(AsyncTestCase):
             exchange = yield from channel.declare_exchange('direct', auto_delete=True)
         finally:
             yield from exchange.delete()
+            yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_basic_return(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         channel = yield from client.channel()   # type: aio_pika.Channel
 
@@ -862,10 +894,11 @@ class TestCase(AsyncTestCase):
 
         self.assertEqual(returned.body, body)
 
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_expiration(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         channel = yield from client.channel()  # type: aio_pika.Channel
 
@@ -909,20 +942,22 @@ class TestCase(AsyncTestCase):
         self.assertEqual(message.body, body)
         self.assertEqual(message.headers['x-death'][0]['original-expiration'], '500')
 
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_add_close_callback(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         f = create_future(loop=self.loop)
 
         client.add_close_callback(f.set_result)
         yield from client.close()
-        yield from f
+
+        self.assertTrue(f.done())
 
     @pytest.mark.asyncio
     def test_big_message(self):
-        client = yield from self.create_client()
+        client = yield from connect(AMQP_URL, loop=self.loop)
 
         queue_name = self.get_random_name("test_big")
         routing_key = self.get_random_name()
@@ -949,6 +984,7 @@ class TestCase(AsyncTestCase):
         self.assertEqual(incoming_message.body, body)
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
 
 
 class MessageTestCase(unittest.TestCase):

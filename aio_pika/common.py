@@ -3,7 +3,7 @@ import pika.channel
 import pika.exceptions
 from logging import getLogger
 from functools import wraps
-from enum import Enum, unique
+from enum import Enum, unique, IntEnum
 from .tools import create_future
 
 
@@ -108,3 +108,11 @@ class BaseChannel:
 
     def __repr__(self):
         return "<{}: {}>".format(self.__class__.__name__, getattr(self, 'name', id(self)))
+
+
+@unique
+class State(IntEnum):
+    INITIALIZED = 0
+    CONNECTING = 1
+    READY = 2
+    CLOSED = 3

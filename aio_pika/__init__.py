@@ -5,6 +5,9 @@ from .message import Message, IncomingMessage, DeliveryMode
 from .queue import Queue
 from .exceptions import AMQPException, MessageProcessError
 from .version import __author__, __version__, author_info, package_info, package_license, version_info
+from .robust_connection import connect as robust_connect, RobustConnection
+from .robust_channel import RobustChannel
+from .robust_exchange import RobustExchange
 
 
 __all__ = (

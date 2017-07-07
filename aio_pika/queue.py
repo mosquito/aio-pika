@@ -43,7 +43,8 @@ class Queue(BaseChannel):
         )
 
     @BaseChannel._ensure_channel_is_open
-    def declare(self, timeout: int = None, passive: bool = False) -> asyncio.Future:
+    @asyncio.coroutine
+    def declare(self, timeout: int = None, passive: bool = False):
         """ Declare queue.
 
         :param timeout: execution timeout
@@ -69,7 +70,7 @@ class Queue(BaseChannel):
 
         f.add_done_callback(on_queue_declared)
 
-        return f
+        return (yield from f)
 
     @BaseChannel._ensure_channel_is_open
     def bind(self, exchange: Exchange,

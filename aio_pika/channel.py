@@ -10,8 +10,7 @@ from .compat import Awaitable
 from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage, ReturnedMessage
 from .queue import Queue
-from .common import BaseChannel, FutureStore, ConfirmationTypes
-
+from .common import BaseChannel, FutureStore, ConfirmationTypes, State
 
 log = getLogger(__name__)
 
@@ -26,7 +25,7 @@ class Channel(BaseChannel):
 
     __slots__ = ('_connection', '__closing', '__confirmations', '__delivery_tag',
                  'loop', '_futures', '__channel', '__on_return_callbacks',
-                 'default_exchange', '__write_lock')
+                 'default_exchange', '__write_lock', '_state')
 
     def __init__(self, connection,
                  loop: asyncio.AbstractEventLoop, future_store: FutureStore):
@@ -58,6 +57,8 @@ class Channel(BaseChannel):
             future_store=self._futures.get_child(),
         )
 
+        self._state = State.INITIALIZED
+
     @property
     def _channel_maker(self):
         return self._connection._connection.channel
@@ -73,6 +74,7 @@ class Channel(BaseChannel):
         return '<Channel "%s#%s">' % (self._connection, self)
 
     def _on_channel_close(self, channel: pika.channel.Channel, code: int, reason):
+        self._state = State.CLOSED
         exc = exceptions.ChannelClosed(code, reason)
         log.error("Channel %r closed: %d - %s", channel, code, reason)
 
@@ -97,6 +99,7 @@ class Channel(BaseChannel):
 
     @asyncio.coroutine
     def _create_channel(self, timeout=None):
+        yield from self._connection.ready()
         future = self._create_future(timeout=timeout)
 
         log.debug("Creating a new channel for connection %r", self._connection)
@@ -117,6 +120,8 @@ class Channel(BaseChannel):
 
             log.debug("Initializing channel %r", self)
             self.__channel = yield from self._create_channel(timeout)
+
+        self._state = State.READY
 
     def _on_delivery_confirmation(self, method_frame):
         log.debug("Got delivery confirmation for channel %r", self)
@@ -163,13 +168,19 @@ class Channel(BaseChannel):
             log.debug("Exchange declared %r", exchange)
             return exchange
 
+    @asyncio.coroutine
+    def ready(self):
+        yield from self._connection.ready()
+
+        while self._state != State.READY:
+            yield
+
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
     def _publish(self, queue_name, routing_key, body, properties, mandatory, immediate):
         with (yield from self.__write_lock):
-            while self._connection.is_closed:
-                log.debug("Can't publish message because connection is inactive")
-                yield from asyncio.sleep(1, loop=self.loop)
+
+            yield from self.ready()
 
             f = self._create_future()
 
@@ -231,6 +242,8 @@ class Channel(BaseChannel):
                 self._closing.set_result(self)
 
             self.__channel = None
+
+        self._state = State.CLOSED
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine

@@ -1,29 +1,19 @@
 import asyncio
 import warnings
-from enum import IntEnum, unique
 from functools import wraps, partial
 from logging import getLogger
 from typing import Callable, Any, Generator
 
 from pika import ConnectionParameters
 from pika.credentials import PlainCredentials
-from pika.spec import REPLY_SUCCESS
 from yarl import URL
-from .channel import Channel
-from .common import FutureStore
-from .tools import create_future
-from .adapter import AsyncioConnection
 
+from .adapter import AsyncioConnection
+from .channel import Channel
+from .common import FutureStore, State
+from .tools import create_future
 
 log = getLogger(__name__)
-
-
-@unique
-class ConnectionState(IntEnum):
-    INITIALIZED = 0
-    CONNECTING = 1
-    READY = 2
-    CLOSED = 3
 
 
 def _ensure_connection(func):
@@ -67,7 +57,7 @@ class Connection:
         )
 
         self._connection = None
-        self.__state = ConnectionState.INITIALIZED
+        self.__state = State.INITIALIZED
         self.__write_lock = asyncio.Lock(loop=self.loop)
         self.__close_callbacks = set()
 
@@ -94,15 +84,15 @@ class Connection:
     def is_closed(self):
         """ Returns True if connection is closed """
 
-        if not (self._connection and self._connection.socket):
-            return True
+        # if not (self._connection and self._connection.socket):
+        #     return True
 
-        return self.__state == ConnectionState.CLOSED
+        return self.__state == State.CLOSED
 
     @property
     def is_initialized(self):
         """ Returns True if connection in initialized state """
-        return self.__state == ConnectionState.INITIALIZED
+        return self.__state == State.INITIALIZED
 
     @property
     def is_opened(self):
@@ -112,7 +102,7 @@ class Connection:
             return False
         elif not self._connection.is_open:
             return False
-        return self.__state == ConnectionState.READY
+        return self.__state == State.READY
 
     @asyncio.coroutine
     def ready(self):
@@ -132,11 +122,8 @@ class Connection:
         self._on_connection_lost(future, connection, code=500, reason=ConnectionRefusedError(message))
 
     def _on_connection_lost(self, future, _, code, reason):
-        if self.__state == ConnectionState.CLOSED:
+        if self.__state == State.CLOSED:
             return
-
-        if code == REPLY_SUCCESS:
-            return self.__state.set_result(reason)
 
         if isinstance(reason, Exception):
             exc = reason
@@ -148,11 +135,10 @@ class Connection:
         for cb in map(asyncio.coroutine, self.__close_callbacks):
             self.loop.create_task(cb(exc))
 
-        if future.done():
-            return
+        self.__state = State.CLOSED
 
-        self.__state = ConnectionState.CLOSED
-        future.set_exception(exc)
+        if not future.done():
+            future.set_exception(exc)
 
     @asyncio.coroutine
     def _create_pika_connection(self):
@@ -184,14 +170,14 @@ class Connection:
         """ Perform connect. This method should be called after :func:`aio_pika.connection.Connection.__init__`"""
         log.debug("Performing connection for object %r", self)
 
-        self.__state = ConnectionState.CONNECTING
+        self.__state = State.CONNECTING
         try:
             self._connection = yield from self._create_pika_connection()
         except:
-            self.__state = ConnectionState.INITIALIZED
+            self.__state = State.INITIALIZED
             raise
         else:
-            self.__state = ConnectionState.READY
+            self.__state = State.READY
 
     @_ensure_connection
     @asyncio.coroutine
@@ -257,7 +243,7 @@ def connect(url: str=None, *, host: str='localhost',
 
 
 @asyncio.coroutine
-def connect_url(url: str, loop=None) -> Connection:
+def connect_url(url: str, loop=None) -> Generator[Any, None, Connection]:
     warnings.warn(
         'Please use connect(url) instead connect_url(url)', DeprecationWarning
     )
