@@ -26,7 +26,8 @@ def future_with_timeout(loop, timeout, future=None):
         f.set_exception(TimeoutError)
 
     if timeout:
-        loop.call_later(timeout, on_timeout)
+        handle = loop.call_later(timeout, on_timeout)
+        f.add_done_callback(lambda r: handle.cancel())
 
     return f
 

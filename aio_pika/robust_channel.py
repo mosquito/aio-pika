@@ -37,7 +37,7 @@ class RobustChannel(Channel):
 
         self._closing = create_future(loop=self.loop)
         self._connection = connection
-        self.__channel = yield from self._create_channel()
+        self.__channel = yield from self._create_channel(channel_number=self.number)
 
         for exchange in self.__exchanges.values():     # type: RobustExchange
             yield from exchange.set_channel(self.__channel)

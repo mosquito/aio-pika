@@ -1,7 +1,9 @@
 import asyncio
 import logging
 
-from .channel import Channel
+from pika.exceptions import ChannelClosed
+
+from aio_pika.common import State
 from .connection import Connection, connect as _connect
 from .robust_channel import RobustChannel
 
@@ -15,44 +17,40 @@ class RobustConnection(Connection):
     CHANNEL_CLASS = RobustChannel
     RECONNECT_TIMEOUT = 5
 
-    __slots__ = ('__connection', '__connection_args', '__channels', '__loop')
+    __slots__ = ('_connection', '__connection_args', '_channels', '__loop', '_state')
 
     def __init__(self, host: str = 'localhost', port: int = 5672, login: str = 'guest', password: str = 'guest',
                  virtual_host: str = '/', ssl: bool = False, *, loop=None, **kwargs):
 
-        self.__channels = set()
         super().__init__(host, port, login, password, virtual_host, ssl, loop=loop, **kwargs)
 
     def _on_connection_close(self, _):
         if not self.is_initialized:
             self.loop.create_task(self.connect())
 
+    def _on_channel_cleanup(self, channel):
+        channel = self._channels[channel.channel_number]
+        channel._futures.reject_all(ChannelClosed)
+
     @asyncio.coroutine
     def connect(self):
         while True:
+            self._state = State.CONNECTING
+
             try:
-                yield from super().connect()
-                yield from self.ready()
+                self._connection = yield from self._create_pika_connection()
                 break
             except:
+                self._state = State.INITIALIZED
                 log.exception("Error when connecting to %r. Reconnecting after %s seconds",
                               self, self.RECONNECT_TIMEOUT)
                 yield from asyncio.sleep(self.RECONNECT_TIMEOUT, loop=self.loop)
 
         self.add_close_callback(self._on_connection_close)
+        self._state = State.READY
 
-        while not self._connection:
-            yield from asyncio.sleep(0, loop=self.loop)
-
-        for channel in self.__channels:
+        for channel in self._channels.values():
             yield from channel.set_connection(self)
-
-    @asyncio.coroutine
-    def channel(self) -> Channel:
-        channel = yield from super().channel()
-        self.__channels.add(channel)
-
-        return channel
 
 
 def connect(*args, **kwargs):

@@ -8,9 +8,10 @@ from pika import ConnectionParameters
 from pika.credentials import PlainCredentials
 from yarl import URL
 
+from aio_pika.common import State
 from .adapter import AsyncioConnection
 from .channel import Channel
-from .common import FutureStore, State
+from .common import FutureStore
 from .tools import create_future
 
 log = getLogger(__name__)
@@ -30,9 +31,9 @@ class Connection:
     """ Connection abstraction """
 
     __slots__ = (
-        'loop', '__state', '_connection', 'future_store', '__sender_lock',
+        'loop', '_state', '_connection', 'future_store', '__sender_lock',
         '_io_loop', '__connection_parameters', '__credentials',
-        '__write_lock', '__close_callbacks',
+        '__write_lock', '__close_callbacks', '_channels', '__last_channel_number',
     )
 
     CHANNEL_CLASS = Channel
@@ -57,9 +58,16 @@ class Connection:
         )
 
         self._connection = None
-        self.__state = State.INITIALIZED
+        self._state = State.INITIALIZED
         self.__write_lock = asyncio.Lock(loop=self.loop)
         self.__close_callbacks = set()
+
+        self._channels = dict()
+        self.__last_channel_number = -1
+
+    def _get_channel_number(self):
+        self.__last_channel_number += 1
+        return self.__last_channel_number
 
     def __str__(self):
         return 'amqp://{credentials}{host}:{port}/{vhost}'.format(
@@ -84,15 +92,12 @@ class Connection:
     def is_closed(self):
         """ Returns True if connection is closed """
 
-        # if not (self._connection and self._connection.socket):
-        #     return True
-
-        return self.__state == State.CLOSED
+        return self._state == State.CLOSED
 
     @property
     def is_initialized(self):
         """ Returns True if connection in initialized state """
-        return self.__state == State.INITIALIZED
+        return self._state == State.INITIALIZED
 
     @property
     def is_opened(self):
@@ -102,7 +107,7 @@ class Connection:
             return False
         elif not self._connection.is_open:
             return False
-        return self.__state == State.READY
+        return self._state == State.READY
 
     @asyncio.coroutine
     def ready(self):
@@ -122,7 +127,7 @@ class Connection:
         self._on_connection_lost(future, connection, code=500, reason=ConnectionRefusedError(message))
 
     def _on_connection_lost(self, future, _, code, reason):
-        if self.__state == State.CLOSED:
+        if self._state == State.CLOSED:
             return
 
         if isinstance(reason, Exception):
@@ -135,7 +140,7 @@ class Connection:
         for cb in map(asyncio.coroutine, self.__close_callbacks):
             self.loop.create_task(cb(exc))
 
-        self.__state = State.CLOSED
+        self._state = State.CLOSED
 
         if not future.done():
             future.set_exception(exc)
@@ -155,6 +160,8 @@ class Connection:
                 on_open_error_callback=partial(self._on_connection_refused, future),
             )
 
+            connection._channel_cleanup = self._on_channel_cleanup
+
             try:
                 yield from future
             except:
@@ -170,28 +177,38 @@ class Connection:
         """ Perform connect. This method should be called after :func:`aio_pika.connection.Connection.__init__`"""
         log.debug("Performing connection for object %r", self)
 
-        self.__state = State.CONNECTING
+        self._state = State.CONNECTING
         try:
             self._connection = yield from self._create_pika_connection()
         except:
-            self.__state = State.INITIALIZED
+            self._state = State.INITIALIZED
             raise
         else:
-            self.__state = State.READY
+            self._state = State.READY
+
+    def _on_channel_cleanup(self, channel):
+        channel = self._channels.pop(channel.channel_number)
+        channel._futures.reject_all()
 
     @_ensure_connection
     @asyncio.coroutine
-    def channel(self) -> Generator[Any, None, Channel]:
+    def channel(self, channel_number=None) -> Generator[Any, None, Channel]:
         """ Get a channel """
         yield from self.ready()
+
+        if not channel_number:
+            channel_number = self._get_channel_number()
 
         with (yield from self.__write_lock):
             log.debug("Creating AMQP channel for connection: %r", self)
 
             channel = self.CHANNEL_CLASS(self, self.loop, self.future_store)
-            yield from channel.initialize()
+            yield from channel.initialize(channel_number)
 
             log.debug("Channel created: %r", channel)
+
+            self._channels[channel.number] = channel
+
             return channel
 
     @asyncio.coroutine

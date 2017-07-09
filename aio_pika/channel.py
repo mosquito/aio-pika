@@ -1,4 +1,5 @@
 import asyncio
+from functools import partial
 from typing import Callable, Any, Generator, Union
 
 import pika.channel
@@ -98,12 +99,12 @@ class Channel(BaseChannel):
         self.__on_return_callbacks.add(callback)
 
     @asyncio.coroutine
-    def _create_channel(self, timeout=None):
+    def _create_channel(self, channel_number=None, timeout=None):
         yield from self._connection.ready()
         future = self._create_future(timeout=timeout)
 
         log.debug("Creating a new channel for connection %r", self._connection)
-        self._channel_maker(future.set_result)
+        self._channel_maker(future.set_result, channel_number)
         channel = yield from future  # type: pika.channel.Channel
         log.debug("Channel %r created for connection %r", channel, self._connection)
         channel.confirm_delivery(self._on_delivery_confirmation)
@@ -113,13 +114,13 @@ class Channel(BaseChannel):
         return channel
 
     @asyncio.coroutine
-    def initialize(self, timeout=None) -> None:
+    def initialize(self, channel_number=None, timeout=None) -> None:
         with (yield from self.__write_lock):
             if self._closing.done():
                 raise RuntimeError("Can't initialize closed channel")
 
             log.debug("Initializing channel %r", self)
-            self.__channel = yield from self._create_channel(timeout)
+            self.__channel = yield from self._create_channel(channel_number, timeout=timeout)
 
         self._state = State.READY
 
@@ -180,7 +181,8 @@ class Channel(BaseChannel):
     def _publish(self, queue_name, routing_key, body, properties, mandatory, immediate):
         with (yield from self.__write_lock):
 
-            yield from self.ready()
+            if not self._state == State.READY:
+                raise RuntimeError('Invalid channel state %r' % self._state)
 
             f = self._create_future()
 
@@ -189,7 +191,7 @@ class Channel(BaseChannel):
             except (AttributeError, RuntimeError) as exc:
                 log.exception("Failed to send data to client. Conection unexpected closed.")
                 self._on_channel_close(self.__channel, -1, exc)
-                self._connection.close(reply_code=500, reply_text="Incorrect state")
+                self.loop.call_soon(partial(self._connection.close, reply_code=500, reply_text="Incorrect state"))
             else:
                 self.__delivery_tag += 1
                 self.__confirmations[self.__delivery_tag] = f

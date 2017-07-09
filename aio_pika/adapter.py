@@ -125,11 +125,19 @@ class AsyncioConnection(base_connection.BaseConnection):
         self.sleep_counter = 0
         self.loop = loop or asyncio.get_event_loop()
         self.ioloop = IOLoopAdapter(self.loop)
+        self._channel_cleanup = None
 
         super().__init__(parameters, on_open_callback,
                          on_open_error_callback,
                          on_close_callback, self.ioloop,
                          stop_ioloop_on_close=stop_ioloop_on_close)
+
+    def _on_channel_cleanup(self, channel):
+        try:
+            if self._channel_cleanup is not None:
+                self._channel_cleanup(channel)
+        finally:
+            super()._on_channel_cleanup(channel)
 
     def _adapter_connect(self):
         error = super()._adapter_connect()

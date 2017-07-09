@@ -1,6 +1,8 @@
 import asyncio
 from types import FunctionType
 
+import shortuuid
+
 from . import Channel, Exchange
 from .common import FutureStore
 from .queue import Queue
@@ -9,6 +11,11 @@ from .queue import Queue
 class RobustQueue(Queue):
     def __init__(self, loop: asyncio.AbstractEventLoop, future_store: FutureStore,
                  channel: Channel, name, durable, exclusive, auto_delete, arguments):
+
+        # Have to create queue-name for reconnection
+        if not name:
+            name = 'tmp-{}'.format(shortuuid.uuid())
+
         super().__init__(loop, future_store, channel, name, durable, exclusive, auto_delete, arguments)
         self._consumers = dict()
         self._bindings = dict()
