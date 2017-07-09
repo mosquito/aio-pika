@@ -71,9 +71,12 @@ class Channel(BaseChannel):
         return '<Channel "%s#%s">' % (self.__connection, self)
 
     def _on_channel_close(self, channel: pika.channel.Channel, code: int, reason):
-        exc = exceptions.ChannelClosed(code, reason)
-        log.error("Channel %r closed: %d - %s", channel, code, reason)
+        # In case of normal closing, closing code should be unaltered (0 by default)
+        # See: https://github.com/pika/pika/blob/8d970e1/pika/channel.py#L84
+        log_method = log.debug if code == 0 else log.error
+        log_method("Channel %r closed: %d - %s", channel, code, reason)
 
+        exc = exceptions.ChannelClosed(code, reason)
         self._futures.reject_all(exc)
 
     def _on_return(self, channel, message, properties, body):
