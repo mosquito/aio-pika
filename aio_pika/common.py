@@ -1,4 +1,6 @@
 import asyncio
+from contextlib import suppress
+
 import pika.channel
 import pika.exceptions
 from logging import getLogger
@@ -26,7 +28,13 @@ def future_with_timeout(loop, timeout, future=None):
         f.set_exception(TimeoutError)
 
     if timeout:
-        loop.call_later(timeout, on_timeout)
+        handler = loop.call_later(timeout, on_timeout)
+
+        def on_result(*_):
+            with suppress(Exception):
+                handler.cancel()
+
+        f.add_done_callback(on_result)
 
     return f
 

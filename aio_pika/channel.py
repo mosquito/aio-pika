@@ -23,10 +23,10 @@ class Channel(BaseChannel):
 
     __slots__ = ('__connection', '__closing', '__confirmations', '__delivery_tag',
                  'loop', '_futures', '__channel', '__on_return_callbacks',
-                 'default_exchange', '__write_lock')
+                 'default_exchange', '__write_lock', '__channel_number')
 
-    def __init__(self, connection,
-                 loop: asyncio.AbstractEventLoop, future_store: FutureStore):
+    def __init__(self, connection, loop: asyncio.AbstractEventLoop,
+                 future_store: FutureStore, channel_number: int=None):
         """
 
         :param connection: :class:`aio_pika.adapter.AsyncioConnection` instance
@@ -41,6 +41,7 @@ class Channel(BaseChannel):
         self.__on_return_callbacks = set()
         self.__delivery_tag = 0
         self.__write_lock = asyncio.Lock(loop=self.loop)
+        self.__channel_number = channel_number
 
         self.default_exchange = Exchange(
             self.__channel,
@@ -96,7 +97,7 @@ class Channel(BaseChannel):
     def _create_channel(self, timeout=None):
         future = self._create_future(timeout=timeout)
 
-        self._channel_maker(future.set_result)
+        self._channel_maker(future.set_result, channel_number=self.__channel_number)
 
         channel = yield from future  # type: pika.channel.Channel
         channel.confirm_delivery(self._on_delivery_confirmation)

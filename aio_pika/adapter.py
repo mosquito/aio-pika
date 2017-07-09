@@ -125,6 +125,7 @@ class AsyncioConnection(base_connection.BaseConnection):
         self.sleep_counter = 0
         self.loop = loop or asyncio.get_event_loop()
         self.ioloop = IOLoopAdapter(self.loop)
+        self.channel_cleanup_callback = None
 
         super().__init__(parameters, on_open_callback,
                          on_open_error_callback,
@@ -170,3 +171,10 @@ class AsyncioConnection(base_connection.BaseConnection):
             'information': 'See https://aio-pika.readthedocs.io/',
             'version': __version__
         }
+
+    def _on_channel_cleanup(self, channel):
+        try:
+            if self.channel_cleanup_callback:
+                self.channel_cleanup_callback(channel)
+        finally:
+            super()._on_channel_cleanup(channel)
