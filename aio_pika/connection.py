@@ -35,7 +35,7 @@ class Connection:
     __slots__ = (
         'loop', '__closing', '_connection', 'future_store', '__sender_lock',
         '_io_loop', '__connection_parameters', '__credentials',
-        '__write_lock'
+        '__write_lock', '_channels',
     )
 
     CHANNEL_CLASS = Channel
@@ -58,6 +58,7 @@ class Connection:
             **kwargs
         )
 
+        self._channels = dict()
         self._connection = None
         self.__closing = None
         self.__write_lock = asyncio.Lock(loop=self.loop)
@@ -109,6 +110,10 @@ class Connection:
         """ Return future which will be finished after connection close. """
         return (yield from self._closing)
 
+    def _channel_cleanup(self, channel: pika.channel.Channel):
+        ch = self._channels.pop(channel.channel_number)     # type: Channel
+        ch._futures.reject_all(exceptions.ChannelClosed)
+
     @asyncio.coroutine
     def connect(self):
         """ Perform connect. This method should be called after :func:`aio_pika.connection.Connection.__init__`"""
@@ -155,6 +160,8 @@ class Connection:
                 on_open_error_callback=_on_connection_refused,
             )
 
+            connection.channel_cleanup_callback = self._channel_cleanup
+
             yield from f
 
             log.debug("Connection ready: %r", self)
@@ -163,15 +170,19 @@ class Connection:
 
     @_ensure_connection
     @asyncio.coroutine
-    def channel(self) -> Generator[Any, None, Channel]:
+    def channel(self, channel_number=None) -> Generator[Any, None, Channel]:
         """ Get a channel """
         with (yield from self.__write_lock):
             log.debug("Creating AMQP channel for conneciton: %r", self)
 
-            channel = self.CHANNEL_CLASS(self, self.loop, self.future_store)
+            channel = self.CHANNEL_CLASS(self, self.loop, self.future_store,
+                                         channel_number=channel_number)
             yield from channel.initialize()
 
             log.debug("Channel created: %r", channel)
+
+            self._channels[channel.number] = channel
+
             return channel
 
     @asyncio.coroutine
