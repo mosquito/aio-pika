@@ -4,10 +4,12 @@ from functools import wraps
 from logging import getLogger
 from typing import Callable, Any, Generator
 
+import pika.channel
 from pika import ConnectionParameters
 from pika.credentials import PlainCredentials
 from pika.spec import REPLY_SUCCESS
 from yarl import URL
+from . import exceptions
 from .channel import Channel
 from .common import FutureStore
 from .tools import create_future
