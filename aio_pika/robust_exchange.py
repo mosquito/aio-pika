@@ -1,6 +1,7 @@
 import asyncio
 from typing import Optional
 
+from aio_pika import Message
 from .common import FutureStore
 from .exchange import Exchange, ExchangeType
 from .channel import Channel
@@ -24,9 +25,10 @@ class RobustExchange(Exchange):
     @asyncio.coroutine
     def set_channel(self, channel: Channel):
         self._channel = channel
-        result = yield from self.declare()
 
-        return result
+        if self.name:
+            result = yield from self.declare()
+            return result
 
     @asyncio.coroutine
     def bind(self, exchange,
@@ -52,3 +54,15 @@ class RobustExchange(Exchange):
         )
         self._bindings.pop((exchange, routing_key))
         return result
+
+    @asyncio.coroutine
+    def ready(self):
+        while not (self._channel and self._channel.is_open):
+            yield
+
+        return True
+
+    @asyncio.coroutine
+    def publish(self, message: Message, routing_key, *, mandatory=True, immediate=False):
+        yield from self.ready()
+        return (yield from super().publish(message, routing_key, mandatory=mandatory, immediate=immediate))

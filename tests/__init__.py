@@ -45,7 +45,6 @@ class AsyncTestCase(asynctest.TestCase):
         def cleanup():
             nonlocal client
             yield from client.close()
-            yield from client.closing
 
         self.addCleanup(cleanup)
         return client

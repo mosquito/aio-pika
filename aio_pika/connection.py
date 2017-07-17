@@ -4,14 +4,15 @@ from functools import wraps, partial
 from logging import getLogger
 from typing import Callable, Any, Generator
 
+import pika.channel
 from pika import ConnectionParameters
 from pika.credentials import PlainCredentials
 from yarl import URL
 
-from aio_pika.common import State
+from . import exceptions
 from .adapter import AsyncioConnection
 from .channel import Channel
-from .common import FutureStore
+from .common import FutureStore, State
 from .tools import create_future
 
 log = getLogger(__name__)
@@ -33,7 +34,7 @@ class Connection:
     __slots__ = (
         'loop', '_state', '_connection', 'future_store', '__sender_lock',
         '_io_loop', '__connection_parameters', '__credentials',
-        '__write_lock', '__close_callbacks', '_channels', '__last_channel_number',
+        '__write_lock', '_channels', '__close_callbacks'
     )
 
     CHANNEL_CLASS = Channel
@@ -57,17 +58,11 @@ class Connection:
             **kwargs
         )
 
+        self._channels = dict()
+        self.__close_callbacks = set()
         self._connection = None
         self._state = State.INITIALIZED
         self.__write_lock = asyncio.Lock(loop=self.loop)
-        self.__close_callbacks = set()
-
-        self._channels = dict()
-        self.__last_channel_number = -1
-
-    def _get_channel_number(self):
-        self.__last_channel_number += 1
-        return self.__last_channel_number
 
     def __str__(self):
         return 'amqp://{credentials}{host}:{port}/{vhost}'.format(
@@ -115,13 +110,9 @@ class Connection:
             yield
         return True
 
-    @property
-    @asyncio.coroutine
-    def closing(self):
-        """ Return coroutine which will be finished after connection close. """
-        while not self.is_closed:
-            yield
-        return True
+    def _channel_cleanup(self, channel: pika.channel.Channel):
+        ch = self._channels.pop(channel.channel_number)     # type: Channel
+        ch._futures.reject_all(exceptions.ChannelClosed)
 
     def _on_connection_refused(self, future, connection, message: str):
         self._on_connection_lost(future, connection, code=500, reason=ConnectionRefusedError(message))
@@ -160,7 +151,7 @@ class Connection:
                 on_open_error_callback=partial(self._on_connection_refused, future),
             )
 
-            connection._channel_cleanup = self._on_channel_cleanup
+            connection.channel_cleanup_callback = self._channel_cleanup
 
             try:
                 yield from future
@@ -196,9 +187,6 @@ class Connection:
         """ Get a channel """
         yield from self.ready()
 
-        if not channel_number:
-            channel_number = self._get_channel_number()
-
         with (yield from self.__write_lock):
             log.debug("Creating AMQP channel for connection: %r", self)
 
@@ -216,7 +204,9 @@ class Connection:
         """ Close AMQP connection """
         log.debug("Closing AMQP connection")
         self._connection.close()
-        yield from self.closing
+
+        while not self.is_closed:
+            yield
 
 
 @asyncio.coroutine

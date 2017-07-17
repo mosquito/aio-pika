@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import aio_pika
+from aio_pika import Message
 from aio_pika.robust_connection import connect
 
 
@@ -27,8 +28,13 @@ async def main():
     queue1.consume(print)
     queue2.consume(print)
 
-    await asyncio.sleep(2)
-    print('Done')
+    while True:
+        try:
+            await channel1.default_exchange.publish(Message(b'Test Message 1', expiration=10), routing_key='test_ch1')
+            await channel2.default_exchange.publish(Message(b'Test Message 2', expiration=10), routing_key='test_ch2')
+        except:
+            logging.exception("Error:")
+            await asyncio.sleep(1)
 
 
 if __name__ == '__main__':

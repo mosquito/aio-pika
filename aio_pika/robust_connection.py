@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+import pika.channel
 from pika.exceptions import ChannelClosed
 
 from aio_pika.common import State
@@ -28,7 +29,7 @@ class RobustConnection(Connection):
         if not self.is_initialized:
             self.loop.create_task(self.connect())
 
-    def _on_channel_cleanup(self, channel):
+    def _channel_cleanup(self, channel: pika.channel.Channel):
         channel = self._channels[channel.channel_number]
         channel._futures.reject_all(ChannelClosed)
 

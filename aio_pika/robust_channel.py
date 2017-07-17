@@ -2,11 +2,9 @@
 # encoding: utf-8
 import asyncio
 import logging
-import pika.channel
 
 from . import Channel, Connection, ExchangeType
 from .common import FutureStore, State
-from .tools import create_future
 from .robust_queue import RobustQueue
 from .robust_exchange import RobustExchange
 
@@ -25,27 +23,24 @@ class RobustChannel(Channel):
         self.__exchanges = dict()
         self.__qos = dict()
 
-    @asyncio.coroutine
-    def _on_channel_close(self, channel: pika.channel.Channel, code: int, reason):
-        super()._on_channel_close(channel, code, reason)
+        self.__exchanges[self.default_exchange.name] = self.default_exchange
 
     @asyncio.coroutine
     def set_connection(self, connection: Connection):
         log.debug("Setting a new connection %r for channel %r", connection, self)
 
-        self._state = State.INITIALIZED
+        self.state = State.INITIALIZED
 
-        self._closing = create_future(loop=self.loop)
         self._connection = connection
-        self.__channel = yield from self._create_channel(channel_number=self.number)
+        self.__channel = yield from self._create_channel()
+
+        self.state = State.READY
 
         for exchange in self.__exchanges.values():     # type: RobustExchange
             yield from exchange.set_channel(self.__channel)
 
         for queue in self.__queues.values():     # type: RobustQueue
             yield from queue.set_channel(self.__channel)
-
-        self._state = State.READY
 
     @asyncio.coroutine
     def declare_exchange(self, name: str, type: ExchangeType = ExchangeType.DIRECT,

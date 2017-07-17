@@ -1,4 +1,5 @@
 import asyncio
+from collections import namedtuple
 from logging import getLogger
 from types import FunctionType
 from pika.channel import Channel
@@ -11,6 +12,7 @@ log = getLogger(__name__)
 
 
 ConsumerTag = str
+DeclarationResult = namedtuple('DeclarationResult', ('message_count', 'consumer_count'))
 
 
 class Queue(BaseChannel):
@@ -18,7 +20,7 @@ class Queue(BaseChannel):
 
     __slots__ = ('name', 'durable', 'exclusive',
                  'auto_delete', 'arguments',
-                 '_channel', '__closing', '_passive')
+                 '_channel', '__closing', 'declaration_result', '_passive')
 
     def __init__(self, loop: asyncio.AbstractEventLoop, future_store: FutureStore,
                  channel: Channel, name, durable, exclusive, auto_delete, arguments):
@@ -32,6 +34,7 @@ class Queue(BaseChannel):
         self.auto_delete = auto_delete
         self.arguments = arguments
         self._passive = False
+        self.declaration_result = None      # type: DeclarationResult
 
     def __str__(self):
         return "%s" % self.name
@@ -66,7 +69,12 @@ class Queue(BaseChannel):
         )
 
         def on_queue_declared(result):
-            self.name = result.result().method.queue
+            res = result.result()
+            self.name = res.method.queue
+            self.declaration_result = DeclarationResult(
+                message_count=res.method.message_count,
+                consumer_count=res.method.consumer_count,
+            )
 
         f.add_done_callback(on_queue_declared)
 
@@ -273,9 +281,6 @@ class Queue(BaseChannel):
         )
 
         return future
-
-    def __await__(self):
-        return self.declare()
 
 
 __all__ = 'Queue',

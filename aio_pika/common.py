@@ -1,4 +1,6 @@
 import asyncio
+from contextlib import suppress
+
 import pika.channel
 import pika.exceptions
 from logging import getLogger
@@ -26,8 +28,13 @@ def future_with_timeout(loop, timeout, future=None):
         f.set_exception(TimeoutError)
 
     if timeout:
-        handle = loop.call_later(timeout, on_timeout)
-        f.add_done_callback(lambda r: handle.cancel())
+        handler = loop.call_later(timeout, on_timeout)
+
+        def on_result(*_):
+            with suppress(Exception):
+                handler.cancel()
+
+        f.add_done_callback(on_result)
 
     return f
 
@@ -84,13 +91,21 @@ class FutureStore:
         return FutureStore(self.__loop, main_store=self)
 
 
+@unique
+class State(IntEnum):
+    INITIALIZED = 0
+    CONNECTING = 1
+    READY = 2
+    CLOSED = 3
+
+
 class BaseChannel:
-    __slots__ = ('_channel_futures', 'loop', '_futures', '_closing')
+    __slots__ = ('_channel_futures', 'loop', '_futures', '_closing', '_state')
 
     def __init__(self, loop: asyncio.AbstractEventLoop, future_store: FutureStore):
         self.loop = loop
         self._futures = future_store
-        self._closing = create_future(loop=self.loop)
+        self._state = State.INITIALIZED
 
     def _create_future(self, timeout=None):
         f = self._futures.create_future(timeout)
@@ -99,8 +114,8 @@ class BaseChannel:
     @staticmethod
     def _ensure_channel_is_open(func):
         @wraps(func)
-        def wrap(self, *args, **kwargs):
-            if self._closing.done():
+        def wrap(self: BaseChannel, *args, **kwargs):
+            if self.is_closed:
                 raise pika.exceptions.ChannelClosed
 
             return func(self, *args, **kwargs)
@@ -110,10 +125,27 @@ class BaseChannel:
     def __repr__(self):
         return "<{}: {}>".format(self.__class__.__name__, getattr(self, 'name', id(self)))
 
+    @property
+    def state(self):
+        return self._state
 
-@unique
-class State(IntEnum):
-    INITIALIZED = 0
-    CONNECTING = 1
-    READY = 2
-    CLOSED = 3
+    @state.setter
+    def state(self, value):
+        if not isinstance(value, State):
+            raise ValueError('State should be a State instance')
+
+        self._state = value
+
+    @property
+    def is_opened(self):
+        return self.state == State.READY
+
+    @property
+    def is_closed(self):
+        return self.state == State.CLOSED
+
+    @asyncio.coroutine
+    def ready(self):
+        while self.state != State.READY:
+            yield
+        return True

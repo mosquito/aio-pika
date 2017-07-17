@@ -6,13 +6,16 @@ import pytest
 import shortuuid
 import time
 import unittest
+
+from aio_pika.exceptions import ChannelClosed
+
 import aio_pika
 import aio_pika.exceptions
 from copy import copy
 from aio_pika import connect, connect_url, Message, DeliveryMode
 from aio_pika.exceptions import ProbableAuthenticationError, MessageProcessError
 from aio_pika.exchange import ExchangeType
-from aio_pika.tools import create_future
+from aio_pika.tools import create_future, wait
 from unittest import mock
 from . import AsyncTestCase, AMQP_URL
 
@@ -949,6 +952,68 @@ class TestCase(AsyncTestCase):
         self.assertEqual(incoming_message.body, body)
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
+
+    def test_unexpected_channel_close(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        channel = yield from client.channel()
+
+        with self.assertRaises(ChannelClosed):
+            yield from channel.declare_queue("amq.restricted_queue_name", auto_delete=True)
+
+        yield from client.close()
+
+    def test_declaration_result(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        channel = yield from client.channel()
+
+        queue = yield from channel.declare_queue(auto_delete=True)
+
+        self.assertEqual(queue.declaration_result.message_count, 0)
+        self.assertEqual(queue.declaration_result.consumer_count, 0)
+
+        yield from client.close()
+
+    def test_declaration_result_with_consumers(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        channel1 = yield from client.channel()
+
+        queue_name = self.get_random_name("queue", "declaration-result")
+        queue1 = yield from channel1.declare_queue(queue_name, auto_delete=True)
+        queue1.consume(print)
+
+        channel2 = yield from client.channel()
+
+        queue2 = yield from channel2.declare_queue(queue_name, passive=True)
+
+        self.assertEqual(queue2.declaration_result.consumer_count, 1)
+
+        yield from client.close()
+
+    def test_declaration_result_with_messages(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        channel1 = yield from client.channel()
+        channel2 = yield from client.channel()
+
+        queue_name = self.get_random_name("queue", "declaration-result")
+        queue1 = yield from channel1.declare_queue(queue_name, auto_delete=True)
+
+        yield from channel1.default_exchange.publish(
+            Message(body=b'test'),
+            routing_key=queue1.name
+        )
+
+        queue2 = yield from channel2.declare_queue(queue_name, passive=True)
+        yield from queue2.get()
+        yield from queue2.delete()
+
+        self.assertEqual(queue2.declaration_result.consumer_count, 0)
+        self.assertEqual(queue2.declaration_result.message_count, 1)
+
+        yield from client.close()
 
 
 class MessageTestCase(unittest.TestCase):

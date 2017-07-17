@@ -24,12 +24,12 @@ class Channel(BaseChannel):
     QUEUE_CLASS = Queue
     EXCHANGE_CLASS = Exchange
 
-    __slots__ = ('_connection', '__closing', '__confirmations', '__delivery_tag',
+    __slots__ = ('_connection', '__confirmations', '__delivery_tag',
                  'loop', '_futures', '__channel', '__on_return_callbacks',
-                 'default_exchange', '__write_lock', '_state')
+                 'default_exchange', '__write_lock', '__channel_number', '__close_callbacks')
 
-    def __init__(self, connection,
-                 loop: asyncio.AbstractEventLoop, future_store: FutureStore):
+    def __init__(self, connection, loop: asyncio.AbstractEventLoop,
+                 future_store: FutureStore, channel_number: int=None):
         """
 
         :param connection: :class:`aio_pika.adapter.AsyncioConnection` instance
@@ -38,14 +38,16 @@ class Channel(BaseChannel):
         """
         super().__init__(loop, future_store.get_child())
 
-        self.__channel = None  # type: pika.channel.Channel
         self._connection = connection
+        self.__channel = None  # type: pika.channel.Channel
         self.__confirmations = {}
         self.__on_return_callbacks = set()
         self.__delivery_tag = 0
         self.__write_lock = asyncio.Lock(loop=self.loop)
+        self.__channel_number = channel_number
+        self.__close_callbacks = set()
 
-        self.default_exchange = Exchange(
+        self.default_exchange = self.EXCHANGE_CLASS(
             self.__channel,
             self._publish,
             '',
@@ -57,8 +59,6 @@ class Channel(BaseChannel):
             loop=self.loop,
             future_store=self._futures.get_child(),
         )
-
-        self._state = State.INITIALIZED
 
     @property
     def _channel_maker(self):
@@ -75,11 +75,18 @@ class Channel(BaseChannel):
         return '<Channel "%s#%s">' % (self._connection, self)
 
     def _on_channel_close(self, channel: pika.channel.Channel, code: int, reason):
-        self._state = State.CLOSED
-        exc = exceptions.ChannelClosed(code, reason)
-        log.error("Channel %r closed: %d - %s", channel, code, reason)
+        self.state = State.CLOSED
 
+        # In case of normal closing, closing code should be unaltered (0 by default)
+        # See: https://github.com/pika/pika/blob/8d970e1/pika/channel.py#L84
+        log_method = log.debug if code == 0 else log.error
+        log_method("Channel %r closed: %d - %s", channel, code, reason)
+
+        exc = exceptions.ChannelClosed(code, reason)
         self._futures.reject_all(exc)
+
+        for cb in self.__close_callbacks:
+            self.loop.create_task(cb(self))
 
     def _on_return(self, channel, message, properties, body):
         msg = ReturnedMessage(channel=channel, body=body, envelope=message, properties=properties)
@@ -93,18 +100,18 @@ class Channel(BaseChannel):
                 log.exception("Error when handling callback: %r", cb)
 
     def add_close_callback(self, callback: FunctionType) -> None:
-        self._closing.add_done_callback(lambda r: callback(r))
+        self.__close_callbacks.add(asyncio.coroutine(callback))
 
     def add_on_return_callback(self, callback: FunctionOrCoroutine) -> None:
         self.__on_return_callbacks.add(callback)
 
     @asyncio.coroutine
-    def _create_channel(self, channel_number=None, timeout=None):
-        yield from self._connection.ready()
+    def _create_channel(self, timeout=None):
         future = self._create_future(timeout=timeout)
 
         log.debug("Creating a new channel for connection %r", self._connection)
-        self._channel_maker(future.set_result, channel_number)
+        self._channel_maker(future.set_result, channel_number=self.__channel_number)
+
         channel = yield from future  # type: pika.channel.Channel
         log.debug("Channel %r created for connection %r", channel, self._connection)
         channel.confirm_delivery(self._on_delivery_confirmation)
@@ -114,15 +121,16 @@ class Channel(BaseChannel):
         return channel
 
     @asyncio.coroutine
-    def initialize(self, channel_number=None, timeout=None) -> None:
+    def initialize(self, timeout=None) -> None:
         with (yield from self.__write_lock):
-            if self._closing.done():
+            if self.is_closed:
                 raise RuntimeError("Can't initialize closed channel")
 
             log.debug("Initializing channel %r", self)
-            self.__channel = yield from self._create_channel(channel_number, timeout=timeout)
+            self.__channel = yield from self._create_channel(timeout)
 
-        self._state = State.READY
+        self.default_exchange._channel = self.__channel
+        self.state = State.READY
 
     def _on_delivery_confirmation(self, method_frame):
         log.debug("Got delivery confirmation for channel %r", self)
@@ -171,20 +179,21 @@ class Channel(BaseChannel):
 
     @asyncio.coroutine
     def ready(self):
-        yield from self._connection.ready()
-
-        while self._state != State.READY:
+        while not (self.__channel and self.__channel.is_open):
             yield
+        return True
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
     def _publish(self, queue_name, routing_key, body, properties, mandatory, immediate):
         with (yield from self.__write_lock):
 
-            if not self._state == State.READY:
-                raise RuntimeError('Invalid channel state %r' % self._state)
+            if not self.is_opened:
+                raise RuntimeError('Invalid channel state %r' % self.state)
 
             f = self._create_future()
+
+            yield from self.ready()
 
             try:
                 self.__channel.basic_publish(queue_name, routing_key, body, properties, mandatory, immediate)
@@ -239,13 +248,9 @@ class Channel(BaseChannel):
 
         with (yield from self.__write_lock):
             self.__channel.close()
-
-            if not self._closing.done():
-                self._closing.set_result(self)
-
             self.__channel = None
 
-        self._state = State.CLOSED
+        self.state = State.CLOSED
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
