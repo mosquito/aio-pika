@@ -75,7 +75,14 @@ Hello World!
 ++++++++++++
 
 .. note::
-    Using the `aio-pika`_ async Python client
+    Using the `aio-pika`_ async Python client. To use you need a `asyncio eventloop`_, for
+    example by appending:
+
+    .. literalinclude:: examples/1-introduction/send.py
+        :language: python
+        :lines: 22-24
+
+    .. _asyncio eventloop: https://docs.python.org/3/library/asyncio-eventloop.html
 
 Our "Hello world" won't be too complex ‒ let's send a message, receive it and
 print it on the screen. To do so we need two programs: one that sends a
