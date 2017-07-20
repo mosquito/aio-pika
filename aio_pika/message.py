@@ -297,7 +297,7 @@ class IncomingMessage(Message):
             self.__processed = True
 
     @contextmanager
-    def process(self, requeue=False, reject_on_redelivered=False):
+    def process(self, requeue=False, reject_on_redelivered=False, check_processed=False):
         """ Context manager for processing the message
 
             >>> def on_message_received(message: IncomingMessage):
@@ -308,11 +308,13 @@ class IncomingMessage(Message):
 
         :param requeue: Requeue message when exception.
         :param reject_on_redelivered: When True message will be rejected only when message was redelivered.
+        :param check_processed: Do not ack if message already processed
 
         """
         try:
             yield self
-            self.ack()
+            if not check_processed or not self.processed:
+                self.ack()
         except:
             if reject_on_redelivered and self.redelivered:
                 log.info("Message %r was redelivered and will be rejected.", self)
