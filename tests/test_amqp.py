@@ -168,7 +168,7 @@ class TestCase(AsyncTestCase):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = yield from client.channel(no_confirm=True)
+        channel = yield from client.channel(publisher_confirms=False)
         exchange = yield from channel.declare_exchange('direct', auto_delete=True)
         queue = yield from channel.declare_queue(queue_name, auto_delete=True)
 
