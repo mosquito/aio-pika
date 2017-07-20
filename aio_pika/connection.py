@@ -170,13 +170,14 @@ class Connection:
 
     @_ensure_connection
     @asyncio.coroutine
-    def channel(self, channel_number=None) -> Generator[Any, None, Channel]:
+    def channel(self, channel_number=None, publisher_confirms=True) -> Generator[Any, None, Channel]:
         """ Get a channel """
         with (yield from self.__write_lock):
             log.debug("Creating AMQP channel for conneciton: %r", self)
 
             channel = self.CHANNEL_CLASS(self, self.loop, self.future_store,
-                                         channel_number=channel_number)
+                                         channel_number=channel_number,
+                                         publisher_confirms=publisher_confirms)
             yield from channel.initialize()
 
             log.debug("Channel created: %r", channel)

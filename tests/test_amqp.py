@@ -144,13 +144,46 @@ class TestCase(AsyncTestCase):
 
         body = bytes(shortuuid.uuid(), 'utf-8')
 
-        yield from exchange.publish(
+        result = yield from exchange.publish(
             Message(
                 body, content_type='text/plain',
                 headers={'foo': 'bar'}
             ),
             routing_key
         )
+        self.assertTrue(result)
+
+        incoming_message = yield from queue.get(timeout=5)
+        incoming_message.ack()
+
+        self.assertEqual(incoming_message.body, body)
+        yield from queue.unbind(exchange, routing_key)
+        yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
+    def test_simple_publish_without_confirm(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        queue_name = self.get_random_name("test_connection")
+        routing_key = self.get_random_name()
+
+        channel = yield from client.channel(publisher_confirms=False)
+        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+
+        yield from queue.bind(exchange, routing_key)
+
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        result = yield from exchange.publish(
+            Message(
+                body, content_type='text/plain',
+                headers={'foo': 'bar'}
+            ),
+            routing_key
+        )
+        self.assertIsNone(result)
 
         incoming_message = yield from queue.get(timeout=5)
         incoming_message.ack()
