@@ -23,15 +23,16 @@ class Channel(BaseChannel):
 
     __slots__ = ('__connection', '__closing', '__confirmations', '__delivery_tag',
                  'loop', '_futures', '__channel', '__on_return_callbacks',
-                 'default_exchange', '__write_lock', '__channel_number')
+                 'default_exchange', '__write_lock', '__channel_number', '__no_confirm')
 
     def __init__(self, connection, loop: asyncio.AbstractEventLoop,
-                 future_store: FutureStore, channel_number: int=None):
+                 future_store: FutureStore, channel_number: int=None, no_confirm: bool=False):
         """
 
         :param connection: :class:`aio_pika.adapter.AsyncioConnection` instance
         :param loop: Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
         :param future_store: :class:`aio_pika.common.FutureStore` instance
+        :param no_confirm: True if you don't need publish confirmations (in pursuit of performance)
         """
         super().__init__(loop, future_store.get_child())
 
@@ -42,6 +43,7 @@ class Channel(BaseChannel):
         self.__delivery_tag = 0
         self.__write_lock = asyncio.Lock(loop=self.loop)
         self.__channel_number = channel_number
+        self.__no_confirm = no_confirm
 
         self.default_exchange = Exchange(
             self.__channel,
@@ -103,7 +105,8 @@ class Channel(BaseChannel):
         self._channel_maker(future.set_result, channel_number=self.__channel_number)
 
         channel = yield from future  # type: pika.channel.Channel
-        channel.confirm_delivery(self._on_delivery_confirmation)
+        if not self.__no_confirm:
+            channel.confirm_delivery(self._on_delivery_confirmation)
         channel.add_on_close_callback(self._on_channel_close)
         channel.add_on_return_callback(self._on_return)
 
@@ -186,7 +189,10 @@ class Channel(BaseChannel):
                 self.__connection.close(reply_code=500, reply_text="Incorrect state")
             else:
                 self.__delivery_tag += 1
-                self.__confirmations[self.__delivery_tag] = f
+                if self.__no_confirm:
+                    f.set_result(None)
+                else:
+                    self.__confirmations[self.__delivery_tag] = f
 
             return (yield from f)
 
