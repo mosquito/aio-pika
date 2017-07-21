@@ -379,6 +379,29 @@ class TestCase(AsyncTestCase):
         )
 
         incoming_message = yield from queue.get(timeout=5)
+
+        with self.assertRaises(MessageProcessError):
+            with incoming_message.process():
+                incoming_message.reject(requeue=True)
+
+        self.assertEqual(incoming_message.locked, True)
+
+        incoming_message = yield from queue.get(timeout=5)
+
+        with incoming_message.process(ignore_processed=True):
+            incoming_message.reject(requeue=False)
+
+        self.assertEqual(incoming_message.body, body)
+
+        yield from exchange.publish(
+            Message(
+                body, content_type='text/plain',
+                headers={'foo': 'bar'}
+            ),
+            routing_key
+        )
+
+        incoming_message = yield from queue.get(timeout=5)
         with self.assertRaises(AssertionError):
             with incoming_message.process(requeue=True, reject_on_redelivered=True):
                 raise AssertionError
@@ -859,7 +882,7 @@ class TestCase(AsyncTestCase):
 
         routing_key = self.get_random_name()
 
-        channel = yield from client.channel()    # type: Channel
+        channel = yield from client.channel()    # type: aio_pika.Channel
         exchange = yield from channel.declare_exchange('direct', auto_delete=True)
 
         try:
