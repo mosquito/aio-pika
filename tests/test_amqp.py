@@ -355,7 +355,7 @@ class TestCase(AsyncTestCase):
 
         incoming_message = yield from queue.get(timeout=5)
 
-        with incoming_message.process(check_processed=True):
+        with incoming_message.process(ignore_processed=True):
             incoming_message.reject(requeue=False)
 
         self.assertEqual(incoming_message.body, body)
@@ -849,7 +849,7 @@ class TestCase(AsyncTestCase):
 
         routing_key = self.get_random_name()
 
-        channel = yield from client.channel()    # type: Channel
+        channel = yield from client.channel()    # type: aio_pika.Channel
         exchange = yield from channel.declare_exchange('direct', auto_delete=True)
 
         try:
