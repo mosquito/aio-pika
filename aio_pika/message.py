@@ -306,6 +306,15 @@ class IncomingMessage(Message):
             ...        # the message will be rejected
             ...        print(message.body)
 
+        Example with ignore_processed=True
+
+            >>> def on_message_received(message: IncomingMessage):
+            ...    with message.process(ignore_processed=True):
+            ...        # Now (with ignore_processed=True) you may reject (or ack) message manually too
+            ...        if True:  # some reasonable condition here
+            ...            message.reject()
+            ...        print(message.body)
+
         :param requeue: Requeue message when exception.
         :param reject_on_redelivered: When True message will be rejected only when message was redelivered.
         :param ignore_processed: Do nothing if message already processed
