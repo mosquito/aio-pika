@@ -61,6 +61,9 @@ class TestCase(AsyncTestCase):
         with self.assertRaises(RuntimeError):
             yield from channel.initialize()
 
+        channel = yield from client.channel()
+        yield from asyncio.wait_for(wait((channel.close(), channel.closing), loop=self.loop), timeout=3)
+
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
