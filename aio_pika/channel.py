@@ -95,6 +95,12 @@ class Channel(BaseChannel):
     def add_close_callback(self, callback: FunctionType) -> None:
         self._closing.add_done_callback(lambda r: callback(r))
 
+    @property
+    @asyncio.coroutine
+    def closing(self):
+        """ Return future which will be finished after channel close. """
+        return (yield from self._closing)
+
     def add_on_return_callback(self, callback: FunctionOrCoroutine) -> None:
         self.__on_return_callbacks.add(callback)
 
