@@ -111,6 +111,7 @@ Thanks for contributing
 * `@zyp`_
 * `@decaz`_ 
 * `@kajetanj`_ 
+* `@iselind`_ 
 
 .. _@mosquito: https://github.com/mosquito
 .. _@hellysmile: https://github.com/hellysmile
