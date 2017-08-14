@@ -136,7 +136,7 @@ Let's create a queue to which the message will be delivered, let's name it *hell
 
 .. literalinclude:: examples/1-introduction/receive.py
    :language: python
-   :lines: 17-18
+   :lines: 24-25
 
 At that point we're ready to send a message. Our first message will just contain a
 string Hello World! and we want to send it to our hello queue.
@@ -190,7 +190,7 @@ command as many times as we like, and only one will be created.
 
 .. literalinclude:: examples/1-introduction/receive.py
    :language: python
-   :lines: 11-19
+   :lines: 18-29
 
 You may ask why we declare the queue again ‒ we have already declared it in
 our previous code. We could avoid that if we were sure that the queue already exists.
