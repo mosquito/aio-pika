@@ -2,9 +2,16 @@ import asyncio
 from aio_pika import connect, IncomingMessage
 
 
-def on_message(message: IncomingMessage):
+async def on_message(message: IncomingMessage):
+    """
+    on_message doesn't necessarily have to be defined as async.
+    Here it is to show that it's possible.
+    """
     print(" [x] Received message %r" % message)
     print("Message body is: %r" % message.body)
+    print("Before sleep!")
+    await asyncio.sleep(5) # Represents async I/O operations
+    print("After sleep!")
 
 
 async def main(loop):
