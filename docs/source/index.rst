@@ -111,7 +111,7 @@ Thanks for contributing
 * `@zyp`_
 * `@decaz`_ 
 * `@kajetanj`_ 
-* `@iselind`_ 
+* `@iselind`_
 
 .. _@mosquito: https://github.com/mosquito
 .. _@hellysmile: https://github.com/hellysmile
@@ -120,3 +120,4 @@ Thanks for contributing
 .. _@zyp: https://github.com/zyp
 .. _@decaz: https://github.com/decaz
 .. _@kajetanj: https://github.com/kajetanj
+.. _@iselind: https://github.com/iselind
