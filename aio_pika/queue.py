@@ -146,7 +146,7 @@ class Queue(BaseChannel):
                 no_ack: bool = False, exclusive: bool = False, arguments: dict = None) -> ConsumerTag:
         """ Start to consuming the :class:`Queue`.
 
-        :param callback: Consuming callback
+        :param callback: Consuming callback. Could be a coroutine.
         :param no_ack: if :class:`True` you don't need to call :func:`aio_pika.message.IncomingMessage.ack`
         :param exclusive: Makes this queue exclusive. Exclusive queues may only be accessed by the current
                           connection, and are deleted when that connection closes. Passive declaration of an
