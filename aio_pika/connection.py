@@ -154,7 +154,7 @@ class Connection:
 
             connection = AsyncioConnection(
                 parameters=self.__connection_parameters,
-                loop=self.loop,
+                custom_ioloop=self.loop,
                 on_open_callback=f.set_result,
                 on_close_callback=_on_connection_lost,
                 on_open_error_callback=_on_connection_refused,
@@ -223,7 +223,7 @@ def connect(url: str=None, *, host: str='localhost',
         port = url.port or port
         login = url.user or login
         password = url.password or password
-        virtualhost = url.path[1:] if url.path else virtualhost
+        virtualhost = url.path[1:] if len(url.path) > 1 else virtualhost
 
     connection = connection_class(
         host=host, port=port, login=login, password=password,
