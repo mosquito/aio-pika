@@ -223,7 +223,7 @@ def connect(url: str=None, *, host: str='localhost',
         port = url.port or port
         login = url.user or login
         password = url.password or password
-        virtualhost = url.path[1:] if url.path else virtualhost
+        virtualhost = url.path[1:] if len(url.path) > 1 else virtualhost
 
     connection = connection_class(
         host=host, port=port, login=login, password=password,
