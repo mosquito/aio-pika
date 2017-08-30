@@ -1,5 +1,5 @@
 from pika.exceptions import (
-    ProbableAuthenticationError, AMQPChannelError, AMQPConnectionError, AMQPError,
+    AMQPChannelError, AMQPConnectionError, AMQPError,
     ChannelClosed, ChannelError, AuthenticationError, BodyTooLongError, ConnectionClosed, ConsumerCancelled,
     DuplicateConsumerTag, IncompatibleProtocolError, InvalidChannelNumber, InvalidFieldTypeException, InvalidFrameError,
     InvalidMaximumFrameSize, InvalidMinimumFrameSize, MethodNotImplemented, NackError, NoFreeChannels,
@@ -17,7 +17,7 @@ class MessageProcessError(AMQPException):
 
 
 __all__ = (
-    'AMQPException', 'MessageProcessError', 'ProbableAuthenticationError',
+    'AMQPException', 'MessageProcessError',
     'AMQPChannelError', 'AMQPConnectionError', 'AMQPError', 'ChannelClosed', 'ChannelError',
     'AuthenticationError', 'BodyTooLongError', 'ConnectionClosed', 'ConsumerCancelled', 'DuplicateConsumerTag',
     'IncompatibleProtocolError', 'InvalidChannelNumber', 'InvalidFieldTypeException', 'InvalidFrameError',
