@@ -154,7 +154,7 @@ class Connection:
 
             connection = AsyncioConnection(
                 parameters=self.__connection_parameters,
-                loop=self.loop,
+                custom_ioloop=self.loop,
                 on_open_callback=f.set_result,
                 on_close_callback=_on_connection_lost,
                 on_open_error_callback=_on_connection_refused,
