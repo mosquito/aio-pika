@@ -9,7 +9,7 @@ module = SourceFileLoader("version", os.path.join("aio_pika", "version.py")).loa
 
 requires = [
     'shortuuid',
-    'pika<0.12',
+    'pika>=0.11,<0.12',
     'yarl',
 ]
 
