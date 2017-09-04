@@ -185,7 +185,7 @@ The server code is rather straightforward:
 
 The code for :download:`rpc_client.py <examples/6-rpc/rpc_client.py>`:
 
-.. literalinclude:: examples/6-rpc/rpc_server.py
+.. literalinclude:: examples/6-rpc/rpc_client.py
    :language: python
    :linenos:
 
