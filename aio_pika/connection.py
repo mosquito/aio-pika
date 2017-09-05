@@ -7,6 +7,7 @@ from typing import Callable, Any, Generator
 import pika.channel
 from pika import ConnectionParameters
 from pika.credentials import PlainCredentials
+from pika.spec import REPLY_SUCCESS
 from yarl import URL
 
 from . import exceptions
@@ -14,6 +15,8 @@ from .adapter import AsyncioConnection
 from .channel import Channel
 from .common import FutureStore, State
 from .tools import create_future
+from .adapter import AsyncioConnection
+
 
 log = getLogger(__name__)
 
@@ -145,7 +148,7 @@ class Connection:
 
             connection = AsyncioConnection(
                 parameters=self.__connection_parameters,
-                loop=self.loop,
+                custom_ioloop=self.loop,
                 on_open_callback=future.set_result,
                 on_close_callback=partial(self._on_connection_lost, future),
                 on_open_error_callback=partial(self._on_connection_refused, future),
@@ -183,15 +186,17 @@ class Connection:
 
     @_ensure_connection
     @asyncio.coroutine
-    def channel(self, channel_number=None) -> Generator[Any, None, Channel]:
+    def channel(self, channel_number=None, publisher_confirms=True) -> Generator[Any, None, Channel]:
         """ Get a channel """
         yield from self.ready()
 
         with (yield from self.__write_lock):
             log.debug("Creating AMQP channel for connection: %r", self)
 
-            channel = self.CHANNEL_CLASS(self, self.loop, self.future_store)
-            yield from channel.initialize(channel_number)
+            channel = self.CHANNEL_CLASS(self, self.loop, self.future_store,
+                                         channel_number=channel_number,
+                                         publisher_confirms=publisher_confirms)
+            yield from channel.initialize()
 
             log.debug("Channel created: %r", channel)
 
@@ -206,7 +211,7 @@ class Connection:
         self._connection.close()
 
         while not self.is_closed:
-            yield
+            yield from asyncio.sleep(0.1, loop=self.loop)
 
 
 @asyncio.coroutine
@@ -238,7 +243,7 @@ def connect(url: str=None, *, host: str='localhost',
         port = url.port or port
         login = url.user or login
         password = url.password or password
-        virtualhost = url.path[1:] if url.path else virtualhost
+        virtualhost = url.path[1:] if len(url.path) > 1 else virtualhost
 
     connection = connection_class(
         host=host, port=port, login=login, password=password,

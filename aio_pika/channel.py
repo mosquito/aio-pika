@@ -6,6 +6,7 @@ import pika.channel
 from logging import getLogger
 from types import FunctionType
 
+from aio_pika.tools import create_future
 from . import exceptions
 from .compat import Awaitable
 from .exchange import Exchange, ExchangeType
@@ -26,25 +27,29 @@ class Channel(BaseChannel):
 
     __slots__ = ('_connection', '__confirmations', '__delivery_tag',
                  'loop', '_futures', '__channel', '__on_return_callbacks',
-                 'default_exchange', '__write_lock', '__channel_number', '__close_callbacks')
+                 'default_exchange', '__write_lock', '__channel_number',
+                 '__close_callbacks', '__publisher_confirms', '_closing')
 
     def __init__(self, connection, loop: asyncio.AbstractEventLoop,
-                 future_store: FutureStore, channel_number: int=None):
+                 future_store: FutureStore, channel_number: int=None, publisher_confirms: bool=True):
         """
 
         :param connection: :class:`aio_pika.adapter.AsyncioConnection` instance
         :param loop: Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
         :param future_store: :class:`aio_pika.common.FutureStore` instance
+        :param publisher_confirms: False if you don't need delivery confirmations (in pursuit of performance)
         """
         super().__init__(loop, future_store.get_child())
 
         self._connection = connection
+        self._closing = None
         self.__channel = None  # type: pika.channel.Channel
         self.__confirmations = {}
         self.__on_return_callbacks = set()
         self.__delivery_tag = 0
         self.__write_lock = asyncio.Lock(loop=self.loop)
         self.__channel_number = channel_number
+        self.__publisher_confirms = publisher_confirms
         self.__close_callbacks = set()
 
         self.default_exchange = self.EXCHANGE_CLASS(
@@ -79,10 +84,17 @@ class Channel(BaseChannel):
 
         # In case of normal closing, closing code should be unaltered (0 by default)
         # See: https://github.com/pika/pika/blob/8d970e1/pika/channel.py#L84
-        log_method = log.debug if code == 0 else log.error
+        exc = exceptions.ChannelClosed(code, reason)
+
+        if code == 0:
+            self._closing.set_result(None)
+            log_method = log.debug
+        else:
+            self._closing.set_exception(exc)
+            log_method = log.error
+
         log_method("Channel %r closed: %d - %s", channel, code, reason)
 
-        exc = exceptions.ChannelClosed(code, reason)
         self._futures.reject_all(exc)
 
         for cb in self.__close_callbacks:
@@ -102,19 +114,27 @@ class Channel(BaseChannel):
     def add_close_callback(self, callback: FunctionType) -> None:
         self.__close_callbacks.add(asyncio.coroutine(callback))
 
+    @property
+    @asyncio.coroutine
+    def closing(self):
+        """ Return future which will be finished after channel close. """
+        return (yield from self._closing)
+
     def add_on_return_callback(self, callback: FunctionOrCoroutine) -> None:
         self.__on_return_callbacks.add(callback)
 
     @asyncio.coroutine
     def _create_channel(self, timeout=None):
         future = self._create_future(timeout=timeout)
+        self._closing = create_future(loop=self.loop)
 
         log.debug("Creating a new channel for connection %r", self._connection)
         self._channel_maker(future.set_result, channel_number=self.__channel_number)
 
         channel = yield from future  # type: pika.channel.Channel
+        if self.__publisher_confirms:
+            channel.confirm_delivery(self._on_delivery_confirmation)
         log.debug("Channel %r created for connection %r", channel, self._connection)
-        channel.confirm_delivery(self._on_delivery_confirmation)
         channel.add_on_close_callback(self._on_channel_close)
         channel.add_on_return_callback(self._on_return)
 
@@ -203,7 +223,10 @@ class Channel(BaseChannel):
                 self.loop.call_soon(partial(self._connection.close, reply_code=500, reply_text="Incorrect state"))
             else:
                 self.__delivery_tag += 1
-                self.__confirmations[self.__delivery_tag] = f
+                if self.__publisher_confirms:
+                    self.__confirmations[self.__delivery_tag] = f
+                else:
+                    f.set_result(None)
 
             return (yield from f)
 
@@ -248,6 +271,7 @@ class Channel(BaseChannel):
 
         with (yield from self.__write_lock):
             self.__channel.close()
+            yield from self.closing
             self.__channel = None
 
         self.state = State.CLOSED

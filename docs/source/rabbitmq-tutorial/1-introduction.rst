@@ -2,7 +2,10 @@
 .. _pull request: https://github.com/mosquito/aio-pika/compare
 .. _aio-pika: https://github.com/mosquito/aio-pika
 .. _official tutorial: https://www.rabbitmq.com/tutorials/tutorial-one-python.html
+.. _asyncio: https://docs.python.org/3/library/asyncio.html
+.. _asyncio tutorial: https://pymotw.com/3/asyncio/coroutines.html
 .. _introduction:
+
 
 Introduction
 ============
@@ -11,6 +14,13 @@ Introduction
 
     This is a beta version of the port from `official tutorial`_. Please when you found an
     error create `issue`_ or `pull request`_ for me.
+
+    It is expected that you are familiar with the basics of `asyncio`_.
+    Anyway following examples works as written.
+    You feel free to download them and test it as is without any changes
+    (in case your RabbitMQ installation allows access for user "guest").
+
+    Otherwise we recommend to read `asyncio tutorial`_.
 
 
 .. note::
@@ -126,7 +136,7 @@ Let's create a queue to which the message will be delivered, let's name it *hell
 
 .. literalinclude:: examples/1-introduction/receive.py
    :language: python
-   :lines: 17-18
+   :lines: 24-25
 
 At that point we're ready to send a message. Our first message will just contain a
 string Hello World! and we want to send it to our hello queue.
@@ -180,7 +190,7 @@ command as many times as we like, and only one will be created.
 
 .. literalinclude:: examples/1-introduction/receive.py
    :language: python
-   :lines: 11-19
+   :lines: 18-29
 
 You may ask why we declare the queue again ‒ we have already declared it in
 our previous code. We could avoid that if we were sure that the queue already exists.

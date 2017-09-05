@@ -17,6 +17,7 @@ class ExchangeType(Enum):
     DIRECT = 'direct'
     TOPIC = 'topic'
     HEADERS = 'headers'
+    X_DELAYED_MESSAGE = 'x-delayed-message'
 
 
 class Exchange(BaseChannel):

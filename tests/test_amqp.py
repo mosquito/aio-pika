@@ -13,16 +13,25 @@ import aio_pika
 import aio_pika.exceptions
 from copy import copy
 from aio_pika import connect, connect_url, Message, DeliveryMode
-from aio_pika.exceptions import ProbableAuthenticationError, MessageProcessError
+from aio_pika.exceptions import MessageProcessError
 from aio_pika.exchange import ExchangeType
 from aio_pika.tools import create_future, wait
 from unittest import mock
 from . import AsyncTestCase, AMQP_URL
 
+
 log = logging.getLogger(__name__)
 
 
 class TestCase(AsyncTestCase):
+    def get_random_name(self, *args):
+        prefix = ['test']
+        for item in args:
+            prefix.append(item)
+        prefix.append(shortuuid.uuid())
+
+        return ".".join(prefix)
+
     @pytest.mark.asyncio
     def test_connection_url_deprecated(self):
         with self.assertWarns(DeprecationWarning):
@@ -128,13 +137,45 @@ class TestCase(AsyncTestCase):
 
         body = bytes(shortuuid.uuid(), 'utf-8')
 
-        yield from exchange.publish(
+        result = yield from exchange.publish(
             Message(
                 body, content_type='text/plain',
                 headers={'foo': 'bar'}
             ),
             routing_key
         )
+        self.assertTrue(result)
+
+        incoming_message = yield from queue.get(timeout=5)
+        incoming_message.ack()
+
+        self.assertEqual(incoming_message.body, body)
+        yield from queue.unbind(exchange, routing_key)
+        yield from queue.delete()
+
+    @pytest.mark.asyncio
+    def test_simple_publish_without_confirm(self):
+        client = yield from connect(AMQP_URL, loop=self.loop)
+
+        queue_name = self.get_random_name("test_connection")
+        routing_key = self.get_random_name()
+
+        channel = yield from client.channel(publisher_confirms=False)
+        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+
+        yield from queue.bind(exchange, routing_key)
+
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        result = yield from exchange.publish(
+            Message(
+                body, content_type='text/plain',
+                headers={'foo': 'bar'}
+            ),
+            routing_key
+        )
+        self.assertIsNone(result)
 
         incoming_message = yield from queue.get(timeout=5)
         incoming_message.ack()
@@ -314,6 +355,29 @@ class TestCase(AsyncTestCase):
 
         with incoming_message.process():
             pass
+
+        self.assertEqual(incoming_message.body, body)
+
+        yield from exchange.publish(
+            Message(
+                body, content_type='text/plain',
+                headers={'foo': 'bar'}
+            ),
+            routing_key
+        )
+
+        incoming_message = yield from queue.get(timeout=5)
+
+        with self.assertRaises(MessageProcessError):
+            with incoming_message.process():
+                incoming_message.reject(requeue=True)
+
+        self.assertEqual(incoming_message.locked, True)
+
+        incoming_message = yield from queue.get(timeout=5)
+
+        with incoming_message.process(ignore_processed=True):
+            incoming_message.reject(requeue=False)
 
         self.assertEqual(incoming_message.body, body)
 
@@ -707,7 +771,7 @@ class TestCase(AsyncTestCase):
     def test_wrong_credentials(self):
         amqp_url = AMQP_URL.with_user(uuid.uuid4().hex).with_password(uuid.uuid4().hex)
 
-        with self.assertRaises(ProbableAuthenticationError):
+        with self.assertRaises(ConnectionRefusedError):
             yield from connect(
                 amqp_url,
                 loop=self.loop
@@ -795,7 +859,7 @@ class TestCase(AsyncTestCase):
 
         routing_key = self.get_random_name()
 
-        channel = yield from client.channel()    # type: Channel
+        channel = yield from client.channel()    # type: aio_pika.Channel
         exchange = yield from channel.declare_exchange('direct', auto_delete=True)
 
         try:
