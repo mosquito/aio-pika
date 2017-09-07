@@ -234,13 +234,4 @@ def connect(url: str=None, *, host: str='localhost',
     return connection
 
 
-@asyncio.coroutine
-def connect_url(url: str, loop=None) -> Connection:
-    warnings.warn(
-        'Please use connect(url) instead connect_url(url)', DeprecationWarning
-    )
-
-    return (yield from connect(url, loop=loop))
-
-
 __all__ = ('connect', 'connect_url', 'Connection')
