@@ -23,7 +23,7 @@ async def main():
     queue = await channel.declare_queue('task_queue', durable=True)
 
     # Start listening the queue with name 'task_queue'
-    queue.consume(on_message)
+    await queue.consume(on_message)
 
 
 if __name__ == "__main__":

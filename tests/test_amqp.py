@@ -630,7 +630,7 @@ class TestCase(AsyncTestCase):
             self.assertEqual(message.routing_key, routing_key)
             f.set_result(True)
 
-        queue.consume(handle)
+        yield from queue.consume(handle)
 
         yield from exchange.publish(
             Message(
@@ -670,7 +670,7 @@ class TestCase(AsyncTestCase):
             self.assertEqual(message.routing_key, routing_key)
             f.set_result(True)
 
-        queue.consume(handle)
+        yield from queue.consume(handle)
 
         yield from exchange.publish(
             Message(
@@ -844,7 +844,7 @@ class TestCase(AsyncTestCase):
 
         dlx_exchange = yield from channel.declare_exchange('dlx', ExchangeType.DIRECT, auto_delete=True)
         dlx_queue = yield from channel.declare_queue(dlx_queue_name, auto_delete=True)
-        dlx_queue.consume(dlx_handle)
+        yield from dlx_queue.consume(dlx_handle)
         yield from dlx_queue.bind(dlx_exchange, routing_key)
 
         body = bytes(shortuuid.uuid(), 'utf-8')
@@ -992,7 +992,7 @@ class TestCase(AsyncTestCase):
 
         f = asyncio.Future(loop=self.loop)
 
-        dlx_queue.consume(f.set_result, no_ack=True)
+        yield from dlx_queue.consume(f.set_result, no_ack=True)
 
         message = yield from f
 
@@ -1072,7 +1072,7 @@ class TestCase(AsyncTestCase):
 
         queue_name = self.get_random_name("queue", "declaration-result")
         queue1 = yield from channel1.declare_queue(queue_name, auto_delete=True)
-        queue1.consume(print)
+        yield from queue1.consume(print)
 
         channel2 = yield from client.channel()
 
