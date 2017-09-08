@@ -34,7 +34,7 @@ async def main(loop):
         await queue.bind(topic_logs_exchange, routing_key=binding_key)
 
     # Start listening the queue with name 'task_queue'
-    queue.consume(on_message)
+    await queue.consume(on_message)
 
 
 if __name__ == "__main__":

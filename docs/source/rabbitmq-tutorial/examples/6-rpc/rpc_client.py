@@ -15,7 +15,7 @@ class FibonacciRpcClient:
         self.connection = await connect("amqp://guest:guest@localhost/", loop=loop)
         self.channel = await self.connection.channel()
         self.callback_queue = await self.channel.declare_queue(exclusive=True)
-        self.callback_queue.consume(self.on_response)
+        await self.callback_queue.consume(self.on_response)
 
         return self
 

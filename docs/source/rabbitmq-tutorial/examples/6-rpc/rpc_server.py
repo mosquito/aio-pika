@@ -40,7 +40,7 @@ async def main(loop):
     queue = await channel.declare_queue('rpc_queue')
 
     # Start listening the queue with name 'hello'
-    queue.consume(
+    await queue.consume(
         partial(
             on_message,
             channel.default_exchange

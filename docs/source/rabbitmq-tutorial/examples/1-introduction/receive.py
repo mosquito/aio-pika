@@ -25,7 +25,7 @@ async def main(loop):
     queue = await channel.declare_queue('hello')
 
     # Start listening the queue with name 'hello'
-    queue.consume(on_message, no_ack=True)
+    await queue.consume(on_message, no_ack=True)
 
 
 if __name__ == "__main__":
