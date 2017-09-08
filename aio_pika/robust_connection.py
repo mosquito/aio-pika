@@ -1,10 +1,13 @@
 import asyncio
-from functools import wraps
+from contextlib import suppress
+from functools import wraps, partial
 from logging import getLogger
 from typing import Callable
 
+from pika.exceptions import ProbableAuthenticationError
+
 from .adapter import AsyncioConnection
-from .connection import Connection
+from .connection import Connection, connect
 from .robust_channel import RobustChannel
 
 
@@ -49,6 +52,14 @@ class RobustConnection(Connection):
         if self._closed:
             return super()._on_connection_lost(future, connection, code, reason)
 
+        if isinstance(reason, ProbableAuthenticationError):
+            if not future.done():
+                future.set_exception(reason)
+
+            self.loop.create_task(self.close())
+
+            return
+
         if not future.done():
             future.set_result(None)
 
@@ -72,17 +83,19 @@ class RobustConnection(Connection):
 
         return self._closed or super().is_closed
 
-    @property
-    @asyncio.coroutine
-    def closing(self):
-        """ Return future which will be finished after connection close. """
-        return (yield from self._closing)
-
     @asyncio.coroutine
     def close(self) -> None:
         """ Close AMQP connection """
         self._closed = True
+
+        while self._on_close_callbacks:
+            with suppress(Exception):
+                self._on_close_callbacks.pop()(self)
+
         yield from super().close()
 
 
-__all__ = 'RobustConnection',
+connect_robust = partial(connect, connection_class=RobustConnection)
+
+
+__all__ = 'RobustConnection', 'connect_robust',

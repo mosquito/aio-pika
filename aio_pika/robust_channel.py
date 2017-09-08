@@ -45,7 +45,6 @@ class RobustChannel(Channel):
         )
 
         self._closed = False
-        self._on_close_callbacks = set()
         self._exchanges = dict()
         self._queues = dict()
         self._qos = 0, 0
@@ -98,27 +97,6 @@ class RobustChannel(Channel):
             prefetch_size=prefetch_size,
             timeout=timeout,
         ))
-
-    def _on_channel_close(self, channel: pika.channel.Channel, code: int, reason):
-        exc = super()._on_channel_close(channel, code, reason)
-
-        if self._closed:
-            while self._on_close_callbacks:
-                cb = self._on_close_callbacks.pop()
-                self.loop.call_soon(cb, exc)
-
-            return
-
-        @asyncio.coroutine
-        def _recreate_channel():
-            nonlocal self
-            self._channel = yield from self._create_channel()
-
-        self.loop.create_task(_recreate_channel())
-
-    @BaseChannel._ensure_channel_is_open
-    def add_close_callback(self, callback: FunctionType) -> None:
-        self._on_close_callbacks.add(lambda r: callback(r))
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
