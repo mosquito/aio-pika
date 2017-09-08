@@ -189,7 +189,9 @@ class Connection:
     def close(self) -> None:
         """ Close AMQP connection """
         log.debug("Closing AMQP connection")
-        self._connection.close()
+
+        if self._connection:
+            self._connection.close()
         yield from self.closing
 
     def __del__(self):
