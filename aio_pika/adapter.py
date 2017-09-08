@@ -4,6 +4,9 @@ import platform
 from functools import partial
 
 from pika.adapters import base_connection
+from pika import channel
+from pika.spec import Basic
+
 from .version import __version__
 
 
@@ -178,3 +181,43 @@ class AsyncioConnection(base_connection.BaseConnection):
                 self.channel_cleanup_callback(channel)
         finally:
             super()._on_channel_cleanup(channel)
+
+    def _create_channel(self, channel_number, on_open_callback):
+        LOGGER.debug('Creating channel %s', channel_number)
+        return Channel(self, channel_number, on_open_callback)
+
+
+class Channel(channel.Channel):
+    def __init__(self, connection, channel_number, on_open_callback=None):
+        super().__init__(connection, channel_number, on_open_callback=on_open_callback)
+        self._consume_results = {}
+
+    def _on_eventok(self, method_frame):
+        callback = self._consume_results.pop(method_frame.method.consumer_tag, None)
+
+        if callback:
+            callback(method_frame)
+
+        return super()._on_eventok(method_frame)
+
+    def basic_consume(self, consumer_callback,
+                      queue='',
+                      no_ack=False,
+                      exclusive=False,
+                      consumer_tag=None,
+                      arguments=None,
+                      result_callback=None):
+
+        if not consumer_tag:
+            consumer_tag = self._generate_consumer_tag()
+
+        self._consume_results[consumer_tag] = result_callback
+
+        return super().basic_consume(
+            consumer_callback=consumer_callback,
+            queue=queue,
+            no_ack=no_ack,
+            exclusive=exclusive,
+            consumer_tag=consumer_tag,
+            arguments=arguments
+        )
