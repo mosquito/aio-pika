@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import suppress
 from typing import Callable, Any, Generator, Union
 
 import pika.channel
@@ -20,6 +21,9 @@ FunctionOrCoroutine = Union[Callable[[IncomingMessage], Any], Awaitable[Incoming
 
 class Channel(BaseChannel):
     """ Channel abstraction """
+
+    QUEUE_CLASS = Queue
+    EXCHANGE_CLASS = Exchange
 
     __slots__ = ('_connection', '__closing', '_confirmations', '_delivery_tag',
                  'loop', '_futures', '_channel', '_on_return_callbacks',
@@ -45,7 +49,7 @@ class Channel(BaseChannel):
         self._channel_number = channel_number
         self._publisher_confirms = publisher_confirms
 
-        self.default_exchange = Exchange(
+        self.default_exchange = self.EXCHANGE_CLASS(
             self._channel,
             self._publish,
             '',
@@ -70,7 +74,7 @@ class Channel(BaseChannel):
         return "{0}".format(self.number if self._channel else "Not initialized chanel")
 
     def __repr__(self):
-        return '<Channel "%s#%s">' % (self._connection, self)
+        return '<%s "%s#%s">' % (self.__class__.__name__, self._connection, self)
 
     def _on_channel_close(self, channel: pika.channel.Channel, code: int, reason):
         # In case of normal closing, closing code should be unaltered (0 by default)
@@ -87,6 +91,7 @@ class Channel(BaseChannel):
         log_method("Channel %r closed: %d - %s", channel, code, reason)
 
         self._futures.reject_all(exc)
+        return exc
 
     def _on_return(self, channel, message, properties, body):
         msg = ReturnedMessage(channel=channel, body=body, envelope=message, properties=properties)
@@ -115,7 +120,10 @@ class Channel(BaseChannel):
     def _create_channel(self, timeout=None):
         future = self._create_future(timeout=timeout)
 
-        self._channel_maker(future.set_result, channel_number=self._channel_number)
+        self._channel_maker(
+            future.set_result,
+            channel_number=self._channel_number
+        )
 
         channel = yield from future  # type: pika.channel.Channel
         if self._publisher_confirms:
@@ -164,21 +172,13 @@ class Channel(BaseChannel):
             if auto_delete and durable is None:
                 durable = False
 
-            f = self._create_future(timeout=timeout)
-
-            self._channel.exchange_declare(
-                f.set_result,
-                name, ExchangeType(type).value, durable=durable,
-                auto_delete=auto_delete, internal=internal, arguments=arguments
-            )
-
-            yield from f
-
-            exchange = Exchange(
+            exchange = self.EXCHANGE_CLASS(
                 self._channel, self._publish, name, type,
                 durable=durable, auto_delete=auto_delete, internal=internal,
                 arguments=arguments, loop=self.loop, future_store=self._futures.get_child(),
             )
+
+            yield from exchange.declare()
 
             log.debug("Exchange declared %r", exchange)
 
@@ -232,7 +232,7 @@ class Channel(BaseChannel):
             if auto_delete and durable is None:
                 durable = False
 
-            queue = Queue(
+            queue = self.QUEUE_CLASS(
                 self.loop, self._futures.get_child(), self._channel, name,
                 durable, exclusive, auto_delete, arguments
             )
@@ -292,6 +292,10 @@ class Channel(BaseChannel):
             )
 
             return (yield from f)
+
+    def __del__(self):
+        with suppress(Exception):
+            self.loop.create_task(self.close())
 
 
 __all__ = ('Channel',)

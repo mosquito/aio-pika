@@ -54,6 +54,22 @@ class Exchange(BaseChannel):
         )
 
     @BaseChannel._ensure_channel_is_open
+    def declare(self, timeout: int=None):
+        future = self._create_future(timeout=timeout)
+
+        self._channel.exchange_declare(
+            future.set_result,
+            self.name,
+            self.__type,
+            durable=self.durable,
+            auto_delete=self.auto_delete,
+            internal=self.internal,
+            arguments=self.arguments,
+        )
+
+        return future
+
+    @BaseChannel._ensure_channel_is_open
     def bind(self, exchange,
              routing_key: str='', *, arguments=None, timeout: int = None) -> asyncio.Future:
 

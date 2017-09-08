@@ -2,6 +2,8 @@ import asyncio
 from collections import namedtuple
 from logging import getLogger
 from types import FunctionType
+from typing import Any, Generator
+
 from pika.channel import Channel
 from .exchange import Exchange
 from .message import IncomingMessage
@@ -142,8 +144,10 @@ class Queue(BaseChannel):
         return f
 
     @BaseChannel._ensure_channel_is_open
-    def consume(self, callback: FunctionType,
-                no_ack: bool = False, exclusive: bool = False, arguments: dict = None) -> ConsumerTag:
+    @asyncio.coroutine
+    def consume(self, callback: FunctionType, no_ack: bool = False,
+                exclusive: bool = False, arguments: dict = None,
+                consumer_tag=None, timeout=None) -> Generator[Any, None, ConsumerTag]:
         """ Start to consuming the :class:`Queue`.
 
         :param callback: Consuming callback. Could be a coroutine.
@@ -152,11 +156,13 @@ class Queue(BaseChannel):
                           connection, and are deleted when that connection closes. Passive declaration of an
                           exclusive queue by other connections are not allowed.
         :param arguments: extended arguments for pika
+        :param consumer_tag: optional consumer tag
         :return: consumer tag :class:`str`
 
         """
 
         log.debug("Start to consuming queue: %r", self)
+        future = self._futures.create_future(timeout=timeout)
 
         def consumer(channel: Channel, envelope, properties, body: bytes):
             message = IncomingMessage(
@@ -164,7 +170,7 @@ class Queue(BaseChannel):
                 body=body,
                 envelope=envelope,
                 properties=properties,
-                no_ack=no_ack
+                no_ack=no_ack,
             )
 
             if iscoroutinepartial(callback):
@@ -172,13 +178,19 @@ class Queue(BaseChannel):
             else:
                 self.loop.call_soon(callback, message)
 
-        return self._channel.basic_consume(
+        consumer_tag = self._channel.basic_consume(
             consumer_callback=consumer,
             queue=self.name,
             no_ack=no_ack,
             exclusive=exclusive,
-            arguments=arguments
+            arguments=arguments,
+            consumer_tag=consumer_tag,
+            result_callback=future.set_result,
         )
+
+        yield from future
+
+        return consumer_tag
 
     @BaseChannel._ensure_channel_is_open
     def cancel(self, consumer_tag: ConsumerTag, timeout=None, nowait: bool=False):
