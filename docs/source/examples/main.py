@@ -1,9 +1,9 @@
 import asyncio
-from aio_pika import connect, Message
+from aio_pika import connect_robust, Message
 
 
 async def main(loop):
-    connection = await connect("amqp://guest:guest@127.0.0.1/", loop=loop)
+    connection = await connect_robust("amqp://guest:guest@127.0.0.1/", loop=loop)
 
     queue_name = "test_queue"
     routing_key = "test_queue"
