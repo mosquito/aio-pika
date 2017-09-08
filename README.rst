@@ -35,6 +35,15 @@ Wrapper for the PIKA for asyncio and humans. See examples and the tutorial in `d
 If you are newcomer in the RabbitMQ let's start the `adopted official RabbitMQ tutorial`_
 
 
+Features
+--------
+
+* Completely asynchronous API.
+* Object oriented API.
+* Auto-reconnects with complete state recovery with `connect_robust`
+  (e.g. declared queues or exchanges, consuming state and bindings).
+* Python 3.4+ compatible (include 3.6).
+
 Installation
 ------------
 
@@ -49,11 +58,11 @@ Usage example
 .. code-block:: python
 
     import asyncio
-    from aio_pika import connect, Message
+    from aio_pika import connect_robust, Message
 
 
     async def main(loop):
-        connection = await connect("amqp://guest:guest@127.0.0.1/", loop=loop)
+        connection = await connect_robust("amqp://guest:guest@127.0.0.1/", loop=loop)
 
         queue_name = "test_queue"
         routing_key = "test_queue"
