@@ -815,7 +815,7 @@ class TestCase(AsyncTestCase):
 
     @pytest.mark.asyncio
     def test_dlx(self):
-        client = yield from connect_robust(AMQP_URL, loop=self.loop)
+        client = yield from connect(AMQP_URL, loop=self.loop)
         suffix = self.get_random_name()
         routing_key = "%s_routing_key" % suffix
         dlx_routing_key = "%s_dlx_routing_key" % suffix

@@ -1,9 +1,7 @@
 import asyncio
 from typing import Callable, Any, Generator, Union
 
-import pika.channel
 from logging import getLogger
-from types import FunctionType
 
 from aio_pika.tools import create_future
 from .compat import Awaitable

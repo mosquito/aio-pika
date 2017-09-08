@@ -896,7 +896,7 @@ class TestCase(AsyncTestCase):
 
     @pytest.mark.asyncio
     @timeout()
-    def test_channel_close(self):
+    def test_channel_close_invalid_message(self):
         client = yield from connect_robust(AMQP_URL, loop=self.loop)  # type: aio_pika.connection.Connection
 
         routing_key = self.get_random_name()
