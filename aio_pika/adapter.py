@@ -5,7 +5,6 @@ from functools import partial
 
 from pika.adapters import base_connection
 from pika import channel
-from pika.spec import Basic
 
 from .version import __version__
 
