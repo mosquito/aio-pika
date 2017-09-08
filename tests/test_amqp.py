@@ -12,7 +12,7 @@ from aio_pika.exceptions import ChannelClosed
 import aio_pika
 import aio_pika.exceptions
 from copy import copy
-from aio_pika import connect, connect_url, Message, DeliveryMode
+from aio_pika import connect, Message, DeliveryMode
 from aio_pika.exceptions import ProbableAuthenticationError, MessageProcessError
 from aio_pika.exchange import ExchangeType
 from aio_pika.tools import wait, create_future
@@ -31,11 +31,6 @@ class TestCase(AsyncTestCase):
         prefix.append(shortuuid.uuid())
 
         return ".".join(prefix)
-
-    @pytest.mark.asyncio
-    def test_connection_url_deprecated(self):
-        with self.assertWarns(DeprecationWarning):
-            yield from connect_url(AMQP_URL, loop=self.loop)
 
     @pytest.mark.asyncio
     def test_channel_close(self):

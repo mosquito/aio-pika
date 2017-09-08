@@ -1,6 +1,6 @@
 import asyncio
-import warnings
-from functools import wraps
+from contextlib import suppress
+from functools import wraps, partial
 from logging import getLogger
 from typing import Callable, Any, Generator
 
@@ -114,8 +114,30 @@ class Connection:
         ch = self._channels.pop(channel.channel_number)     # type: Channel
         ch._futures.reject_all(exceptions.ChannelClosed)
 
+    def _on_connection_refused(self, future: asyncio.Future, connection: AsyncioConnection, message: str):
+        self._on_connection_lost(future, connection, code=500, reason=ConnectionRefusedError(message))
+
+    def _on_connection_lost(self, future: asyncio.Future, connection: AsyncioConnection, code, reason):
+        if self.__closing and self.__closing.done():
+            return
+
+        if code == REPLY_SUCCESS:
+            return self.__closing.set_result(reason)
+
+        if isinstance(reason, Exception):
+            exc = reason
+        else:
+            exc = ConnectionError(reason, code)
+
+        self.future_store.reject_all(exc)
+
+        if future.done():
+            return
+
+        future.set_exception(exc)
+
     @asyncio.coroutine
-    def connect(self):
+    def connect(self) -> AsyncioConnection:
         """ Perform connect. This method should be called after :func:`aio_pika.connection.Connection.__init__`"""
 
         if self.__closing and self.__closing.done():
@@ -128,45 +150,22 @@ class Connection:
 
             f = create_future(loop=self.loop)
 
-            def _on_connection_refused(connection, message: str):
-                _on_connection_lost(connection, code=500, reason=ConnectionRefusedError(message))
-
-            def _on_connection_lost(_, code, reason):
-                nonlocal f
-
-                if self.__closing and self.__closing.done():
-                    return
-
-                if code == REPLY_SUCCESS:
-                    return self.__closing.set_result(reason)
-
-                if isinstance(reason, Exception):
-                    exc = reason
-                else:
-                    exc = ConnectionError(reason, code)
-
-                self.future_store.reject_all(exc)
-
-                if f.done():
-                    return
-
-                f.set_exception(exc)
-
             connection = AsyncioConnection(
                 parameters=self.__connection_parameters,
                 loop=self.loop,
                 on_open_callback=f.set_result,
-                on_close_callback=_on_connection_lost,
-                on_open_error_callback=_on_connection_refused,
+                on_close_callback=partial(self._on_connection_lost, f),
+                on_open_error_callback=partial(self._on_connection_refused, f),
             )
 
             connection.channel_cleanup_callback = self._channel_cleanup
 
-            yield from f
+            result = yield from f
 
             log.debug("Connection ready: %r", self)
 
-            self._connection = connection
+            self._connection = result
+            return result
 
     @_ensure_connection
     @asyncio.coroutine
@@ -192,6 +191,10 @@ class Connection:
         log.debug("Closing AMQP connection")
         self._connection.close()
         yield from self.closing
+
+    def __del__(self):
+        with suppress(Exception):
+            self.loop.create_task(self.close())
 
 
 @asyncio.coroutine
