@@ -1144,6 +1144,20 @@ class TestCase(AsyncTestCase):
         yield from queue.delete()
         yield from wait((client.close(), client.closing), loop=self.loop)
 
+    @pytest.mark.asyncio
+    def test_queue_empty_fail_false(self):
+
+        client = yield from connect_robust(AMQP_URL, loop=self.loop)
+        queue_name = self.get_random_name("test_get_on_empty_queue")
+        channel = yield from client.channel()
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+
+        result = yield from queue.get(fail=False)
+        self.assertIsNone(result)
+
+        yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
 
 class MessageTestCase(unittest.TestCase):
     def test_message_copy(self):
