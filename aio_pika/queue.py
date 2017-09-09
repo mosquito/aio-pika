@@ -2,7 +2,7 @@ import asyncio
 from collections import namedtuple
 from logging import getLogger
 from types import FunctionType
-from typing import Any, Generator
+from typing import Any, Generator, Optional
 
 from .adapter import Channel
 from .exchange import Exchange
@@ -225,7 +225,7 @@ class Queue(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
-    def get(self, *, no_ack=False, timeout=None, fail=True) -> IncomingMessage:
+    def get(self, *, no_ack=False, timeout=None, fail=True) -> Generator[Any, None, Optional[IncomingMessage]]:
 
         """ Get message from the queue.
 
