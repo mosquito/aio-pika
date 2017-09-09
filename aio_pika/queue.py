@@ -225,19 +225,23 @@ class Queue(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
-    def get(self, *, no_ack=False, timeout=None) -> IncomingMessage:
+    def get(self, *, no_ack=False, timeout=None, fail=True) -> IncomingMessage:
 
         """ Get message from the queue.
 
         :param no_ack: if :class:`True` you don't need to call :func:`aio_pika.message.IncomingMessage.ack`
         :param timeout: execution timeout
+        :param fail: Should return :class:`None` instead of raise an exception :class:`aio_pika.exceptions.QueueEmpty`.
         :return: :class:`aio_pika.message.IncomingMessage`
         """
 
         f = self._create_future(timeout)
 
         def _on_getempty(method_frame, *a, **kw):
-            f.set_exception(QueueEmpty(method_frame))
+            if fail:
+                f.set_exception(QueueEmpty(method_frame))
+            else:
+                f.set_result(None)
 
         def _on_getok(channel, envelope, props, body):
             message = IncomingMessage(
