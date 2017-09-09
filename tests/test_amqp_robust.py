@@ -1158,6 +1158,31 @@ class TestCase(AsyncTestCase):
         yield from queue.delete()
         yield from wait((client.close(), client.closing), loop=self.loop)
 
+    @pytest.mark.asyncio
+    def test_message_nack(self):
+
+        client = yield from connect(AMQP_URL, loop=self.loop)
+        queue_name = self.get_random_name("test_nack_queue")
+        body = uuid.uuid4().bytes
+        channel = yield from client.channel()
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+
+        yield from channel.default_exchange.publish(Message(body=body), routing_key=queue_name)
+
+        message = yield from queue.get()    # type: aio_pika.IncomingMessage
+
+        self.assertEqual(message.body, body)
+        message.nack(requeue=True)
+
+        message = yield from queue.get()
+
+        self.assertTrue(message.redelivered)
+        self.assertEqual(message.body, body)
+        message.ack()
+
+        yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
 
 class MessageTestCase(unittest.TestCase):
     def test_message_copy(self):

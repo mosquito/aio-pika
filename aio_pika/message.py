@@ -378,6 +378,24 @@ class IncomingMessage(Message):
         if not self.locked:
             self.lock()
 
+    def nack(self, multiple: bool=False, requeue: bool=True):
+        if self.__no_ack:
+            raise TypeError("Can't nack message with \"no_ack\" flag")
+
+        if self.__processed:
+            raise MessageProcessError("Message already processed")
+
+        self.__channel.basic_nack(
+            delivery_tag=self.delivery_tag,
+            multiple=multiple,
+            requeue=requeue
+        )
+
+        self.__processed = True
+
+        if not self.locked:
+            self.lock()
+
     def info(self) -> dict:
         """ Method returns dict representation of the message """
 
