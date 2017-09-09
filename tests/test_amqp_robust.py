@@ -1161,7 +1161,7 @@ class TestCase(AsyncTestCase):
     @pytest.mark.asyncio
     def test_message_nack(self):
 
-        client = yield from connect(AMQP_URL, loop=self.loop)
+        client = yield from connect_robust(AMQP_URL, loop=self.loop)
         queue_name = self.get_random_name("test_nack_queue")
         body = uuid.uuid4().bytes
         channel = yield from client.channel()
