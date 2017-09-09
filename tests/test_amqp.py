@@ -531,8 +531,8 @@ class TestCase(AsyncTestCase):
         exchange = yield from channel.declare_exchange('direct', auto_delete=True)
         queue = yield from channel.declare_queue(queue_name, auto_delete=False)
 
-        with self.assertRaises(TimeoutError):
-            yield from queue.get(timeout=1)
+        with self.assertRaises(aio_pika.exceptions.QueueEmpty):
+            yield from queue.get()
 
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
@@ -1107,6 +1107,34 @@ class TestCase(AsyncTestCase):
         self.assertEqual(queue2.declaration_result.consumer_count, 0)
         self.assertEqual(queue2.declaration_result.message_count, 1)
 
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
+    def test_queue_empty_exception(self):
+
+        client = yield from connect(AMQP_URL, loop=self.loop)
+        queue_name = self.get_random_name("test_get_on_empty_queue")
+        channel = yield from client.channel()
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+
+        with self.assertRaises(aio_pika.exceptions.QueueEmpty):
+            yield from queue.get(timeout=5)
+
+        yield from queue.delete()
+        yield from wait((client.close(), client.closing), loop=self.loop)
+
+    @pytest.mark.asyncio
+    def test_queue_empty_fail_false(self):
+
+        client = yield from connect(AMQP_URL, loop=self.loop)
+        queue_name = self.get_random_name("test_get_on_empty_queue")
+        channel = yield from client.channel()
+        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+
+        result = yield from queue.get(fail=False)
+        self.assertIsNone(result)
+
+        yield from queue.delete()
         yield from wait((client.close(), client.closing), loop=self.loop)
 
 
