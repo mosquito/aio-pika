@@ -4,11 +4,12 @@ from logging import getLogger
 from types import FunctionType
 from typing import Any, Generator
 
-from pika.channel import Channel
+from .adapter import Channel
 from .exchange import Exchange
 from .message import IncomingMessage
 from .common import BaseChannel, FutureStore
 from .tools import create_task, iscoroutinepartial
+from .exceptions import QueueEmpty
 
 log = getLogger(__name__)
 
@@ -21,7 +22,7 @@ class Queue(BaseChannel):
     """ AMQP queue abstraction """
 
     __slots__ = ('name', 'durable', 'exclusive',
-                 'auto_delete', 'arguments',
+                 'auto_delete', 'arguments', '_get_lock',
                  '_channel', '__closing', 'declaration_result')
 
     def __init__(self, loop: asyncio.AbstractEventLoop, future_store: FutureStore,
@@ -36,6 +37,7 @@ class Queue(BaseChannel):
         self.auto_delete = auto_delete
         self.arguments = arguments
         self.declaration_result = None      # type: DeclarationResult
+        self._get_lock = asyncio.Lock(loop=self.loop)
 
     def __str__(self):
         return "%s" % self.name
@@ -232,25 +234,32 @@ class Queue(BaseChannel):
         :return: :class:`aio_pika.message.IncomingMessage`
         """
 
-        log.debug("Awaiting message from queue: %r", self)
-
         f = self._create_future(timeout)
 
-        self._channel.basic_get(
-            lambda *a: f.set_result(a),
-            self.name,
-            no_ack=no_ack,
-        )
+        def _on_getempty(method_frame, *a, **kw):
+            f.set_exception(QueueEmpty(method_frame))
 
-        channel, envelope, props, body = yield from f
+        def _on_getok(channel, envelope, props, body):
+            message = IncomingMessage(
+                channel,
+                envelope,
+                props,
+                body,
+                no_ack=no_ack,
+            )
 
-        return IncomingMessage(
-            channel,
-            envelope,
-            props,
-            body,
-            no_ack=no_ack,
-        )
+            f.set_result(message)
+
+        with (yield from self._get_lock), self._channel.set_get_empty_callback(_on_getempty):
+            log.debug("Awaiting message from queue: %r", self)
+
+            self._channel.basic_get(_on_getok, self.name, no_ack=no_ack)
+
+            try:
+                message = yield from f
+                return message
+            finally:
+                self._channel._on_getempty = None
 
     @BaseChannel._ensure_channel_is_open
     def purge(self, timeout=None) -> asyncio.Future:
