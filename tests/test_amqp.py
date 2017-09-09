@@ -531,8 +531,8 @@ class TestCase(AsyncTestCase):
         exchange = yield from channel.declare_exchange('direct', auto_delete=True)
         queue = yield from channel.declare_queue(queue_name, auto_delete=False)
 
-        with self.assertRaises(TimeoutError):
-            yield from queue.get(timeout=1)
+        with self.assertRaises(aio_pika.exceptions.QueueEmpty):
+            yield from queue.get()
 
         yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
@@ -1110,41 +1110,16 @@ class TestCase(AsyncTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
-    def test_await_get_on_empty_queue_then_publish_and_receive(self):
+    def test_queue_empty_exception(self):
 
         client = yield from connect(AMQP_URL, loop=self.loop)
         queue_name = self.get_random_name("test_get_on_empty_queue")
-        routing_key = self.get_random_name()
         channel = yield from client.channel()
-        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
         queue = yield from channel.declare_queue(queue_name, auto_delete=True)
-        yield from queue.bind(exchange, routing_key)
 
-        body = bytes("Hello world!", 'utf-8')
+        with self.assertRaises(aio_pika.exceptions.QueueEmpty):
+            yield from queue.get(timeout=5)
 
-        @asyncio.coroutine
-        def _publish_delayed():
-            # delay sending message to ensure queue.get() starts on empty queue
-            yield from asyncio.sleep(1.5)
-            res = yield from exchange.publish(
-                Message(body, content_type='text/plain'), routing_key
-            )
-            return res
-
-        @asyncio.coroutine
-        def _get():
-            # the queue is empty when the queue.get is invoked
-            incoming_message = yield from queue.get(timeout=5)
-            incoming_message.ack()
-            return incoming_message
-
-        result = yield from wait((_get(), _publish_delayed()), loop=self.loop)
-        incoming_message = result[0]
-        successful_publish = result[1]
-
-        self.assertEqual(incoming_message.body, body)
-        self.assertTrue(successful_publish)
-        yield from queue.unbind(exchange, routing_key)
         yield from queue.delete()
         yield from wait((client.close(), client.closing), loop=self.loop)
 
