@@ -7,11 +7,12 @@ from logging import getLogger
 from types import FunctionType
 
 from . import exceptions
+from .common import BaseChannel, FutureStore, ConfirmationTypes
 from .compat import Awaitable
 from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage, ReturnedMessage
 from .queue import Queue
-from .common import BaseChannel, FutureStore, ConfirmationTypes
+from .transaction import Transaction
 
 
 log = getLogger(__name__)
@@ -106,6 +107,9 @@ class Channel(BaseChannel):
 
     def add_close_callback(self, callback: FunctionType) -> None:
         self._closing.add_done_callback(lambda r: callback(r))
+
+    def remove_close_callback(self, callback: FunctionType) -> None:
+        self._closing.remove_done_callback(callback)
 
     @property
     @asyncio.coroutine
@@ -292,6 +296,19 @@ class Channel(BaseChannel):
             )
 
             return (yield from f)
+
+    def transaction(self):
+        if self._publisher_confirms:
+            raise RuntimeError("Cannot create transaction when publisher confirms are enabled")
+
+        tx = Transaction(self._channel, self._futures.get_child())
+
+        def on_close(result):
+            tx.close(exceptions.ChannelClosed())
+
+        self.add_close_callback(on_close)
+        tx.closing.add_done_callback(lambda result: self.remove_close_callback(on_close))
+        return tx
 
     def __del__(self):
         with suppress(Exception):
