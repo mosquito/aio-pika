@@ -43,6 +43,13 @@ Features
 * Auto-reconnects with complete state recovery with `connect_robust`
   (e.g. declared queues or exchanges, consuming state and bindings).
 * Python 3.4+ compatible (include 3.6).
+* `Publisher confirms`_ support
+* `Transactions`_ support
+
+
+.. _Transactions: https://www.rabbitmq.com/semantics.html
+.. _Publisher confirms: https://www.rabbitmq.com/confirms.html
+
 
 Installation
 ------------
