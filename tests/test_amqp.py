@@ -52,18 +52,22 @@ class TestCase(AsyncTestCase):
         return channel
 
     @asyncio.coroutine
-    def declare_queue(self, channel=None, *args, **kwargs):
-        if channel is None:
+    def declare_queue(self, *args, **kwargs):
+        if 'channel' not in kwargs:
             channel = yield from self.create_channel()
+        else:
+            channel = kwargs.pop('channel')
 
         queue = yield from channel.declare_queue(*args, **kwargs)
         self.addCleanup(queue.delete)
         return queue
 
     @asyncio.coroutine
-    def declare_exchange(self, channel=None, *args, **kwargs):
-        if channel is None:
+    def declare_exchange(self, *args, **kwargs):
+        if 'channel' not in kwargs:
             channel = yield from self.create_channel()
+        else:
+            channel = kwargs.pop('channel')
 
         exchange = yield from channel.declare_exchange(*args, **kwargs)
         self.addCleanup(exchange.delete)
@@ -97,25 +101,19 @@ class TestCase(AsyncTestCase):
 
     @pytest.mark.asyncio
     def test_delete_queue_and_exchange(self):
-        client = yield from self.create_connection()
-
         queue_name = self.get_random_name("test_connection")
         exchange = self.get_random_name()
 
-        channel = yield from client.channel()
+        channel = yield from self.create_channel()
         yield from channel.declare_exchange(exchange, auto_delete=True)
         yield from channel.declare_queue(queue_name, auto_delete=True)
 
         yield from channel.queue_delete(queue_name)
         yield from channel.exchange_delete(exchange)
 
-        yield from wait((client.close(), client.closing), loop=self.loop)
-
     @pytest.mark.asyncio
     def test_temporary_queue(self):
-        client = yield from self.create_connection()
-
-        channel = yield from client.channel()
+        channel = yield from self.create_channel()
         queue = yield from channel.declare_queue(auto_delete=True)
 
         self.assertNotEqual(queue.name, '')
@@ -130,8 +128,6 @@ class TestCase(AsyncTestCase):
 
         yield from channel.queue_delete(queue.name)
 
-        yield from wait((client.close(), client.closing), loop=self.loop)
-
     @pytest.mark.asyncio
     def test_internal_exchange(self):
         client = yield from self.create_connection()
@@ -140,8 +136,8 @@ class TestCase(AsyncTestCase):
         exchange_name = self.get_random_name("internal", "exchange")
 
         channel = yield from client.channel()
-        exchange = yield from channel.declare_exchange(exchange_name, auto_delete=True, internal=True)
-        queue = yield from channel.declare_queue(auto_delete=True)
+        exchange = yield from self.declare_exchange(exchange_name, auto_delete=True, internal=True, channel=channel)
+        queue = yield from self.declare_queue(auto_delete=True, channel=channel)
 
         yield from queue.bind(exchange, routing_key)
 
@@ -158,19 +154,15 @@ class TestCase(AsyncTestCase):
             yield from f
 
         yield from queue.unbind(exchange, routing_key)
-        yield from queue.delete()
-        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_simple_publish_and_receive(self):
-        client = yield from self.create_connection()
-
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = yield from client.channel()
-        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
-        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+        channel = yield from self.create_channel()
+        exchange = yield from self.declare_exchange('direct', auto_delete=True, channel=channel)
+        queue = yield from self.declare_queue(queue_name, auto_delete=True, channel=channel)
 
         yield from queue.bind(exchange, routing_key)
 
@@ -189,20 +181,17 @@ class TestCase(AsyncTestCase):
         incoming_message.ack()
 
         self.assertEqual(incoming_message.body, body)
+
         yield from queue.unbind(exchange, routing_key)
-        yield from queue.delete()
-        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_simple_publish_without_confirm(self):
-        client = yield from self.create_connection()
-
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = yield from client.channel(publisher_confirms=False)
-        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
-        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+        channel = yield from self.create_channel(publisher_confirms=False)
+        exchange = yield from self.declare_exchange('direct', auto_delete=True, channel=channel)
+        queue = yield from self.declare_queue(queue_name, auto_delete=True, channel=channel)
 
         yield from queue.bind(exchange, routing_key)
 
@@ -221,20 +210,17 @@ class TestCase(AsyncTestCase):
         incoming_message.ack()
 
         self.assertEqual(incoming_message.body, body)
+
         yield from queue.unbind(exchange, routing_key)
-        yield from queue.delete()
-        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_simple_publish_and_receive_delivery_mode_explicitly_none(self):
-        client = yield from self.create_connection()
-
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = yield from client.channel()
-        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
-        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+        channel = yield from self.create_channel()
+        exchange = yield from self.declare_exchange('direct', auto_delete=True, channel=channel)
+        queue = yield from self.declare_queue(queue_name, auto_delete=True, channel=channel)
 
         yield from queue.bind(exchange, routing_key)
 
@@ -253,25 +239,24 @@ class TestCase(AsyncTestCase):
         incoming_message.ack()
 
         self.assertEqual(incoming_message.body, body)
+
         yield from queue.unbind(exchange, routing_key)
-        yield from queue.delete()
-        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_simple_publish_and_receive_to_bound_exchange(self):
-        client = yield from self.create_connection()
-
         routing_key = self.get_random_name()
         src_name = self.get_random_name("source", "exchange")
         dest_name = self.get_random_name("destination", "exchange")
 
-        channel = yield from client.channel()
-        src_exchange = yield from channel.declare_exchange(src_name, auto_delete=True)
-        dest_exchange = yield from channel.declare_exchange(dest_name, auto_delete=True)
-        queue = yield from channel.declare_queue(auto_delete=True)
+        channel = yield from self.create_channel()
+        src_exchange = yield from self.declare_exchange(src_name, auto_delete=True, channel=channel)
+        dest_exchange = yield from self.declare_exchange(dest_name, auto_delete=True, channel=channel)
+        queue = yield from self.declare_queue(auto_delete=True, channel=channel)
 
         yield from queue.bind(dest_exchange, routing_key)
+
         yield from dest_exchange.bind(src_exchange, routing_key)
+        self.addCleanup(dest_exchange.unbind, src_exchange, routing_key)
 
         body = bytes(shortuuid.uuid(), 'utf-8')
 
@@ -288,21 +273,16 @@ class TestCase(AsyncTestCase):
 
         self.assertEqual(incoming_message.body, body)
 
-        yield from dest_exchange.unbind(src_exchange, routing_key)
         yield from queue.unbind(dest_exchange, routing_key)
-        yield from queue.delete()
-        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_incoming_message_info(self):
-        client = yield from self.create_connection()
-
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = yield from client.channel()
-        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
-        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+        channel = yield from self.create_channel()
+        exchange = yield from self.declare_exchange('direct', auto_delete=True, channel=channel)
+        queue = yield from self.declare_queue(queue_name, auto_delete=True, channel=channel)
 
         yield from queue.bind(exchange, routing_key)
 
@@ -361,19 +341,15 @@ class TestCase(AsyncTestCase):
         self.assertDictEqual(incoming_message.info(), info)
 
         yield from queue.unbind(exchange, routing_key)
-        yield from queue.delete()
-        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_context_process(self):
-        client = yield from self.create_connection()
-
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = yield from client.channel()
-        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
-        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+        channel = yield from self.create_channel()
+        exchange = yield from self.declare_exchange('direct', auto_delete=True, channel=channel)
+        queue = yield from self.declare_queue(queue_name, auto_delete=True, channel=channel)
 
         yield from queue.bind(exchange, routing_key)
 
@@ -446,19 +422,15 @@ class TestCase(AsyncTestCase):
         self.assertEqual(incoming_message.locked, True)
 
         yield from queue.unbind(exchange, routing_key)
-        yield from queue.delete()
-        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_context_process_redelivery(self):
-        client = yield from self.create_connection()
-
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = yield from client.channel()
-        exchange = yield from channel.declare_exchange('direct', auto_delete=True)
-        queue = yield from channel.declare_queue(queue_name, auto_delete=True)
+        channel = yield from self.create_channel()
+        exchange = yield from self.declare_exchange('direct', auto_delete=True, channel=channel)
+        queue = yield from self.declare_queue(queue_name, auto_delete=True, channel=channel)
 
         yield from queue.bind(exchange, routing_key)
 
@@ -489,9 +461,8 @@ class TestCase(AsyncTestCase):
             self.assertEqual(message_logger.info.mock_calls[0][1][1].body, incoming_message.body)
 
         self.assertEqual(incoming_message.body, body)
+
         yield from queue.unbind(exchange, routing_key)
-        yield from queue.delete()
-        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_no_ack_redelivery(self):
@@ -531,8 +502,6 @@ class TestCase(AsyncTestCase):
         message.ack()
 
         yield from queue.unbind(exchange, routing_key)
-        yield from queue.delete()
-        yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_ack_multiple(self):
@@ -812,7 +781,6 @@ class TestCase(AsyncTestCase):
         except:
             yield from queue.unbind(exchange, routing_key)
             yield from queue.delete()
-            yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
     def test_connection_refused(self):
@@ -842,12 +810,11 @@ class TestCase(AsyncTestCase):
 
     @pytest.mark.asyncio
     def test_dlx(self):
-        client = yield from self.create_connection()
         suffix = self.get_random_name()
         routing_key = "%s_routing_key" % suffix
         dlx_routing_key = "%s_dlx_routing_key" % suffix
 
-        channel = yield from client.channel()
+        channel = yield from self.create_channel()
 
         f = asyncio.Future(loop=self.loop)
 
@@ -858,7 +825,8 @@ class TestCase(AsyncTestCase):
             self.assertEqual(message.routing_key, dlx_routing_key)
             f.set_result(True)
 
-        direct_exchange = yield from channel.declare_exchange('direct', auto_delete=True)  # type: aio_pika.Exchange
+        direct_exchange = yield from self.declare_exchange('direct', channel=channel, auto_delete=True)  # type:
+        # aio_pika.Exchange
         dlx_exchange = yield from channel.declare_exchange('dlx', ExchangeType.DIRECT, auto_delete=True)
 
         direct_queue = yield from channel.declare_queue(
@@ -903,7 +871,6 @@ class TestCase(AsyncTestCase):
             yield from direct_queue.delete()
             yield from direct_exchange.delete()
             yield from dlx_exchange.delete()
-            yield from client.close()
 
     @pytest.mark.asyncio
     def test_connection_close(self):
@@ -1191,7 +1158,7 @@ class TestCase(AsyncTestCase):
 
     @asyncio.coroutine
     def test_transaction_when_publisher_confirms_error(self):
-        channel = yield from self.create_channel()
+        channel = yield from self.create_channel(publisher_confirms=True)
         with self.assertRaises(RuntimeError):
             channel.transaction()
 
