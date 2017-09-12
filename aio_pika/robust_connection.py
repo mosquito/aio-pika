@@ -26,12 +26,15 @@ def _ensure_connection(func):
 class RobustConnection(Connection):
     """ Connection abstraction """
 
-    RECONNECT_INTERVAL = 1
+    DEFAULT_RECONNECT_INTERVAL = 1
     CHANNEL_CLASS = RobustChannel
 
     def __init__(self, host: str = 'localhost', port: int = 5672, login: str = 'guest',
                  password: str = 'guest', virtual_host: str = '/',
                  ssl: bool = False, *, loop=None, **kwargs):
+
+        self.reconnect_interval = kwargs.pop('reconnect_interval',
+                                             self.DEFAULT_RECONNECT_INTERVAL)
 
         super().__init__(host=host, port=port, login=login, password=password,
                          virtual_host=virtual_host, ssl=ssl, loop=loop, **kwargs)
@@ -72,7 +75,7 @@ class RobustConnection(Connection):
             future.set_result(None)
 
         self.loop.call_later(
-            self.RECONNECT_INTERVAL,
+            self.reconnect_interval,
             lambda: self.loop.create_task(self.connect())
         )
 
