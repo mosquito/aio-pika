@@ -1,5 +1,4 @@
 import asyncio
-from contextlib import suppress
 from functools import wraps, partial
 from logging import getLogger
 from typing import Callable
@@ -38,7 +37,16 @@ class RobustConnection(Connection):
                          virtual_host=virtual_host, ssl=ssl, loop=loop, **kwargs)
 
         self._closed = False
+        self._on_reconnect_callbacks = set()
         self._on_close_callbacks = set()
+
+    def add_reconnect_callback(self, callback: Callable[[], None]):
+        """ Add callback which will be called after reconnect.
+
+        :return: None
+        """
+
+        self._on_reconnect_callbacks.add(lambda c: callback(c))
 
     def add_close_callback(self, callback: Callable[[], None]):
         """ Add callback which will be called after connection will be closed.
@@ -69,11 +77,15 @@ class RobustConnection(Connection):
         )
 
     @asyncio.coroutine
-    def connect(self):
+    def connect(self, callback=None):
         result = yield from super().connect()
 
         for number, channel in self._channels.items():
-            channel.on_reconnect(self, number)
+            yield from channel.on_reconnect(self, number)
+
+        if self._connection:
+            while self._on_reconnect_callbacks:
+                self._on_reconnect_callbacks.pop()(self)
 
         return result
 
@@ -89,8 +101,7 @@ class RobustConnection(Connection):
         self._closed = True
 
         while self._on_close_callbacks:
-            with suppress(Exception):
-                self._on_close_callbacks.pop()(self)
+            self._on_close_callbacks.pop()(self)
 
         yield from super().close()
 
