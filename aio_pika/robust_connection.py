@@ -80,7 +80,7 @@ class RobustConnection(Connection):
         )
 
     @asyncio.coroutine
-    def connect(self, callback=None):
+    def connect(self):
         result = yield from super().connect()
 
         for number, channel in self._channels.items():
@@ -103,10 +103,11 @@ class RobustConnection(Connection):
         """ Close AMQP connection """
         self._closed = True
 
-        while self._on_close_callbacks:
-            self._on_close_callbacks.pop()(self)
-
-        yield from super().close()
+        try:
+            while self._on_close_callbacks:
+                self._on_close_callbacks.pop()(self)
+        finally:
+            yield from super().close()
 
 
 connect_robust = partial(connect, connection_class=RobustConnection)
