@@ -1,5 +1,4 @@
 import asyncio
-from contextlib import suppress
 from functools import wraps, partial
 from logging import getLogger
 from typing import Callable
@@ -27,18 +26,30 @@ def _ensure_connection(func):
 class RobustConnection(Connection):
     """ Connection abstraction """
 
-    RECONNECT_INTERVAL = 1
+    DEFAULT_RECONNECT_INTERVAL = 1
     CHANNEL_CLASS = RobustChannel
 
     def __init__(self, host: str = 'localhost', port: int = 5672, login: str = 'guest',
                  password: str = 'guest', virtual_host: str = '/',
                  ssl: bool = False, *, loop=None, **kwargs):
 
+        self.reconnect_interval = kwargs.pop('reconnect_interval',
+                                             self.DEFAULT_RECONNECT_INTERVAL)
+
         super().__init__(host=host, port=port, login=login, password=password,
                          virtual_host=virtual_host, ssl=ssl, loop=loop, **kwargs)
 
         self._closed = False
+        self._on_reconnect_callbacks = set()
         self._on_close_callbacks = set()
+
+    def add_reconnect_callback(self, callback: Callable[[], None]):
+        """ Add callback which will be called after reconnect.
+
+        :return: None
+        """
+
+        self._on_reconnect_callbacks.add(lambda c: callback(c))
 
     def add_close_callback(self, callback: Callable[[], None]):
         """ Add callback which will be called after connection will be closed.
@@ -64,7 +75,7 @@ class RobustConnection(Connection):
             future.set_result(None)
 
         self.loop.call_later(
-            self.RECONNECT_INTERVAL,
+            self.reconnect_interval,
             lambda: self.loop.create_task(self.connect())
         )
 
@@ -73,7 +84,11 @@ class RobustConnection(Connection):
         result = yield from super().connect()
 
         for number, channel in self._channels.items():
-            channel.on_reconnect(self, number)
+            yield from channel.on_reconnect(self, number)
+
+        if self._connection:
+            while self._on_reconnect_callbacks:
+                self._on_reconnect_callbacks.pop()(self)
 
         return result
 
@@ -88,11 +103,11 @@ class RobustConnection(Connection):
         """ Close AMQP connection """
         self._closed = True
 
-        while self._on_close_callbacks:
-            with suppress(Exception):
+        try:
+            while self._on_close_callbacks:
                 self._on_close_callbacks.pop()(self)
-
-        yield from super().close()
+        finally:
+            yield from super().close()
 
 
 connect_robust = partial(connect, connection_class=RobustConnection)
