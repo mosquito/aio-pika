@@ -47,6 +47,7 @@ class RobustChannel(Channel):
         self._queues = dict()
         self._qos = 0, 0
 
+    @asyncio.coroutine
     def on_reconnect(self, connection, channel_number):
         exc = ConnectionError('Auto Reconnect Error')
 
@@ -58,17 +59,13 @@ class RobustChannel(Channel):
         self._connection = connection
         self._channel_number = channel_number
 
-        @asyncio.coroutine
-        def _reconnect():
-            yield from self.initialize()
+        yield from self.initialize()
 
-            for name, exchange in self._exchanges.items():
-                yield from exchange.on_reconnect(self)
+        for name, exchange in self._exchanges.items():
+            yield from exchange.on_reconnect(self)
 
-            for name, queue in self._queues.items():
-                yield from queue.on_reconnect(self)
-
-        self.loop.create_task(_reconnect())
+        for name, queue in self._queues.items():
+            yield from queue.on_reconnect(self)
 
     @asyncio.coroutine
     def initialize(self, timeout=None):
