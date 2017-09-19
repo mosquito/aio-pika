@@ -16,7 +16,7 @@ Introduction
     error create `issue`_ or `pull request`_ for me.
 
     It is expected that you are familiar with the basics of `asyncio`_.
-    Anyway following examples works as written.
+    Anyway following examples work as written.
     You feel free to download them and test it as is without any changes
     (in case your RabbitMQ installation allows access for user "guest").
 
