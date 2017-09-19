@@ -18,7 +18,7 @@ from copy import copy
 from aio_pika import connect, Message, DeliveryMode
 from aio_pika.exceptions import ProbableAuthenticationError, MessageProcessError
 from aio_pika.exchange import ExchangeType
-from aio_pika.tools import wait, create_future
+from aio_pika.tools import wait
 from unittest import mock
 from . import AsyncTestCase, AMQP_URL
 
@@ -1003,12 +1003,15 @@ class TestCase(AsyncTestCase):
     def test_add_close_callback(self):
         client = yield from self.create_connection()
 
-        f = create_future(loop=self.loop)
+        shared_list = []
 
-        client.add_close_callback(f.set_result)
+        def share(f):
+            shared_list.append(f)
+
+        client.add_close_callback(share)
         yield from client.close()
 
-        self.assertTrue(f.done())
+        self.assertEqual(len(shared_list), 1)
 
     @pytest.mark.asyncio
     def test_big_message(self):
