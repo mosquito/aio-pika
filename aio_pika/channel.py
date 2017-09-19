@@ -201,7 +201,7 @@ class Channel(BaseChannel):
             try:
                 self._channel.basic_publish(queue_name, routing_key, body, properties, mandatory, immediate)
             except (AttributeError, RuntimeError) as exc:
-                log.exception("Failed to send data to client. Conection unexpected closed.")
+                log.exception("Failed to send data to client (connection unexpectedly closed)")
                 self._on_channel_close(self._channel, -1, exc)
                 self._connection.close(reply_code=500, reply_text="Incorrect state")
             else:
