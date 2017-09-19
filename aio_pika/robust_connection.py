@@ -24,7 +24,7 @@ def _ensure_connection(func):
 
 
 class RobustConnection(Connection):
-    """ Connection abstraction """
+    """ Robust connection """
 
     DEFAULT_RECONNECT_INTERVAL = 1
     CHANNEL_CLASS = RobustChannel
@@ -40,8 +40,17 @@ class RobustConnection(Connection):
                          virtual_host=virtual_host, ssl=ssl, loop=loop, **kwargs)
 
         self._closed = False
+        self._on_connection_lost_callbacks = set()
         self._on_reconnect_callbacks = set()
         self._on_close_callbacks = set()
+
+    def add_connection_lost_callback(self, callback: Callable[[], None]):
+        """ Add callback which will be called after connection was lost.
+
+        :return: None
+        """
+
+        self._on_connection_lost_callbacks.add(lambda c: callback(c))
 
     def add_reconnect_callback(self, callback: Callable[[], None]):
         """ Add callback which will be called after reconnect.
@@ -60,6 +69,9 @@ class RobustConnection(Connection):
         self._on_close_callbacks.add(lambda c: callback(c))
 
     def _on_connection_lost(self, future: asyncio.Future, connection: AsyncioConnection, code, reason):
+        while self._on_connection_lost_callbacks:
+            self._on_connection_lost_callbacks.pop()(self)
+
         if self._closed:
             return super()._on_connection_lost(future, connection, code, reason)
 
@@ -84,7 +96,7 @@ class RobustConnection(Connection):
         result = yield from super().connect()
 
         for number, channel in self._channels.items():
-            yield from channel.on_reconnect(self, number)
+            yield from channel.on_reconnect(self._connection, number)
 
         if self._connection:
             while self._on_reconnect_callbacks:
@@ -94,7 +106,7 @@ class RobustConnection(Connection):
 
     @property
     def is_closed(self):
-        """ Is this connection are closed """
+        """ Is this connection is closed """
 
         return self._closed or super().is_closed
 

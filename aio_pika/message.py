@@ -327,7 +327,7 @@ class IncomingMessage(Message):
         except:
             if not ignore_processed or not self.processed:
                 if reject_on_redelivered and self.redelivered:
-                    log.info("Message %r was redelivered and will be rejected.", self)
+                    log.info("Message %r was redelivered and will be rejected", self)
                     self.reject(requeue=False)
                 else:
                     self.reject(requeue=requeue)
