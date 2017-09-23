@@ -144,3 +144,12 @@ Thanks for contributing
 .. _@decaz: https://github.com/decaz
 .. _@kajetanj: https://github.com/kajetanj
 .. _@iselind: https://github.com/iselind
+
+
+Versioning
+==========
+
+This software follows `Semantic Versioning`_
+
+
+.. _Semantic Versioning: http://semver.org/
