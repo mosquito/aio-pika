@@ -1189,6 +1189,11 @@ class TestCase(AsyncTestCase):
         from ._async_await_cases import test_transaction_simple_async_rollback as func
         return func(self)
 
+    @skip_for_py34
+    def test_async_for_queue(self):
+        from ._async_await_cases import test_async_for_queue as func
+        return func(self)
+
 
 class MessageTestCase(unittest.TestCase):
     def test_message_copy(self):

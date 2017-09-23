@@ -192,6 +192,16 @@ command as many times as we like, and only one will be created.
    :language: python
    :lines: 18-29
 
+.. note::
+    This article contains adopted official examples only.
+    But `aio_pika` allows to use Python 3.5+ `async for` notation.
+
+    For example:
+
+    .. literalinclude:: ../examples/simple_consumer.py
+       :language: python
+       :lines: 14-18
+
 You may ask why we declare the queue again ‒ we have already declared it in
 our previous code. We could avoid that if we were sure that the queue already exists.
 For example if *send.py* program was run before. But we're not yet sure which program
