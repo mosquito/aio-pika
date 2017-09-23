@@ -304,5 +304,72 @@ class Queue(BaseChannel):
 
         return future
 
+    def __iter__(self) -> 'QueueIterator':
+        """ Return the :class:`QueueIterator` which might be used with `async for` syntax
+        before use it we are strongly recommended call :method:`set_qos` with argument `1`. """
+        iterator = QueueIterator(self)
+        self.loop.create_task(iterator.consume())
+        return iterator
 
-__all__ = 'Queue',
+    @asyncio.coroutine
+    def __aiter__(self) -> 'QueueIterator':
+        iterator = QueueIterator(self)
+        yield from iterator.consume()
+        return iterator
+
+
+class QueueIterator:
+    def __init__(self, queue: Queue):
+        self._amqp_queue = queue
+        self._queue = asyncio.Queue(loop=self.loop)
+        self._consumer_tag = None
+
+    @property
+    def loop(self) -> asyncio.AbstractEventLoop:
+        return self._amqp_queue.loop
+
+    def on_message(self, message: IncomingMessage):
+        self._queue.put_nowait(message)
+
+    @asyncio.coroutine
+    def consume(self):
+        self._consumer_tag = yield from self._amqp_queue.consume(self.on_message)
+
+    @asyncio.coroutine
+    def _close(self):
+        if not self._consumer_tag or self._amqp_queue._channel.is_closed:
+            return
+
+        yield from self._amqp_queue.cancel(self._consumer_tag)
+        self._consumer_tag = None
+
+        def get_msg():
+            try:
+                return self._queue.get_nowait()
+            except asyncio.QueueEmpty:
+                return
+
+        # Reject all messages
+        msg = get_msg()     # type: IncomingMessage
+        while msg:
+            msg.reject(requeue=True)
+            msg = get_msg()  # type: IncomingMessage
+
+    def close(self) -> asyncio.Task:
+        return self.loop.create_task(self._close())
+
+    def __del__(self):
+        self.close()
+
+    @asyncio.coroutine
+    def __next__(self) -> IncomingMessage:
+        try:
+            return (yield from self._queue.get())
+        except asyncio.CancelledError:
+            yield from self.close()
+            raise
+
+    __anext__ = __next__
+
+
+__all__ = 'Queue', 'QueueIterator'
