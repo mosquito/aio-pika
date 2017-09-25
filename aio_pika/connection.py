@@ -78,6 +78,23 @@ class Connection:
     def add_close_callback(self, callback: Callable[[], None]):
         """ Add callback which will be called after connection will be closed.
 
+        :class:`asyncio.Future` will be passed as a first argument.
+
+        Example:
+
+        .. code-block:: python
+
+            import aio_pika
+
+            async def main():
+                connection = await aio_pika.connect(
+                    "amqp://guest:guest@127.0.0.1/"
+                )
+                connection.add_close_callback(print)
+                await connection.close()
+                # <Future finished result='Normal shutdown'>
+
+
         :return: None
         """
 
@@ -107,7 +124,27 @@ class Connection:
     @property
     @asyncio.coroutine
     def closing(self):
-        """ Return future which will be finished after connection close. """
+        """ Return coroutine which will be finished after connection close.
+
+        Example:
+
+        .. code-block:: python
+
+            import aio_pika
+
+            async def async_close(connection):
+                await asyncio.sleep(2)
+                await connection.close()
+
+            async def main(loop):
+                connection = await aio_pika.connect(
+                    "amqp://guest:guest@127.0.0.1/"
+                )
+                loop.create_task(async_close(connection))
+
+                await connection.closing
+
+        """
         return (yield from self._closing)
 
     def _channel_cleanup(self, channel: pika.channel.Channel):
@@ -138,7 +175,12 @@ class Connection:
 
     @asyncio.coroutine
     def connect(self) -> AsyncioConnection:
-        """ Perform connect. This method should be called after :func:`aio_pika.connection.Connection.__init__`"""
+        """ Perform connect. This method should be called after :func:`aio_pika.connection.Connection.__init__`
+
+        .. note::
+            This method calling in :func:`connect`. You shouldn't call it explicit.
+
+        """
 
         if self.__closing and self.__closing.done():
             raise RuntimeError("Invalid connection state")
@@ -169,8 +211,37 @@ class Connection:
 
     @_ensure_connection
     @asyncio.coroutine
-    def channel(self, channel_number=None, publisher_confirms=True) -> Generator[Any, None, Channel]:
-        """ Get a channel """
+    def channel(self, channel_number: int=None, publisher_confirms: bool=True) -> Generator[Any, None, Channel]:
+        """ Coroutine which returns new instance of :class:`Channel`.
+
+        Example:
+
+        .. code-block:: python
+
+            import aio_pika
+
+            async def main(loop):
+                connection = await aio_pika.connect(
+                    "amqp://guest:guest@127.0.0.1/"
+                )
+
+                channel1 = connection.channel()
+                await channel1.close()
+
+                # Creates channel with specific channel number
+                channel42 = connection.channel(42)
+                await channel42.close()
+
+                # For working with transactions
+                channel_no_confirms = connection.channel(publisher_confirms=True)
+                await channel_no_confirms.close()
+
+        :param channel_number: specify the channel number explicit
+        :param publisher_confirms: if `True` the :method:`aio_pika.Exchange.publish` method will be return
+        :class:`bool` after publish is complete. Otherwise the :method:`aio_pika.Exchange.publish` method will be
+        return :class:`None`
+
+        """
         with (yield from self.__write_lock):
             log.debug("Creating AMQP channel for conneciton: %r", self)
 
@@ -185,14 +256,17 @@ class Connection:
 
             return channel
 
-    @asyncio.coroutine
-    def close(self) -> None:
+    def close(self) -> asyncio.Task:
         """ Close AMQP connection """
         log.debug("Closing AMQP connection")
 
-        if self._connection:
-            self._connection.close()
-        yield from self.closing
+        @asyncio.coroutine
+        def inner():
+            if self._connection:
+                self._connection.close()
+            yield from self.closing
+
+        return self.loop.create_task(inner())
 
     def __del__(self):
         with suppress(Exception):
@@ -205,6 +279,26 @@ def connect(url: str=None, *, host: str='localhost',
             password: str='guest', virtualhost: str='/',
             ssl: bool=False, loop=None, connection_class=Connection, **kwargs) -> Generator[Any, None, Connection]:
     """ Make connection to the broker
+
+    Example:
+
+    .. code-block:: python
+
+        import aio_pika
+
+        async def main():
+            connection = await aio_pika.connect(
+                "amqp://guest:guest@127.0.0.1/"
+            )
+
+    Connect to localhost with default credentials:
+
+    .. code-block:: python
+
+        import aio_pika
+
+        async def main():
+            connection = await aio_pika.connect()
 
     :param url: `RFC3986`_ formatted broker address. When :class:`None` will be used keyword arguments.
     :param host: hostname of the broker
@@ -220,6 +314,7 @@ def connect(url: str=None, *, host: str='localhost',
 
     .. _RFC3986: https://tools.ietf.org/html/rfc3986
     .. _pika documentation: https://goo.gl/TdVuZ9
+
     """
 
     if url:
