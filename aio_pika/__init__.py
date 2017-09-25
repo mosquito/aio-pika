@@ -9,8 +9,22 @@ from .version import __author__, __version__, author_info, package_info, package
 
 
 __all__ = (
-    '__author__', '__version__', 'AMQPException', 'author_info', 'Channel', 'connect',
-    'Connection', 'DeliveryMode', 'Exchange', 'ExchangeType', 'IncomingMessage',
-    'Message', 'MessageProcessError', 'package_info', 'package_license', 'Queue', 'version_info',
+    '__author__',
+    '__version__',
+    'connect',
     'connect_robust',
+    'Connection',
+    'Channel',
+    'DeliveryMode',
+    'Exchange',
+    'ExchangeType',
+    'Queue',
+    'Message',
+    'IncomingMessage',
+    'author_info',
+    'package_info',
+    'version_info',
+    'package_license',
+    'AMQPException',
+    'MessageProcessError',
 )

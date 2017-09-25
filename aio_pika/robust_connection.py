@@ -1,7 +1,7 @@
 import asyncio
-from functools import wraps, partial
+from functools import wraps
 from logging import getLogger
-from typing import Callable
+from typing import Callable, Generator, Any
 
 from pika.exceptions import ProbableAuthenticationError
 
@@ -110,8 +110,7 @@ class RobustConnection(Connection):
 
         return self._closed or super().is_closed
 
-    @asyncio.coroutine
-    def close(self) -> None:
+    def close(self) -> asyncio.Task:
         """ Close AMQP connection """
         self._closed = True
 
@@ -119,10 +118,58 @@ class RobustConnection(Connection):
             for callback in self._on_close_callbacks:
                 callback(self)
         finally:
-            yield from super().close()
+            return super().close()
 
 
-connect_robust = partial(connect, connection_class=RobustConnection)
+def connect_robust(url: str=None, *, host: str='localhost',
+                   port: int=5672, login: str='guest',
+                   password: str='guest', virtualhost: str='/',
+                   ssl: bool=False, loop=None,
+                   connection_class=RobustConnection, **kwargs) -> Generator[Any, None, Connection]:
+    """ Make robust connection to the broker.
+
+    That means that connection state will be restored after reconnect.
+    After connection has been established the channels, the queues and the
+    exchanges with their bindings will be restored.
+
+    Example:
+
+    .. code-block:: python
+
+        import aio_pika
+
+        async def main():
+            connection = await aio_pika.connect_robust("amqp://guest:guest@127.0.0.1/")
+
+    Connect to localhost with default credentials:
+
+    .. code-block:: python
+
+        import aio_pika
+
+        async def main():
+            connection = await aio_pika.connect_robust()
+
+
+    :param url: `RFC3986`_ formatted broker address. When :class:`None` will be used keyword arguments.
+    :param host: hostname of the broker
+    :param port: broker port 5672 by default
+    :param login: username string. `'guest'` by default.
+    :param password: password string. `'guest'` by default.
+    :param virtualhost: virtualhost parameter. `'/'` by default
+    :param ssl: use SSL for connection. Should be used with addition kwargs. See `pika documentation`_ for more info.
+    :param loop: Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
+    :param connection_class: Factory of a new connection
+    :param kwargs: addition parameters which will be passed to the pika connection.
+    :return: :class:`aio_pika.connection.Connection`
+
+    .. _RFC3986: https://tools.ietf.org/html/rfc3986
+    .. _pika documentation: https://goo.gl/TdVuZ9
+    """
+    return connect(
+        url=url, host=host, port=port, login=login, password=password, virtualhost=virtualhost,
+        ssl=ssl, loop=loop, connection_class=connection_class, **kwargs
+    )
 
 
 __all__ = 'RobustConnection', 'connect_robust',
