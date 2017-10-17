@@ -1194,6 +1194,16 @@ class TestCase(AsyncTestCase):
         from ._async_await_cases import test_async_for_queue as func
         return func(self)
 
+    @skip_for_py34
+    def test_async_for_queue_context(self):
+        from ._async_await_cases import test_async_for_queue_async_context as func
+        return func(self)
+
+    @skip_for_py34
+    def test_async_with_connection(self):
+        from ._async_await_cases import test_async_connection_context as func
+        return func(self)
+
 
 class MessageTestCase(unittest.TestCase):
     def test_message_copy(self):

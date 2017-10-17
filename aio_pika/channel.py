@@ -247,6 +247,9 @@ class Channel(BaseChannel):
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
     def close(self) -> None:
+        if not self._channel:
+            return
+
         with (yield from self._write_lock):
             self._channel.close()
             yield from self.closing

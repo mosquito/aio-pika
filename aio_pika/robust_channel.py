@@ -96,6 +96,9 @@ class RobustChannel(Channel):
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
     def close(self) -> None:
+        if self._closed:
+            return
+
         with (yield from self._write_lock):
             self._closed = True
             self._channel.close()
