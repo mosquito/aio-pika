@@ -121,6 +121,7 @@ class RobustConnection(Connection):
             return super().close()
 
 
+@asyncio.coroutine
 def connect_robust(url: str=None, *, host: str='localhost',
                    port: int=5672, login: str='guest',
                    password: str='guest', virtualhost: str='/',
@@ -166,9 +167,12 @@ def connect_robust(url: str=None, *, host: str='localhost',
     .. _RFC3986: https://tools.ietf.org/html/rfc3986
     .. _pika documentation: https://goo.gl/TdVuZ9
     """
-    return connect(
-        url=url, host=host, port=port, login=login, password=password, virtualhost=virtualhost,
-        ssl=ssl, loop=loop, connection_class=connection_class, **kwargs
+    return (
+        yield from connect(
+            url=url, host=host, port=port, login=login,
+            password=password, virtualhost=virtualhost, ssl=ssl,
+            loop=loop, connection_class=connection_class, **kwargs
+        )
     )
 
 

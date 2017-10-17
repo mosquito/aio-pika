@@ -272,6 +272,17 @@ class Connection:
         with suppress(Exception):
             self.loop.create_task(self.close())
 
+    @asyncio.coroutine
+    def __aenter__(self) -> 'Connection':
+        return self
+
+    @asyncio.coroutine
+    def __aexit__(self, exc_type, exc_val, exc_tb):
+        for channel in tuple(self._channels.values()):
+            yield from channel.close()
+
+        yield from self.close()
+
 
 @asyncio.coroutine
 def connect(url: str=None, *, host: str='localhost',

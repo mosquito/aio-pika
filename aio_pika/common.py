@@ -99,6 +99,10 @@ class BaseChannel:
         self._futures = future_store
         self._closing = create_future(loop=self.loop)
 
+    @property
+    def is_closed(self):
+        return self._closing.done()
+
     def _create_future(self, timeout=None):
         f = self._futures.create_future(timeout)
         return f

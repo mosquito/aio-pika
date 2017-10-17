@@ -307,15 +307,60 @@ class Queue(BaseChannel):
     def __iter__(self) -> 'QueueIterator':
         """ Return the :class:`QueueIterator` which might be used with `async for` syntax
         before use it we are strongly recommended call :method:`set_qos` with argument `1`. """
-        iterator = QueueIterator(self)
+        iterator = self.iterator()
         self.loop.create_task(iterator.consume())
         return iterator
 
     @asyncio.coroutine
     def __aiter__(self) -> 'QueueIterator':
-        iterator = QueueIterator(self)
+        iterator = self.iterator()
         yield from iterator.consume()
         return iterator
+
+    def iterator(self) -> 'QueueIterator':
+        ''' Returns an iterator for async for expression.
+
+        Full example:
+
+        .. code-block:: python
+
+            import aio_pika
+
+            async def main():
+                connection = await aio_pika.connect()
+
+                async with connection:
+                    channel = await connection.channel()
+
+                    queue = await channel.declare_queue('test')
+
+                    async with queue.iterator() as q:
+                        async for message in q:
+                            print(message.body)
+
+        When your program runs with run_forever the iterator will be closed
+        in background. In this case the context processor for iterator might
+        be skipped and the queue might be used in the "async for"
+        expression directly.
+
+        .. code-block:: python
+
+            import aio_pika
+
+            async def main():
+                connection = await aio_pika.connect()
+
+                async with connection:
+                    channel = await connection.channel()
+
+                    queue = await channel.declare_queue('test')
+
+                    async for message in queue:
+                        print(message.body)
+
+        :return: QueueIterator
+        '''
+        return QueueIterator(self)
 
 
 class QueueIterator:
@@ -337,9 +382,6 @@ class QueueIterator:
 
     @asyncio.coroutine
     def _close(self):
-        if not self._consumer_tag or self._amqp_queue._channel.is_closed:
-            return
-
         yield from self._amqp_queue.cancel(self._consumer_tag)
         self._consumer_tag = None
 
@@ -355,11 +397,21 @@ class QueueIterator:
             msg.reject(requeue=True)
             msg = get_msg()  # type: IncomingMessage
 
-    def close(self) -> asyncio.Task:
+    def close(self) -> asyncio.Future:
+        if not self._consumer_tag or self._amqp_queue._channel.is_closed:
+            f = asyncio.Future(loop=self.loop)
+            f.set_result(None)
+            return f
+
         return self.loop.create_task(self._close())
 
     def __del__(self):
         self.close()
+
+    def __iter__(self):
+        return self
+
+    __aiter__ = asyncio.coroutine(__iter__)
 
     @asyncio.coroutine
     def __next__(self) -> IncomingMessage:
@@ -368,6 +420,16 @@ class QueueIterator:
         except asyncio.CancelledError:
             yield from self.close()
             raise
+
+    @asyncio.coroutine
+    def __aenter__(self):
+        if self._consumer_tag is None:
+            yield from self.consume()
+        return self
+
+    @asyncio.coroutine
+    def __aexit__(self, exc_type, exc_val, exc_tb):
+        yield from self.close()
 
     __anext__ = __next__
 
