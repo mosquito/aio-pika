@@ -58,6 +58,7 @@ class Channel(BaseChannel):
             durable=None,
             auto_delete=None,
             internal=None,
+            passive=None,
             arguments=None,
             loop=self.loop,
             future_store=self._futures.get_child(),
@@ -169,7 +170,7 @@ class Channel(BaseChannel):
     @asyncio.coroutine
     def declare_exchange(self, name: str, type: ExchangeType = ExchangeType.DIRECT,
                          durable: bool = None, auto_delete: bool = False,
-                         internal: bool = False, arguments: dict = None, timeout: int = None
+                         internal: bool = False, passive: bool = False, arguments: dict = None, timeout: int = None
                          ) -> Generator[Any, None, Exchange]:
 
         with (yield from self._write_lock):
@@ -179,7 +180,8 @@ class Channel(BaseChannel):
             exchange = self.EXCHANGE_CLASS(
                 self._channel, self._publish, name, type,
                 durable=durable, auto_delete=auto_delete, internal=internal,
-                arguments=arguments, loop=self.loop, future_store=self._futures.get_child(),
+                passive=passive, arguments=arguments, loop=self.loop,
+                future_store=self._futures.get_child(),
             )
 
             yield from exchange.declare()
