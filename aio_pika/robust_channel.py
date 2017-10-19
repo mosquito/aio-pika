@@ -108,12 +108,13 @@ class RobustChannel(Channel):
     @asyncio.coroutine
     def declare_exchange(self, name: str, type: ExchangeType = ExchangeType.DIRECT,
                          durable: bool = None, auto_delete: bool = False,
-                         internal: bool = False, arguments: dict = None, timeout: int = None
-                         ) -> Generator[Any, None, Exchange]:
+                         internal: bool = False, passive: bool = False,
+                         arguments: dict = None, timeout: int = None) -> Generator[Any, None, Exchange]:
 
         exchange = yield from super().declare_exchange(
             name=name, type=type, durable=durable, auto_delete=auto_delete,
-            internal=internal, arguments=arguments, timeout=timeout,
+            internal=internal, passive=passive, arguments=arguments,
+            timeout=timeout,
         )
 
         if not internal:

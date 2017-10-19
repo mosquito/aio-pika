@@ -16,8 +16,8 @@ class RobustExchange(Exchange):
     def __init__(self, channel: Channel, publish_method, name: str,
                  type: ExchangeType = ExchangeType.DIRECT, *, auto_delete: Optional[bool],
                  durable: Optional[bool], internal: Optional[bool],
-                 arguments: dict = None, loop: asyncio.AbstractEventLoop,
-                 future_store: FutureStore):
+                 passive: Optional[bool], arguments: dict = None,
+                 loop: asyncio.AbstractEventLoop, future_store: FutureStore):
 
         super().__init__(
             channel=channel,
@@ -27,6 +27,7 @@ class RobustExchange(Exchange):
             auto_delete=auto_delete,
             durable=durable,
             internal=internal,
+            passive=passive,
             arguments=arguments,
             loop=loop,
             future_store=future_store

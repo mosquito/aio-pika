@@ -23,11 +23,14 @@ class ExchangeType(Enum):
 class Exchange(BaseChannel):
     """ Exchange abstraction """
 
-    __slots__ = 'name', '__type', '__publish_method', 'arguments', 'durable', 'auto_delete', 'internal', '_channel'
+    __slots__ = (
+        'name', '__type', '__publish_method', 'arguments', 'durable',
+        'auto_delete', 'internal', 'passive', '_channel'
+    )
 
     def __init__(self, channel: Channel, publish_method, name: str,
                  type: ExchangeType=ExchangeType.DIRECT, *, auto_delete: Optional[bool],
-                 durable: Optional[bool], internal: Optional[bool],
+                 durable: Optional[bool], internal: Optional[bool], passive: Optional[bool],
                  arguments: dict=None, loop: asyncio.AbstractEventLoop,
                  future_store: FutureStore):
 
@@ -43,6 +46,7 @@ class Exchange(BaseChannel):
         self.auto_delete = auto_delete
         self.durable = durable
         self.internal = internal
+        self.passive = passive
         self.arguments = arguments
 
     def __str__(self):
@@ -64,6 +68,7 @@ class Exchange(BaseChannel):
             durable=self.durable,
             auto_delete=self.auto_delete,
             internal=self.internal,
+            passive=self.passive,
             arguments=self.arguments,
         )
 

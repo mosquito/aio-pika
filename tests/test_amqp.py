@@ -156,6 +156,16 @@ class TestCase(AsyncTestCase):
         yield from queue.unbind(exchange, routing_key)
 
     @pytest.mark.asyncio
+    def test_declare_exchange_with_passive_flag(self):
+        client = yield from self.create_connection()
+
+        exchange_name = self.get_random_name()
+        channel = yield from client.channel()
+
+        with self.assertRaises(aio_pika.exceptions.ChannelClosed):
+            yield from self.declare_exchange(exchange_name, auto_delete=True, passive=True, channel=channel)
+
+    @pytest.mark.asyncio
     def test_simple_publish_and_receive(self):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
