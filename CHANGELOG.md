@@ -1,3 +1,8 @@
+1.5.1
+-----
+
+* `passive` argument for excahnge
+
 1.5.0
 -----
 
