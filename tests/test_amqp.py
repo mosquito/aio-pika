@@ -165,6 +165,14 @@ class TestCase(AsyncTestCase):
         with self.assertRaises(aio_pika.exceptions.ChannelClosed):
             yield from self.declare_exchange(exchange_name, auto_delete=True, passive=True, channel=channel)
 
+        channel1 = yield from client.channel()
+        channel2 = yield from client.channel()
+
+        yield from self.declare_exchange(exchange_name, auto_delete=True, passive=False, channel=channel1)
+
+        # Check ignoring different exchange options
+        yield from self.declare_exchange(exchange_name, auto_delete=False, passive=True, channel=channel2)
+
     @pytest.mark.asyncio
     def test_simple_publish_and_receive(self):
         queue_name = self.get_random_name("test_connection")
