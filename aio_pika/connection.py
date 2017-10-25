@@ -175,10 +175,10 @@ class Connection:
 
     @asyncio.coroutine
     def connect(self) -> AsyncioConnection:
-        """ Perform connect. This method should be called after :func:`aio_pika.connection.Connection.__init__`
+        """ Connect to AMQP server. This method should be called after :func:`aio_pika.connection.Connection.__init__`
 
         .. note::
-            This method calling in :func:`connect`. You shouldn't call it explicit.
+            This method is called by :func:`connect`. You shouldn't call it explicitly.
 
         """
 
