@@ -1185,10 +1185,10 @@ class TestCase(AsyncTestCase):
 
         with self.assertRaises(RuntimeError):
             channel = yield from client.channel(publisher_confirms=False, on_return_raises=True)
-        
+
         channel = yield from client.channel(publisher_confirms=True, on_return_raises=True)
 
-        for _ in range(1000):
+        for _ in range(100):
             with self.assertRaises(aio_pika.exceptions.UnroutableError):
                 yield from channel.default_exchange.publish(
                     Message(body=body), routing_key=queue_name,
