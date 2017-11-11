@@ -28,10 +28,12 @@ class Channel(BaseChannel):
 
     __slots__ = ('_connection', '__closing', '_confirmations', '_delivery_tag',
                  'loop', '_futures', '_channel', '_on_return_callbacks',
-                 'default_exchange', '_write_lock', '_channel_number', '_publisher_confirms')
+                 'default_exchange', '_write_lock', '_channel_number',
+                 '_publisher_confirms', '_on_return_raises')
 
     def __init__(self, connection, loop: asyncio.AbstractEventLoop,
-                 future_store: FutureStore, channel_number: int=None, publisher_confirms: bool=True):
+                 future_store: FutureStore, channel_number: int=None,
+                 publisher_confirms: bool=True, on_return_raises=False):
         """
 
         :param connection: :class:`aio_pika.adapter.AsyncioConnection` instance
@@ -49,6 +51,7 @@ class Channel(BaseChannel):
         self._write_lock = asyncio.Lock(loop=self.loop)
         self._channel_number = channel_number
         self._publisher_confirms = publisher_confirms
+        self._on_return_raises = on_return_raises
 
         self.default_exchange = self.EXCHANGE_CLASS(
             self._channel,
@@ -133,6 +136,10 @@ class Channel(BaseChannel):
         channel = yield from future  # type: pika.channel.Channel
         if self._publisher_confirms:
             channel.confirm_delivery(self._on_delivery_confirmation)
+
+            if self._on_return_raises:
+                channel.add_on_return_callback(self._on_return_delivery)
+
         channel.add_on_close_callback(self._on_channel_close)
         channel.add_on_return_callback(self._on_return)
 
@@ -145,6 +152,10 @@ class Channel(BaseChannel):
                 raise RuntimeError("Can't initialize closed channel")
 
             self._channel = yield from self._create_channel(timeout)
+
+    def _on_return_delivery(self, channel, method_frame, properties, body):
+        f = self._confirmations.pop(int(properties.headers.get('delivery-tag')))
+        f.set_exception(exceptions.UnroutableError([body]))
 
     def _on_delivery_confirmation(self, method_frame):
         future = self._confirmations.pop(method_frame.method.delivery_tag, None)
@@ -192,13 +203,18 @@ class Channel(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
-    def _publish(self, queue_name, routing_key, body, properties, mandatory, immediate):
+    def _publish(self, queue_name, routing_key, body, properties: pika.BasicProperties, mandatory, immediate):
         with (yield from self._write_lock):
             while self._connection.is_closed:
                 log.debug("Can't publish message because connection is inactive")
                 yield from asyncio.sleep(1, loop=self.loop)
 
             f = self._create_future()
+            self._delivery_tag += 1
+
+            if self._on_return_raises:
+                properties.headers = properties.headers or {}
+                properties.headers['delivery-tag'] = str(self._delivery_tag)
 
             try:
                 self._channel.basic_publish(queue_name, routing_key, body, properties, mandatory, immediate)
@@ -207,7 +223,6 @@ class Channel(BaseChannel):
                 self._on_channel_close(self._channel, -1, exc)
                 self._connection.close(reply_code=500, reply_text="Incorrect state")
             else:
-                self._delivery_tag += 1
                 if self._publisher_confirms:
                     self._confirmations[self._delivery_tag] = f
                 else:
