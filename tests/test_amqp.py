@@ -1182,6 +1182,10 @@ class TestCase(AsyncTestCase):
         client = yield from self.create_connection()
         queue_name = self.get_random_name("test_on_return_raises")
         body = uuid.uuid4().bytes
+
+        with self.assertRaises(RuntimeError):
+            channel = yield from client.channel(publisher_confirms=False, on_return_raises=True)
+        
         channel = yield from client.channel(publisher_confirms=True, on_return_raises=True)
 
         for _ in range(1000):

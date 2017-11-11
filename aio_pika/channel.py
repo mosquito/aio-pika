@@ -51,6 +51,10 @@ class Channel(BaseChannel):
         self._write_lock = asyncio.Lock(loop=self.loop)
         self._channel_number = channel_number
         self._publisher_confirms = publisher_confirms
+
+        if not publisher_confirms and on_return_raises:
+            raise RuntimeError('on_return_raises must be uses with publisher confirms')
+
         self._on_return_raises = on_return_raises
 
         self.default_exchange = self.EXCHANGE_CLASS(
