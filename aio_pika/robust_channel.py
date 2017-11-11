@@ -26,7 +26,8 @@ class RobustChannel(Channel):
     EXCHANGE_CLASS = RobustExchange
 
     def __init__(self, connection, loop: asyncio.AbstractEventLoop,
-                 future_store: FutureStore, channel_number: int=None, publisher_confirms: bool=True):
+                 future_store: FutureStore, channel_number: int=None,
+                 publisher_confirms: bool=True, on_return_raises=False):
         """
 
         :param connection: :class:`aio_pika.adapter.AsyncioConnection` instance
@@ -40,6 +41,7 @@ class RobustChannel(Channel):
             connection=connection,
             channel_number=channel_number,
             publisher_confirms=publisher_confirms,
+            on_return_raises=on_return_raises,
         )
 
         self._closed = False

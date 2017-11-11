@@ -211,7 +211,8 @@ class Connection:
 
     @_ensure_connection
     @asyncio.coroutine
-    def channel(self, channel_number: int=None, publisher_confirms: bool=True) -> Generator[Any, None, Channel]:
+    def channel(self, channel_number: int=None, publisher_confirms: bool=True,
+                on_return_raises=False) -> Generator[Any, None, Channel]:
         """ Coroutine which returns new instance of :class:`Channel`.
 
         Example:
@@ -237,17 +238,21 @@ class Connection:
                 await channel_no_confirms.close()
 
         :param channel_number: specify the channel number explicit
-        :param publisher_confirms: if `True` the :method:`aio_pika.Exchange.publish` method will be return
-        :class:`bool` after publish is complete. Otherwise the :method:`aio_pika.Exchange.publish` method will be
-        return :class:`None`
-
+        :param publisher_confirms:
+            if `True` the :method:`aio_pika.Exchange.publish` method will be return
+            :class:`bool` after publish is complete. Otherwise the
+            :method:`aio_pika.Exchange.publish` method will be return :class:`None`
+        :param on_return_raises:
+            raise an :class:`aio_pika.exceptions.UnroutableError`
+            when mandatory message will be returned
         """
         with (yield from self.__write_lock):
             log.debug("Creating AMQP channel for conneciton: %r", self)
 
             channel = self.CHANNEL_CLASS(self, self.loop, self.future_store,
                                          channel_number=channel_number,
-                                         publisher_confirms=publisher_confirms)
+                                         publisher_confirms=publisher_confirms,
+                                         on_return_raises=on_return_raises)
             yield from channel.initialize()
 
             log.debug("Channel created: %r", channel)
