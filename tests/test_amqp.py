@@ -1184,7 +1184,7 @@ class TestCase(AsyncTestCase):
         body = uuid.uuid4().bytes
 
         with self.assertRaises(RuntimeError):
-            channel = yield from client.channel(publisher_confirms=False, on_return_raises=True)
+            yield from client.channel(publisher_confirms=False, on_return_raises=True)
 
         channel = yield from client.channel(publisher_confirms=True, on_return_raises=True)
 
@@ -1194,7 +1194,7 @@ class TestCase(AsyncTestCase):
                     Message(body=body), routing_key=queue_name,
                 )
 
-        yield from wait((client.close(), client.closing), loop=self.loop)
+        yield from client.close()
 
     @asyncio.coroutine
     def test_transaction_when_publisher_confirms_error(self):
