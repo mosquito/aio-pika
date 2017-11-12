@@ -1177,6 +1177,25 @@ class TestCase(AsyncTestCase):
         yield from queue.delete()
         yield from wait((client.close(), client.closing), loop=self.loop)
 
+    @pytest.mark.asyncio
+    def test_on_return_raises(self):
+        client = yield from self.create_connection()
+        queue_name = self.get_random_name("test_on_return_raises")
+        body = uuid.uuid4().bytes
+
+        with self.assertRaises(RuntimeError):
+            yield from client.channel(publisher_confirms=False, on_return_raises=True)
+
+        channel = yield from client.channel(publisher_confirms=True, on_return_raises=True)
+
+        for _ in range(100):
+            with self.assertRaises(aio_pika.exceptions.UnroutableError):
+                yield from channel.default_exchange.publish(
+                    Message(body=body), routing_key=queue_name,
+                )
+
+        yield from client.close()
+
     @asyncio.coroutine
     def test_transaction_when_publisher_confirms_error(self):
         channel = yield from self.create_channel(publisher_confirms=True)
