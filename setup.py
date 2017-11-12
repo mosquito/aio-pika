@@ -53,7 +53,7 @@ setup(
     install_requires=requires,
     extras_require={
         'develop': [
-            'asynctest',
+            'asynctest<0.11',
             'coverage!=4.3',
             'coveralls',
             'pylama',

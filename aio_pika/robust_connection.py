@@ -3,9 +3,8 @@ from functools import wraps
 from logging import getLogger
 from typing import Callable, Generator, Any
 
-from pika.exceptions import ProbableAuthenticationError
-
 from .adapter import AsyncioConnection
+from .exceptions import ProbableAuthenticationError
 from .connection import Connection, connect
 from .robust_channel import RobustChannel
 
