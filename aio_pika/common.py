@@ -1,7 +1,6 @@
 import asyncio
 from contextlib import suppress
 
-import pika.channel
 from logging import getLogger
 from functools import wraps
 from enum import Enum, unique
