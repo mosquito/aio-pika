@@ -2,11 +2,11 @@ import asyncio
 from contextlib import suppress
 
 import pika.channel
-import pika.exceptions
 from logging import getLogger
 from functools import wraps
 from enum import Enum, unique
 from .tools import create_future
+from . import exceptions
 
 
 log = getLogger(__name__)
@@ -111,8 +111,8 @@ class BaseChannel:
     def _ensure_channel_is_open(func):
         @wraps(func)
         def wrap(self, *args, **kwargs):
-            if self._closing.done():
-                raise pika.exceptions.ChannelClosed
+            if self.is_closed:
+                raise exceptions.ChannelClosed
 
             return func(self, *args, **kwargs)
 
