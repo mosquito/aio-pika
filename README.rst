@@ -94,7 +94,7 @@ Simple consumer:
         loop.run_until_complete(main(loop))
         loop.close()
 
-Simple receiver:
+Simple publisher:
 
 .. code-block:: python
 
