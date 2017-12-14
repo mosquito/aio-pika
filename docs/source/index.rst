@@ -124,6 +124,32 @@ Tutorial
    apidoc
 
 
+Patterns and helpers
+++++++++++++++++++++
+
+`aio_pika`_ includes some useful patterns for creating distributed systems.
+
+
+Master/Worker
+~~~~~~~~~~~~~
+
+Helper which implements Master/Worker pattern.
+This applicable for balancing tasks between multiple workers.
+
+The master creates tasks:
+
+.. literalinclude:: examples/master.py
+   :language: python
+
+
+Worker code:
+
+.. literalinclude:: examples/master.py
+   :language: python
+
+The one or multiple workers executes tasks.
+
+
 Thanks for contributing
 +++++++++++++++++++++++
 
