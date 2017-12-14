@@ -4,8 +4,12 @@ import logging
 import os
 
 from functools import wraps
+
+import shortuuid
+from typing import Generator, Any
 from yarl import URL
 
+from aio_pika import Connection, connect, Channel, Queue, Exchange
 
 log = logging.getLogger(__name__)
 
@@ -17,14 +21,61 @@ for logger_name in ('pika.channel', 'pika.callback', 'pika.connection'):
 logging.basicConfig(level=logging.DEBUG)
 
 
-class AsyncTestCase(asynctest.TestCase):
-    forbid_get_event_loop = True
-
-
 AMQP_URL = URL(os.getenv("AMQP_URL", "amqp://guest:guest@localhost"))
 
 if not AMQP_URL.path:
     AMQP_URL.path = '/'
+
+
+class AsyncTestCase(asynctest.TestCase):
+    forbid_get_event_loop = True
+
+    def get_random_name(self, *args):
+        prefix = ['test']
+        for item in args:
+            prefix.append(item)
+        prefix.append(shortuuid.uuid())
+
+        return ".".join(prefix)
+
+
+class BaseTestCase(AsyncTestCase):
+    @asyncio.coroutine
+    def create_connection(self) -> Generator[Any, None, Connection]:
+        client = yield from connect(AMQP_URL, loop=self.loop)
+        self.addCleanup(client.close)
+        return client
+
+    @asyncio.coroutine
+    def create_channel(self, connection=None, **kwargs) -> Generator[Any, None, Channel]:
+        if connection is None:
+            connection = yield from self.create_connection()
+
+        channel = yield from connection.channel(**kwargs)
+        self.addCleanup(channel.close)
+        return channel
+
+    @asyncio.coroutine
+    def declare_queue(self, *args, **kwargs) -> Generator[Any, None, Queue]:
+        if 'channel' not in kwargs:
+            channel = yield from self.create_channel()
+        else:
+            channel = kwargs.pop('channel')
+
+        queue = yield from channel.declare_queue(*args, **kwargs)
+        self.addCleanup(queue.delete)
+        return queue
+
+    @asyncio.coroutine
+    def declare_exchange(self, *args, **kwargs) -> Generator[Any, None, Exchange]:
+        if 'channel' not in kwargs:
+            channel = yield from self.create_channel()
+        else:
+            channel = kwargs.pop('channel')
+
+        exchange = yield from channel.declare_exchange(*args, **kwargs)
+        self.addCleanup(exchange.delete)
+        return exchange
 
 
 def timeout(timeout_sec=5):

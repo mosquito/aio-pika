@@ -20,59 +20,14 @@ from aio_pika.exceptions import ProbableAuthenticationError, MessageProcessError
 from aio_pika.exchange import ExchangeType
 from aio_pika.tools import wait
 from unittest import mock
-from . import AsyncTestCase, AMQP_URL
+from . import BaseTestCase, AMQP_URL
 
 
 log = logging.getLogger(__name__)
 skip_for_py34 = skipIf(version_info < (3, 5), "async/await syntax supported only for python 3.5+")
 
 
-class TestCase(AsyncTestCase):
-    def get_random_name(self, *args):
-        prefix = ['test']
-        for item in args:
-            prefix.append(item)
-        prefix.append(shortuuid.uuid())
-
-        return ".".join(prefix)
-
-    @asyncio.coroutine
-    def create_connection(self):
-        client = yield from connect(AMQP_URL, loop=self.loop)
-        self.addCleanup(client.close)
-        return client
-
-    @asyncio.coroutine
-    def create_channel(self, connection=None, **kwargs):
-        if connection is None:
-            connection = yield from self.create_connection()
-
-        channel = yield from connection.channel(**kwargs)
-        self.addCleanup(channel.close)
-        return channel
-
-    @asyncio.coroutine
-    def declare_queue(self, *args, **kwargs):
-        if 'channel' not in kwargs:
-            channel = yield from self.create_channel()
-        else:
-            channel = kwargs.pop('channel')
-
-        queue = yield from channel.declare_queue(*args, **kwargs)
-        self.addCleanup(queue.delete)
-        return queue
-
-    @asyncio.coroutine
-    def declare_exchange(self, *args, **kwargs):
-        if 'channel' not in kwargs:
-            channel = yield from self.create_channel()
-        else:
-            channel = kwargs.pop('channel')
-
-        exchange = yield from channel.declare_exchange(*args, **kwargs)
-        self.addCleanup(exchange.delete)
-        return exchange
-
+class TestCase(BaseTestCase):
     @pytest.mark.asyncio
     def test_channel_close(self):
         client = yield from self.create_connection()
