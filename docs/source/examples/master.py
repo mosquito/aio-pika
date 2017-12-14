@@ -11,8 +11,13 @@ async def main():
 
     master = Master(channel)
 
+    # Creates tasks by proxy object
     for task_id in range(1000):
-        await master.my_task_name(task_id=task_id)
+        await master.proxy.my_task_name(task_id=task_id)
+
+    # Or using create_task method
+    for task_id in range(1000):
+        await master.create_task('my_task_name', task_id=task_id)
 
     await connection.close()
 

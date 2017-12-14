@@ -144,7 +144,7 @@ The master creates tasks:
 
 Worker code:
 
-.. literalinclude:: examples/master.py
+.. literalinclude:: examples/worker.py
    :language: python
 
 The one or multiple workers executes tasks.
