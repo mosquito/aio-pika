@@ -1,7 +1,6 @@
 import asyncio
 import pickle
 
-from collections import defaultdict
 from functools import partial
 
 from typing import Callable, Any, Generator
@@ -11,6 +10,8 @@ from aio_pika.message import IncomingMessage, Message, DeliveryMode
 
 
 class Worker:
+    __slots__ = 'queue', 'consumer_tag', 'loop'
+
     def __init__(self, queue: Queue, consumer_tag: str, loop):
         self.queue = queue
         self.consumer_tag = consumer_tag
@@ -38,14 +39,25 @@ class _MethodProxy:
         return self.func(self.name, **kwargs)
 
 
+class _Proxy:
+    __slots__ = 'func',
+
+    def __init__(self, func):
+        self.func = func
+
+    def __getattr__(self, item):
+        return _MethodProxy(item, self.func)
+
+
 class Master:
+    __slots__ = 'channel', 'loop',
+
     CONTENT_TYPE = 'application/python-pickle'
     DELIVERY_MODE = DeliveryMode.PERSISTENT
 
     def __init__(self, channel: Channel):
         self.channel = channel          # type: Channel
         self.loop = self.channel.loop   # type: asyncio.AbstractEventLoop
-        self.queues = defaultdict(set)
 
     @classmethod
     def serialize(cls, data: Any) -> bytes:
@@ -93,5 +105,6 @@ class Master:
             message, channel_name, mandatory=True
         )
 
-    def __getattr__(self, item):
-        return _MethodProxy(item, self.create_task)
+    @property
+    def proxy(self):
+        return _Proxy(self.create_task)

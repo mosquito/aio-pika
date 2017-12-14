@@ -21,7 +21,7 @@ class TestCase(BaseTestCase):
             'worker.foo', worker_func, auto_delete=True
         )
 
-        yield from master.worker.foo(foo=1, bar=2)
+        yield from master.proxy.worker.foo(foo=1, bar=2)
 
         yield from asyncio.sleep(0.5, loop=self.loop)
 
@@ -44,7 +44,7 @@ class TestCase(BaseTestCase):
         )
 
         for item in range(1000):
-            yield from master.worker.foo(foo=item)
+            yield from master.proxy.worker.foo(foo=item)
 
         yield from asyncio.sleep(2, loop=self.loop)
 
