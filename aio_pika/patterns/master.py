@@ -67,8 +67,7 @@ class Master(Base):
         self.proxy = Proxy(self.create_task)
         self.channel.add_on_return_callback(self.on_message_returned)
 
-    @staticmethod
-    def on_message_returned(message: ReturnedMessage):
+    def on_message_returned(self, message: ReturnedMessage):
         log.warning(
             "Message returned. Probably destination queue does not exists: %r",
             message
@@ -92,7 +91,7 @@ class Master(Base):
         :param data: Data which will be deserialized
         :returns: :class:`Any`
         """
-        return super().serialize(data)
+        return super().deserialize(data)
 
     @classmethod
     @asyncio.coroutine

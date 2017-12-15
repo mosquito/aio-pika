@@ -224,7 +224,7 @@ class RPC(Base):
         :param data: Data which will be deserialized
         :returns: :class:`Any`
         """
-        return super().serialize(data)
+        return super().deserialize(data)
 
     def serialize_exception(self, exception: Exception) -> bytes:
         """ Serialize python exception to bytes
