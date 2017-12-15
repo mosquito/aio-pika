@@ -26,7 +26,7 @@ class RPC(Base):
 
     DLX_NAME = 'rpc.dlx'
 
-    __doc__ = """ 
+    __doc__ = """
     Remote Procedure Call helper.
 
     Create an instance ::

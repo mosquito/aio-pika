@@ -42,19 +42,17 @@ class Master(Base):
 
     __doc__ = """
     Implements Master/Worker pattern.
-
-    Usage example 
+    Usage example:
 
     `worker.py` ::
 
         master = Master(channel)
-        worker = await master.create_worker('test_worker', lambda x: print(x))        
+        worker = await master.create_worker('test_worker', lambda x: print(x))
 
     `master.py` ::
 
         master = Master(channel)
         await master.proxy.test_worker('foo')
-
     """
 
     def __init__(self, channel: Channel):

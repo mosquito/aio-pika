@@ -1,3 +1,10 @@
+1.7.0
+-----
+
+* `aio_pika.patterns` submodule
+    * `aio_pika.patterns.RPC` - RPC pattern
+    * `aio_pika.patterns.Master` - Master/Worker pattern
+
 1.5.1
 -----
 
