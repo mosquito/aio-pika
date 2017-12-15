@@ -88,6 +88,12 @@ Get single message example:
 .. literalinclude:: examples/main.py
    :language: python
 
+Tornado example:
+
+.. literalinclude:: examples/tornado-pubsub.py
+   :language: python
+
+
 Development
 +++++++++++
 
