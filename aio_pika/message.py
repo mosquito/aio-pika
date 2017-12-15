@@ -12,6 +12,7 @@ from .exceptions import MessageProcessError
 
 
 log = getLogger(__name__)
+NoneType = type(None)
 
 
 @unique
@@ -114,6 +115,8 @@ class Message:
             return value
         elif isinstance(value, str):
             return value.encode()
+        elif isinstance(value, NoneType):
+            return b''
         else:
             return str(value).encode()
 

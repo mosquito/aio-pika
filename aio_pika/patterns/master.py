@@ -1,16 +1,21 @@
 import asyncio
-import pickle
+import logging
 
 from functools import partial
 
 from typing import Callable, Any, Generator
 from aio_pika.channel import Channel
 from aio_pika.queue import Queue
-from aio_pika.message import IncomingMessage, Message, DeliveryMode
+from aio_pika.message import IncomingMessage, Message, DeliveryMode, ReturnedMessage
+
+from .base import Proxy, Base
+
+
+log = logging.getLogger(__name__)
 
 
 class Worker:
-    __slots__ = 'queue', 'consumer_tag', 'loop'
+    __slots__ = 'queue', 'consumer_tag', 'loop',
 
     def __init__(self, queue: Queue, consumer_tag: str, loop):
         self.queue = queue
@@ -25,32 +30,8 @@ class Worker:
         return self.loop.create_task(closer())
 
 
-class _MethodProxy:
-    __slots__ = 'name', 'func',
-
-    def __init__(self, name, func):
-        self.name = name
-        self.func = func
-
-    def __getattr__(self, item):
-        return _MethodProxy(".".join((self.name, item)), func=self.func)
-
-    def __call__(self, **kwargs):
-        return self.func(self.name, **kwargs)
-
-
-class _Proxy:
-    __slots__ = 'func',
-
-    def __init__(self, func):
-        self.func = func
-
-    def __getattr__(self, item):
-        return _MethodProxy(item, self.func)
-
-
-class Master:
-    __slots__ = 'channel', 'loop',
+class Master(Base):
+    __slots__ = 'channel', 'loop', 'proxy',
 
     CONTENT_TYPE = 'application/python-pickle'
     DELIVERY_MODE = DeliveryMode.PERSISTENT
@@ -58,14 +39,15 @@ class Master:
     def __init__(self, channel: Channel):
         self.channel = channel          # type: Channel
         self.loop = self.channel.loop   # type: asyncio.AbstractEventLoop
+        self.proxy = Proxy(self.create_task)
+        self.channel.add_on_return_callback(self.on_message_returned)
 
-    @classmethod
-    def serialize(cls, data: Any) -> bytes:
-        return pickle.dumps(data)
-
-    @classmethod
-    def deserialize(cls, data: bytes) -> Any:
-        return pickle.loads(data)
+    @staticmethod
+    def on_message_returned(message: ReturnedMessage):
+        log.warning(
+            "Message returned. Probably destination queue does not exists: %r",
+            message
+        )
 
     @classmethod
     @asyncio.coroutine
@@ -94,9 +76,9 @@ class Master:
         return Worker(queue, consumer_tag, self.loop)
 
     @asyncio.coroutine
-    def create_task(self, channel_name: str, **kwargs):
+    def create_task(self, channel_name: str, kwargs=None):
         message = Message(
-            body=self.serialize(kwargs),
+            body=self.serialize(kwargs or {}),
             content_type=self.CONTENT_TYPE,
             delivery_mode=self.DELIVERY_MODE
         )
@@ -104,7 +86,3 @@ class Master:
         yield from self.channel.default_exchange.publish(
             message, channel_name, mandatory=True
         )
-
-    @property
-    def proxy(self):
-        return _Proxy(self.create_task)
