@@ -10,7 +10,6 @@ from aio_pika import ExchangeType
 from aio_pika.channel import Channel
 from aio_pika.exceptions import UnroutableError
 from aio_pika.message import Message, IncomingMessage, DeliveryMode, ReturnedMessage
-from aio_pika.queue import Queue
 from aio_pika.tools import create_future
 from .base import Proxy, Base
 
@@ -28,7 +27,7 @@ class RPC(Base):
         self.channel = channel
         self.loop = self.channel.loop
         self.proxy = Proxy(self.call)
-        self.result_queue = None  # type: Queue
+        self.result_queue = None
         self.futures = dict()
         self.result_consumer_tag = None
         self.routes = {}
