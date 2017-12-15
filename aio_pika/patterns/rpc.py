@@ -103,7 +103,6 @@ class RPC(Base):
         yield from rpc.initialize(**kwargs)
         return rpc
 
-    @asyncio.coroutine
     def on_message_returned(self, message: ReturnedMessage):
         correlation_id = int(message.correlation_id) if message.correlation_id else None
         future = self.futures.pop(correlation_id, None)   # type: asyncio.Future
