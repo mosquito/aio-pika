@@ -19,7 +19,8 @@ log = logging.getLogger(__name__)
 
 class RPC(Base):
     __slots__ = ("channel", "loop", "proxy", "result_queue",
-                 "result_consumer_tag", "routes", "consumer_tags")
+                 "result_consumer_tag", "routes", "consumer_tags",
+                 "dlx_exchange",)
 
     DLX_NAME = 'rpc.dlx'
 
@@ -33,6 +34,7 @@ class RPC(Base):
         self.routes = {}
         self.queues = {}
         self.consumer_tags = {}
+        self.dlx_exchange = None
 
     def create_future(self) -> asyncio.Future:
         future = create_future(loop=self.loop)
@@ -52,6 +54,14 @@ class RPC(Base):
             for future in self.futures.values():
                 future.set_exception(asyncio.CancelledError)
 
+            yield from self.result_queue.unbind(
+                self.dlx_exchange, "",
+                arguments={
+                    "From": self.result_queue.name,
+                    'x-match': 'any',
+                }
+            )
+
             yield from self.result_queue.cancel(self.result_consumer_tag)
             self.result_consumer_tag = None
 
@@ -67,14 +77,14 @@ class RPC(Base):
 
         self.result_queue = yield from self.channel.declare_queue(None, **kwargs)
 
-        dlx_exchange = yield from self.channel.declare_exchange(
+        self.dlx_exchange = yield from self.channel.declare_exchange(
             self.DLX_NAME,
             type=ExchangeType.HEADERS,
             auto_delete=True,
         )
 
         yield from self.result_queue.bind(
-            dlx_exchange, "",
+            self.dlx_exchange, "",
             arguments={
                 "From": self.result_queue.name,
                 'x-match': 'any',
