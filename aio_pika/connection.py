@@ -275,7 +275,8 @@ class Connection:
 
     def __del__(self):
         with suppress(Exception):
-            self.loop.create_task(self.close())
+            if not self.is_closed:
+                self.close()
 
     @asyncio.coroutine
     def __aenter__(self) -> 'Connection':
