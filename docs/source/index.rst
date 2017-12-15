@@ -72,23 +72,29 @@ Installation from git:
 Usage example
 +++++++++++++
 
-Simple consumer:
+Some useful examples.
+
+Simple consumer
+~~~~~~~~~~~~~~~
 
 .. literalinclude:: examples/simple_consumer.py
    :language: python
 
-Simple publisher:
+Simple publisher
+~~~~~~~~~~~~~~~~
 
 .. literalinclude:: examples/simple_publisher.py
    :language: python
 
 
-Get single message example:
+Get single message example
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. literalinclude:: examples/main.py
    :language: python
 
-Tornado example:
+Tornado example
+~~~~~~~~~~~~~~~
 
 .. literalinclude:: examples/tornado-pubsub.py
    :language: python
