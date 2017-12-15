@@ -4,9 +4,9 @@ import pickle
 
 import time
 from functools import partial
-from typing import Callable
+from typing import Callable, Any, TypeVar
 
-from aio_pika import ExchangeType
+from aio_pika.exchange import ExchangeType
 from aio_pika.channel import Channel
 from aio_pika.exceptions import UnroutableError
 from aio_pika.message import Message, IncomingMessage, DeliveryMode, ReturnedMessage
@@ -15,6 +15,9 @@ from .base import Proxy, Base
 
 log = logging.getLogger(__name__)
 
+R = TypeVar('R')
+P = [TypeVar('P')]
+
 
 class RPC(Base):
     __slots__ = ("channel", "loop", "proxy", "result_queue",
@@ -22,6 +25,31 @@ class RPC(Base):
                  "dlx_exchange",)
 
     DLX_NAME = 'rpc.dlx'
+
+    __doc__ = """ 
+    Remote Procedure Call helper.
+
+    Create an instance ::
+
+        rpc = await RPC.create(channel)
+
+    Registering python function ::
+
+        # RPC instance passes only keyword arguments
+        def multiply(*, x, y):
+            return x * y
+
+        await rpc.register("multiply", multiply)
+
+    Call function through proxy ::
+
+        assert await rpc.proxy.multiply(x=2, y=3) == 6
+
+    Call function explicit ::
+
+        assert await rpc.call('multiply', dict(x=2, y=3)) == 6
+
+    """
 
     def __init__(self, channel: Channel):
         self.channel = channel
@@ -98,7 +126,15 @@ class RPC(Base):
 
     @classmethod
     @asyncio.coroutine
-    def create(cls, channel: Channel, **kwargs):
+    def create(cls, channel: Channel, **kwargs) -> "RPC":
+        """ Creates a new instance of :class:`aio_pika.patterns.RPC`.
+        You should use this method instead of :func:`__init__`,
+        because :func:`create` returns coroutine and makes async initialize
+
+        :param channel: initialized instance of :class:`aio_pika.Channel`
+        :returns: :class:`RPC`
+
+        """
         rpc = cls(channel)
         yield from rpc.initialize(**kwargs)
         return rpc
@@ -170,18 +206,55 @@ class RPC(Base):
 
         message.ack()
 
-    @staticmethod
-    def serialize_exception(exception: Exception):
+    def serialize(self, data: Any) -> bytes:
+        """ Serialize data to the bytes.
+        Uses `pickle` by default.
+        You should overlap this method when you want to change serializer
+
+        :param data: Data which will be serialized
+        :returns: bytes
+        """
+        return super().serialize(data)
+
+    def deserialize(self, data: Any) -> bytes:
+        """ Deserialize data from bytes.
+        Uses `pickle` by default.
+        You should overlap this method when you want to change serializer
+
+        :param data: Data which will be deserialized
+        :returns: :class:`Any`
+        """
+        return super().serialize(data)
+
+    def serialize_exception(self, exception: Exception) -> bytes:
+        """ Serialize python exception to bytes
+
+        :param exception: :class:`Exception`
+        :return: bytes
+        """
         return pickle.dumps(exception)
 
-    @staticmethod
     @asyncio.coroutine
-    def execute(func, payload):
+    def execute(self, func: Callable[P, R], payload: P) -> R:
+        """ Executes rpc call. Might be overlapped. """
         return (yield from func(**payload))
 
     @asyncio.coroutine
-    def call(self, method_name, kwargs=None, *, expiration: int = None, priority: int = 128,
-             delivery_mode: DeliveryMode = DeliveryMode.NOT_PERSISTENT):
+    def call(self, method_name, kwargs: dict=None, *, expiration: int = None,
+             priority: int = 128, delivery_mode: DeliveryMode = DeliveryMode.NOT_PERSISTENT):
+
+        """ Call remote method and awaiting result.
+
+        :param method_name: Name of method
+        :param kwargs: Methos kwargs
+        :param expiration: If not `None` messages which staying in queue longer
+                           will be returned and :class:`TimeoutError` will be raised.
+        :param priority: Message priority
+        :param delivery_mode: Call message delivery mode
+        :raises TimeoutError: when message expired
+        :raises CancelledError: when called :func:`RPC.cancel`
+        :raises RuntimeError: internal error
+        """
 
         future = self.create_future()
 
@@ -208,7 +281,16 @@ class RPC(Base):
         return (yield from future)
 
     @asyncio.coroutine
-    def register(self, method_name, func: Callable, **kwargs):
+    def register(self, method_name, func: Callable[P, R], **kwargs):
+        """ Method creates a queue with name which equal of `method_name` argument.
+        Then subscribes this queue.
+
+        :param method_name: Method name
+        :param func: target function. Function **MUST** accept only keyword arguments.
+        :param kwargs: arguments which will be passed to `queue_declare`
+        :raises RuntimeError: Function already registered in this :class:`RPC` instance or
+                              method_name already used.
+        """
         arguments = kwargs.pop('arguments', {}).update({
             'x-dead-letter-exchange': self.DLX_NAME,
         })
@@ -234,6 +316,10 @@ class RPC(Base):
 
     @asyncio.coroutine
     def unregister(self, func):
+        """ Cancels subscription to the method-queue.
+
+        :param func: Function
+        """
         if func not in self.consumer_tags:
             return
 

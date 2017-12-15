@@ -27,10 +27,10 @@ class Proxy:
 
 
 class Base:
-    @staticmethod
-    def serialize(data: Any) -> bytes:
-        return pickle.dumps(data)
+    SERIALIZER = pickle
 
-    @staticmethod
-    def deserialize(data: bytes) -> Any:
-        return pickle.loads(data)
+    def serialize(self, data: Any) -> bytes:
+        return self.SERIALIZER.dumps(data)
+
+    def deserialize(self, data: bytes) -> Any:
+        return self.SERIALIZER.loads(data)

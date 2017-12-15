@@ -23,6 +23,10 @@ class Worker:
         self.loop = loop
 
     def close(self) -> asyncio.Task:
+        """ Cancel subscription to the channel
+
+        :return: :class:`asyncio.Task`
+        """
         @asyncio.coroutine
         def closer():
             yield from self.queue.cancel(self.consumer_tag)
@@ -36,7 +40,28 @@ class Master(Base):
     CONTENT_TYPE = 'application/python-pickle'
     DELIVERY_MODE = DeliveryMode.PERSISTENT
 
+    __doc__ = """
+    Implements Master/Worker pattern.
+
+    Usage example 
+
+    `worker.py` ::
+
+        master = Master(channel)
+        worker = await master.create_worker('test_worker', lambda x: print(x))        
+
+    `master.py` ::
+
+        master = Master(channel)
+        await master.proxy.test_worker('foo')
+
+    """
+
     def __init__(self, channel: Channel):
+        """ Creates a new :class:`Master` instance.
+
+        :param channel: Initialized instance of :class:`aio_pika.Channel`
+        """
         self.channel = channel          # type: Channel
         self.loop = self.channel.loop   # type: asyncio.AbstractEventLoop
         self.proxy = Proxy(self.create_task)
@@ -48,6 +73,26 @@ class Master(Base):
             "Message returned. Probably destination queue does not exists: %r",
             message
         )
+
+    def serialize(self, data: Any) -> bytes:
+        """ Serialize data to the bytes.
+        Uses `pickle` by default.
+        You should overlap this method when you want to change serializer
+
+        :param data: Data which will be serialized
+        :returns: bytes
+        """
+        return super().serialize(data)
+
+    def deserialize(self, data: Any) -> bytes:
+        """ Deserialize data from bytes.
+        Uses `pickle` by default.
+        You should overlap this method when you want to change serializer
+
+        :param data: Data which will be deserialized
+        :returns: :class:`Any`
+        """
+        return super().serialize(data)
 
     @classmethod
     @asyncio.coroutine
@@ -63,7 +108,9 @@ class Master(Base):
             yield from self.execute(func, data)
 
     @asyncio.coroutine
-    def create_worker(self, channel_name: str, func: Callable, **kwargs) -> Generator[Any, None, Worker]:
+    def create_worker(self, channel_name: str,
+                      func: Callable, **kwargs) -> Generator[Any, None, Worker]:
+        """ Creates a new :class:`Worker` instance. """
         queue = yield from self.channel.declare_queue(channel_name, **kwargs)
 
         consumer_tag = yield from queue.consume(
@@ -77,6 +124,7 @@ class Master(Base):
 
     @asyncio.coroutine
     def create_task(self, channel_name: str, kwargs=None):
+        """ Creates a new task for the worker """
         message = Message(
             body=self.serialize(kwargs or {}),
             content_type=self.CONTENT_TYPE,

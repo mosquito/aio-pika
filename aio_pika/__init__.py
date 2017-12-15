@@ -1,3 +1,4 @@
+from . import patterns
 from .connection import Connection, connect
 from .channel import Channel
 from .exchange import Exchange, ExchangeType
@@ -23,6 +24,7 @@ __all__ = (
     'IncomingMessage',
     'author_info',
     'package_info',
+    'patterns',
     'version_info',
     'package_license',
     'AMQPException',
