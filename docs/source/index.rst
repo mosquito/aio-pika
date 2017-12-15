@@ -150,6 +150,24 @@ Worker code:
 The one or multiple workers executes tasks.
 
 
+RPC
+~~~
+
+Helper which implements Remote Procedure Call pattern.
+This applicable for balancing tasks between multiple workers.
+
+The caller creates tasks and awaiting results:
+
+.. literalinclude:: examples/rpc-caller.py
+   :language: python
+
+
+One or multimple callees executing tasks:
+
+.. literalinclude:: examples/rpc-callee.py
+   :language: python
+
+
 Thanks for contributing
 +++++++++++++++++++++++
 

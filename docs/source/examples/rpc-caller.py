@@ -1,6 +1,6 @@
 import asyncio
 from aio_pika import connect_robust
-from aio_pika.patterns import Master
+from aio_pika.patterns import RPC
 
 
 async def main():
@@ -9,17 +9,15 @@ async def main():
     # Creating channel
     channel = await connection.channel()
 
-    master = Master(channel)
+    rpc = await RPC.create(channel)
 
     # Creates tasks by proxy object
-    for task_id in range(1000):
-        await master.proxy.my_task_name(task_id=task_id)
+    for i in range(1000):
+        print(await rpc.proxy.multiply(x=100, y=i))
 
     # Or using create_task method
-    for task_id in range(1000):
-        await master.create_task(
-            'my_task_name', kwargs=dict(task_id=task_id)
-        )
+    for i in range(1000):
+        print(await rpc.call('multiply', kwargs=dict(x=100, y=i)))
 
     await connection.close()
 

@@ -106,12 +106,7 @@ class Channel(BaseChannel):
         msg = ReturnedMessage(channel=channel, body=body, envelope=message, properties=properties)
 
         for callback in self._on_return_callbacks:
-            try:
-                result = callback(msg)
-                if asyncio.iscoroutine(result):
-                    self.loop.create_task(result)
-            except:
-                log.exception("Error when handling callback: %r", callback)
+            self.loop.create_task(callback(msg))
 
     def add_close_callback(self, callback: FunctionType) -> None:
         self._closing.add_done_callback(lambda r: callback(r))
@@ -126,7 +121,7 @@ class Channel(BaseChannel):
         return (yield from self._closing)
 
     def add_on_return_callback(self, callback: FunctionOrCoroutine) -> None:
-        self._on_return_callbacks.append(callback)
+        self._on_return_callbacks.append(asyncio.coroutine(callback))
 
     @asyncio.coroutine
     def _create_channel(self, timeout=None):
