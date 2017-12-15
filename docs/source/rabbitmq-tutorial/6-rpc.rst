@@ -12,6 +12,9 @@ Remote procedure call (RPC)
     This is a beta version of the port from `official tutorial`_. Please when you found an
     error create `issue`_ or `pull request`_ for me.
 
+    This implementation is a part of official tutorial.
+    Since version 1.7.0 `aio-pika` has :module:`aio_pika.patterns` submodule.
+    You may use :class:`aio_pika.patterns.RPC` for real projects.
 
 .. note::
     Using the `aio-pika`_ async Python client

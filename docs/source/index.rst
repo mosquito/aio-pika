@@ -127,6 +127,8 @@ Tutorial
 Patterns and helpers
 ++++++++++++++++++++
 
+.. note:: Available since `aio-pika>=1.7.0`
+
 `aio_pika`_ includes some useful patterns for creating distributed systems.
 
 
