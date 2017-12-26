@@ -18,6 +18,7 @@ class ExchangeType(Enum):
     TOPIC = 'topic'
     HEADERS = 'headers'
     X_DELAYED_MESSAGE = 'x-delayed-message'
+    X_CONSISTENT_HASH = 'x-consistent-hash'
 
 
 class Exchange(BaseChannel):
