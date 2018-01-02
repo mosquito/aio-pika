@@ -94,10 +94,10 @@ class RobustConnection(Connection):
     def connect(self):
         result = yield from super().connect()
 
-        for number, channel in self._channels.items():
-            yield from channel.on_reconnect(self, number)
-
         if self._connection:
+            for number, channel in self._channels.items():
+                yield from channel.on_reconnect(self, number)
+
             for callback in self._on_reconnect_callbacks:
                 callback(self)
 
