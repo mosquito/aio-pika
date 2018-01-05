@@ -11,7 +11,9 @@ def on_message(message: IncomingMessage):
 
 async def main():
     # Perform connection
-    connection = await connect("amqp://guest:guest@localhost/", loop=loop)
+    connection = await connect(
+        "amqp://guest:guest@localhost/", loop=loop
+    )
 
     # Creating a channel
     channel = await connection.channel()
@@ -36,6 +38,7 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.create_task(main())
 
-    # we enter a never-ending loop that waits for data and runs callbacks whenever necessary.
+    # we enter a never-ending loop that waits for data
+    # and runs callbacks whenever necessary.
     print(' [*] Waiting for logs. To exit press CTRL+C')
     loop.run_forever()

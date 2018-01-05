@@ -5,7 +5,9 @@ from aio_pika import connect, Message, DeliveryMode, ExchangeType
 
 async def main(loop):
     # Perform connection
-    connection = await connect("amqp://guest:guest@localhost/", loop=loop)
+    connection = await connect(
+        "amqp://guest:guest@localhost/", loop=loop
+    )
 
     # Creating a channel
     channel = await connection.channel()
@@ -14,7 +16,11 @@ async def main(loop):
         'logs', ExchangeType.DIRECT
     )
 
-    message_body = b' '.join(arg.encode() for arg in sys.argv[2:]) or b"Hello World!"
+    message_body = (
+        b' '.join(arg.encode() for arg in sys.argv[2:])
+        or
+        b"Hello World!"
+    )
 
     message = Message(
         message_body,

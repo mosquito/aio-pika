@@ -31,7 +31,9 @@ async def on_message(exchange: Exchange, message: IncomingMessage):
 
 async def main(loop):
     # Perform connection
-    connection = await connect("amqp://guest:guest@localhost/", loop=loop)
+    connection = await connect(
+        "amqp://guest:guest@localhost/", loop=loop
+    )
 
     # Creating a channel
     channel = await connection.channel()

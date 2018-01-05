@@ -66,7 +66,7 @@ queue, so let's name it *new_task.py*:
 
 .. literalinclude:: examples/2-work-queues/new_task.py
    :language: python
-   :lines: 13-25
+   :lines: 15-27
 
 Our old receive.py script also requires some changes: it needs to fake a second of work
 for every dot in the message body. It will pop messages from the queue and perform the task,
@@ -74,7 +74,7 @@ so let's call it *worker.py*:
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 5-7
+   :lines: 10-11
 
 
 Round-robin dispatching
@@ -206,7 +206,7 @@ we need to declare it as *durable*:
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 17-18
+   :lines: 25,27-28
 
 
 Although this command is correct by itself, it won't work in our setup.
@@ -217,7 +217,7 @@ But there is a quick workaround - let's declare a queue with different name, for
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 22-23
+   :lines: 25-28
 
 This queue_declare change needs to be applied to both the producer and consumer code.
 
@@ -231,19 +231,20 @@ property with a value `PERSISTENT` (see enum :class:`aio_pika.DeliveryMode`).
 
 .. note::
 
-    **Note on message persistence**
+   **Note on message persistence**
 
-    Marking messages as persistent doesn't fully guarantee that a message won't be lost.
-    Although it tells RabbitMQ to save the message to disk, there is still a short time
-    window when RabbitMQ has accepted a message and hasn't saved it yet. Also,
-    RabbitMQ doesn't do fsync(2) for every message -- it may be just saved to cache and
-    not really written to the disk. The persistence guarantees aren't strong, but
-    it's more than enough for our simple task queue. If you need a stronger guarantee
-    then you can use `publisher confirms`_.
+   Marking messages as persistent doesn't fully guarantee that a message won't be lost.
+   Although it tells RabbitMQ to save the message to disk, there is still a short time
+   window when RabbitMQ has accepted a message and hasn't saved it yet. Also,
+   RabbitMQ doesn't do fsync(2) for every message -- it may be just saved to cache and
+   not really written to the disk. The persistence guarantees aren't strong, but
+   it's more than enough for our simple task queue. If you need a stronger guarantee
+   then you can use `publisher confirms`_.
 
-    **`aio-pika`_ supports `publisher confirms`_ out of the box**.
+   `aio-pika`_ supports `publisher confirms`_ out of the box.
 
-    .. _publisher confirms: https://www.rabbitmq.com/confirms.html
+   .. _publisher confirms: https://www.rabbitmq.com/confirms.html
+
 
 Fair dispatch
 +++++++++++++
@@ -270,7 +271,7 @@ acknowledged the previous one. Instead, it will dispatch it to the next worker t
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 20
+   :lines: 20-22
 
 
 .. note::

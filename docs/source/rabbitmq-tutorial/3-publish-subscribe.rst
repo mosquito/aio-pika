@@ -76,7 +76,7 @@ We'll focus on the last one — the fanout. Let's create an exchange of that typ
 
 .. literalinclude:: examples/3-publish-subscribe/emit_log.py
    :language: python
-   :lines: 13
+   :lines: 15-17
 
 The fanout exchange is very simple. As you can probably guess from the name, it just broadcasts
 all the messages it receives to all the queues it knows. And that's exactly what we need for our logger.
@@ -123,7 +123,7 @@ Now, we can publish to our named exchange instead:
 
 .. literalinclude:: examples/3-publish-subscribe/emit_log.py
    :language: python
-   :lines: 13-23
+   :lines: 19-27
 
 
 Temporary queues
@@ -150,7 +150,7 @@ Secondly, once we disconnect the consumer the queue should be deleted. There's a
 
 .. literalinclude:: examples/3-publish-subscribe/receive_logs.py
    :language: python
-   :lines: 26
+   :lines: 28
 
 Bindings
 ++++++++
@@ -163,7 +163,7 @@ send messages to our queue. That relationship between exchange and a queue is ca
 
 .. literalinclude:: examples/3-publish-subscribe/receive_logs.py
    :language: python
-   :lines: 20-29
+   :lines: 22-31
 
 From now on the logs exchange will append messages to our queue.
 

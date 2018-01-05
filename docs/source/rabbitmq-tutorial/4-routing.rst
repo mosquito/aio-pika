@@ -69,7 +69,8 @@ This is how we could create a binding with a key:
         ...
 
         # Binding the queue to the exchange
-        await queue.bind(logs_exchange, routing_key="black")
+        await queue.bind(logs_exchange,
+                         routing_key="black")
 
     ...
 
@@ -133,7 +134,9 @@ Like always we need to create an exchange first:
     async def main():
         ...
 
-        direct_logs_exchange = await channel.declare_exchange('logs', ExchangeType.DIRECT)
+        direct_logs_exchange = await channel.declare_exchange(
+            'logs', ExchangeType.DIRECT
+        )
 
 And we're ready to send a message:
 
@@ -165,7 +168,8 @@ going to create a new binding for each severity we're interested in.
         queue = await channel.declare_queue(exclusive=True)
 
         # Binding the queue to the exchange
-        await queue.bind(direct_logs_exchange, routing_key=severity)
+        await queue.bind(direct_logs_exchange,
+                         routing_key=severity)
 
     ...
 

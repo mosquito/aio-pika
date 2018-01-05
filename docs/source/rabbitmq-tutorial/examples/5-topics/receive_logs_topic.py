@@ -10,7 +10,9 @@ def on_message(message: IncomingMessage):
 
 async def main(loop):
     # Perform connection
-    connection = await connect("amqp://guest:guest@localhost/", loop=loop)
+    connection = await connect(
+        "amqp://guest:guest@localhost/", loop=loop
+    )
 
     # Creating a channel
     channel = await connection.channel()
@@ -22,12 +24,16 @@ async def main(loop):
     )
 
     # Declaring queue
-    queue = await channel.declare_queue('task_queue', durable=True)
+    queue = await channel.declare_queue(
+        'task_queue', durable=True
+    )
 
     binding_keys = sys.argv[1:]
 
     if not binding_keys:
-        sys.stderr.write("Usage: %s [binding_key]...\n" % sys.argv[0])
+        sys.stderr.write(
+            "Usage: %s [binding_key]...\n" % sys.argv[0]
+        )
         sys.exit(1)
 
     for binding_key in binding_keys:
@@ -41,6 +47,7 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.create_task(main(loop))
 
-    # we enter a never-ending loop that waits for data and runs callbacks whenever necessary.
+    # we enter a never-ending loop that waits for
+    # data and runs callbacks whenever necessary.
     print(" [*] Waiting for messages. To exit press CTRL+C")
     loop.run_forever()
