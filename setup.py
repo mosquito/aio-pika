@@ -1,10 +1,5 @@
-from setuptools import setup, find_packages
-import sys
 import os
-
-if sys.version_info < (3, 4):
-    raise RuntimeError("aio-pika doesn't support Python version prior 3.4")
-
+from setuptools import setup, find_packages
 from importlib.machinery import SourceFileLoader
 
 
@@ -44,6 +39,7 @@ setup(
         'pika<0.11',
         'yarl',
     ],
+    python_requires=">3.4.*, <4",
     extras_require={
         'develop': [
             'asynctest<0.11',
