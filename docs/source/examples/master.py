@@ -4,7 +4,9 @@ from aio_pika.patterns import Master
 
 
 async def main():
-    connection = await connect_robust("amqp://guest:guest@127.0.0.1/")
+    connection = await connect_robust(
+        "amqp://guest:guest@127.0.0.1/"
+    )
 
     # Creating channel
     channel = await connection.channel()

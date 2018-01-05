@@ -3,7 +3,9 @@ from aio_pika import connect_robust, Message
 
 
 async def main(loop):
-    connection = await connect_robust("amqp://guest:guest@127.0.0.1/", loop=loop)
+    connection = await connect_robust(
+        "amqp://guest:guest@127.0.0.1/", loop=loop
+    )
 
     queue_name = "test_queue"
     routing_key = "test_queue"
@@ -12,10 +14,14 @@ async def main(loop):
     channel = await connection.channel()
 
     # Declaring exchange
-    exchange = await channel.declare_exchange('direct', auto_delete=True)
+    exchange = await channel.declare_exchange(
+        'direct', auto_delete=True
+    )
 
     # Declaring queue
-    queue = await channel.declare_queue(queue_name, auto_delete=True)
+    queue = await channel.declare_queue(
+        queue_name, auto_delete=True
+    )
 
     # Binding queue
     await queue.bind(exchange, routing_key)

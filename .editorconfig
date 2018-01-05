@@ -12,6 +12,9 @@ indent_style = space
 [*.py]
 indent_size = 4
 
+[docs/**.py]
+max_line_length = 80
+
 [*.rst]
 indent_size = 3
 

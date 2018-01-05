@@ -14,7 +14,9 @@ async def main(loop):
         channel = await connection.channel()
 
         # Declaring queue
-        queue = await channel.declare_queue(queue_name, auto_delete=True)
+        queue = await channel.declare_queue(
+            queue_name, auto_delete=True
+        )
 
         async for message in queue:
             with message.process():

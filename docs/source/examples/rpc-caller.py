@@ -4,7 +4,9 @@ from aio_pika.patterns import RPC
 
 
 async def main():
-    connection = await connect_robust("amqp://guest:guest@127.0.0.1/")
+    connection = await connect_robust(
+        "amqp://guest:guest@127.0.0.1/"
+    )
 
     # Creating channel
     channel = await connection.channel()
@@ -17,7 +19,11 @@ async def main():
 
     # Or using create_task method
     for i in range(1000):
-        print(await rpc.call('multiply', kwargs=dict(x=100, y=i)))
+        print(
+            await rpc.call(
+                'multiply', kwargs=dict(x=100, y=i)
+            )
+        )
 
     await connection.close()
 

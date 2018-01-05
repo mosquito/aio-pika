@@ -20,34 +20,38 @@ class SubscriberHandler(tornado.web.RequestHandler):
 
 class PublisherHandler(tornado.web.RequestHandler):
     async def post(self):
-        channel = await self.application.amqp_connection.channel()
-        await channel.default_exchange.publish(
-            Message(body=self.request.body),
-            routing_key="test",
-        )
+        connection = self.application.settings['amqp_connection']
+        channel = await connection.channel()
 
-        await channel.close()
+        try:
+            await channel.default_exchange.publish(
+                Message(body=self.request.body),
+                routing_key="test",
+            )
+        finally:
+            await channel.close()
+
         self.finish("OK")
 
 
-def make_app():
-    return tornado.web.Application([
-        (r"/publish", PublisherHandler),
-        (r"/subscribe", SubscriberHandler),
-    ])
+async def make_app():
+    amqp_connection = await connect_robust()
 
-
-async def initialize(app):
-    app.amqp_connection = await connect_robust()
-
-    channel = await app.amqp_connection.channel()
+    channel = await amqp_connection.channel()
     queue = await channel.declare_queue('test', auto_delete=True)
     await queue.consume(QUEUE.put, no_ack=True)
 
+    return tornado.web.Application(
+        [
+            (r"/publish", PublisherHandler),
+            (r"/subscribe", SubscriberHandler),
+        ],
+        amqp_connection=amqp_connection
+    )
+
 
 if __name__ == "__main__":
-    app = make_app()
+    app = io_loop.asyncio_loop.run_until_complete(make_app())
     app.listen(8888)
 
-    io_loop.asyncio_loop.run_until_complete(initialize(app))
     tornado.ioloop.IOLoop.current().start()
