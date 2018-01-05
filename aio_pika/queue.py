@@ -95,6 +95,7 @@ class Queue(BaseChannel):
         :param routing_key: routing key
         :param arguments: additional arguments (will be passed to `pika`)
         :param timeout: execution timeout
+        :raises asyncio.TimeoutError: when the binding timeout period has elapsed.
         :return: :class:`None`
         """
 
@@ -125,6 +126,7 @@ class Queue(BaseChannel):
         :param routing_key: routing key
         :param arguments: additional arguments (will be passed to `pika`)
         :param timeout: execution timeout
+        :raises asyncio.TimeoutError: when the unbinding timeout period has elapsed.
         :return: :class:`None`
         """
 
@@ -152,6 +154,8 @@ class Queue(BaseChannel):
                 consumer_tag=None, timeout=None) -> Generator[Any, None, ConsumerTag]:
         """ Start to consuming the :class:`Queue`.
 
+        :param timeout: :class:`asyncio.TimeoutError` will be raises when the
+                        Future was not finished after this time.
         :param callback: Consuming callback. Could be a coroutine.
         :param no_ack: if :class:`True` you don't need to call :func:`aio_pika.message.IncomingMessage.ack`
         :param exclusive: Makes this queue exclusive. Exclusive queues may only be accessed by the current
@@ -159,7 +163,9 @@ class Queue(BaseChannel):
                           exclusive queue by other connections are not allowed.
         :param arguments: extended arguments for pika
         :param consumer_tag: optional consumer tag
-        :return: consumer tag :class:`str`
+
+        :raises asyncio.TimeoutError: when the consuming timeout period has elapsed.
+        :return str: consumer tag :class:`str`
 
         """
 
@@ -229,9 +235,11 @@ class Queue(BaseChannel):
 
         """ Get message from the queue.
 
-        :param no_ack: if :class:`True` you don't need to call :func:`aio_pika.message.IncomingMessage.ack`
+        :param no_ack: if :class:`True` you don't need to call
+                       :func:`aio_pika.message.IncomingMessage.ack`
         :param timeout: execution timeout
-        :param fail: Should return :class:`None` instead of raise an exception :class:`aio_pika.exceptions.QueueEmpty`.
+        :param fail: Should return :class:`None` instead of raise an
+                     exception :class:`aio_pika.exceptions.QueueEmpty`.
         :return: :class:`aio_pika.message.IncomingMessage`
         """
 
@@ -318,7 +326,7 @@ class Queue(BaseChannel):
         return iterator
 
     def iterator(self) -> 'QueueIterator':
-        ''' Returns an iterator for async for expression.
+        """ Returns an iterator for async for expression.
 
         Full example:
 
@@ -359,7 +367,8 @@ class Queue(BaseChannel):
                         print(message.body)
 
         :return: QueueIterator
-        '''
+        """
+
         return QueueIterator(self)
 
 

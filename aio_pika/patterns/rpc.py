@@ -166,7 +166,7 @@ class RPC(Base):
             future.set_exception(payload)
         elif message.type == 'call':
             future.set_exception(
-                TimeoutError("Message timed-out", message)
+                asyncio.TimeoutError("Message timed-out", message)
             )
         else:
             future.set_exception(
@@ -248,10 +248,10 @@ class RPC(Base):
         :param method_name: Name of method
         :param kwargs: Methos kwargs
         :param expiration: If not `None` messages which staying in queue longer
-                           will be returned and :class:`TimeoutError` will be raised.
+                           will be returned and :class:`asyncio.TimeoutError` will be raised.
         :param priority: Message priority
         :param delivery_mode: Call message delivery mode
-        :raises TimeoutError: when message expired
+        :raises asyncio.TimeoutError: when message expired
         :raises CancelledError: when called :func:`RPC.cancel`
         :raises RuntimeError: internal error
         """

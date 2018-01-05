@@ -4,6 +4,8 @@ from contextlib import suppress
 from logging import getLogger
 from functools import wraps
 from enum import Enum, unique
+from typing import Union
+
 from .tools import create_future
 from . import exceptions
 
@@ -17,14 +19,17 @@ class ConfirmationTypes(Enum):
     NACK = 'nack'
 
 
-def future_with_timeout(loop, timeout, future=None):
+def future_with_timeout(loop: asyncio.AbstractEventLoop,
+                        timeout: Union[int, float],
+                        future: asyncio.Future=None) -> asyncio.Future:
+
     loop = loop or asyncio.get_event_loop()
     f = future or create_future(loop=loop)
 
     def on_timeout():
         if f.done():
             return
-        f.set_exception(TimeoutError)
+        f.set_exception(asyncio.TimeoutError)
 
     if timeout:
         handler = loop.call_later(timeout, on_timeout)
@@ -74,7 +79,7 @@ class FutureStore:
         if future.done():
             return
 
-        future.set_exception(TimeoutError)
+        future.set_exception(asyncio.TimeoutError)
 
     def create_future(self, timeout=None):
         future = future_with_timeout(self.__loop, timeout)
