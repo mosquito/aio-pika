@@ -69,37 +69,6 @@ Installation from git:
     python setup.py install
 
 
-Usage example
-+++++++++++++
-
-Some useful examples.
-
-Simple consumer
-~~~~~~~~~~~~~~~
-
-.. literalinclude:: examples/simple_consumer.py
-   :language: python
-
-Simple publisher
-~~~~~~~~~~~~~~~~
-
-.. literalinclude:: examples/simple_publisher.py
-   :language: python
-
-
-Get single message example
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. literalinclude:: examples/main.py
-   :language: python
-
-Tornado example
-~~~~~~~~~~~~~~~
-
-.. literalinclude:: examples/tornado-pubsub.py
-   :language: python
-
-
 Development
 +++++++++++
 
@@ -123,63 +92,17 @@ Install all requirements for `aio_pika`_:
 
     env/bin/pip install -e '.[develop]'
 
-
-Tutorial
-++++++++
+Table Of Contents
++++++++++++++++++
 
 .. toctree::
-   :maxdepth: 3
-   :caption: RabbitMQ tutorial adopted for aio-pika
    :glob:
+   :maxdepth: 3
 
-   rabbitmq-tutorial/*
+   quick-start
+   patterns
+   rabbitmq-tutorial/index
    apidoc
-
-
-Patterns and helpers
-++++++++++++++++++++
-
-.. note:: Available since `aio-pika>=1.7.0`
-
-`aio_pika`_ includes some useful patterns for creating distributed systems.
-
-
-Master/Worker
-~~~~~~~~~~~~~
-
-Helper which implements Master/Worker pattern.
-This applicable for balancing tasks between multiple workers.
-
-The master creates tasks:
-
-.. literalinclude:: examples/master.py
-   :language: python
-
-
-Worker code:
-
-.. literalinclude:: examples/worker.py
-   :language: python
-
-The one or multiple workers executes tasks.
-
-
-RPC
-~~~
-
-Helper which implements Remote Procedure Call pattern.
-This applicable for balancing tasks between multiple workers.
-
-The caller creates tasks and awaiting results:
-
-.. literalinclude:: examples/rpc-caller.py
-   :language: python
-
-
-One or multimple callees executing tasks:
-
-.. literalinclude:: examples/rpc-callee.py
-   :language: python
 
 
 Thanks for contributing
@@ -190,8 +113,8 @@ Thanks for contributing
 * `@alternativehood`_ (bugfixes)
 * `@akhoronko`_
 * `@zyp`_
-* `@decaz`_ 
-* `@kajetanj`_ 
+* `@decaz`_
+* `@kajetanj`_
 * `@iselind`_
 
 .. _@mosquito: https://github.com/mosquito

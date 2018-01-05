@@ -67,7 +67,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'aio-pika'
-copyright = '2017, Dmitry Orlov'
+copyright = '2018, Dmitry Orlov'
 author = 'Dmitry Orlov'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -118,7 +118,6 @@ html_theme_options = {
     'github_repo': 'aio-pika',
     'github_type': 'star',
     'github_user': 'mosquito',
-    'logo': 'logo.png',
     'travis_button': True,
 }
 
@@ -186,7 +185,6 @@ texinfo_documents = [
 ]
 
 
-
 # -- Options for Epub output ----------------------------------------------
 
 # Bibliographic Dublin Core info.
@@ -210,3 +208,9 @@ epub_exclude_files = ['search.html']
 
 html_logo = 'logo2x.png'
 html_favicon = 'icon.png'
+
+html_sidebars = {
+    '**': [
+        'about.html', 'navigation.html', 'searchbox.html',
+    ]
+}
