@@ -1,3 +1,9 @@
+1.8.0
+-----
+
+* Change `TimeoutError` to the `asyncio.TimeoutError`
+* Allow to bind queue by exchange name
+
 1.7.0
 -----
 

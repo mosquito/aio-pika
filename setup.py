@@ -2,23 +2,13 @@ from setuptools import setup, find_packages
 import sys
 import os
 
+if sys.version_info < (3, 4):
+    raise RuntimeError("aio-pika doesn't support Python version prior 3.4")
+
 from importlib.machinery import SourceFileLoader
 
 
 module = SourceFileLoader("version", os.path.join("aio_pika", "version.py")).load_module()
-
-requires = [
-    'shortuuid',
-    'pika<0.11',
-    'yarl',
-]
-
-
-if sys.version_info < (3, 4):
-    raise RuntimeError("aio-pika doesn't support Python version prior 3.4")
-
-if sys.version_info < (3, 5):
-    requires.append('typing')
 
 
 setup(
@@ -49,7 +39,11 @@ setup(
         'Programming Language :: Python :: Implementation :: CPython',
     ],
     packages=find_packages(exclude=['tests']),
-    install_requires=requires,
+    install_requires=[
+        'shortuuid',
+        'pika<0.11',
+        'yarl',
+    ],
     extras_require={
         'develop': [
             'asynctest<0.11',
@@ -64,5 +58,6 @@ setup(
             'timeout-decorator',
             'tox>=2.4',
         ],
+        ':python_version < "3.5"': 'typing >= 3.5.3',
     },
 )
