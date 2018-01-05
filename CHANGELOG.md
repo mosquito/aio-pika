@@ -1,8 +1,14 @@
+1.8.1
+-----
+
+* Added `python_requires=">3.4.*, <4",` instead of `if sys.version_info` in the `setup.py`
+
 1.8.0
 -----
 
 * Change `TimeoutError` to the `asyncio.TimeoutError`
 * Allow to bind queue by exchange name
+* Added `extras_require = {':python_version': 'typing >= 3.5.3',` to the `setup.py`
 
 1.7.0
 -----
