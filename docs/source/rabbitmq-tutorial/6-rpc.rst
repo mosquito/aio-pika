@@ -9,30 +9,31 @@ Remote procedure call (RPC)
 
 .. warning::
 
-    This is a beta version of the port from `official tutorial`_. Please when you found an
-    error create `issue`_ or `pull request`_ for me.
+   This is a beta version of the port from `official tutorial`_. Please when you found an
+   error create `issue`_ or `pull request`_ for me.
 
-    This implementation is a part of official tutorial.
-    Since version 1.7.0 `aio-pika` has :module:`aio_pika.patterns` submodule.
-    You may use :class:`aio_pika.patterns.RPC` for real projects.
+   This implementation is a part of official tutorial.
+   Since version 1.7.0 `aio-pika`_ has :ref:`patterns submodule <patterns-rpc>`.
 
-.. note::
-    Using the `aio-pika`_ async Python client
+   You might use :class:`aio_pika.patterns.RPC` for real projects.
 
 .. note::
+   Using the `aio-pika`_ async Python client
 
-    **Prerequisites**
+.. note::
 
-    This tutorial assumes RabbitMQ is installed_ and running on localhost on standard port (`5672`).
-    In case you use a different host, port or credentials, connections settings would require adjusting.
+   **Prerequisites**
 
-    .. _installed: https://www.rabbitmq.com/download.html
+   This tutorial assumes RabbitMQ is installed_ and running on localhost on standard port (`5672`).
+   In case you use a different host, port or credentials, connections settings would require adjusting.
 
-    **Where to get help**
+   .. _installed: https://www.rabbitmq.com/download.html
 
-    If you're having trouble going through this tutorial you can `contact us`_ through the mailing list.
+   **Where to get help**
 
-    .. _contact us: https://groups.google.com/forum/#!forum/rabbitmq-users
+   If you're having trouble going through this tutorial you can `contact us`_ through the mailing list.
+
+   .. _contact us: https://groups.google.com/forum/#!forum/rabbitmq-users
 
 
 In the :ref:`second tutorial <work-queues>` we learned how to use *Work Queues* to distribute

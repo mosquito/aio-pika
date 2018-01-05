@@ -9,6 +9,8 @@ Patterns and helpers
 `aio_pika`_ includes some useful patterns for creating distributed systems.
 
 
+.. _patterns-worker:
+
 Master/Worker
 ~~~~~~~~~~~~~
 
@@ -28,6 +30,8 @@ Worker code:
 
 The one or multiple workers executes tasks.
 
+
+.. _patterns-rpc:
 
 RPC
 ~~~
