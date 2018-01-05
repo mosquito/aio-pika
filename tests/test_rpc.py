@@ -70,7 +70,7 @@ class TestCase(BaseTestCase):
             }
         )
 
-        with self.assertRaises(TimeoutError):
+        with self.assertRaises(asyncio.TimeoutError):
             yield from rpc.call('test.timed_out', expiration=1)
 
         yield from rpc.unregister(rpc_func)

@@ -749,7 +749,7 @@ class TestCase(BaseTestCase):
 
             yield from queue.purge()
 
-            with self.assertRaises(TimeoutError):
+            with self.assertRaises(asyncio.TimeoutError):
                 yield from queue.get(timeout=1)
         except:
             yield from queue.unbind(exchange, routing_key)

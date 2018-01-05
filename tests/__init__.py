@@ -89,7 +89,7 @@ def timeout(timeout_sec=5):
                 if future.done():
                     return
 
-                future.set_exception(TimeoutError)
+                future.set_exception(asyncio.TimeoutError)
 
             self.loop.call_later(timeout_sec, on_timeout, future)
 
