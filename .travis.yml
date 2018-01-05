@@ -14,6 +14,8 @@ matrix:
     - python: 3.6
       env: TOXENV=py36
 install:
-  - pip install tox coveralls
+  - pip install tox coveralls codecov
 script:
   - tox
+after_success:
+  - codecov

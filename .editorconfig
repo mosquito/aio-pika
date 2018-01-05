@@ -1,0 +1,22 @@
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+trim_trailing_whitespace = true
+
+[*.{py,yml}]
+indent_style = space
+
+[*.py]
+indent_size = 4
+
+[*.rst]
+indent_size = 3
+
+[Makefile]
+indent_style = tab
+
+[*.yml]
+indent_size = 2
