@@ -1,5 +1,5 @@
-aio\_pika package
-=================
+API Reference
+=============
 
 .. automodule:: aio_pika
     :members:
