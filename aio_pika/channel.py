@@ -332,6 +332,14 @@ class Channel(BaseChannel):
     def __del__(self):
         with suppress(Exception):
             self.loop.create_task(self.close())
+            
+    @asyncio.coroutine
+    def __aenter___(self) -> 'Channel':
+        return self
+    
+    @asyncio.coroutine
+    def __aexit__(self, exc_type, exc_val, exc_tb):
+        yield from self.close()
 
 
 __all__ = ('Channel',)
