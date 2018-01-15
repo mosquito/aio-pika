@@ -1,7 +1,7 @@
 import asyncio
 from enum import Enum, unique
 from logging import getLogger
-from typing import Optional
+from typing import Optional, Union
 
 from pika.channel import Channel
 from .common import BaseChannel, FutureStore
@@ -9,6 +9,9 @@ from .message import Message
 from .tools import create_future
 
 log = getLogger(__name__)
+
+
+ExchangeType_ = Union['Exchange', str]
 
 
 @unique
@@ -75,8 +78,18 @@ class Exchange(BaseChannel):
 
         return future
 
+    @staticmethod
+    def _get_exchange_name(exchange: ExchangeType_):
+        if isinstance(exchange, Exchange):
+            return exchange.name
+        elif isinstance(exchange, str):
+            return exchange
+        else:
+            raise ValueError(
+                'exchange argument must be an exchange instance or str')
+
     @BaseChannel._ensure_channel_is_open
-    def bind(self, exchange,
+    def bind(self, exchange: ExchangeType_,
              routing_key: str='', *, arguments=None, timeout: int = None) -> asyncio.Future:
 
         """ A binding can also be a relationship between two exchanges. This can be
@@ -118,7 +131,7 @@ class Exchange(BaseChannel):
         self._channel.exchange_bind(
             f.set_result,
             self.name,
-            exchange.name,
+            self._get_exchange_name(exchange),
             routing_key=routing_key,
             arguments=arguments
         )
@@ -126,7 +139,7 @@ class Exchange(BaseChannel):
         return f
 
     @BaseChannel._ensure_channel_is_open
-    def unbind(self, exchange, routing_key: str = '',
+    def unbind(self, exchange: ExchangeType_, routing_key: str = '',
                arguments: dict = None, timeout: int = None) -> asyncio.Future:
 
         """ Remove exchange-to-exchange binding for this :class:`Exchange` instance
@@ -148,7 +161,7 @@ class Exchange(BaseChannel):
         self._channel.exchange_unbind(
             f.set_result,
             self.name,
-            exchange.name,
+            self._get_exchange_name(exchange),
             routing_key=routing_key,
             arguments=arguments
         )
