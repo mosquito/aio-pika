@@ -111,7 +111,8 @@ class RobustChannel(Channel):
     def declare_exchange(self, name: str, type: ExchangeType = ExchangeType.DIRECT,
                          durable: bool = None, auto_delete: bool = False,
                          internal: bool = False, passive: bool = False,
-                         arguments: dict = None, timeout: int = None, robust: bool = True) -> Generator[Any, None, Exchange]:
+                         arguments: dict = None, timeout: int = None,
+                         robust: bool = True) -> Generator[Any, None, Exchange]:
 
         exchange = yield from super().declare_exchange(
             name=name, type=type, durable=durable, auto_delete=auto_delete,
@@ -138,7 +139,8 @@ class RobustChannel(Channel):
     @asyncio.coroutine
     def declare_queue(self, name: str = None, *, durable: bool = None, exclusive: bool = False,
                       passive: bool = False, auto_delete: bool = False,
-                      arguments: dict = None, timeout: int = None, robust: bool = True) -> Generator[Any, None, Queue]:
+                      arguments: dict = None, timeout: int = None,
+                      robust: bool = True) -> Generator[Any, None, Queue]:
 
         queue = yield from super().declare_queue(
             name=name, durable=durable, exclusive=exclusive,
