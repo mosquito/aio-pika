@@ -63,10 +63,10 @@ class RobustChannel(Channel):
 
         yield from self.initialize()
 
-        for name, exchange in self._exchanges.items():
+        for exchange in self._exchanges.values():
             yield from exchange.on_reconnect(self)
 
-        for name, queue in self._queues.items():
+        for queue in self._queues.values():
             yield from queue.on_reconnect(self)
 
     @asyncio.coroutine
@@ -111,7 +111,7 @@ class RobustChannel(Channel):
     def declare_exchange(self, name: str, type: ExchangeType = ExchangeType.DIRECT,
                          durable: bool = None, auto_delete: bool = False,
                          internal: bool = False, passive: bool = False,
-                         arguments: dict = None, timeout: int = None) -> Generator[Any, None, Exchange]:
+                         arguments: dict = None, timeout: int = None, robust: bool = True) -> Generator[Any, None, Exchange]:
 
         exchange = yield from super().declare_exchange(
             name=name, type=type, durable=durable, auto_delete=auto_delete,
@@ -119,7 +119,7 @@ class RobustChannel(Channel):
             timeout=timeout,
         )
 
-        if not internal:
+        if not internal and robust:
             self._exchanges[name] = exchange
 
         return exchange
@@ -138,7 +138,7 @@ class RobustChannel(Channel):
     @asyncio.coroutine
     def declare_queue(self, name: str = None, *, durable: bool = None, exclusive: bool = False,
                       passive: bool = False, auto_delete: bool = False,
-                      arguments: dict = None, timeout: int = None) -> Generator[Any, None, Queue]:
+                      arguments: dict = None, timeout: int = None, robust: bool = True) -> Generator[Any, None, Queue]:
 
         queue = yield from super().declare_queue(
             name=name, durable=durable, exclusive=exclusive,
@@ -146,7 +146,8 @@ class RobustChannel(Channel):
             arguments=arguments, timeout=timeout,
         )
 
-        self._queues[name] = queue
+        if robust:
+            self._queues[name] = queue
 
         return queue
 
