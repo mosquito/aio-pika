@@ -4,8 +4,6 @@ from logging import getLogger
 from types import FunctionType
 from typing import Any, Generator
 
-import shortuuid
-
 from .exchange import Exchange
 from .common import FutureStore
 from .channel import Channel
@@ -22,7 +20,7 @@ class RobustQueue(Queue):
     def __init__(self, loop: asyncio.AbstractEventLoop, future_store: FutureStore, channel: Channel,
                  name, durable, exclusive, auto_delete, arguments):
 
-        super().__init__(loop, future_store, channel, name or "amq_%s" % shortuuid.uuid(),
+        super().__init__(loop, future_store, channel, name,
                          durable, exclusive, auto_delete, arguments)
 
         self._consumers = {}
