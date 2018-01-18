@@ -35,7 +35,6 @@ setup(
     ],
     packages=find_packages(exclude=['tests']),
     install_requires=[
-        'shortuuid',
         'pika<0.11',
         'yarl',
     ],
@@ -49,6 +48,7 @@ setup(
             'pytest',
             'pytest-asyncio<0.6',
             'pytest-cov',
+            'shortuuid',
             'sphinx',
             'sphinx-autobuild',
             'timeout-decorator',
