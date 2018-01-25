@@ -220,7 +220,7 @@ class Channel(BaseChannel):
             except (AttributeError, RuntimeError) as exc:
                 log.exception("Failed to send data to client (connection unexpectedly closed)")
                 self._on_channel_close(self._channel, -1, exc)
-                self._connection.close(reply_code=500, reply_text="Incorrect state")
+                self._connection._connection.close(reply_code=500, reply_text="Incorrect state")
             else:
                 if self._publisher_confirms:
                     self._confirmations[self._delivery_tag] = f

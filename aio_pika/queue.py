@@ -2,10 +2,10 @@ import asyncio
 from collections import namedtuple
 from logging import getLogger
 from types import FunctionType
-from typing import Any, Generator, Optional, Union
+from typing import Any, Generator, Optional
 
 from .adapter import Channel
-from .exchange import Exchange
+from .exchange import Exchange, ExchangeType_
 from .message import IncomingMessage
 from .common import BaseChannel, FutureStore
 from .tools import create_task, iscoroutinepartial
@@ -16,7 +16,6 @@ log = getLogger(__name__)
 
 ConsumerTag = str
 DeclarationResult = namedtuple('DeclarationResult', ('message_count', 'consumer_count'))
-ExchangeType = Union[Exchange, str]
 
 
 class Queue(BaseChannel):
@@ -82,17 +81,8 @@ class Queue(BaseChannel):
 
         return f
 
-    @staticmethod
-    def _get_exchange_name(exchange: ExchangeType):
-        if isinstance(exchange, Exchange):
-            return exchange.name
-        elif isinstance(exchange, str):
-            return exchange
-        else:
-            raise ValueError('exchange argument must be an exchange instance or str')
-
     @BaseChannel._ensure_channel_is_open
-    def bind(self, exchange: ExchangeType, routing_key: str=None, *,
+    def bind(self, exchange: ExchangeType_, routing_key: str=None, *,
              arguments=None, timeout: int = None) -> asyncio.Future:
 
         """ A binding is a relationship between an exchange and a queue. This can be
@@ -119,7 +109,7 @@ class Queue(BaseChannel):
         self._channel.queue_bind(
             f.set_result,
             self.name,
-            self._get_exchange_name(exchange),
+            Exchange._get_exchange_name(exchange),
             routing_key=routing_key,
             arguments=arguments
         )
@@ -127,7 +117,7 @@ class Queue(BaseChannel):
         return f
 
     @BaseChannel._ensure_channel_is_open
-    def unbind(self, exchange: ExchangeType, routing_key: str,
+    def unbind(self, exchange: ExchangeType_, routing_key: str,
                arguments: dict = None, timeout: int = None) -> asyncio.Future:
 
         """ Remove binding from exchange for this :class:`Queue` instance
@@ -150,7 +140,7 @@ class Queue(BaseChannel):
         self._channel.queue_unbind(
             f.set_result,
             self.name,
-            self._get_exchange_name(exchange),
+            Exchange._get_exchange_name(exchange),
             routing_key=routing_key,
             arguments=arguments
         )
