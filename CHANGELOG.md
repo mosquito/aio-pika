@@ -1,3 +1,9 @@
+1.9.0
+-----
+
+* Ability to disable robustness for single queue in `rubust_connect` mode.
+* Ability to pass exchage by name.
+
 1.8.1
 -----
 
