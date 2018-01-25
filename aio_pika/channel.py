@@ -151,6 +151,7 @@ class Channel(BaseChannel):
                 raise RuntimeError("Can't initialize closed channel")
 
             self._channel = yield from self._create_channel(timeout)
+            self._delivery_tag = 0
 
     def _on_return_delivery(self, channel, method_frame, properties, body):
         f = self._confirmations.pop(int(properties.headers.get('delivery-tag')))
