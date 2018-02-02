@@ -1,5 +1,4 @@
 import asyncio
-from collections import namedtuple
 from logging import getLogger
 from types import FunctionType
 from typing import Any, Generator
@@ -8,13 +7,9 @@ import shortuuid
 
 from .common import FutureStore
 from .channel import Channel
-from .queue import ExchangeType_, Queue
+from .queue import ConsumerTag, ExchangeType_, Queue
 
 log = getLogger(__name__)
-
-
-ConsumerTag = str
-DeclarationResult = namedtuple('DeclarationResult', ('message_count', 'consumer_count'))
 
 
 class RobustQueue(Queue):
@@ -38,7 +33,7 @@ class RobustQueue(Queue):
             exchange, routing_key = item
             yield from self.bind(exchange, routing_key, **kwargs)
 
-        for consumer_tag, kwargs in tuple(self._consumers.items()):
+        for consumer_tag, kwargs in self._consumers.items():
             yield from self.consume(consumer_tag=consumer_tag, **kwargs)
 
     @asyncio.coroutine

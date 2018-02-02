@@ -75,12 +75,7 @@ class RobustConnection(Connection):
             return super()._on_connection_lost(future, connection, code, reason)
 
         if isinstance(reason, ProbableAuthenticationError):
-            if not future.done():
-                future.set_exception(reason)
-
-            self.loop.create_task(self.close())
-
-            return
+            log.error("Authentication error: %d - %s", code, reason)
 
         if not future.done():
             future.set_result(None)

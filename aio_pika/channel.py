@@ -80,7 +80,7 @@ class Channel(BaseChannel):
         return self._channel.channel_number
 
     def __str__(self):
-        return "{0}".format(self.number if self._channel else "Not initialized chanel")
+        return "{0}".format(self.number if self._channel else "Not initialized channel")
 
     def __repr__(self):
         return '<%s "%s#%s">' % (self.__class__.__name__, self._connection, self)
