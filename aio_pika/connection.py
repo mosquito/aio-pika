@@ -351,4 +351,4 @@ def connect(url: str=None, *, host: str='localhost',
     return connection
 
 
-__all__ = ('connect', 'connect_url', 'Connection')
+__all__ = 'connect', 'Connection'
