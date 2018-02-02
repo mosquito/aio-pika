@@ -4,6 +4,7 @@ from logging import getLogger
 from typing import Callable, Generator, Any
 
 from .adapter import AsyncioConnection
+from .exceptions import ProbableAuthenticationError
 from .connection import Connection, connect
 from .robust_channel import RobustChannel
 
@@ -72,6 +73,9 @@ class RobustConnection(Connection):
 
         if self._closed:
             return super()._on_connection_lost(future, connection, code, reason)
+
+        if isinstance(reason, ProbableAuthenticationError):
+            log.error("Authentication error: %d - %s", code, reason)
 
         if not future.done():
             future.set_result(None)
