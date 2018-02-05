@@ -16,7 +16,7 @@ import aio_pika
 import aio_pika.exceptions
 from copy import copy
 from aio_pika import connect, Message, DeliveryMode
-from aio_pika.exceptions import ProbableAuthenticationError, MessageProcessError
+from aio_pika.exceptions import MessageProcessError
 from aio_pika.exchange import ExchangeType
 from aio_pika.tools import wait
 from unittest import mock
@@ -764,7 +764,7 @@ class TestCase(BaseTestCase):
     def test_wrong_credentials(self):
         amqp_url = AMQP_URL.with_user(uuid.uuid4().hex).with_password(uuid.uuid4().hex)
 
-        with self.assertRaises(ProbableAuthenticationError):
+        with self.assertRaises(ConnectionRefusedError):
             yield from connect(
                 amqp_url,
                 loop=self.loop
