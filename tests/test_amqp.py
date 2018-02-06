@@ -764,7 +764,7 @@ class TestCase(BaseTestCase):
     def test_wrong_credentials(self):
         amqp_url = AMQP_URL.with_user(uuid.uuid4().hex).with_password(uuid.uuid4().hex)
 
-        with self.assertRaises(ProbableAuthenticationError):
+        with self.assertRaises(ConnectionRefusedError):
             yield from connect(
                 amqp_url,
                 loop=self.loop
