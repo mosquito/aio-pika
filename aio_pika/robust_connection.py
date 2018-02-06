@@ -80,6 +80,9 @@ class RobustConnection(Connection):
         if isinstance(reason, ProbableAuthenticationError):
             log.error("Authentication error: %d - %s", code, reason)
 
+        if isinstance(reason, ConnectionRefusedError):
+            log.error("Connection refused: %d - %s", code, reason)
+
         if not future.done():
             future.set_result(None)
 

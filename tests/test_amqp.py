@@ -16,7 +16,7 @@ import aio_pika
 import aio_pika.exceptions
 from copy import copy
 from aio_pika import connect, Message, DeliveryMode
-from aio_pika.exceptions import ProbableAuthenticationError, MessageProcessError
+from aio_pika.exceptions import MessageProcessError
 from aio_pika.exchange import ExchangeType
 from aio_pika.tools import wait
 from unittest import mock
