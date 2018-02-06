@@ -3,6 +3,9 @@ from functools import wraps
 from logging import getLogger
 from typing import Callable, Generator, Any
 
+import pika.channel
+from pika.exceptions import ChannelClosed
+
 from .adapter import AsyncioConnection
 from .exceptions import ProbableAuthenticationError
 from .connection import Connection, connect
@@ -75,12 +78,7 @@ class RobustConnection(Connection):
             return super()._on_connection_lost(future, connection, code, reason)
 
         if isinstance(reason, ProbableAuthenticationError):
-            if not future.done():
-                future.set_exception(reason)
-
-            self.loop.create_task(self.close())
-
-            return
+            log.error("Authentication error: %d - %s", code, reason)
 
         if not future.done():
             future.set_result(None)
@@ -90,16 +88,26 @@ class RobustConnection(Connection):
             lambda: self.loop.create_task(self.connect())
         )
 
+    def _channel_cleanup(self, channel: pika.channel.Channel):
+        ch = self._channels[channel.channel_number]     # type: RobustChannel
+        ch._futures.reject_all(ChannelClosed)
+
+        if ch._closed:
+            self._channels.pop(channel.channel_number)  # type: RobustChannel
+
     @asyncio.coroutine
     def connect(self):
         result = yield from super().connect()
 
-        if self._connection:
-            for number, channel in self._channels.items():
-                yield from channel.on_reconnect(self, number)
+        while self._connection is None:
+            yield from asyncio.sleep(self.DEFAULT_RECONNECT_INTERVAL, loop=self.loop)
+            result = yield from super().connect()
 
-            for callback in self._on_reconnect_callbacks:
-                callback(self)
+        for number, channel in tuple(self._channels.items()):
+            yield from channel.on_reconnect(self, number)
+
+        for callback in self._on_reconnect_callbacks:
+            callback(self)
 
         return result
 

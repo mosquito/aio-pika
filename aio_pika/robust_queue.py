@@ -8,12 +8,11 @@ import shortuuid
 
 from .common import FutureStore
 from .channel import Channel
-from .queue import ExchangeType_, Queue
+from .queue import ExchangeType_, Queue, ConsumerTag
 
 log = getLogger(__name__)
 
 
-ConsumerTag = str
 DeclarationResult = namedtuple('DeclarationResult', ('message_count', 'consumer_count'))
 
 

@@ -1,7 +1,7 @@
 import asyncio
+import logging
 from contextlib import suppress
 from functools import wraps, partial
-from logging import getLogger
 from typing import Callable, Any, Generator
 
 import pika.channel
@@ -16,7 +16,9 @@ from .tools import create_future
 from .adapter import AsyncioConnection
 
 
-log = getLogger(__name__)
+log = logging.getLogger(__name__)
+pika_logger = logging.getLogger('pika.adapters.base_connection')
+pika_logger.setLevel(logging.WARNING)
 
 
 def _ensure_connection(func):
@@ -206,7 +208,7 @@ class Connection:
 
             log.debug("Connection ready: %r", self)
 
-            self._connection = result
+            self._connection = connection
             return result
 
     @_ensure_connection
@@ -351,4 +353,4 @@ def connect(url: str=None, *, host: str='localhost',
     return connection
 
 
-__all__ = ('connect', 'connect_url', 'Connection')
+__all__ = ('connect', 'Connection')

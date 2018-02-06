@@ -114,11 +114,13 @@ class BaseChannel:
     @staticmethod
     def _ensure_channel_is_open(func):
         @wraps(func)
+        @asyncio.coroutine
         def wrap(self, *args, **kwargs):
             if self.is_closed:
+                yield
                 raise exceptions.ChannelClosed
 
-            return func(self, *args, **kwargs)
+            return (yield from func(self, *args, **kwargs))
 
         return wrap
 
