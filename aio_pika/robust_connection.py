@@ -103,7 +103,7 @@ class RobustConnection(Connection):
         result = yield from super().connect()
 
         while self._connection is None:
-            yield from asyncio.sleep(self.DEFAULT_RECONNECT_INTERVAL, loop=self.loop)
+            yield from asyncio.sleep(self.reconnect_interval, loop=self.loop)
             result = yield from super().connect()
 
         for number, channel in tuple(self._channels.items()):
