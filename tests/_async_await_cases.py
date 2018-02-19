@@ -81,21 +81,24 @@ async def test_async_for_queue_async_context(self: TestCase):
 
 
 async def test_async_connection_context(self: TestCase):
-    conn = await self.create_connection()
+    conn = await self.create_connection(cleanup=False)
 
     async with conn:
 
-        channel2 = await self.create_channel(connection=conn)
+        channel2 = await self.create_channel(connection=conn, cleanup=False)
 
         queue = await channel2.declare_queue(self.get_random_name("queue", "async", "for"), auto_delete=True)
 
         messages = 100
 
         async def publisher():
-            channel1 = await self.create_channel(connection=conn)
+            channel1 = await self.create_channel(connection=conn, cleanup=False)
 
             for i in range(messages):
-                await channel1.default_exchange.publish(Message(body=str(i).encode()), routing_key=queue.name)
+                await channel1.default_exchange.publish(
+                    Message(body=str(i).encode()),
+                    routing_key=queue.name
+                )
 
         self.loop.create_task(publisher())
 

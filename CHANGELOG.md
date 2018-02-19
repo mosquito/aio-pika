@@ -1,3 +1,8 @@
+2.0.0
+-----
+
+* Rework robust connector
+
 1.9.0
 -----
 
@@ -39,7 +44,7 @@
 * `Queue.iterator()` method
 * `QueueIterator.close()` returns `asyncio.Future` instead of `asyncio.Task`
 * Ability to use `QueueIterator` in `async for` expression
-* `connect_robust` is a `coroutine` instead of function which returns a coroutine 
+* `connect_robust` is a `coroutine` instead of function which returns a coroutine
 (PyCharm type checking display warning instead)
 * add tests
 

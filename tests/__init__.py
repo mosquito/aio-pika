@@ -41,18 +41,24 @@ class AsyncTestCase(asynctest.TestCase):
 
 class BaseTestCase(AsyncTestCase):
     @asyncio.coroutine
-    def create_connection(self) -> Generator[Any, None, Connection]:
+    def create_connection(self, cleanup=True) -> Generator[Any, None, Connection]:
         client = yield from connect(AMQP_URL, loop=self.loop)
-        self.addCleanup(client.close)
+
+        if cleanup:
+            self.addCleanup(client.close)
+
         return client
 
     @asyncio.coroutine
-    def create_channel(self, connection=None, **kwargs) -> Generator[Any, None, Channel]:
+    def create_channel(self, connection=None, cleanup=True, **kwargs) -> Generator[Any, None, Channel]:
         if connection is None:
             connection = yield from self.create_connection()
 
         channel = yield from connection.channel(**kwargs)
-        self.addCleanup(channel.close)
+
+        if cleanup:
+            self.addCleanup(channel.close)
+
         return channel
 
     @asyncio.coroutine

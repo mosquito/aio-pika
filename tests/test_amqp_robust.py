@@ -9,9 +9,12 @@ from tests.test_amqp import TestCase as AMQPTestCase
 
 class TestCase(AMQPTestCase):
     @asyncio.coroutine
-    def create_connection(self):
+    def create_connection(self, cleanup=True):
         client = yield from connect_robust(AMQP_URL, loop=self.loop)
-        self.addCleanup(client.close)
+
+        if cleanup:
+            self.addCleanup(client.close)
+
         return client
 
     @pytest.mark.asyncio
