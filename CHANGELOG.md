@@ -1,3 +1,13 @@
+2.2.0
+-----
+
+* Rework transactions
+
+2.1.0
+-----
+
+* Use pika's asyncio adapter
+
 2.0.0
 -----
 
