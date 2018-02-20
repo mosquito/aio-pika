@@ -9,7 +9,6 @@ from types import FunctionType
 from . import exceptions
 from .common import BaseChannel, FutureStore, ConfirmationTypes
 from .compat import Awaitable
-from .exceptions import TransactionClosed
 from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage, ReturnedMessage
 from .queue import Queue
