@@ -9,6 +9,7 @@ from types import FunctionType
 from . import exceptions
 from .common import BaseChannel, FutureStore, ConfirmationTypes
 from .compat import Awaitable
+from .exceptions import TransactionClosed
 from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage, ReturnedMessage
 from .queue import Queue
@@ -317,17 +318,19 @@ class Channel(BaseChannel):
 
             return (yield from f)
 
-    def transaction(self):
+    def transaction(self) -> Transaction:
         if self._publisher_confirms:
-            raise RuntimeError("Cannot create transaction when publisher confirms are enabled")
+            raise RuntimeError("Cannot create transaction when publisher "
+                               "confirms are enabled")
 
         tx = Transaction(self._channel, self._futures.get_child())
 
-        def on_close(result):
-            tx.close(exceptions.ChannelClosed())
+        self.add_close_callback(tx.on_close_callback)
 
-        self.add_close_callback(on_close)
-        tx.closing.add_done_callback(lambda result: self.remove_close_callback(on_close))
+        tx.closing.add_done_callback(
+            lambda _: self.remove_close_callback(tx.on_close_callback)
+        )
+
         return tx
 
     def __del__(self):

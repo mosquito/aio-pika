@@ -15,6 +15,11 @@ Simple publisher
 .. literalinclude:: examples/simple_publisher.py
    :language: python
 
+Working with RabbitMQ transactions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: examples/simple_publisher_transactions.py
+   :language: python
 
 Get single message example
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -20,6 +20,10 @@ class QueueEmpty(AMQPException):
     pass
 
 
+class TransactionClosed(AMQPException):
+    pass
+
+
 __all__ = (
     'AMQPException', 'MessageProcessError', 'ProbableAuthenticationError',
     'AMQPChannelError', 'AMQPConnectionError', 'AMQPError', 'ChannelClosed', 'ChannelError',
