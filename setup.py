@@ -36,7 +36,7 @@ setup(
     packages=find_packages(exclude=['tests']),
     install_requires=[
         'shortuuid',
-        'pika>=0.11',
+        'pika>=0.11,<0.12',
         'yarl',
     ],
     python_requires=">3.4.*, <4",
