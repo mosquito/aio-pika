@@ -101,6 +101,7 @@ class Channel(channel.Channel):
             self._on_getempty_callback(method_frame)
         else:
             LOGGER.debug("Unexcpected getempty frame %r", method_frame)
+        super()_on_getempty(method_frame)
 
     @contextmanager
     def set_get_empty_callback(self, callback):
