@@ -1,3 +1,9 @@
+2.2.2
+-----
+
+* Bugfix: _on_getempty should delete _on_getok_callback #110.
+  (thank's to @dhontecillas)
+
 2.2.1
 -----
 
