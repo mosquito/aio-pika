@@ -1090,6 +1090,18 @@ class TestCase(BaseTestCase):
         with self.assertRaises(aio_pika.exceptions.QueueEmpty):
             yield from queue.get(timeout=5)
 
+        yield from channel.default_exchange.publish(
+            Message(b'test'),
+            queue_name,
+        )
+
+        message = yield from queue.get(timeout=5)
+        self.assertEqual(message.body, b'test')
+
+        # test again for #110
+        with self.assertRaises(aio_pika.exceptions.QueueEmpty):
+            yield from queue.get(timeout=5)
+
         yield from queue.delete()
         yield from wait((client.close(), client.closing), loop=self.loop)
 
