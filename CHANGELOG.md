@@ -1,3 +1,8 @@
+2.3.0
+-----
+
+* Feature: abillity to use ExternalCredentials with blank login.
+
 2.2.2
 -----
 
