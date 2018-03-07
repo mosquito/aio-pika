@@ -165,7 +165,8 @@ def connect_robust(url: str=None, *, host: str='localhost',
     :param url: `RFC3986`_ formatted broker address. When :class:`None` will be used keyword arguments.
     :param host: hostname of the broker
     :param port: broker port 5672 by default
-    :param login: username string. `'guest'` by default.
+    :param login:
+        username string. `'guest'` by default. Provide empty string for pika.credentials.ExternalCredentials usage.
     :param password: password string. `'guest'` by default.
     :param virtualhost: virtualhost parameter. `'/'` by default
     :param ssl: use SSL for connection. Should be used with addition kwargs. See `pika documentation`_ for more info.

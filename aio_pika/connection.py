@@ -6,7 +6,7 @@ from typing import Callable, Any, Generator
 
 import pika.channel
 from pika import ConnectionParameters
-from pika.credentials import PlainCredentials
+from pika.credentials import ExternalCredentials, PlainCredentials
 from pika.spec import REPLY_SUCCESS
 from yarl import URL
 from . import exceptions
@@ -49,7 +49,7 @@ class Connection:
         self.loop = loop if loop else asyncio.get_event_loop()
         self.future_store = FutureStore(loop=self.loop)
 
-        self.__credentials = PlainCredentials(login, password) if login else None
+        self.__credentials = PlainCredentials(login, password) if login else ExternalCredentials()
 
         self.__connection_parameters = ConnectionParameters(
             host=host,
@@ -67,7 +67,8 @@ class Connection:
 
     def __str__(self):
         return 'amqp://{credentials}{host}:{port}/{vhost}'.format(
-            credentials="{0.username}:********@".format(self.__credentials) if self.__credentials else '',
+            credentials="{0.username}:********@".format(self.__credentials) if isinstance(
+                self.__credentials, PlainCredentials) else '',
             host=self.__connection_parameters.host,
             port=self.__connection_parameters.port,
             vhost=self.__connection_parameters.virtual_host,
@@ -322,7 +323,8 @@ def connect(url: str=None, *, host: str='localhost',
     :param url: `RFC3986`_ formatted broker address. When :class:`None` will be used keyword arguments.
     :param host: hostname of the broker
     :param port: broker port 5672 by default
-    :param login: username string. `'guest'` by default.
+    :param login:
+        username string. `'guest'` by default. Provide empty string for pika.credentials.ExternalCredentials usage.
     :param password: password string. `'guest'` by default.
     :param virtualhost: virtualhost parameter. `'/'` by default
     :param ssl: use SSL for connection. Should be used with addition kwargs. See `pika documentation`_ for more info.

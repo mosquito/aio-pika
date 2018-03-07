@@ -32,3 +32,9 @@ Tornado example
 
 .. literalinclude:: examples/tornado-pubsub.py
    :language: python
+
+External credentials example
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: examples/external-credentials.py
+   :language: python
