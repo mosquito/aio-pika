@@ -1,3 +1,9 @@
+2.3.1
+-----
+
+* Ability to reconnect on Channel.Close
+* Ability to reconnect on Channel.Cancel
+
 2.3.0
 -----
 

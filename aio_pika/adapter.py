@@ -30,6 +30,7 @@ class AsyncioConnection(asyncio_connection.AsyncioConnection):
         )
 
         self.channel_cleanup_callback = None
+        self.channel_cancel_callback = None
 
     @property
     def _client_properties(self) -> dict:
@@ -55,9 +56,15 @@ class AsyncioConnection(asyncio_connection.AsyncioConnection):
         finally:
             super()._on_channel_cleanup(channel)
 
+    def _on_channel_cancel(self, channel):
+        if self.channel_cancel_callback:
+            self.channel_cancel_callback(channel)
+
     def _create_channel(self, channel_number, on_open_callback):
         LOGGER.debug('Creating channel %s', channel_number)
-        return Channel(self, channel_number, on_open_callback)
+        channel = Channel(self, channel_number, on_open_callback)
+        channel.add_on_cancel_callback(lambda method_frame: self._on_channel_cancel(channel))
+        return channel
 
 
 class Channel(channel.Channel):

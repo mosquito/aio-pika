@@ -176,6 +176,10 @@ class Connection:
 
         future.set_exception(exc)
 
+    def _on_channel_cancel(self, channel: pika.channel.Channel):
+        ch = self._channels.pop(channel.channel_number)     # type: Channel
+        ch._futures.reject_all(exceptions.ChannelClosed)
+
     @asyncio.coroutine
     def connect(self) -> AsyncioConnection:
         """ Connect to AMQP server. This method should be called after :func:`aio_pika.connection.Connection.__init__`
@@ -204,6 +208,7 @@ class Connection:
             )
 
             connection.channel_cleanup_callback = self._channel_cleanup
+            connection.channel_cancel_callback = self._on_channel_cancel
 
             result = yield from f
 
