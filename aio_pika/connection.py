@@ -17,8 +17,6 @@ from .adapter import AsyncioConnection
 
 
 log = logging.getLogger(__name__)
-pika_logger = logging.getLogger('pika.adapters.base_connection')
-pika_logger.setLevel(logging.WARNING)
 
 
 def _ensure_connection(func):
