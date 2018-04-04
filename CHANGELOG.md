@@ -1,3 +1,8 @@
+2.4.0
+-----
+
+* Rollback to pika==0.10 because new one had issues.
+
 2.3.0
 -----
 
