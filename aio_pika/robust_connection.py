@@ -100,16 +100,7 @@ class RobustConnection(Connection):
 
     def _on_channel_error(self, channel: pika.channel.Channel):
         log.error("Channel closed: %s. Will attempt to reconnect", channel)
-
         channel.connection.close(reply_code=500, reply_text="Channel canceled")
-
-        if self._connection:
-            self._connection = None
-
-        self.loop.call_later(
-            self.reconnect_interval,
-            lambda: self.loop.create_task(self.connect())
-        )
 
     def _on_channel_cancel(self, channel: pika.channel.Channel):
         log.debug("Channel canceled: %s", channel)
