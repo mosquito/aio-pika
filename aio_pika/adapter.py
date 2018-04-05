@@ -159,34 +159,6 @@ class AsyncioConnection(base_connection.BaseConnection):
         except Exception as e:
             self._on_disconnect(-1, e)
 
-        super().__init__(parameters, on_open_callback,
-                         on_open_error_callback,
-                         on_close_callback, self.ioloop,
-                         stop_ioloop_on_close=stop_ioloop_on_close)
-
-    def _adapter_connect(self):
-        error = super()._adapter_connect()
-
-        if not error:
-            self.ioloop.add_handler(
-                self.socket.fileno(), self._handle_events, self.event_state
-            )
-
-        return error
-
-    def _adapter_disconnect(self):
-        if self.socket:
-            self.ioloop.remove_handler(self.socket.fileno())
-
-        super()._adapter_disconnect()
-
-    def _handle_disconnect(self):
-        try:
-            super()._handle_disconnect()
-            super()._handle_write()
-        except Exception as e:
-            self._on_disconnect(-1, e)
-
     @property
     def _client_properties(self) -> dict:
         """ Return the client properties dictionary. """
