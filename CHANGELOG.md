@@ -1,8 +1,13 @@
-2.4.0
+2.5.0
 -----
 
 * Ability to reconnect on Channel.Close
 * Ability to reconnect on Channel.Cancel
+
+2.4.0
+-----
+
+* Rollback to pika==0.10 because new one had issues.
 
 2.3.0
 -----
