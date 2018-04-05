@@ -98,6 +98,14 @@ class RobustConnection(Connection):
         if ch._closed:
             self._channels.pop(channel.channel_number)  # type: RobustChannel
 
+    def _on_channel_error(self, channel: pika.channel.Channel):
+        log.error("Channel closed: %s. Will attempt to reconnect", channel)
+        channel.connection.close(reply_code=500, reply_text="Channel canceled")
+
+    def _on_channel_cancel(self, channel: pika.channel.Channel):
+        log.debug("Channel canceled: %s", channel)
+        self._on_channel_error(channel)
+
     @asyncio.coroutine
     def connect(self):
         result = yield from super().connect()
@@ -107,7 +115,11 @@ class RobustConnection(Connection):
             result = yield from super().connect()
 
         for number, channel in tuple(self._channels.items()):
-            yield from channel.on_reconnect(self, number)
+            try:
+                yield from channel.on_reconnect(self, number)
+            except ChannelClosed:
+                self._on_channel_error(channel._channel)
+                return
 
         for callback in self._on_reconnect_callbacks:
             callback(self)
