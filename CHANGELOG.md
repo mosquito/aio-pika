@@ -1,4 +1,4 @@
-2.3.1
+2.4.0
 -----
 
 * Ability to reconnect on Channel.Close
