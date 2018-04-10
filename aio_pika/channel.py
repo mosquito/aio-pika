@@ -195,7 +195,7 @@ class Channel(BaseChannel):
                 future_store=self._futures.get_child(),
             )
 
-            yield from exchange.declare()
+            yield from exchange.declare(timeout=timeout)
 
             log.debug("Exchange declared %r", exchange)
 
