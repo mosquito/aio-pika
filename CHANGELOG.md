@@ -1,3 +1,9 @@
+2.6.0
+-----
+
+* Added `timeout` parameter for `Exchange.declare`
+* QueueEmpty exception public added to the module `__all__`
+
 2.5.0
 -----
 
