@@ -49,7 +49,7 @@ class Queue(BaseChannel):
         )
 
     @BaseChannel._ensure_channel_is_open
-    def declare(self, timeout: int = None, passive: bool = False) -> asyncio.Future:
+    def declare(self, timeout: int=None, passive: bool=False) -> asyncio.Future:
         """ Declare queue.
 
         :param timeout: execution timeout
@@ -83,7 +83,7 @@ class Queue(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     def bind(self, exchange: ExchangeType_, routing_key: str=None, *,
-             arguments=None, timeout: int = None) -> asyncio.Future:
+             arguments=None, timeout: int=None) -> asyncio.Future:
 
         """ A binding is a relationship between an exchange and a queue. This can be
         simply read as: the queue is interested in messages from this exchange.
@@ -118,7 +118,7 @@ class Queue(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     def unbind(self, exchange: ExchangeType_, routing_key: str,
-               arguments: dict = None, timeout: int = None) -> asyncio.Future:
+               arguments: dict=None, timeout: int=None) -> asyncio.Future:
 
         """ Remove binding from exchange for this :class:`Queue` instance
 
@@ -149,8 +149,8 @@ class Queue(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
-    def consume(self, callback: FunctionType, no_ack: bool = False,
-                exclusive: bool = False, arguments: dict = None,
+    def consume(self, callback: FunctionType, no_ack: bool=False,
+                exclusive: bool=False, arguments: dict=None,
                 consumer_tag=None, timeout=None) -> Generator[Any, None, ConsumerTag]:
         """ Start to consuming the :class:`Queue`.
 

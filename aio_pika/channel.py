@@ -179,9 +179,9 @@ class Channel(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
-    def declare_exchange(self, name: str, type: ExchangeType = ExchangeType.DIRECT,
-                         durable: bool = None, auto_delete: bool = False,
-                         internal: bool = False, passive: bool = False, arguments: dict = None, timeout: int = None
+    def declare_exchange(self, name: str, type: ExchangeType=ExchangeType.DIRECT,
+                         durable: bool=None, auto_delete: bool=False,
+                         internal: bool=False, passive: bool=False, arguments: dict=None, timeout: int=None
                          ) -> Generator[Any, None, Exchange]:
 
         with (yield from self._write_lock):
@@ -232,8 +232,8 @@ class Channel(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
-    def declare_queue(self, name: str = None, *, durable: bool = None, exclusive: bool = False, passive: bool = False,
-                      auto_delete: bool = False, arguments: dict = None, timeout: int = None
+    def declare_queue(self, name: str=None, *, durable: bool=None, exclusive: bool=False, passive: bool=False,
+                      auto_delete: bool=False, arguments: dict=None, timeout: int=None
                       ) -> Generator[Any, None, Queue]:
         """
 
@@ -274,7 +274,7 @@ class Channel(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
-    def set_qos(self, prefetch_count: int = 0, prefetch_size: int = 0, all_channels=False, timeout: int = None):
+    def set_qos(self, prefetch_count: int=0, prefetch_size: int=0, all_channels=False, timeout: int=None):
         with (yield from self._write_lock):
             f = self._create_future(timeout=timeout)
 
@@ -289,8 +289,8 @@ class Channel(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
-    def queue_delete(self, queue_name: str, timeout: int = None,
-                     if_unused: bool = False, if_empty: bool = False, nowait: bool = False):
+    def queue_delete(self, queue_name: str, timeout: int=None,
+                     if_unused: bool=False, if_empty: bool=False, nowait: bool=False):
 
         with (yield from self._write_lock):
             f = self._create_future(timeout=timeout)
@@ -307,7 +307,7 @@ class Channel(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
-    def exchange_delete(self, exchange_name: str, timeout: int = None, if_unused=False, nowait=False):
+    def exchange_delete(self, exchange_name: str, timeout: int=None, if_unused=False, nowait=False):
         with (yield from self._write_lock):
             f = self._create_future(timeout=timeout)
 

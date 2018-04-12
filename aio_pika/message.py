@@ -65,14 +65,14 @@ class Message:
         "__lock"
     )
 
-    def __init__(self, body: bytes, *, headers: dict = None, content_type: str = None,
-                 content_encoding: str = None, delivery_mode: DeliveryMode = None,
-                 priority: int = None, correlation_id=None,
-                 reply_to: str = None, expiration: DateType = None,
-                 message_id: str = None,
-                 timestamp: DateType = None,
-                 type: str = None, user_id: str = None,
-                 app_id: str = None):
+    def __init__(self, body: bytes, *, headers: dict=None, content_type: str=None,
+                 content_encoding: str=None, delivery_mode: DeliveryMode=None,
+                 priority: int=None, correlation_id=None,
+                 reply_to: str=None, expiration: DateType=None,
+                 message_id: str=None,
+                 timestamp: DateType=None,
+                 type: str=None, user_id: str=None,
+                 app_id: str=None):
 
         """ Creates a new instance of Message
 
@@ -252,7 +252,7 @@ class IncomingMessage(Message):
         'redelivered', '__no_ack', '__processed'
     )
 
-    def __init__(self, channel: Channel, envelope, properties, body, no_ack: bool = False):
+    def __init__(self, channel: Channel, envelope, properties, body, no_ack: bool=False):
         """ Create an instance of :class:`IncomingMessage`
 
         :param channel: :class:`aio_pika.channel.Channel`
@@ -336,7 +336,7 @@ class IncomingMessage(Message):
                     self.reject(requeue=requeue)
             raise
 
-    def ack(self, multiple: bool = False):
+    def ack(self, multiple: bool=False):
         """ Send basic.ack is used for positive acknowledgements
 
         .. note::

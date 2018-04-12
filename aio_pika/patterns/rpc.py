@@ -240,8 +240,8 @@ class RPC(Base):
         return (yield from func(**payload))
 
     @asyncio.coroutine
-    def call(self, method_name, kwargs: dict=None, *, expiration: int = None,
-             priority: int = 128, delivery_mode: DeliveryMode = DeliveryMode.NOT_PERSISTENT):
+    def call(self, method_name, kwargs: dict=None, *, expiration: int=None,
+             priority: int=128, delivery_mode: DeliveryMode=DeliveryMode.NOT_PERSISTENT):
 
         """ Call remote method and awaiting result.
 

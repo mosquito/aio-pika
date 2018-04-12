@@ -90,7 +90,7 @@ class Exchange(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     def bind(self, exchange: ExchangeType_,
-             routing_key: str='', *, arguments=None, timeout: int = None) -> asyncio.Future:
+             routing_key: str='', *, arguments=None, timeout: int=None) -> asyncio.Future:
 
         """ A binding can also be a relationship between two exchanges. This can be
         simply read as: this exchange is interested in messages from another exchange.
@@ -140,7 +140,7 @@ class Exchange(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     def unbind(self, exchange: ExchangeType_, routing_key: str = '',
-               arguments: dict = None, timeout: int = None) -> asyncio.Future:
+               arguments: dict=None, timeout: int=None) -> asyncio.Future:
 
         """ Remove exchange-to-exchange binding for this :class:`Exchange` instance
 

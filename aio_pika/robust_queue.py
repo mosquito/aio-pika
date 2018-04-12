@@ -41,7 +41,7 @@ class RobustQueue(Queue):
             yield from self.consume(consumer_tag=consumer_tag, **kwargs)
 
     @asyncio.coroutine
-    def bind(self, exchange: ExchangeType_, routing_key: str=None, *, arguments=None, timeout: int = None):
+    def bind(self, exchange: ExchangeType_, routing_key: str=None, *, arguments=None, timeout: int=None):
         kwargs = dict(arguments=arguments, timeout=timeout)
 
         result = yield from super().bind(
@@ -55,15 +55,15 @@ class RobustQueue(Queue):
         return result
 
     @asyncio.coroutine
-    def unbind(self, exchange: ExchangeType_, routing_key: str, arguments: dict = None, timeout: int = None):
+    def unbind(self, exchange: ExchangeType_, routing_key: str, arguments: dict=None, timeout: int=None):
         result = yield from super().unbind(exchange, routing_key, arguments, timeout)
         self._bindings.pop((exchange, routing_key), None)
 
         return result
 
     @asyncio.coroutine
-    def consume(self, callback: FunctionType, no_ack: bool = False, exclusive: bool = False,
-                arguments: dict = None, consumer_tag=None, timeout=None) -> Generator[Any, None, ConsumerTag]:
+    def consume(self, callback: FunctionType, no_ack: bool=False, exclusive: bool=False,
+                arguments: dict=None, consumer_tag=None, timeout=None) -> Generator[Any, None, ConsumerTag]:
 
         kwargs = dict(
             callback=callback,

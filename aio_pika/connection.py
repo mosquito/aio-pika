@@ -40,9 +40,9 @@ class Connection:
 
     CHANNEL_CLASS = Channel
 
-    def __init__(self, host: str = 'localhost', port: int = 5672, login: str = 'guest',
+    def __init__(self, host: str = 'localhost', port: int=5672, login: str = 'guest',
                  password: str = 'guest', virtual_host: str = '/',
-                 ssl: bool = False, *, loop=None, **kwargs):
+                 ssl: bool=False, *, loop=None, **kwargs):
 
         self.loop = loop if loop else asyncio.get_event_loop()
         self.future_store = FutureStore(loop=self.loop)

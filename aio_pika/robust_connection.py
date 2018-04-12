@@ -31,9 +31,9 @@ class RobustConnection(Connection):
     DEFAULT_RECONNECT_INTERVAL = 1
     CHANNEL_CLASS = RobustChannel
 
-    def __init__(self, host: str = 'localhost', port: int = 5672, login: str = 'guest',
+    def __init__(self, host: str = 'localhost', port: int=5672, login: str = 'guest',
                  password: str = 'guest', virtual_host: str = '/',
-                 ssl: bool = False, *, loop=None, **kwargs):
+                 ssl: bool=False, *, loop=None, **kwargs):
 
         self.reconnect_interval = kwargs.pop('reconnect_interval',
                                              self.DEFAULT_RECONNECT_INTERVAL)

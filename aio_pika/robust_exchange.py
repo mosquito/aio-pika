@@ -14,9 +14,9 @@ class RobustExchange(Exchange):
     """ Exchange abstraction """
 
     def __init__(self, channel: Channel, publish_method, name: str,
-                 type: ExchangeType = ExchangeType.DIRECT, *, auto_delete: Optional[bool],
+                 type: ExchangeType=ExchangeType.DIRECT, *, auto_delete: Optional[bool],
                  durable: Optional[bool], internal: Optional[bool],
-                 passive: Optional[bool], arguments: dict = None,
+                 passive: Optional[bool], arguments: dict=None,
                  loop: asyncio.AbstractEventLoop, future_store: FutureStore):
 
         super().__init__(
@@ -46,7 +46,7 @@ class RobustExchange(Exchange):
             yield from self.bind(exchange, **kwargs)
 
     @asyncio.coroutine
-    def bind(self, exchange, routing_key: str='', *, arguments=None, timeout: int = None):
+    def bind(self, exchange, routing_key: str='', *, arguments=None, timeout: int=None):
         result = yield from super().bind(
             exchange, routing_key=routing_key, arguments=arguments, timeout=timeout
         )
@@ -56,7 +56,7 @@ class RobustExchange(Exchange):
         return result
 
     @asyncio.coroutine
-    def unbind(self, exchange, routing_key: str = '', arguments: dict = None, timeout: int = None):
+    def unbind(self, exchange, routing_key: str = '', arguments: dict=None, timeout: int=None):
         result = yield from super().unbind(exchange, routing_key, arguments=arguments, timeout=timeout)
         self._bindings.pop(exchange, None)
         return result

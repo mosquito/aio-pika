@@ -83,7 +83,7 @@ class RobustChannel(Channel):
         return result
 
     @asyncio.coroutine
-    def set_qos(self, prefetch_count: int = 0, prefetch_size: int = 0, all_channels=False, timeout: int = None):
+    def set_qos(self, prefetch_count: int=0, prefetch_size: int=0, all_channels=False, timeout: int=None):
         if all_channels:
             raise NotImplementedError("Not available to RobustConnection")
 
@@ -108,11 +108,11 @@ class RobustChannel(Channel):
             self._channel = None
 
     @asyncio.coroutine
-    def declare_exchange(self, name: str, type: ExchangeType = ExchangeType.DIRECT,
-                         durable: bool = None, auto_delete: bool = False,
-                         internal: bool = False, passive: bool = False,
-                         arguments: dict = None, timeout: int = None,
-                         robust: bool = True) -> Generator[Any, None, Exchange]:
+    def declare_exchange(self, name: str, type: ExchangeType=ExchangeType.DIRECT,
+                         durable: bool=None, auto_delete: bool=False,
+                         internal: bool=False, passive: bool=False,
+                         arguments: dict=None, timeout: int=None,
+                         robust: bool=True) -> Generator[Any, None, Exchange]:
 
         exchange = yield from super().declare_exchange(
             name=name, type=type, durable=durable, auto_delete=auto_delete,
@@ -126,7 +126,7 @@ class RobustChannel(Channel):
         return exchange
 
     @asyncio.coroutine
-    def exchange_delete(self, exchange_name: str, timeout: int = None, if_unused=False, nowait=False):
+    def exchange_delete(self, exchange_name: str, timeout: int=None, if_unused=False, nowait=False):
         result = yield from super().exchange_delete(
             exchange_name=exchange_name, timeout=timeout,
             if_unused=if_unused, nowait=nowait
@@ -137,10 +137,10 @@ class RobustChannel(Channel):
         return result
 
     @asyncio.coroutine
-    def declare_queue(self, name: str = None, *, durable: bool = None, exclusive: bool = False,
-                      passive: bool = False, auto_delete: bool = False,
-                      arguments: dict = None, timeout: int = None,
-                      robust: bool = True) -> Generator[Any, None, Queue]:
+    def declare_queue(self, name: str=None, *, durable: bool=None, exclusive: bool=False,
+                      passive: bool=False, auto_delete: bool=False,
+                      arguments: dict=None, timeout: int=None,
+                      robust: bool=True) -> Generator[Any, None, Queue]:
 
         queue = yield from super().declare_queue(
             name=name, durable=durable, exclusive=exclusive,
@@ -154,8 +154,8 @@ class RobustChannel(Channel):
         return queue
 
     @asyncio.coroutine
-    def queue_delete(self, queue_name: str, timeout: int = None,
-                     if_unused: bool = False, if_empty: bool = False, nowait: bool = False):
+    def queue_delete(self, queue_name: str, timeout: int=None,
+                     if_unused: bool=False, if_empty: bool=False, nowait: bool=False):
         result = yield from super().queue_delete(
             queue_name=queue_name, timeout=timeout,
             if_unused=if_unused, if_empty=if_empty, nowait=nowait
