@@ -50,6 +50,7 @@ __all__ = (
     'ProbableAuthenticationError',
     'ProtocolSyntaxError',
     'ProtocolVersionMismatch',
+    'QueueEmpty',
     'RecursionError',
     'ShortStringTooLong',
     'TransactionClosed',
