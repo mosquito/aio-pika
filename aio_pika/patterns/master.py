@@ -126,7 +126,7 @@ class Master(Base):
             body=self.serialize(kwargs or {}),
             content_type=self.CONTENT_TYPE,
             delivery_mode=self.DELIVERY_MODE,
-            **message_kwargs,
+            **message_kwargs
         )
 
         yield from self.channel.default_exchange.publish(
