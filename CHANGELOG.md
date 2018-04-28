@@ -1,3 +1,8 @@
+2.7.0
+-----
+
+* Add `message_kwargs` for worker pattern
+
 2.6.0
 -----
 
