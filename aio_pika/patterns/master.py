@@ -120,12 +120,13 @@ class Master(Base):
         return Worker(queue, consumer_tag, self.loop)
 
     @asyncio.coroutine
-    def create_task(self, channel_name: str, kwargs=None):
+    def create_task(self, channel_name: str, kwargs=None, **message_kwargs):
         """ Creates a new task for the worker """
         message = Message(
             body=self.serialize(kwargs or {}),
             content_type=self.CONTENT_TYPE,
-            delivery_mode=self.DELIVERY_MODE
+            delivery_mode=self.DELIVERY_MODE,
+            **message_kwargs,
         )
 
         yield from self.channel.default_exchange.publish(
