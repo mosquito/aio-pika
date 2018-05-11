@@ -198,7 +198,7 @@ necessary as publishing to a non-existing exchange is forbidden.
 The messages will be lost if no queue is bound to the exchange yet, but that's okay for
 us; if no consumer is listening yet we can safely discard the message.
 
-The code for :download:`emit_log.py <examples/3-publish-subscribe/receive_logs.py>` script:
+The code for :download:`receive_logs.py <examples/3-publish-subscribe/receive_logs.py>` script:
 
 .. literalinclude:: examples/3-publish-subscribe/receive_logs.py
    :language: python
