@@ -148,7 +148,10 @@ def connect_robust(url: str=None, *, host: str='localhost',
                    port: int=5672, login: str='guest',
                    password: str='guest', virtualhost: str='/',
                    ssl: bool=False, loop=None,
-                   connection_class=RobustConnection, **kwargs) -> Generator[Any, None, Connection]:
+                   ssl_options: dict=None,
+                   connection_class=RobustConnection,
+                   **kwargs) -> Generator[Any, None, Connection]:
+
     """ Make robust connection to the broker.
 
     That means that connection state will be restored after reconnect.
@@ -173,28 +176,47 @@ def connect_robust(url: str=None, *, host: str='localhost',
         async def main():
             connection = await aio_pika.connect_robust()
 
+    .. note::
 
-    :param url: `RFC3986`_ formatted broker address. When :class:`None` will be used keyword arguments.
+        The available keys for ssl_options parameter are:
+            * cert_reqs
+            * certfile
+            * keyfile
+            * ssl_version
+
+        For an information on what the ssl_options can be set to reference the
+        `official Python documentation`_.
+
+        .. _official Python documentation: http://docs.python.org/3/library/ssl.html
+
+    :param url: `RFC3986`_ formatted broker address. When :class:`None` \
+                will be used keyword arguments.
     :param host: hostname of the broker
     :param port: broker port 5672 by default
-    :param login:
-        username string. `'guest'` by default. Provide empty string for pika.credentials.ExternalCredentials usage.
+    :param login: username string. `'guest'` by default. Provide empty string \
+                  for pika.credentials.ExternalCredentials usage.
     :param password: password string. `'guest'` by default.
     :param virtualhost: virtualhost parameter. `'/'` by default
-    :param ssl: use SSL for connection. Should be used with addition kwargs. See `pika documentation`_ for more info.
-    :param loop: Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
+    :param ssl: use SSL for connection. Should be used with addition kwargs. \
+                See `pika documentation`_ for more info.
+    :param ssl_options: A dict of values for the SSL connection.
+    :param loop: Event loop (:func:`asyncio.get_event_loop()` \
+                 when :class:`None`)
     :param connection_class: Factory of a new connection
-    :param kwargs: addition parameters which will be passed to the pika connection.
+    :param kwargs: addition parameters which will be passed to \
+                   the pika connection.
     :return: :class:`aio_pika.connection.Connection`
 
     .. _RFC3986: https://tools.ietf.org/html/rfc3986
     .. _pika documentation: https://goo.gl/TdVuZ9
+
     """
     return (
         yield from connect(
             url=url, host=host, port=port, login=login,
             password=password, virtualhost=virtualhost, ssl=ssl,
-            loop=loop, connection_class=connection_class, **kwargs
+            loop=loop, connection_class=connection_class,
+            ssl_options=ssl_options, **kwargs
         )
     )
 
