@@ -345,6 +345,9 @@ def connect(url: str=None, *, host: str='localhost',
 
         .. _official Python documentation: http://docs.python.org/3/library/ssl.html
 
+    URL string might be contain ssl parameters e.g.
+    `amqps://user:password@10.0.0.1//?ca_certs=ca.pem&certfile=cert.pem&keyfile=key.pem`
+
     :param url: `RFC3986`_ formatted broker address. When :class:`None` \
                 will be used keyword arguments.
     :param host: hostname of the broker
