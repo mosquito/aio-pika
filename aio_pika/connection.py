@@ -245,9 +245,9 @@ class Connection:
 
         :param channel_number: specify the channel number explicit
         :param publisher_confirms:
-            if `True` the :method:`aio_pika.Exchange.publish` method will be return
+            if `True` the :func:`aio_pika.Exchange.publish` method will be return
             :class:`bool` after publish is complete. Otherwise the
-            :method:`aio_pika.Exchange.publish` method will be return :class:`None`
+            :func:`aio_pika.Exchange.publish` method will be return :class:`None`
         :param on_return_raises:
             raise an :class:`aio_pika.exceptions.UnroutableError`
             when mandatory message will be returned
@@ -300,8 +300,9 @@ class Connection:
 def connect(url: str=None, *, host: str='localhost',
             port: int=5672, login: str='guest',
             password: str='guest', virtualhost: str='/',
-            ssl: bool=False, loop=None, connection_class=Connection, **kwargs) -> Generator[Any, None, Connection]:
-    """ Make connection to the broker
+            ssl: bool=False, loop=None, ssl_options: dict=None,
+            connection_class=Connection, **kwargs) -> Generator[Any, None, Connection]:
+    """ Make connection to the broker.
 
     Example:
 
@@ -323,23 +324,43 @@ def connect(url: str=None, *, host: str='localhost',
         async def main():
             connection = await aio_pika.connect()
 
-    :param url: `RFC3986`_ formatted broker address. When :class:`None` will be used keyword arguments.
+    .. note::
+
+        The available keys for ssl_options parameter are:
+            * cert_reqs
+            * certfile
+            * keyfile
+            * ssl_version
+
+        For an information on what the ssl_options can be set to reference the
+        `official Python documentation`_.
+
+        .. _official Python documentation: http://docs.python.org/3/library/ssl.html
+
+    :param url: `RFC3986`_ formatted broker address. When :class:`None` \
+                will be used keyword arguments.
     :param host: hostname of the broker
     :param port: broker port 5672 by default
-    :param login:
-        username string. `'guest'` by default. Provide empty string for pika.credentials.ExternalCredentials usage.
+    :param login: username string. `'guest'` by default. Provide empty string \
+                  for pika.credentials.ExternalCredentials usage.
     :param password: password string. `'guest'` by default.
     :param virtualhost: virtualhost parameter. `'/'` by default
-    :param ssl: use SSL for connection. Should be used with addition kwargs. See `pika documentation`_ for more info.
-    :param loop: Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
+    :param ssl: use SSL for connection. Should be used with addition kwargs. \
+                See `pika documentation`_ for more info.
+    :param ssl_options: A dict of values for the SSL connection.
+    :param loop: Event loop (:func:`asyncio.get_event_loop()` \
+                 when :class:`None`)
     :param connection_class: Factory of a new connection
-    :param kwargs: addition parameters which will be passed to the pika connection.
+    :param kwargs: addition parameters which will be passed to \
+                   the pika connection.
     :return: :class:`aio_pika.connection.Connection`
 
     .. _RFC3986: https://tools.ietf.org/html/rfc3986
     .. _pika documentation: https://goo.gl/TdVuZ9
 
     """
+
+    ssl_options = ssl_options or {}
 
     if url:
         url = URL(str(url))
@@ -349,9 +370,26 @@ def connect(url: str=None, *, host: str='localhost',
         password = url.password or password
         virtualhost = url.path[1:] if len(url.path) > 1 else virtualhost
 
+        ssl_keys = (
+            'ca_certs',
+            'cert_reqs',
+            'certfile',
+            'keyfile',
+            'ssl_version',
+        )
+
+        for key in ssl_keys:
+            if key not in url.query:
+                continue
+
+            ssl_options[key] = url.query[key]
+
+        ssl = bool(ssl_options)
+
     connection = connection_class(
         host=host, port=port, login=login, password=password,
-        virtual_host=virtualhost, ssl=ssl, loop=loop, **kwargs
+        virtual_host=virtualhost, ssl=ssl, loop=loop,
+        ssl_options=ssl_options, **kwargs
     )
 
     yield from connection.connect()
