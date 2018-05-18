@@ -1,3 +1,9 @@
+2.8.0
+-----
+
+* ssl_options for coonect and connect_robust
+* default ports for `amqp` and `amqps`
+
 2.7.1
 -----
 
