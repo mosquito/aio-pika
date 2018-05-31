@@ -261,7 +261,6 @@ class Channel(BaseChannel):
             yield from queue.declare(timeout, passive=passive)
             return queue
 
-    @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
     def close(self) -> None:
         if not self._channel:
