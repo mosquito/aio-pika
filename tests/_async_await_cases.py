@@ -1,4 +1,4 @@
-from aio_pika import Message
+from aio_pika import Message, Channel
 from .test_amqp import TestCase
 
 
@@ -116,3 +116,12 @@ async def test_async_connection_context(self: TestCase):
 
         self.assertSequenceEqual(data, list(map(lambda x: str(x).encode(), range(messages))))
     self.assertTrue(channel2.is_closed)
+
+
+async def test_async_channel_context(self: TestCase):
+    conn = await self.create_connection()
+
+    async with conn.channel() as channel:
+        self.assertTrue(isinstance(channel, Channel))
+
+    self.assertTrue(channel.is_closed)

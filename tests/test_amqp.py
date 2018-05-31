@@ -1208,6 +1208,11 @@ class TestCase(BaseTestCase):
         from ._async_await_cases import test_async_connection_context as func
         return func(self)
 
+    @skip_for_py34
+    def test_async_with_channel(self):
+        from ._async_await_cases import test_async_channel_context as func
+        return func(self)
+
 
 class MessageTestCase(unittest.TestCase):
     def test_message_copy(self):

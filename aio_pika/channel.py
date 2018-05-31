@@ -85,6 +85,20 @@ class Channel(BaseChannel):
     def __repr__(self):
         return '<%s "%s#%s">' % (self.__class__.__name__, self._connection, self)
 
+    def __iter__(self):
+        yield from self.initialize()
+        return self
+
+    __await__ = __iter__
+
+    @asyncio.coroutine
+    def __aenter__(self):
+        return self
+
+    @asyncio.coroutine
+    def __aexit__(self, exc_type, exc_val, exc_tb):
+        yield from self.close()
+
     def _on_channel_close(self, channel: pika.channel.Channel, code: int, reason):
         # In case of normal closing, closing code should be unaltered (0 by default)
         # See: https://github.com/pika/pika/blob/8d970e1/pika/channel.py#L84
@@ -133,6 +147,7 @@ class Channel(BaseChannel):
         )
 
         channel = yield from future  # type: pika.channel.Channel
+
         if self._publisher_confirms:
             channel.confirm_delivery(self._on_delivery_confirmation)
 
@@ -151,6 +166,7 @@ class Channel(BaseChannel):
                 raise RuntimeError("Can't initialize closed channel")
 
             self._channel = yield from self._create_channel(timeout)
+            self._connection._on_channel_open(self)
             self._delivery_tag = 0
 
     def _on_return_delivery(self, channel, method_frame, properties, body):
@@ -330,10 +346,6 @@ class Channel(BaseChannel):
         )
 
         return tx
-
-    def __del__(self):
-        with suppress(Exception):
-            self.loop.create_task(self.close())
 
 
 __all__ = ('Channel',)
