@@ -1,3 +1,8 @@
+2.8.3
+-----
+
+* BUGFIX: ChannelClosed exception was never retrieved
+
 2.8.2
 -----
 
