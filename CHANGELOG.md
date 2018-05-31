@@ -1,3 +1,8 @@
+2.8.2
+-----
+
+* BUGFIX: handle coroutine double wrapping for Python 3.4
+
 2.8.1
 -----
 
