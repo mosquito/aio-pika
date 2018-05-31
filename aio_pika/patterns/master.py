@@ -110,10 +110,14 @@ class Master(Base):
         """ Creates a new :class:`Worker` instance. """
         queue = yield from self.channel.declare_queue(channel_name, **kwargs)
 
+        if hasattr(func, "_is_coroutine"):
+            fn = func
+        else:
+            fn = asyncio.coroutine(func)
         consumer_tag = yield from queue.consume(
             partial(
                 self.on_message,
-                asyncio.coroutine(func)
+                fn
             )
         )
 
