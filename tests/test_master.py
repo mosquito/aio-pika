@@ -30,6 +30,29 @@ class TestCase(BaseTestCase):
         yield from worker.close()
 
     @pytest.mark.asyncio
+    def test_simple_coro(self):
+        channel = yield from self.create_channel()
+        master = Master(channel)
+
+        self.state = []
+
+        @asyncio.coroutine
+        def worker_func(*, foo, bar):
+            self.state.append((foo, bar))
+
+        worker = yield from master.create_worker(
+            'worker.foo', worker_func, auto_delete=True
+        )
+
+        yield from master.proxy.worker.foo(foo=1, bar=2)
+
+        yield from asyncio.sleep(0.5, loop=self.loop)
+
+        self.assertSequenceEqual(self.state, [(1, 2)])
+
+        yield from worker.close()
+
+    @pytest.mark.asyncio
     def test_simple_many(self):
         channel = yield from self.create_channel()
         master = Master(channel)
