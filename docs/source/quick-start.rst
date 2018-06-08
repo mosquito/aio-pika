@@ -15,6 +15,13 @@ Simple publisher
 .. literalinclude:: examples/simple_publisher.py
    :language: python
 
+Asynchronous message processing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: examples/simple_async_consumer.py
+   :language: python
+
+
 Working with RabbitMQ transactions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
