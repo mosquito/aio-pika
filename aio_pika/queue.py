@@ -248,7 +248,7 @@ class Queue(BaseChannel):
         def _on_getempty(method_frame, *a, **kw):
             if fail:
                 f.set_exception(QueueEmpty(method_frame))
-            else:
+            elif not f.cancelled():
                 f.set_result(None)
 
         def _on_getok(channel, envelope, props, body):
