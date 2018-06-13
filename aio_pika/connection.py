@@ -156,6 +156,9 @@ class Connection:
         """
         return (yield from self._closing)
 
+    def _on_channel_open(self, channel: Channel):
+        self._channels[channel.number] = channel
+
     def _channel_cleanup(self, channel: pika.channel.Channel):
         ch = self._channels.pop(channel.channel_number)     # type: Channel
         ch._futures.reject_all(exceptions.ChannelClosed)
@@ -224,7 +227,6 @@ class Connection:
             return result
 
     @_ensure_connection
-    @asyncio.coroutine
     def channel(self, channel_number: int=None, publisher_confirms: bool=True,
                 on_return_raises=False) -> Generator[Any, None, Channel]:
         """ Coroutine which returns new instance of :class:`Channel`.
@@ -251,6 +253,22 @@ class Connection:
                 channel_no_confirms = connection.channel(publisher_confirms=True)
                 await channel_no_confirms.close()
 
+        Also available as an asynchronous context manager:
+
+        .. code-block:: python
+
+            import aio_pika
+
+            async def main(loop):
+                connection = await aio_pika.connect(
+                    "amqp://guest:guest@127.0.0.1/"
+                )
+
+                async with connection.channel() as channel:
+                    # channel is open and available
+
+                # channel is now closed
+
         :param channel_number: specify the channel number explicit
         :param publisher_confirms:
             if `True` the :func:`aio_pika.Exchange.publish` method will be return
@@ -260,20 +278,16 @@ class Connection:
             raise an :class:`aio_pika.exceptions.UnroutableError`
             when mandatory message will be returned
         """
-        with (yield from self.__write_lock):
-            log.debug("Creating AMQP channel for conneciton: %r", self)
+        log.debug("Creating AMQP channel for connection: %r", self)
 
-            channel = self.CHANNEL_CLASS(self, self.loop, self.future_store,
-                                         channel_number=channel_number,
-                                         publisher_confirms=publisher_confirms,
-                                         on_return_raises=on_return_raises)
-            yield from channel.initialize()
+        channel = self.CHANNEL_CLASS(self, self.loop, self.future_store,
+                                     channel_number=channel_number,
+                                     publisher_confirms=publisher_confirms,
+                                     on_return_raises=on_return_raises)
 
-            log.debug("Channel created: %r", channel)
+        log.debug("Channel created: %r", channel)
 
-            self._channels[channel.number] = channel
-
-            return channel
+        return channel
 
     def close(self) -> asyncio.Task:
         """ Close AMQP connection """
