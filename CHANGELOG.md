@@ -1,3 +1,9 @@
+2.9.0
+-----
+
+* prevent `set_results` on cancelled future #133
+* Added asynchronous context manager support for channels #130
+
 2.8.3
 -----
 
