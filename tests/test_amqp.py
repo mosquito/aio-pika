@@ -766,7 +766,7 @@ class TestCase(BaseTestCase):
 
         with self.assertRaises(ProbableAuthenticationError):
             yield from connect(
-                amqp_url,
+                str(amqp_url),
                 loop=self.loop
             )
 

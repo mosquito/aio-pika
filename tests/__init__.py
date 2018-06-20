@@ -42,7 +42,7 @@ class AsyncTestCase(asynctest.TestCase):
 class BaseTestCase(AsyncTestCase):
     @asyncio.coroutine
     def create_connection(self, cleanup=True) -> Generator[Any, None, Connection]:
-        client = yield from connect(AMQP_URL, loop=self.loop)
+        client = yield from connect(str(AMQP_URL), loop=self.loop)
 
         if cleanup:
             self.addCleanup(client.close)

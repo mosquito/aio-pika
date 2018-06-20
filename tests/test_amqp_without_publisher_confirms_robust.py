@@ -10,7 +10,7 @@ from tests.test_amqp_without_publisher_confirms import TestCase as AMQPTestCase
 class TestCase(AMQPTestCase):
     @asyncio.coroutine
     def create_connection(self, cleanup=True):
-        client = yield from connect_robust(AMQP_URL, loop=self.loop)
+        client = yield from connect_robust(str(AMQP_URL), loop=self.loop)
 
         if cleanup:
             self.addCleanup(client.close)
