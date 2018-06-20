@@ -394,6 +394,7 @@ def connect(url: str=None, *, host: str='localhost',
         login = url.user or login
         password = url.password or password
         virtualhost = url.path[1:] if len(url.path) > 1 else virtualhost
+        ssl = url.scheme == 'amqps' or ssl
 
         ssl_keys = (
             'ca_certs',
@@ -409,7 +410,8 @@ def connect(url: str=None, *, host: str='localhost',
 
             ssl_options[key] = url.query[key]
 
-        ssl = bool(ssl_options)
+        if ssl_options:
+            ssl = True
 
     connection = connection_class(
         host=host, port=port, login=login, password=password,
