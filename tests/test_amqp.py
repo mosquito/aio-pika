@@ -9,6 +9,7 @@ import shortuuid
 import time
 import unittest
 from unittest import skipIf
+from unittest.mock import MagicMock
 
 from aio_pika.exceptions import ChannelClosed
 
@@ -1261,3 +1262,18 @@ class MessageTestCase(unittest.TestCase):
         )
 
         self.assertDictEqual(info, msg.info())
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('url,kwargs,exp', [
+    ('amqps://', {}, {'ssl': True}),
+    ('localhost', {'ssl': True}, {'ssl': True}),
+    ('localhost', {'ssl_options': {'ssl_version': '2'}}, {'ssl': True}),
+    ('localhost?ssl_version=2', {}, {'ssl': True}),
+])
+def test_connection_url_params(url, kwargs, exp):
+    connection_mock = MagicMock()
+    yield from connect(url, connection_class=connection_mock, **kwargs)
+    _, mock_kwargs = connection_mock.call_args
+    for item in exp.items():
+        assert item in mock_kwargs.items()
