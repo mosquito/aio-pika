@@ -22,7 +22,7 @@ async def test_async_for_queue(self: TestCase):
 
     channel2 = await self.create_channel(connection=conn)
 
-    queue = await channel2.declare_queue(self.get_random_name("queue", "async", "for"), auto_delete=True)
+    queue = await channel2.declare_queue(self.get_random_name("queue", "is_async", "for"), auto_delete=True)
 
     messages = 100
 
@@ -53,7 +53,7 @@ async def test_async_for_queue_async_context(self: TestCase):
 
     channel2 = await self.create_channel(connection=conn)
 
-    queue = await channel2.declare_queue(self.get_random_name("queue", "async", "for"), auto_delete=True)
+    queue = await channel2.declare_queue(self.get_random_name("queue", "is_async", "for"), auto_delete=True)
 
     messages = 100
 
@@ -87,7 +87,7 @@ async def test_async_connection_context(self: TestCase):
 
         channel2 = await self.create_channel(connection=conn, cleanup=False)
 
-        queue = await channel2.declare_queue(self.get_random_name("queue", "async", "for"), auto_delete=True)
+        queue = await channel2.declare_queue(self.get_random_name("queue", "is_async", "for"), auto_delete=True)
 
         messages = 100
 

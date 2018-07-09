@@ -34,6 +34,7 @@ class TestCase(BaseTestCase):
         # Close already closed
         yield from rpc.close()
 
+    @asyncio.coroutine
     def test_error(self):
         channel = yield from self.create_channel()
         rpc = yield from RPC.create(channel, auto_delete=True)
@@ -46,6 +47,7 @@ class TestCase(BaseTestCase):
         yield from rpc.unregister(rpc_func)
         yield from rpc.close()
 
+    @asyncio.coroutine
     def test_unroutable(self):
         channel = yield from self.create_channel()
         rpc = yield from RPC.create(channel, auto_delete=True)
@@ -58,6 +60,7 @@ class TestCase(BaseTestCase):
         yield from rpc.unregister(rpc_func)
         yield from rpc.close()
 
+    @asyncio.coroutine
     def test_timed_out(self):
         channel = yield from self.create_channel()
         rpc = yield from RPC.create(channel, auto_delete=True)
@@ -76,6 +79,7 @@ class TestCase(BaseTestCase):
         yield from rpc.unregister(rpc_func)
         yield from rpc.close()
 
+    @asyncio.coroutine
     def test_close_twice(self):
         channel = yield from self.create_channel()
         rpc = yield from RPC.create(channel, auto_delete=True)
@@ -83,6 +87,7 @@ class TestCase(BaseTestCase):
         yield from rpc.close()
         yield from rpc.close()
 
+    @asyncio.coroutine
     def test_init_twice(self):
         channel = yield from self.create_channel()
         rpc = yield from RPC.create(channel, auto_delete=True)
@@ -91,6 +96,7 @@ class TestCase(BaseTestCase):
 
         yield from rpc.close()
 
+    @asyncio.coroutine
     def test_send_unknown_message(self):
         channel = yield from self.create_channel()
         rpc = yield from RPC.create(channel, auto_delete=True)
@@ -115,6 +121,7 @@ class TestCase(BaseTestCase):
 
         yield from rpc.close()
 
+    @asyncio.coroutine
     def test_close_cancelling(self):
         channel = yield from self.create_channel()
         rpc = yield from RPC.create(channel, auto_delete=True)
@@ -136,6 +143,7 @@ class TestCase(BaseTestCase):
             with self.assertRaises(asyncio.CancelledError):
                 yield from task
 
+    @asyncio.coroutine
     def test_register_twice(self):
         channel = yield from self.create_channel()
         rpc = yield from RPC.create(channel, auto_delete=True)

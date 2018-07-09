@@ -36,7 +36,6 @@ setup(
     packages=find_packages(exclude=['tests']),
     install_requires=[
         'shortuuid',
-        'pika==0.10.0',
         'yarl',
     ],
     python_requires=">3.4.*, <4",
@@ -47,7 +46,6 @@ setup(
             'coveralls',
             'pylama',
             'pytest',
-            'pytest-asyncio<0.6',
             'pytest-cov',
             'sphinx',
             'sphinx-autobuild',

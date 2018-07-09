@@ -5,8 +5,8 @@ from logging import getLogger
 from pprint import pformat
 from typing import Union, Optional
 
-from pika import BasicProperties
-from pika.channel import Channel
+from aio_pika.pika import BasicProperties
+from aio_pika.pika.channel import Channel
 from contextlib import contextmanager
 from .exceptions import MessageProcessError
 

@@ -3,7 +3,7 @@ from enum import Enum, unique
 from logging import getLogger
 from typing import Optional, Union
 
-from pika.channel import Channel
+from aio_pika.pika.channel import Channel
 from .common import BaseChannel, FutureStore
 from .message import Message
 from .tools import create_future

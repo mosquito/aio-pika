@@ -30,6 +30,7 @@ class TestCase(AMQPTestCase):
         return channel
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_set_qos(self):
         channel = yield from self.create_channel()
         yield from channel.set_qos(prefetch_count=1)

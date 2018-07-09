@@ -4,10 +4,10 @@ from contextlib import suppress
 from functools import wraps, partial
 from typing import Callable, Any, Generator
 
-import pika.channel
-from pika import ConnectionParameters
-from pika.credentials import ExternalCredentials, PlainCredentials
-from pika.spec import REPLY_SUCCESS
+from .pika.channel import Channel as PikaChannel
+from .pika import ConnectionParameters
+from .pika.credentials import ExternalCredentials, PlainCredentials
+from .pika.spec import REPLY_SUCCESS
 from yarl import URL
 from . import exceptions
 from .channel import Channel
@@ -95,7 +95,7 @@ class Connection:
 
             import aio_pika
 
-            async def main():
+            is_async def main():
                 connection = await aio_pika.connect(
                     "amqp://guest:guest@127.0.0.1/"
                 )
@@ -141,11 +141,11 @@ class Connection:
 
             import aio_pika
 
-            async def async_close(connection):
+            is_async def async_close(connection):
                 await asyncio.sleep(2)
                 await connection.close()
 
-            async def main(loop):
+            is_async def main(loop):
                 connection = await aio_pika.connect(
                     "amqp://guest:guest@127.0.0.1/"
                 )
@@ -159,7 +159,7 @@ class Connection:
     def _on_channel_open(self, channel: Channel):
         self._channels[channel.number] = channel
 
-    def _channel_cleanup(self, channel: pika.channel.Channel):
+    def _channel_cleanup(self, channel: PikaChannel):
         ch = self._channels.pop(channel.channel_number)     # type: Channel
         ch._futures.reject_all(exceptions.ChannelClosed)
 
@@ -185,7 +185,7 @@ class Connection:
 
         future.set_exception(exc)
 
-    def _on_channel_cancel(self, channel: pika.channel.Channel):
+    def _on_channel_cancel(self, channel: PikaChannel):
         ch = self._channels.pop(channel.channel_number)     # type: Channel
         ch._futures.reject_all(exceptions.ChannelClosed)
 
@@ -237,7 +237,7 @@ class Connection:
 
             import aio_pika
 
-            async def main(loop):
+            is_async def main(loop):
                 connection = await aio_pika.connect(
                     "amqp://guest:guest@127.0.0.1/"
                 )
@@ -259,12 +259,12 @@ class Connection:
 
             import aio_pika
 
-            async def main(loop):
+            is_async def main(loop):
                 connection = await aio_pika.connect(
                     "amqp://guest:guest@127.0.0.1/"
                 )
 
-                async with connection.channel() as channel:
+                is_async with connection.channel() as channel:
                     # channel is open and available
 
                 # channel is now closed
@@ -332,7 +332,7 @@ def connect(url: str=None, *, host: str='localhost',
 
         import aio_pika
 
-        async def main():
+        is_async def main():
             connection = await aio_pika.connect(
                 "amqp://guest:guest@127.0.0.1/"
             )
@@ -343,7 +343,7 @@ def connect(url: str=None, *, host: str='localhost',
 
         import aio_pika
 
-        async def main():
+        is_async def main():
             connection = await aio_pika.connect()
 
     .. note::

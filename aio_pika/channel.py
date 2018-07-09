@@ -1,10 +1,10 @@
 import asyncio
 from typing import Callable, Any, Generator, Union
 
-import pika.channel
 from logging import getLogger
 from types import FunctionType
 
+from aio_pika.pika.spec import BasicProperties, Channel as PikaChannel
 from . import exceptions
 from .common import BaseChannel, FutureStore, ConfirmationTypes
 from .compat import Awaitable
@@ -98,7 +98,7 @@ class Channel(BaseChannel):
     def __aexit__(self, exc_type, exc_val, exc_tb):
         yield from self.close()
 
-    def _on_channel_close(self, channel: pika.channel.Channel, code: int, reason):
+    def _on_channel_close(self, channel: PikaChannel, code: int, reason):
         # In case of normal closing, closing code should be unaltered (0 by default)
         # See: https://github.com/pika/pika/blob/8d970e1/pika/channel.py#L84
         exc = exceptions.ChannelClosed(code, reason)
@@ -218,7 +218,7 @@ class Channel(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     @asyncio.coroutine
-    def _publish(self, queue_name, routing_key, body, properties: pika.BasicProperties, mandatory, immediate):
+    def _publish(self, queue_name, routing_key, body, properties: BasicProperties, mandatory, immediate):
         with (yield from self._write_lock):
             while self._connection.is_closed:
                 log.debug("Can't publish message because connection is inactive")

@@ -3,8 +3,8 @@ from functools import wraps
 from logging import getLogger
 from typing import Callable, Generator, Any
 
-import pika.channel
-from pika.exceptions import ChannelClosed
+from aio_pika.pika.channel import Channel as PikaChannel
+from .pika.exceptions import ChannelClosed
 
 from .adapter import AsyncioConnection
 from .exceptions import ProbableAuthenticationError
@@ -91,18 +91,18 @@ class RobustConnection(Connection):
             lambda: self.loop.create_task(self.connect())
         )
 
-    def _channel_cleanup(self, channel: pika.channel.Channel):
+    def _channel_cleanup(self, channel: PikaChannel):
         ch = self._channels[channel.channel_number]     # type: RobustChannel
         ch._futures.reject_all(ChannelClosed)
 
         if ch._closed:
             self._channels.pop(channel.channel_number)  # type: RobustChannel
 
-    def _on_channel_error(self, channel: pika.channel.Channel):
+    def _on_channel_error(self, channel: PikaChannel):
         log.error("Channel closed: %s. Will attempt to reconnect", channel)
         channel.connection.close(reply_code=500, reply_text="Channel canceled")
 
-    def _on_channel_cancel(self, channel: pika.channel.Channel):
+    def _on_channel_cancel(self, channel: PikaChannel):
         log.debug("Channel canceled: %s", channel)
         self._on_channel_error(channel)
 
@@ -164,7 +164,7 @@ def connect_robust(url: str=None, *, host: str='localhost',
 
         import aio_pika
 
-        async def main():
+        is_async def main():
             connection = await aio_pika.connect_robust("amqp://guest:guest@127.0.0.1/")
 
     Connect to localhost with default credentials:
@@ -173,7 +173,7 @@ def connect_robust(url: str=None, *, host: str='localhost',
 
         import aio_pika
 
-        async def main():
+        is_async def main():
             connection = await aio_pika.connect_robust()
 
     .. note::
