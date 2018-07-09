@@ -318,7 +318,7 @@ class Queue(BaseChannel):
 
     if not PY35:
         def __iter__(self) -> 'QueueIterator':
-            """ Return the :class:`QueueIterator` which might be used with `is_async for` syntax
+            """ Return the :class:`QueueIterator` which might be used with `async for` syntax
             before use it we are strongly recommended call :method:`set_qos` with argument `1`. """
             iterator = self.iterator()
             self.loop.create_task(iterator.consume())
@@ -329,7 +329,7 @@ class Queue(BaseChannel):
             return self.iterator()
 
     def iterator(self) -> 'QueueIterator':
-        """ Returns an iterator for is_async for expression.
+        """ Returns an iterator for async for expression.
 
         Full example:
 
@@ -337,36 +337,36 @@ class Queue(BaseChannel):
 
             import aio_pika
 
-            is_async def main():
+            async def main():
                 connection = await aio_pika.connect()
 
-                is_async with connection:
+                async with connection:
                     channel = await connection.channel()
 
                     queue = await channel.declare_queue('test')
 
-                    is_async with queue.iterator() as q:
-                        is_async for message in q:
+                    async with queue.iterator() as q:
+                        async for message in q:
                             print(message.body)
 
         When your program runs with run_forever the iterator will be closed
         in background. In this case the context processor for iterator might
-        be skipped and the queue might be used in the "is_async for"
+        be skipped and the queue might be used in the "async for"
         expression directly.
 
         .. code-block:: python
 
             import aio_pika
 
-            is_async def main():
+            async def main():
                 connection = await aio_pika.connect()
 
-                is_async with connection:
+                async with connection:
                     channel = await connection.channel()
 
                     queue = await channel.declare_queue('test')
 
-                    is_async for message in queue:
+                    async for message in queue:
                         print(message.body)
 
         :return: QueueIterator

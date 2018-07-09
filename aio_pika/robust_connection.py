@@ -164,7 +164,7 @@ def connect_robust(url: str=None, *, host: str='localhost',
 
         import aio_pika
 
-        is_async def main():
+        async def main():
             connection = await aio_pika.connect_robust("amqp://guest:guest@127.0.0.1/")
 
     Connect to localhost with default credentials:
@@ -173,7 +173,7 @@ def connect_robust(url: str=None, *, host: str='localhost',
 
         import aio_pika
 
-        is_async def main():
+        async def main():
             connection = await aio_pika.connect_robust()
 
     .. note::

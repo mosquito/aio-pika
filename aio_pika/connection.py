@@ -95,7 +95,7 @@ class Connection:
 
             import aio_pika
 
-            is_async def main():
+            async def main():
                 connection = await aio_pika.connect(
                     "amqp://guest:guest@127.0.0.1/"
                 )
@@ -141,11 +141,11 @@ class Connection:
 
             import aio_pika
 
-            is_async def async_close(connection):
+            async def async_close(connection):
                 await asyncio.sleep(2)
                 await connection.close()
 
-            is_async def main(loop):
+            async def main(loop):
                 connection = await aio_pika.connect(
                     "amqp://guest:guest@127.0.0.1/"
                 )
@@ -237,7 +237,7 @@ class Connection:
 
             import aio_pika
 
-            is_async def main(loop):
+            async def main(loop):
                 connection = await aio_pika.connect(
                     "amqp://guest:guest@127.0.0.1/"
                 )
@@ -259,12 +259,12 @@ class Connection:
 
             import aio_pika
 
-            is_async def main(loop):
+            async def main(loop):
                 connection = await aio_pika.connect(
                     "amqp://guest:guest@127.0.0.1/"
                 )
 
-                is_async with connection.channel() as channel:
+                async with connection.channel() as channel:
                     # channel is open and available
 
                 # channel is now closed
@@ -332,7 +332,7 @@ def connect(url: str=None, *, host: str='localhost',
 
         import aio_pika
 
-        is_async def main():
+        async def main():
             connection = await aio_pika.connect(
                 "amqp://guest:guest@127.0.0.1/"
             )
@@ -343,7 +343,7 @@ def connect(url: str=None, *, host: str='localhost',
 
         import aio_pika
 
-        is_async def main():
+        async def main():
             connection = await aio_pika.connect()
 
     .. note::
