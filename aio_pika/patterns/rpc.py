@@ -129,7 +129,7 @@ class RPC(Base):
     def create(cls, channel: Channel, **kwargs) -> "RPC":
         """ Creates a new instance of :class:`aio_pika.patterns.RPC`.
         You should use this method instead of :func:`__init__`,
-        because :func:`create` returns coroutine and makes async initialize
+        because :func:`create` returns coroutine and makes is_async initialize
 
         :param channel: initialized instance of :class:`aio_pika.Channel`
         :returns: :class:`RPC`

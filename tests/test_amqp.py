@@ -24,11 +24,12 @@ from . import BaseTestCase, AMQP_URL
 
 
 log = logging.getLogger(__name__)
-skip_for_py34 = skipIf(version_info < (3, 5), "async/await syntax supported only for python 3.5+")
+skip_for_py34 = skipIf(version_info < (3, 5), "is_async/await syntax supported only for python 3.5+")
 
 
 class TestCase(BaseTestCase):
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_channel_close(self):
         client = yield from self.create_connection()
 
@@ -55,6 +56,7 @@ class TestCase(BaseTestCase):
         yield from self.create_channel(connection=client)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_delete_queue_and_exchange(self):
         queue_name = self.get_random_name("test_connection")
         exchange = self.get_random_name()
@@ -67,6 +69,7 @@ class TestCase(BaseTestCase):
         yield from channel.exchange_delete(exchange)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_temporary_queue(self):
         channel = yield from self.create_channel()
         queue = yield from channel.declare_queue(auto_delete=True)
@@ -84,6 +87,7 @@ class TestCase(BaseTestCase):
         yield from channel.queue_delete(queue.name)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_internal_exchange(self):
         client = yield from self.create_connection()
 
@@ -111,6 +115,7 @@ class TestCase(BaseTestCase):
         yield from queue.unbind(exchange, routing_key)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_declare_exchange_with_passive_flag(self):
         client = yield from self.create_connection()
 
@@ -129,6 +134,7 @@ class TestCase(BaseTestCase):
         yield from self.declare_exchange(exchange_name, auto_delete=False, passive=True, channel=channel2)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_simple_publish_and_receive(self):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
@@ -158,6 +164,7 @@ class TestCase(BaseTestCase):
         yield from queue.unbind(exchange, routing_key)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_simple_publish_without_confirm(self):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
@@ -187,6 +194,7 @@ class TestCase(BaseTestCase):
         yield from queue.unbind(exchange, routing_key)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_simple_publish_and_receive_delivery_mode_explicitly_none(self):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
@@ -216,6 +224,7 @@ class TestCase(BaseTestCase):
         yield from queue.unbind(exchange, routing_key)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_simple_publish_and_receive_to_bound_exchange(self):
         routing_key = self.get_random_name()
         src_name = self.get_random_name("source", "exchange")
@@ -249,6 +258,7 @@ class TestCase(BaseTestCase):
         yield from queue.unbind(dest_exchange, routing_key)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_incoming_message_info(self):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
@@ -316,6 +326,7 @@ class TestCase(BaseTestCase):
         yield from queue.unbind(exchange, routing_key)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_context_process(self):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
@@ -397,6 +408,7 @@ class TestCase(BaseTestCase):
         yield from queue.unbind(exchange, routing_key)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_context_process_redelivery(self):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
@@ -438,6 +450,7 @@ class TestCase(BaseTestCase):
         yield from queue.unbind(exchange, routing_key)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_no_ack_redelivery(self):
         client = yield from self.create_connection()
 
@@ -477,6 +490,7 @@ class TestCase(BaseTestCase):
         yield from queue.unbind(exchange, routing_key)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_ack_multiple(self):
         client = yield from self.create_connection()
 
@@ -515,6 +529,7 @@ class TestCase(BaseTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_ack_twice(self):
         client = yield from self.create_connection()
 
@@ -549,6 +564,7 @@ class TestCase(BaseTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_reject_twice(self):
         client = yield from self.create_connection()
 
@@ -583,6 +599,7 @@ class TestCase(BaseTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_consuming(self):
         client = yield from self.create_connection()
 
@@ -624,6 +641,7 @@ class TestCase(BaseTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_consuming_not_coroutine(self):
         client = yield from self.create_connection()
 
@@ -664,6 +682,7 @@ class TestCase(BaseTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_ack_reject(self):
         client = yield from self.create_connection()
 
@@ -726,6 +745,7 @@ class TestCase(BaseTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_purge_queue(self):
         queue_name = self.get_random_name("test_connection4")
         routing_key = self.get_random_name()
@@ -756,11 +776,13 @@ class TestCase(BaseTestCase):
             yield from queue.delete()
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_connection_refused(self):
         with self.assertRaises(ConnectionRefusedError):
             yield from connect('amqp://guest:guest@localhost:9999', loop=self.loop)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_wrong_credentials(self):
         amqp_url = AMQP_URL.with_user(uuid.uuid4().hex).with_password(uuid.uuid4().hex)
 
@@ -771,17 +793,20 @@ class TestCase(BaseTestCase):
             )
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_set_qos(self):
         channel = yield from self.create_channel()
         yield from channel.set_qos(prefetch_count=1, all_channels=True)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_exchange_delete(self):
         channel = yield from self.create_channel()
         exchange = yield from channel.declare_exchange("test", auto_delete=True)
         yield from exchange.delete()
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_dlx(self):
         suffix = self.get_random_name()
         routing_key = "%s_routing_key" % suffix
@@ -846,6 +871,7 @@ class TestCase(BaseTestCase):
             yield from dlx_exchange.delete()
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_connection_close(self):
         client = yield from self.create_connection()
 
@@ -868,6 +894,7 @@ class TestCase(BaseTestCase):
             yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_basic_return(self):
         client = yield from self.create_connection()
 
@@ -925,6 +952,7 @@ class TestCase(BaseTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_expiration(self):
         client = yield from self.create_connection()
 
@@ -973,6 +1001,7 @@ class TestCase(BaseTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_add_close_callback(self):
         client = yield from self.create_connection()
 
@@ -987,6 +1016,7 @@ class TestCase(BaseTestCase):
         self.assertEqual(len(shared_list), 1)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_big_message(self):
         client = yield from self.create_connection()
 
@@ -1017,6 +1047,8 @@ class TestCase(BaseTestCase):
         yield from queue.delete()
         yield from wait((client.close(), client.closing), loop=self.loop)
 
+    @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_unexpected_channel_close(self):
         client = yield from self.create_connection()
 
@@ -1027,6 +1059,8 @@ class TestCase(BaseTestCase):
 
         yield from wait((client.close(), client.closing), loop=self.loop)
 
+    @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_declaration_result(self):
         client = yield from self.create_connection()
 
@@ -1039,6 +1073,8 @@ class TestCase(BaseTestCase):
 
         yield from wait((client.close(), client.closing), loop=self.loop)
 
+    @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_declaration_result_with_consumers(self):
         client = yield from self.create_connection()
 
@@ -1056,6 +1092,8 @@ class TestCase(BaseTestCase):
 
         yield from wait((client.close(), client.closing), loop=self.loop)
 
+    @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_declaration_result_with_messages(self):
         client = yield from self.create_connection()
 
@@ -1080,6 +1118,7 @@ class TestCase(BaseTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_queue_empty_exception(self):
 
         client = yield from self.create_connection()
@@ -1106,6 +1145,7 @@ class TestCase(BaseTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_queue_empty_fail_false(self):
 
         client = yield from self.create_connection()
@@ -1120,6 +1160,7 @@ class TestCase(BaseTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_message_nack(self):
 
         client = yield from self.create_connection()
@@ -1145,6 +1186,7 @@ class TestCase(BaseTestCase):
         yield from wait((client.close(), client.closing), loop=self.loop)
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_on_return_raises(self):
         client = yield from self.create_connection()
         queue_name = self.get_random_name("test_on_return_raises")
@@ -1163,12 +1205,14 @@ class TestCase(BaseTestCase):
 
         yield from client.close()
 
+    @pytest.mark.asyncio
     @asyncio.coroutine
     def test_transaction_when_publisher_confirms_error(self):
         channel = yield from self.create_channel(publisher_confirms=True)
         with self.assertRaises(RuntimeError):
             channel.transaction()
 
+    @pytest.mark.asyncio
     @asyncio.coroutine
     def test_transaction_simple_commit(self):
         channel = yield from self.create_channel(publisher_confirms=False)
@@ -1176,6 +1220,7 @@ class TestCase(BaseTestCase):
         yield from tx.select()
         yield from tx.commit()
 
+    @pytest.mark.asyncio
     @asyncio.coroutine
     def test_transaction_simple_rollback(self):
         channel = yield from self.create_channel(publisher_confirms=False)

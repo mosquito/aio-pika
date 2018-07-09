@@ -1,4 +1,4 @@
-from pika.exceptions import (
+from aio_pika.pika.exceptions import (
     ProbableAuthenticationError, AMQPChannelError, AMQPConnectionError, AMQPError,
     ChannelClosed, ChannelError, AuthenticationError, BodyTooLongError, ConnectionClosed, ConsumerCancelled,
     DuplicateConsumerTag, IncompatibleProtocolError, InvalidChannelNumber, InvalidFieldTypeException, InvalidFrameError,

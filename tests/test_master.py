@@ -8,6 +8,7 @@ from tests.test_amqp import BaseTestCase
 class TestCase(BaseTestCase):
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_simple(self):
         channel = yield from self.create_channel()
         master = Master(channel)
@@ -30,6 +31,7 @@ class TestCase(BaseTestCase):
         yield from worker.close()
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_simple_coro(self):
         channel = yield from self.create_channel()
         master = Master(channel)
@@ -53,6 +55,7 @@ class TestCase(BaseTestCase):
         yield from worker.close()
 
     @pytest.mark.asyncio
+    @asyncio.coroutine
     def test_simple_many(self):
         channel = yield from self.create_channel()
         master = Master(channel)

@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from collections import namedtuple
 from logging import getLogger
 from types import FunctionType
@@ -16,6 +17,9 @@ log = getLogger(__name__)
 
 ConsumerTag = str
 DeclarationResult = namedtuple('DeclarationResult', ('message_count', 'consumer_count'))
+
+
+PY35 = sys.version_info >= (3, 5)
 
 
 class Queue(BaseChannel):
@@ -312,21 +316,20 @@ class Queue(BaseChannel):
 
         return future
 
-    def __iter__(self) -> 'QueueIterator':
-        """ Return the :class:`QueueIterator` which might be used with `async for` syntax
-        before use it we are strongly recommended call :method:`set_qos` with argument `1`. """
-        iterator = self.iterator()
-        self.loop.create_task(iterator.consume())
-        return iterator
+    if not PY35:
+        def __iter__(self) -> 'QueueIterator':
+            """ Return the :class:`QueueIterator` which might be used with `is_async for` syntax
+            before use it we are strongly recommended call :method:`set_qos` with argument `1`. """
+            iterator = self.iterator()
+            self.loop.create_task(iterator.consume())
+            return iterator
 
-    @asyncio.coroutine
-    def __aiter__(self) -> 'QueueIterator':
-        iterator = self.iterator()
-        yield from iterator.consume()
-        return iterator
+    if PY35:
+        def __aiter__(self) -> 'QueueIterator':
+            return self.iterator()
 
     def iterator(self) -> 'QueueIterator':
-        """ Returns an iterator for async for expression.
+        """ Returns an iterator for is_async for expression.
 
         Full example:
 
@@ -334,36 +337,36 @@ class Queue(BaseChannel):
 
             import aio_pika
 
-            async def main():
+            is_async def main():
                 connection = await aio_pika.connect()
 
-                async with connection:
+                is_async with connection:
                     channel = await connection.channel()
 
                     queue = await channel.declare_queue('test')
 
-                    async with queue.iterator() as q:
-                        async for message in q:
+                    is_async with queue.iterator() as q:
+                        is_async for message in q:
                             print(message.body)
 
         When your program runs with run_forever the iterator will be closed
         in background. In this case the context processor for iterator might
-        be skipped and the queue might be used in the "async for"
+        be skipped and the queue might be used in the "is_async for"
         expression directly.
 
         .. code-block:: python
 
             import aio_pika
 
-            async def main():
+            is_async def main():
                 connection = await aio_pika.connect()
 
-                async with connection:
+                is_async with connection:
                     channel = await connection.channel()
 
                     queue = await channel.declare_queue('test')
 
-                    async for message in queue:
+                    is_async for message in queue:
                         print(message.body)
 
         :return: QueueIterator
@@ -420,8 +423,6 @@ class QueueIterator:
     def __iter__(self):
         return self
 
-    __aiter__ = asyncio.coroutine(__iter__)
-
     @asyncio.coroutine
     def __next__(self) -> IncomingMessage:
         try:
@@ -430,17 +431,25 @@ class QueueIterator:
             yield from self.close()
             raise
 
-    @asyncio.coroutine
-    def __aenter__(self):
-        if self._consumer_tag is None:
-            yield from self.consume()
-        return self
+    if PY35:
+        def __aiter__(self):
+            return self
 
-    @asyncio.coroutine
-    def __aexit__(self, exc_type, exc_val, exc_tb):
-        yield from self.close()
+        @asyncio.coroutine
+        def __aenter__(self):
+            if self._consumer_tag is None:
+                yield from self.consume()
+            return self
 
-    __anext__ = __next__
+        @asyncio.coroutine
+        def __aexit__(self, exc_type, exc_val, exc_tb):
+            yield from self.close()
+
+        @asyncio.coroutine
+        def __anext__(self):
+            if not self._consumer_tag:
+                yield from self.consume()
+            return (yield from self.__next__())
 
 
 __all__ = 'Queue', 'QueueIterator'
