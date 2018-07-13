@@ -18,10 +18,3 @@
 
 """
 from .base_connection import BaseConnection
-
-TornadoConnection = None
-
-TwistedConnection = None
-TwistedProtocolConnection = None
-
-LibevConnection = None

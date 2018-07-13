@@ -8,24 +8,11 @@ import logging
 import socket
 import ssl
 
-from .. import compat
 from .. import connection
 from .. import exceptions
 
-try:
-    SOL_TCP = socket.SOL_TCP
-except AttributeError:
-    SOL_TCP = 6
 
-
-if compat.PY2:
-    _SOCKET_ERROR = socket.error
-else:
-    # socket.error was deprecated and replaced by OSError in python 3.3
-    _SOCKET_ERROR = OSError
-
-
-LOGGER = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 class BaseConnection(connection.Connection):
@@ -125,12 +112,12 @@ class BaseConnection(connection.Connection):
                                                0, socket.SOCK_STREAM,
                                                socket.IPPROTO_TCP)
                 break
-            except _SOCKET_ERROR as error:
+            except OSError as error:
                 if error.errno == errno.EINTR:
                     continue
 
-                LOGGER.critical('Could not get addresses to use: %s (%s)', error,
-                                self.params.host)
+                log.critical('Could not get addresses to use: %s (%s)', error,
+                             self.params.host)
                 return error
 
         # If the socket is created and connected, continue on
@@ -165,29 +152,29 @@ class BaseConnection(connection.Connection):
 
         """
         if self.connection_state == self.CONNECTION_PROTOCOL:
-            LOGGER.error('Incompatible Protocol Versions')
+            log.error('Incompatible Protocol Versions')
             raise exceptions.IncompatibleProtocolError
         elif self.connection_state == self.CONNECTION_START:
-            LOGGER.error("Socket closed while authenticating indicating a "
+            log.error("Socket closed while authenticating indicating a "
                          "probable authentication error")
             raise exceptions.ProbableAuthenticationError
         elif self.connection_state == self.CONNECTION_TUNE:
-            LOGGER.error("Socket closed while tuning the connection indicating "
+            log.error("Socket closed while tuning the connection indicating "
                          "a probable permission error when accessing a virtual "
                          "host")
             raise exceptions.ProbableAccessDeniedError
         elif self.is_open:
-            LOGGER.warning("Socket closed when connection was open")
+            log.warning("Socket closed when connection was open")
         elif not self.is_closed and not self.is_closing:
-            LOGGER.warning('Unknown state on disconnect: %i',
-                           self.connection_state)
+            log.warning('Unknown state on disconnect: %i',
+                        self.connection_state)
 
     def _cleanup_socket(self):
         """Close the socket cleanly"""
         if self.socket:
             try:
                 self.socket.shutdown(socket.SHUT_RDWR)
-            except _SOCKET_ERROR:
+            except OSError:
                 pass
             self.socket.close()
             self.socket = None
@@ -198,7 +185,7 @@ class BaseConnection(connection.Connection):
         :returns: error string on failure; None on success
         """
         self.socket = socket.socket(sock_addr_tuple[0], socket.SOCK_STREAM, 0)
-        self.socket.setsockopt(SOL_TCP, socket.TCP_NODELAY, 1)
+        self.socket.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
         self.socket.settimeout(self.params.socket_timeout)
 
         # Wrap socket if using SSL
@@ -208,8 +195,8 @@ class BaseConnection(connection.Connection):
         else:
             ssl_text = ""
 
-        LOGGER.info('Connecting to %s:%s%s', sock_addr_tuple[4][0],
-                    sock_addr_tuple[4][1], ssl_text)
+        log.info('Connecting to %s:%s%s', sock_addr_tuple[4][0],
+                 sock_addr_tuple[4][1], ssl_text)
 
         # Connect to the socket
         try:
@@ -218,13 +205,13 @@ class BaseConnection(connection.Connection):
             error = 'Connection to %s:%s failed: timeout' % (
                 sock_addr_tuple[4][0], sock_addr_tuple[4][1]
             )
-            LOGGER.error(error)
+            log.error(error)
             return error
-        except _SOCKET_ERROR as error:
+        except OSError as error:
             error = 'Connection to %s:%s failed: %s' % (sock_addr_tuple[4][0],
                                                         sock_addr_tuple[4][1],
                                                         error)
-            LOGGER.warning(error)
+            log.warning(error)
             return error
 
         # Handle SSL Connection Negotiation
@@ -235,7 +222,7 @@ class BaseConnection(connection.Connection):
                 error = 'SSL connection to %s:%s failed: %s' % (
                     sock_addr_tuple[4][0], sock_addr_tuple[4][1], error
                 )
-                LOGGER.error(error)
+                log.error(error)
                 return error
         # Made it this far
         return None
@@ -296,7 +283,7 @@ class BaseConnection(connection.Connection):
         if self.stop_ioloop_on_close and self.ioloop:
             self.ioloop.stop()
         elif self.WARN_ABOUT_IOLOOP:
-            LOGGER.warning('Connection is closed but not stopping IOLoop')
+            log.warning('Connection is closed but not stopping IOLoop')
 
     def _handle_error(self, error_value):
         """Internal error handling method. Here we expect a socket.error
@@ -309,17 +296,17 @@ class BaseConnection(connection.Connection):
             raise socket.timeout
         error_code = self._get_error_code(error_value)
         if not error_code:
-            LOGGER.critical("Tried to handle an error where no error existed")
+            log.critical("Tried to handle an error where no error existed")
             return
 
         # Ok errors, just continue what we were doing before
         if error_code in self.ERRORS_TO_IGNORE:
-            LOGGER.debug("Ignoring %s", error_code)
+            log.debug("Ignoring %s", error_code)
             return
 
         # Socket is no longer connected, abort
         elif error_code in self.ERRORS_TO_ABORT:
-            LOGGER.error("Fatal Socket Error: %r", error_value)
+            log.error("Fatal Socket Error: %r", error_value)
 
         elif self.params.ssl and isinstance(error_value, ssl.SSLError):
 
@@ -328,11 +315,11 @@ class BaseConnection(connection.Connection):
             elif error_value.args[0] == ssl.SSL_ERROR_WANT_WRITE:
                 self.event_state = self.WRITE
             else:
-                LOGGER.error("SSL Socket error: %r", error_value)
+                log.error("SSL Socket error: %r", error_value)
 
         else:
             # Haven't run into this one yet, log it.
-            LOGGER.error("Socket Error: %s", error_code)
+            log.error("Socket Error: %s", error_code)
 
         # Disconnect from our IOLoop and let Connection know what's up
         self._handle_disconnect()
@@ -353,7 +340,7 @@ class BaseConnection(connection.Connection):
 
         """
         if not self.socket:
-            LOGGER.error('Received events on closed socket: %r', fd)
+            log.error('Received events on closed socket: %r', fd)
             return
 
         if self.socket and (events & self.WRITE):
@@ -365,12 +352,12 @@ class BaseConnection(connection.Connection):
 
         if (self.socket and write_only and (events & self.READ) and
             (events & self.ERROR)):
-            LOGGER.error('BAD libc:  Write-Only but Read+Error. '
+            log.error('BAD libc:  Write-Only but Read+Error. '
                          'Assume socket disconnected.')
             self._handle_disconnect()
 
         if self.socket and (events & self.ERROR):
-            LOGGER.error('Error event %r, %r', events, error)
+            log.error('Error event %r, %r', events, error)
             self._handle_error(error)
 
     def _handle_read(self):
@@ -384,7 +371,7 @@ class BaseConnection(connection.Connection):
                         data = self.socket.recv(self._buffer_size)
 
                     break
-                except _SOCKET_ERROR as error:
+                except OSError as error:
                     if error.errno == errno.EINTR:
                         continue
                     else:
@@ -401,14 +388,14 @@ class BaseConnection(connection.Connection):
                 return 0
             return self._handle_error(error)
 
-        except _SOCKET_ERROR as error:
+        except OSError as error:
             if error.errno in (errno.EAGAIN, errno.EWOULDBLOCK):
                 return 0
             return self._handle_error(error)
 
         # Empty data, should disconnect
         if not data or data == 0:
-            LOGGER.error('Read empty data, calling disconnect')
+            log.error('Read empty data, calling disconnect')
             return self._handle_disconnect()
 
         # Pass the data into our top level frame dispatching method
@@ -426,7 +413,7 @@ class BaseConnection(connection.Connection):
                     try:
                         bw = self.socket.send(frame)
                         break
-                    except _SOCKET_ERROR as error:
+                    except OSError as error:
                         if error.errno == errno.EINTR:
                             continue
                         else:
@@ -434,19 +421,19 @@ class BaseConnection(connection.Connection):
 
                 bytes_written += bw
                 if bw < len(frame):
-                    LOGGER.debug("Partial write, requeing remaining data")
+                    log.debug("Partial write, requeing remaining data")
                     self.outbound_buffer.appendleft(frame[bw:])
                     break
 
         except socket.timeout:
             # Will only come here if the socket is blocking
-            LOGGER.debug("socket timeout, requeuing frame")
+            log.debug("socket timeout, requeuing frame")
             self.outbound_buffer.appendleft(frame)
             self._handle_timeout()
 
-        except _SOCKET_ERROR as error:
+        except OSError as error:
             if error.errno in (errno.EAGAIN, errno.EWOULDBLOCK):
-                LOGGER.debug("Would block, requeuing frame")
+                log.debug("Would block, requeuing frame")
                 self.outbound_buffer.appendleft(frame)
             else:
                 return self._handle_error(error)

@@ -3,10 +3,10 @@ import logging
 
 from . import frame
 
-LOGGER = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
-class HeartbeatChecker(object):
+class HeartbeatChecker:
     """Checks to make sure that our heartbeat is received at the expected
     intervals.
 
@@ -71,7 +71,7 @@ class HeartbeatChecker(object):
 
     def received(self):
         """Called when a heartbeat is received"""
-        LOGGER.debug('Received heartbeat frame')
+        log.debug('Received heartbeat frame')
         self._heartbeat_frames_received += 1
 
     def send_and_check(self):
@@ -80,9 +80,9 @@ class HeartbeatChecker(object):
         been idle too long.
 
         """
-        LOGGER.debug('Received %i heartbeat frames, sent %i',
-                     self._heartbeat_frames_received,
-                     self._heartbeat_frames_sent)
+        log.debug('Received %i heartbeat frames, sent %i',
+                  self._heartbeat_frames_received,
+                  self._heartbeat_frames_sent)
 
         if self.connection_is_idle:
             return self._close_connection()
@@ -105,14 +105,14 @@ class HeartbeatChecker(object):
     def stop(self):
         """Stop the heartbeat checker"""
         if self._timer:
-            LOGGER.debug('Removing timeout for next heartbeat interval')
+            log.debug('Removing timeout for next heartbeat interval')
             self._connection.remove_timeout(self._timer)
             self._timer = None
 
     def _close_connection(self):
         """Close the connection with the AMQP Connection-Forced value."""
-        LOGGER.info('Connection is idle, %i stale byte intervals',
-                    self._idle_byte_intervals)
+        log.info('Connection is idle, %i stale byte intervals',
+                 self._idle_byte_intervals)
         duration = self._max_idle_count * self._interval
         text = HeartbeatChecker._STALE_CONNECTION % duration
         self._connection.close(HeartbeatChecker._CONNECTION_FORCED, text)
@@ -141,7 +141,7 @@ class HeartbeatChecker(object):
         """Send a heartbeat frame on the connection.
 
         """
-        LOGGER.debug('Sending heartbeat frame')
+        log.debug('Sending heartbeat frame')
         self._connection._send_frame(self._new_heartbeat_frame())
         self._heartbeat_frames_sent += 1
 

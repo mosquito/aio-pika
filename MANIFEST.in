@@ -1,3 +1,4 @@
+recursive-include aio_pika *.c *.pyi *.pyx
 recursive-exclude tests *
 recursive-exclude __pycache__ *
 exclude .*

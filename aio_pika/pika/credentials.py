@@ -16,13 +16,39 @@ extend the :class:`~pika.credentials.ExternalCredentials` class implementing
 the required behavior.
 
 """
-from .compat import as_bytes
+import abc
 import logging
+from ..amqp.codec import as_bytes
 
-LOGGER = logging.getLogger(__name__)
+
+log = logging.getLogger(__name__)
 
 
-class PlainCredentials(object):
+class BaseCredentials:
+    TYPE = None
+
+    @abc.abstractmethod
+    def _make_response(self):
+        raise NotImplementedError
+
+    def response_for(self, start):
+        """Validate that this type of authentication is supported
+
+        :param spec.Connection.Start start: Connection.Start method
+        :rtype: tuple(str|None, str|None)
+
+        """
+        if self.TYPE not in as_bytes(start.mechanisms).split():
+            return None, None
+
+        return self._make_response()
+
+    def erase_credentials(self):
+        """Called by Connection when it no longer needs the credentials"""
+        log.debug('Not supported by this Credentials type')
+
+
+class PlainCredentials(BaseCredentials):
     """A credentials object for the default authentication methodology with
     RabbitMQ.
 
@@ -37,7 +63,10 @@ class PlainCredentials(object):
     :param bool erase_on_connect: erase credentials on connect.
 
     """
-    TYPE = 'PLAIN'
+
+    __slots__ = '__username', '__password', 'erase_on_connect'
+
+    TYPE = as_bytes('PLAIN')
 
     def __init__(self, username, password, erase_on_connect=False):
         """Create a new instance of PlainCredentials
@@ -47,58 +76,39 @@ class PlainCredentials(object):
         :param bool erase_on_connect: erase credentials on connect.
 
         """
-        self.username = username
-        self.password = password
+        self.__username = as_bytes(username)
+        self.__password = as_bytes(password)
         self.erase_on_connect = erase_on_connect
 
-    def response_for(self, start):
-        """Validate that this type of authentication is supported
-
-        :param spec.Connection.Start start: Connection.Start method
-        :rtype: tuple(str|None, str|None)
-
-        """
-        if as_bytes(PlainCredentials.TYPE) not in\
-                as_bytes(start.mechanisms).split():
-            return None, None
-        return (PlainCredentials.TYPE,
-                b'\0' + as_bytes(self.username) +
-                b'\0' + as_bytes(self.password))
+    def _make_response(self):
+        return (
+            PlainCredentials.TYPE,
+            b'\0' + self.__username + b'\0' + self.__password
+        )
 
     def erase_credentials(self):
         """Called by Connection when it no longer needs the credentials"""
         if self.erase_on_connect:
-            LOGGER.info("Erasing stored credential values")
-            self.username = None
-            self.password = None
+            log.info("Erasing stored credential values")
+            self.__username = None
+            self.__password = None
 
 
-class ExternalCredentials(object):
+class ExternalCredentials(BaseCredentials):
     """The ExternalCredentials class allows the connection to use EXTERNAL
     authentication, generally with a client SSL certificate.
 
     """
-    TYPE = 'EXTERNAL'
+
+    TYPE = as_bytes('EXTERNAL')
+
+    def _make_response(self):
+        return ExternalCredentials.TYPE, b''
 
     def __init__(self):
         """Create a new instance of ExternalCredentials"""
         self.erase_on_connect = False
 
-    def response_for(self, start):
-        """Validate that this type of authentication is supported
-
-        :param spec.Connection.Start start: Connection.Start method
-        :rtype: tuple(str or None, str or None)
-
-        """
-        if as_bytes(ExternalCredentials.TYPE) not in\
-                as_bytes(start.mechanisms).split():
-            return None, None
-        return ExternalCredentials.TYPE, b''
-
-    def erase_credentials(self):
-        """Called by Connection when it no longer needs the credentials"""
-        LOGGER.debug('Not supported by this Credentials type')
 
 # Append custom credential types to this list for validation support
 VALID_TYPES = [PlainCredentials, ExternalCredentials]

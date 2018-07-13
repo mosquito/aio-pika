@@ -1,9 +1,38 @@
 import os
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
 from importlib.machinery import SourceFileLoader
 
 
-module = SourceFileLoader("version", os.path.join("aio_pika", "version.py")).load_module()
+module = SourceFileLoader(
+    "version", os.path.join("aio_pika", "version.py")
+).load_module()
+
+
+try:
+    from Cython.Build import cythonize
+
+    extensions = cythonize([
+        Extension(
+            "aio_pika.amqp.codec",
+            ["aio_pika/amqp/codec.pyx"],
+        ),
+        Extension(
+            "aio_pika.amqp.base",
+            ["aio_pika/amqp/base.pyx"],
+        ),
+    ], force=True, emit_linenums=False, quiet=True)
+
+except ImportError:
+    extensions = [
+        Extension(
+            "aio_pika.amqp.codec",
+            ["aio_pika/amqp/codec.c"],
+        ),
+        Extension(
+            "aio_pika.amqp.base",
+            ["aio_pika/amqp/base.c"],
+        ),
+    ]
 
 
 setup(
@@ -15,6 +44,7 @@ setup(
     description=module.package_info,
     long_description=open("README.rst").read(),
     platforms="all",
+    ext_modules=extensions,
     classifiers=[
         'License :: OSI Approved :: Apache Software License',
         'Topic :: Internet',
@@ -42,6 +72,7 @@ setup(
     python_requires=">3.4.*, <4",
     extras_require={
         'develop': [
+            'Cython',
             'asynctest<0.11',
             'coverage!=4.3',
             'coveralls',

@@ -10,11 +10,9 @@ import uuid
 from . import frame as frame
 from . import exceptions
 from . import spec as spec
-from .utils import is_callable
-from .compat import unicode_type, dictkeys, as_bytes
 
 
-LOGGER = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 MAX_CHANNELS = 32768
 
 
@@ -327,8 +325,8 @@ class Channel(object):
         if not self.is_open:
             raise exceptions.ChannelClosed()
         if immediate:
-            LOGGER.warning('The immediate flag is deprecated in RabbitMQ')
-        if isinstance(body, unicode_type):
+            log.warning('The immediate flag is deprecated in RabbitMQ')
+        if isinstance(body, str):
             body = body.encode('utf-8')
         properties = properties or spec.BasicProperties()
         self._send_method(spec.Basic.Publish(exchange=exchange,
@@ -419,11 +417,15 @@ class Channel(object):
         """
         if not self.is_open:
             raise exceptions.ChannelClosed()
-        LOGGER.info('Channel.close(%s, %s)', reply_code, reply_text)
+
+        log.info('Channel.close(%s, %s)', reply_code, reply_text)
+
         if self._consumers:
-            LOGGER.debug('Cancelling %i consumers', len(self._consumers))
-            for consumer_tag in dictkeys(self._consumers):
+            log.debug('Cancelling %i consumers', len(self._consumers))
+
+            for consumer_tag in self._consumers.keys():
                 self.basic_cancel(consumer_tag=consumer_tag)
+
         self._set_state(self.CLOSING)
         self._rpc(spec.Channel.Close(reply_code, reply_text, 0, 0),
                   self._on_closeok, [spec.Channel.CloseOk])
@@ -463,7 +465,7 @@ class Channel(object):
         :rtype: list
 
         """
-        return dictkeys(self._consumers)
+        return list(self._consumers.keys())
 
     def exchange_bind(self,
                       callback=None,
@@ -935,10 +937,10 @@ class Channel(object):
         :param pika.frame.Method method_frame: The close frame
 
         """
-        LOGGER.info('%s', method_frame)
-        LOGGER.warning('Received remote Channel.Close (%s): %s',
-                       method_frame.method.reply_code,
-                       method_frame.method.reply_text)
+        log.info('%s', method_frame)
+        log.warning('Received remote Channel.Close (%s): %s',
+                    method_frame.method.reply_code,
+                    method_frame.method.reply_text)
         if self.connection.is_open:
             self._send_method(spec.Channel.CloseOk())
         self._set_state(self.CLOSED)
@@ -990,7 +992,7 @@ class Channel(object):
         :param pika.frame.Method method_frame: The method frame received
 
         """
-        LOGGER.debug('Discarding frame %r', method_frame)
+        log.debug('Discarding frame %r', method_frame)
 
     def _on_flow(self, method_frame_unused):
         """Called if the server sends a Channel.Flow frame.
@@ -999,7 +1001,7 @@ class Channel(object):
 
         """
         if self._has_on_flow_callback is False:
-            LOGGER.warning('Channel.Flow received from server')
+            log.warning('Channel.Flow received from server')
 
     def _on_flowok(self, method_frame):
         """Called in response to us asking the server to toggle on Channel.Flow
@@ -1012,7 +1014,7 @@ class Channel(object):
             self._on_flowok_callback(method_frame.method.active)
             self._on_flowok_callback = None
         else:
-            LOGGER.warning('Channel.FlowOk received with no active callbacks')
+            log.warning('Channel.FlowOk received with no active callbacks')
 
     def _on_getempty(self, method_frame):
         """When we receive an empty reply do nothing but log it
@@ -1020,7 +1022,7 @@ class Channel(object):
         :param pika.frame.Method method_frame: The method frame received
 
         """
-        LOGGER.debug('Received Basic.GetEmpty: %r', method_frame)
+        log.debug('Received Basic.GetEmpty: %r', method_frame)
 
     def _on_getok(self, method_frame, header_frame, body):
         """Called in reply to a Basic.Get when there is a message.
@@ -1036,7 +1038,7 @@ class Channel(object):
             self._on_getok_callback = None
             callback(self, method_frame.method, header_frame.properties, body)
         else:
-            LOGGER.error('Basic.GetOk received with no active callback')
+            log.error('Basic.GetOk received with no active callback')
 
     def _on_openok(self, frame_unused):
         """Called by our callback handler when we receive a Channel.OpenOk and
@@ -1066,8 +1068,8 @@ class Channel(object):
                                       method_frame.method,
                                       header_frame.properties,
                                       body):
-            LOGGER.warning('Basic.Return received from server (%r, %r)',
-                           method_frame.method, header_frame.properties)
+            log.warning('Basic.Return received from server (%r, %r)',
+                        method_frame.method, header_frame.properties)
 
     def _on_selectok(self, method_frame):
         """Called when the broker sends a Confirm.SelectOk frame
@@ -1075,7 +1077,7 @@ class Channel(object):
         :param pika.frame.Method method_frame: The method frame received
 
         """
-        LOGGER.debug("Confirm.SelectOk Received: %r", method_frame)
+        log.debug("Confirm.SelectOk Received: %r", method_frame)
 
     def _on_synchronous_complete(self, method_frame_unused):
         """This is called when a synchronous command is completed. It will undo
@@ -1085,7 +1087,7 @@ class Channel(object):
         :param pika.frame.Method method_frame_unused: The method frame received
 
         """
-        LOGGER.debug('%i blocked frames', len(self._blocked))
+        log.debug('%i blocked frames', len(self._blocked))
         self._blocking = None
         while len(self._blocked) > 0 and self._blocking is None:
             self._rpc(*self._blocked.popleft())
@@ -1113,7 +1115,7 @@ class Channel(object):
             raise TypeError("acceptable_replies should be list or None")
 
         # Validate the callback is callable
-        if callback and not is_callable(callback):
+        if callback and not callable(callback):
             raise TypeError("callback should be None, a function or method.")
 
         # Block until a response frame is received for synchronous frames
@@ -1127,12 +1129,12 @@ class Channel(object):
                     reply, arguments = reply
                 else:
                     arguments = None
-                LOGGER.debug('Adding in on_synchronous_complete callback')
+                log.debug('Adding in on_synchronous_complete callback')
                 self.callbacks.add(self.channel_number, reply,
                                    self._on_synchronous_complete,
                                    arguments=arguments)
                 if callback:
-                    LOGGER.debug('Adding passed in callback')
+                    log.debug('Adding passed in callback')
                     self.callbacks.add(self.channel_number, reply, callback,
                                        arguments=arguments)
 
@@ -1172,12 +1174,12 @@ class Channel(object):
         :param pika.frame.Frame frame_value: The frame received
 
         """
-        LOGGER.warning('Unexpected frame: %r', frame_value)
+        log.warning('Unexpected frame: %r', frame_value)
 
     def _validate_channel_and_callback(self, callback):
         if not self.is_open:
             raise exceptions.ChannelClosed()
-        if callback is not None and not is_callable(callback):
+        if callback is not None and not callable(callback):
             raise ValueError('callback must be a function or method')
 
 

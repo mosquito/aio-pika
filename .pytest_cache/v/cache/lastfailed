@@ -1,0 +1,3 @@
+{
+  "tests/test_amqp.py::TestCase::test_ack_multiple": true
+}

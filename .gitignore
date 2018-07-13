@@ -136,3 +136,4 @@ fabric.properties
 /htmlcov
 /temp
 .DS_Store
+*.c

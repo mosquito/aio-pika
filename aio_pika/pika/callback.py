@@ -7,9 +7,9 @@ import logging
 
 from . import frame
 from . import amqp_object
-from .compat import xrange, canonical_str
 
-LOGGER = logging.getLogger(__name__)
+
+log = logging.getLogger(__name__)
 
 
 def name_or_value(value):
@@ -36,8 +36,9 @@ def name_or_value(value):
     if isinstance(value, amqp_object.AMQPObject):
         return value.NAME
 
-    # Cast the value to a str (python 2 and python 3); encoding as UTF-8 on Python 2
-    return canonical_str(value)
+    # Cast the value to a str (python 2 and python 3);
+    # encoding as UTF-8 on Python 2
+    return str(value)
 
 
 def sanitize_prefix(function):
@@ -151,23 +152,23 @@ class CallbackManager(object):
                 callback_dict[self.ONLY_CALLER] == only_caller):
                 if callback_dict[self.ONE_SHOT] is True:
                     callback_dict[self.CALLS] += 1
-                    LOGGER.debug('Incremented callback reference counter: %r',
-                                 callback_dict)
+                    log.debug('Incremented callback reference counter: %r',
+                              callback_dict)
                 else:
-                    LOGGER.warning(self.DUPLICATE_WARNING, prefix, key)
+                    log.warning(self.DUPLICATE_WARNING, prefix, key)
                 return prefix, key
 
         # Create the callback dictionary
         callback_dict = self._callback_dict(callback, one_shot, only_caller,
                                             arguments)
         self._stack[prefix][key].append(callback_dict)
-        LOGGER.debug('Added: %r', callback_dict)
+        log.debug('Added: %r', callback_dict)
         return prefix, key
 
     def clear(self):
         """Clear all the callbacks if there are any defined."""
         self._stack = dict()
-        LOGGER.debug('Callbacks cleared')
+        log.debug('Callbacks cleared')
 
     @sanitize_prefix
     def cleanup(self, prefix):
@@ -178,7 +179,7 @@ class CallbackManager(object):
         :rtype: bool
 
         """
-        LOGGER.debug('Clearing out %r from the stack', prefix)
+        log.debug('Clearing out %r from the stack', prefix)
         if prefix not in self._stack or not self._stack[prefix]:
             return False
         del self._stack[prefix]
@@ -217,7 +218,7 @@ class CallbackManager(object):
         :rtype: bool
 
         """
-        LOGGER.debug('Processing %s:%s', prefix, key)
+        log.debug('Processing %s:%s', prefix, key)
         if prefix not in self._stack or key not in self._stack[prefix]:
             return False
 
@@ -231,12 +232,12 @@ class CallbackManager(object):
 
         # Call each callback
         for callback in callbacks:
-            LOGGER.debug('Calling %s for "%s:%s"', callback, prefix, key)
+            log.debug('Calling %s for "%s:%s"', callback, prefix, key)
             try:
                 callback(*args, **keywords)
             except:
-                LOGGER.exception('Calling %s for "%s:%s" failed', callback,
-                                 prefix, key)
+                log.exception('Calling %s for "%s:%s" failed', callback,
+                              prefix, key)
                 raise
         return True
 
@@ -256,7 +257,7 @@ class CallbackManager(object):
         """
         if callback_value:
             offsets_to_remove = list()
-            for offset in xrange(len(self._stack[prefix][key]), 0, -1):
+            for offset in range(len(self._stack[prefix][key]), 0, -1):
                 callback_dict = self._stack[prefix][key][offset - 1]
 
                 if (callback_dict[self.CALLBACK] == callback_value and
@@ -265,8 +266,8 @@ class CallbackManager(object):
 
             for offset in offsets_to_remove:
                 try:
-                    LOGGER.debug('Removing callback #%i: %r', offset,
-                                 self._stack[prefix][key][offset])
+                    log.debug('Removing callback #%i: %r', offset,
+                              self._stack[prefix][key][offset])
                     del self._stack[prefix][key][offset]
                 except KeyError:
                     pass
@@ -347,10 +348,10 @@ class CallbackManager(object):
         :rtype: bool
 
         """
-        LOGGER.debug('Comparing %r to %r', value, expectation)
+        log.debug('Comparing %r to %r', value, expectation)
         for key in expectation:
             if value.get(key) != expectation[key]:
-                LOGGER.debug('Values in dict do not match for %s', key)
+                log.debug('Values in dict do not match for %s', key)
                 return False
         return True
 
@@ -366,12 +367,12 @@ class CallbackManager(object):
         """
         for key in expectation:
             if not hasattr(value, key):
-                LOGGER.debug('%r does not have required attribute: %s',
-                             type(value), key)
+                log.debug('%r does not have required attribute: %s',
+                          type(value), key)
                 return False
             if getattr(value, key) != expectation[key]:
-                LOGGER.debug('Values in %s do not match for %s', type(value),
-                             key)
+                log.debug('Values in %s do not match for %s', type(value),
+                          key)
                 return False
         return True
 
@@ -385,8 +386,8 @@ class CallbackManager(object):
 
         """
         if not self._arguments_match(callback_dict, args):
-            LOGGER.debug('Arguments do not match for %r, %r', callback_dict,
-                         args)
+            log.debug('Arguments do not match for %r, %r', callback_dict,
+                      args)
             return False
         return (callback_dict[self.ONLY_CALLER] is None or
                 (callback_dict[self.ONLY_CALLER] and
@@ -401,9 +402,9 @@ class CallbackManager(object):
         :param dict callback_dict: The callback dict to process
 
         """
-        LOGGER.debug('Processing use of oneshot callback')
+        log.debug('Processing use of oneshot callback')
         callback_dict[self.CALLS] -= 1
-        LOGGER.debug('%i registered uses left', callback_dict[self.CALLS])
+        log.debug('%i registered uses left', callback_dict[self.CALLS])
 
         if callback_dict[self.CALLS] <= 0:
             self.remove(prefix, key, callback_dict[self.CALLBACK],

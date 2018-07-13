@@ -1,18 +1,14 @@
 """Core connection objects"""
 import ast
-import sys
 import collections
 import logging
 import math
 import platform
 import threading
-import urllib
 import warnings
+import urllib.parse as urlparse
 
-if sys.version_info > (3,):
-    import urllib.parse as urlparse
-else:
-    import urlparse
+from urllib.parse import unquote as url_unquote
 
 from . import __version__
 from . import callback
@@ -21,18 +17,18 @@ from . import credentials as pika_credentials
 from . import exceptions
 from . import frame
 from . import heartbeat
-from . import utils
-
 from . import spec
 
-from .compat import basestring, url_unquote, dictkeys
+
+BACKPRESSURE_WARNING = (
+    "Pika: Write buffer exceeded warning threshold at "
+    "%i bytes and an estimated %i frames behind"
+)
 
 
-BACKPRESSURE_WARNING = ("Pika: Write buffer exceeded warning threshold at "
-                        "%i bytes and an estimated %i frames behind")
 PRODUCT = "Pika Python Client Library"
 
-LOGGER = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 class Parameters(object):
@@ -208,7 +204,7 @@ class Parameters(object):
         :raises: TypeError
 
         """
-        if not isinstance(host, basestring):
+        if not isinstance(host, str):
             raise TypeError('host must be a str or unicode str')
         return True
 
@@ -220,7 +216,7 @@ class Parameters(object):
         :raises: TypeError
 
         """
-        if not isinstance(locale, basestring):
+        if not isinstance(locale, str):
             raise TypeError('locale must be a str')
         return True
 
@@ -296,7 +292,7 @@ class Parameters(object):
         :raises: TypeError
 
         """
-        if not isinstance(virtual_host, basestring):
+        if not isinstance(virtual_host, str):
             raise TypeError('virtual_host must be a str')
         return True
 
@@ -487,7 +483,7 @@ class URLParameters(Parameters):
         values = urlparse.parse_qs(parts.query)
 
         # Cast the various numeric values to the appropriate values
-        for key in dictkeys(values):
+        for key in values.keys():
             # Always reassign the first list item in query values
             values[key] = values[key].pop(0)
             if values[key].isdigit():
@@ -728,7 +724,7 @@ class Connection(object):
 
         # Set our connection state
         self._set_connection_state(self.CONNECTION_CLOSING)
-        LOGGER.info("Closing connection (%s): %s", reply_code, reply_text)
+        log.info("Closing connection (%s): %s", reply_code, reply_text)
         self.closing = reply_code, reply_text
 
         if not self._has_open_channels:
@@ -746,10 +742,10 @@ class Connection(object):
         if not error:
             return self._on_connected()
         self.remaining_connection_attempts -= 1
-        LOGGER.warning('Could not connect, %i attempts left',
-                       self.remaining_connection_attempts)
+        log.warning('Could not connect, %i attempts left',
+                    self.remaining_connection_attempts)
         if self.remaining_connection_attempts:
-            LOGGER.info('Retrying in %i seconds', self.params.retry_delay)
+            log.info('Retrying in %i seconds', self.params.retry_delay)
             self.add_timeout(self.params.retry_delay, self.connect)
         else:
             self.callbacks.process(0, self.ON_CONNECTION_ERROR, self, self,
@@ -948,7 +944,7 @@ class Connection(object):
 
         """
         if self.is_open:
-            for channel_number in dictkeys(self._channels):
+            for channel_number in self._channels.keys():
                 if self._channels[channel_number].is_open:
                     self._channels[channel_number].close(reply_code, reply_text)
                 else:
@@ -988,7 +984,7 @@ class Connection(object):
         :param method on_open_callback: The callback when the channel is opened
 
         """
-        LOGGER.debug('Creating channel %s', channel_number)
+        log.debug('Creating channel %s', channel_number)
         return channel.Channel(self, channel_number, on_open_callback)
 
     def _create_heartbeat_checker(self):
@@ -999,8 +995,8 @@ class Connection(object):
 
         """
         if self.params.heartbeat is not None and self.params.heartbeat > 0:
-            LOGGER.debug('Creating a HeartbeatChecker: %r',
-                         self.params.heartbeat)
+            log.debug('Creating a HeartbeatChecker: %r',
+                      self.params.heartbeat)
             return heartbeat.HeartbeatChecker(self, self.params.heartbeat)
 
     def _remove_heartbeat(self):
@@ -1022,8 +1018,8 @@ class Connection(object):
                 self._reject_out_of_band_delivery(value.channel_number,
                                                   value.method.delivery_tag)
             else:
-                LOGGER.warning("Received %r for non-existing channel %i", value,
-                               value.channel_number)
+                log.warning("Received %r for non-existing channel %i", value,
+                            value.channel_number)
             return
         return self._channels[value.channel_number]._handle_content_frame(value)
 
@@ -1036,8 +1032,8 @@ class Connection(object):
         avg_frame_size = self.bytes_sent / self.frames_sent
         buffer_size = sum([len(frame) for frame in self.outbound_buffer])
         if buffer_size > (avg_frame_size * self._backpressure):
-            LOGGER.warning(BACKPRESSURE_WARNING, buffer_size,
-                           int(buffer_size / avg_frame_size))
+            log.warning(BACKPRESSURE_WARNING, buffer_size,
+                        int(buffer_size / avg_frame_size))
             self.callbacks.process(0, self.ON_CONNECTION_BACKPRESSURE, self)
 
     def _ensure_closed(self):
@@ -1085,8 +1081,7 @@ class Connection(object):
         :rtype: bool
 
         """
-        return any([self._channels[num].is_open
-                    for num in dictkeys(self._channels)])
+        return any(ch.is_open for ch in self._channels.values())
 
     def _has_pending_callbacks(self, value):
         """Return true if there are any callbacks pending for the specified
@@ -1200,10 +1195,10 @@ class Connection(object):
         """
         try:
             del self._channels[channel.channel_number]
-            LOGGER.debug('Removed channel %s', channel.channel_number)
+            log.debug('Removed channel %s', channel.channel_number)
         except KeyError:
-            LOGGER.error('Channel %r not in channels',
-                         channel.channel_number)
+            log.error('Channel %r not in channels',
+                      channel.channel_number)
         if self.is_closing and not self._has_open_channels:
             self._on_close_ready()
 
@@ -1214,7 +1209,7 @@ class Connection(object):
 
         """
         if self.is_closed:
-            LOGGER.warning('Invoked while already closed')
+            log.warning('Invoked while already closed')
             return
         self._send_connection_close(self.closing[0], self.closing[1])
 
@@ -1355,11 +1350,11 @@ class Connection(object):
         :param str reply_text: The text close reason
 
         """
-        LOGGER.warning('Disconnected from RabbitMQ at %s:%i (%s): %s',
-                       self.params.host, self.params.port, reply_code,
-                       reply_text)
+        log.warning('Disconnected from RabbitMQ at %s:%i (%s): %s',
+                    self.params.host, self.params.port, reply_code,
+                    reply_text)
         self._set_connection_state(self.CONNECTION_CLOSED)
-        for channel in dictkeys(self._channels):
+        for channel in self._channels.keys():
             if channel not in self._channels:
                 continue
             method_frame = frame.Method(channel, spec.Channel.Close(reply_code,
@@ -1419,7 +1414,7 @@ class Connection(object):
             if self.heartbeat:
                 self.heartbeat.received()
             else:
-                LOGGER.warning('Received heartbeat frame without a heartbeat '
+                log.warning('Received heartbeat frame without a heartbeat '
                                'checker')
 
         # If the frame has a channel number beyond the base channel, deliver it
@@ -1442,8 +1437,8 @@ class Connection(object):
         :param int delivery_tag: The delivery tag
 
         """
-        LOGGER.warning('Rejected out-of-band delivery on channel %i (%s)',
-                       channel_number, delivery_tag)
+        log.warning('Rejected out-of-band delivery on channel %i (%s)',
+                    channel_number, delivery_tag)
         self._send_method(channel_number, spec.Basic.Reject(delivery_tag))
 
     def _remove_callback(self, channel_number, method_frame):
@@ -1491,7 +1486,7 @@ class Connection(object):
 
         # Validate the callback is callable
         if callback_method:
-            if not utils.is_callable(callback_method):
+            if not callable(callback_method):
                 raise TypeError('callback should be None, function or method.')
 
             for reply in acceptable_replies:
@@ -1544,7 +1539,7 @@ class Connection(object):
 
         """
         if self.is_closed:
-            LOGGER.critical('Attempted to send frame when closed')
+            log.critical('Attempted to send frame when closed')
             raise exceptions.ConnectionClosed
 
         marshaled_frame = frame_value.marshal()
