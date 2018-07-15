@@ -1,4 +1,4 @@
-from enum import unique, IntEnum
+from enum import IntEnum
 from io import BytesIO
 
 from .codec import (
@@ -23,8 +23,7 @@ PROTOCOL_VERSION = (0, 9, 1)
 PORT = 5672
 
 
-@unique
-class StatusCode(IntEnum):
+class Constants(IntEnum):
     ACCESS_REFUSED = 403
     CHANNEL_ERROR = 504
     COMMAND_INVALID = 503
@@ -42,11 +41,11 @@ class StatusCode(IntEnum):
     FRAME_MIN_SIZE = 4096
     INTERNAL_ERROR = 541
     INVALID_PATH = 402
+    NO_CONSUMERS = 313
+    NO_ROUTE = 312
     NOT_ALLOWED = 530
     NOT_FOUND = 404
     NOT_IMPLEMENTED = 540
-    NO_CONSUMERS = 313
-    NO_ROUTE = 312
     PRECONDITION_FAILED = 406
     REPLY_SUCCESS = 200
     RESOURCE_ERROR = 506

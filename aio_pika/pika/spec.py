@@ -1,6 +1,6 @@
 import struct
 from . import amqp_object
-from ..amqp import codec
+from aio_pika.amqp import codec
 
 MappingProxyType = type(object.__dict__)
 

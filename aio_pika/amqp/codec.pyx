@@ -18,7 +18,7 @@ cdef class long(int):
     """
 
     def __repr__(self):
-        return str(self) + 'L'
+        return "%rL" % self
 
 
 cpdef unpack_from(fmt: str, buffer: BytesIO):
@@ -105,11 +105,11 @@ cpdef int encode_decimal(buffer: BytesIO, value: decimal):
         return pack_into('>Bi', buffer, 0, int(value))
 
 
-cpdef int encode_datetime(buffer, value: datetime):
+cpdef int encode_datetime(buffer: BytesIO, value: datetime):
     return pack_into('>Q', buffer, int(value.timestamp()))
 
 
-cpdef encode_value(buffer, value):
+cpdef encode_value(buffer: BytesIO, value):
     cdef bint is_str = PyUnicode_Check(value)
     cdef bint is_bytes = PyBytes_Check(value)
 
@@ -167,15 +167,7 @@ cpdef encode_value(buffer, value):
     raise ValueError(value)
 
 
-cpdef decode_table(buffer):
-    """Decode the AMQP table passed in from the encoded value returning the
-    decoded result and the number of bytes read plus the offset.
-
-    :param str encoded: The binary encoded data to decode
-    :param int offset: The starting byte offset
-    :rtype: tuple
-
-    """
+cpdef decode_table(buffer: BytesIO):
     cdef dict result = {}
     cdef int limit = buffer.tell() + unpack_from('>I', buffer)[0]
 
@@ -187,7 +179,7 @@ cpdef decode_table(buffer):
     return result
 
 
-cpdef decode_short_string(buffer):
+cpdef decode_short_string(buffer: BytesIO):
     length, = unpack_from('B', buffer)
     value = buffer.read(length)
     return value.decode('utf-8')
@@ -199,109 +191,71 @@ cpdef decode_long_string(buffer: BytesIO, encoding='utf-8'):
 
     if encoding:
         return data.decode(encoding)
+
     return data
 
 
-def decode_value(buffer):
-    """Decode the value passed in returning the decoded value and the number
-    of bytes read in addition to the starting offset.
+def decode_array(buffer: BytesIO):
+    end = buffer.tell() + unpack_from('>I', buffer)[0]
+    value = []
 
-    :param str encoded: The binary encoded data to decode
-    :param int offset: The starting byte offset
-    :rtype: tuple
+    while buffer.tell() < end:
+        value.append(decode_value(buffer))
 
-    """
-    # slice to get bytes in Python 3 and str in Python 2
-    kind = buffer.read(1)
+    return value
 
+
+def decode_timestamp(buffer: BytesIO):
+    return datetime.utcfromtimestamp(unpack_from('>Q', buffer)[0])
+
+
+def decode_decimal(buffer: BytesIO):
+    decimals, raw = unpack_from('>Bi', buffer)
+    return decimal.Decimal(raw) * (decimal.Decimal(10) ** -decimals)
+
+
+cdef dict DECODE_TABLE = {
     # Bool
-    if kind == b't':
-        value, = unpack_from('>B', buffer)
-        return bool(value)
-
+    b't': lambda b: bool(unpack_from('>B', b)[0]),
     # Short-Short Int
-    elif kind == b'b':
-        value, = unpack_from('>B', buffer)
-        return value
-
+    b'b': lambda b: unpack_from('>B', b)[0],
     # Short-Short Unsigned Int
-    elif kind == b'B':
-        value, = unpack_from('>b', buffer)
-        return value
-
+    b'B': lambda b: unpack_from('>b', b)[0],
     # Short Int
-    elif kind == b'U':
-        value, = unpack_from('>h', buffer)
-        return value
-
+    b'U': lambda b: unpack_from('>h', b)[0],
     # Short Unsigned Int
-    elif kind == b'u':
-        value, = unpack_from('>H', buffer)
-        return value
-
+    b'u': lambda b: unpack_from('>H', b)[0],
     # Long Int
-    elif kind == b'I':
-        value, = unpack_from('>i', buffer)
-        return value
-
+    b'I': lambda b: unpack_from('>i', b)[0],
     # Long Unsigned Int
-    elif kind == b'i':
-        value, = unpack_from('>I', buffer)
-        return value
-
+    b'i': lambda b: unpack_from('>I', b)[0],
     # Long-Long Int
-    elif kind == b'L':
-        value, = unpack_from('>q', buffer)
-        return long(value)
-
-    # Long-Long Unsigned Int
-    elif kind == b'l':
-        value, = unpack_from('>Q', buffer)
-        return long(value)
-
+    b'L': lambda b: long(unpack_from('>q', b)[0]),
+    b'l': lambda b: long(unpack_from('>Q', b)[0]),
     # Float
-    elif kind == b'f':
-        value, = unpack_from('>f', buffer)
-        return value
-
+    b'f': lambda b: unpack_from('>f', b)[0],
     # Double
-    elif kind == b'd':
-        value, = unpack_from('>d', buffer)
-        return value
-
+    b'd': lambda b: unpack_from('>d', b)[0],
     # Decimal
-    elif kind == b'D':
-        decimals, raw = unpack_from('>Bi', buffer)
-        return decimal.Decimal(raw) * (decimal.Decimal(10) ** -decimals)
-
+    b'D': decode_decimal,
     # Short String
-    elif kind == b's':
-        return decode_short_string(buffer)
-
+    b's': decode_short_string,
     # Long String
-    elif kind == b'S':
-        return decode_long_string(buffer)
-
+    b'S': decode_long_string,
     # Field Array
-    elif kind == b'A':
-        end = buffer.tell() + unpack_from('>I', buffer)[0]
-        value = []
-
-        while buffer.tell() < end:
-            value.append(decode_value(buffer))
-
-        return value
-
+    b'A': decode_array,
     # Timestamp
-    elif kind == b'T':
-        return datetime.utcfromtimestamp(unpack_from('>Q', buffer)[0])
-
+    b'T': decode_timestamp,
     # Field Table
-    elif kind == b'F':
-        return decode_table(buffer)
+    b'F': decode_table,
+    # None
+    b'V': lambda b: None,
+}
 
-    # Null / Void
-    elif kind == b'V':
-        return
+cpdef decode_value(buffer: BytesIO):
+    cdef bytes kind = buffer.read(1)
 
-    raise ValueError(kind)
+    if kind not in DECODE_TABLE:
+        raise ValueError(kind)
+
+    return DECODE_TABLE[kind](buffer)
