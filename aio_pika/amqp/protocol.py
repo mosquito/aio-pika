@@ -65,7 +65,6 @@ class Connection(Class):
 
         __slots__ = ('version_major', 'version_minor',
                      'server_properties', 'mechanisms', 'locales')
-        __attributes__ = __slots__
 
         def __init__(self,
                      version_major: int=PROTOCOL_VERSION[0],
@@ -100,7 +99,6 @@ class Connection(Class):
         NAME = 'Connection.StartOk'
 
         __slots__ = 'client_properties', 'mechanism', 'response', 'locale',
-        __attributes__ = __slots__
 
         def __init__(self, client_properties: dict = None,
                      mechanism: str = 'PLAIN',
@@ -131,7 +129,6 @@ class Connection(Class):
         NAME = 'Connection.Secure'
 
         __slots__ = 'challenge',
-        __attributes__ = __slots__
 
         def __init__(self, challenge=None):
             self.challenge = challenge
@@ -150,7 +147,6 @@ class Connection(Class):
         NAME = 'Connection.SecureOk'
 
         __slots__ = 'response',
-        __attributes__ = __slots__
 
         def __init__(self, response=None):
             self.response = response
@@ -166,7 +162,6 @@ class Connection(Class):
 
     class TuneBase:
         __slots__ = 'channel_max', 'frame_max', 'heartbeat',
-        __attributes__ = __slots__
 
         def __init__(self, channel_max=0, frame_max=0, heartbeat=0):
             self.channel_max = channel_max
@@ -198,7 +193,6 @@ class Connection(Class):
         NAME = 'Connection.Open'
 
         __slots__ = 'virtual_host', 'capabilities', 'insist',
-        __attributes__ = __slots__
 
         def __init__(self, virtual_host='/', capabilities='', insist=False):
             self.virtual_host = virtual_host
@@ -228,7 +222,6 @@ class Connection(Class):
         NAME = 'Connection.OpenOk'
 
         __slots__ = 'known_hosts',
-        __attributes__ = __slots__
 
         def __init__(self, known_hosts=''):
             self.known_hosts = known_hosts
@@ -247,7 +240,6 @@ class Connection(Class):
         NAME = 'Connection.Close'
 
         __slots__ = 'reply_code', 'reply_text', 'class_id', 'method_id',
-        __attributes__ = __slots__
 
         def __init__(self, reply_code=None, reply_text='',
                      class_id=None, method_id=None):
@@ -278,7 +270,6 @@ class Connection(Class):
         NAME = 'Connection.Blocked'
 
         __slots__ = 'reason',
-        __attributes__ = __slots__
 
         def __init__(self, reason=''):
             self.reason = reason
@@ -325,7 +316,6 @@ class Channel(Class):
         NAME = 'Channel.OpenOk'
 
         __slots__ = 'channel_id',
-        __attributes__ = __slots__
 
         def __init__(self, channel_id=''):
             self.channel_id = channel_id
@@ -344,7 +334,6 @@ class Channel(Class):
         NAME = 'Channel.Flow'
 
         __slots__ = 'active',
-        __attributes__ = __slots__
 
         def __init__(self, active=None):
             self.active = active
@@ -370,7 +359,6 @@ class Channel(Class):
         NAME = 'Channel.FlowOk'
 
         __slots__ = 'active',
-        __attributes__ = __slots__
 
         def __init__(self, active=None):
             self.active = active
@@ -393,7 +381,6 @@ class Channel(Class):
         NAME = 'Channel.Close'
 
         __slots__ = 'reply_code', 'reply_text', 'class_id', 'method_id'
-        __attributes__ = __slots__
 
         def __init__(self, reply_code=None, reply_text='',
                      class_id=None, method_id=None):
@@ -430,7 +417,6 @@ class Access(Class):
         NAME = 'Access.Request'
 
         __slots__ = 'realm', 'exclusive', 'passive', 'active', 'write', 'read',
-        __attributes__ = __slots__
 
         def __init__(self, realm='/data', exclusive=False, passive=True,
                      active=True, write=True, read=True):
@@ -481,7 +467,6 @@ class Access(Class):
         NAME = 'Access.RequestOk'
 
         __slots__ = 'ticket',
-        __attributes__ = __slots__
 
         def __init__(self, ticket=1):
             self.ticket = ticket
@@ -509,7 +494,6 @@ class Exchange(Class):
             'ticket', 'exchange', 'type', 'passive', 'durable', 'auto_delete',
             'internal', 'nowait', 'arguments',
         )
-        __attributes__ = __slots__
 
         def __init__(self, ticket=0, exchange=None, type='direct',
                      passive=False, durable=False, auto_delete=False,
@@ -569,7 +553,6 @@ class Exchange(Class):
         NAME = 'Exchange.Delete'
 
         __slots__ = 'ticket', 'exchange', 'if_unused', 'nowait',
-        __attributes__ = __slots__
 
         def __init__(self, ticket=0, exchange=None,
                      if_unused=False, nowait=False):
@@ -613,7 +596,6 @@ class Exchange(Class):
             'ticket', 'destination', 'source', 'routing_key',
             'nowait', 'arguments'
         )
-        __attributes__ = __slots__
 
         def __init__(self, ticket=0, destination=None, source=None,
                      routing_key='', nowait=False, arguments=None):
@@ -662,7 +644,6 @@ class Exchange(Class):
             'ticket', 'destination', 'source', 'routing_key',
             'nowait', 'arguments'
         )
-        __attributes__ = __slots__
 
         def __init__(self, ticket=0, destination=None, source=None,
                      routing_key='', nowait=False, arguments=None):
@@ -711,6 +692,11 @@ class Queue(Class):
 
         INDEX = 0x0032000A  # 50, 10; 3276810
         NAME = 'Queue.Declare'
+
+        __slots__ = (
+            'ticket', 'queue', 'passive', 'durable', 'exclusive',
+            'auto_delete', 'nowait', 'arguments'
+        )
 
         def __init__(self, ticket=0, queue='', passive=False, durable=False,
                      exclusive=False, auto_delete=False, nowait=False,
@@ -762,6 +748,8 @@ class Queue(Class):
         INDEX = 0x0032000B  # 50, 11; 3276811
         NAME = 'Queue.DeclareOk'
 
+        __slots__ = 'queue', 'message_count', 'consumer_count'
+
         def __init__(self, queue=None, message_count=None, consumer_count=None):
             self.queue = queue
             self.message_count = message_count
@@ -782,6 +770,11 @@ class Queue(Class):
 
         INDEX = 0x00320014  # 50, 20; 3276820
         NAME = 'Queue.Bind'
+
+        __slots__ = (
+            'ticket', 'queue', 'exchange',
+            'routing_key', 'nowait', 'arguments'
+        )
 
         def __init__(self, ticket=0, queue='', exchange=None,
                      routing_key='', nowait=False, arguments=None):
@@ -825,6 +818,8 @@ class Queue(Class):
         INDEX = 0x0032001E  # 50, 30; 3276830
         NAME = 'Queue.Purge'
 
+        __slots__ = 'ticket', 'queue', 'nowait'
+
         def __init__(self, ticket=0, queue='', nowait=False):
             self.ticket = ticket
             self.queue = queue
@@ -854,6 +849,8 @@ class Queue(Class):
         INDEX = 0x0032001F  # 50, 31; 3276831
         NAME = 'Queue.PurgeOk'
 
+        __slots__ = 'message_count',
+
         def __init__(self, message_count=None):
             self.message_count = message_count
 
@@ -874,6 +871,8 @@ class Queue(Class):
 
         INDEX = 0x00320028  # 50, 40; 3276840
         NAME = 'Queue.Delete'
+
+        __slots__ = 'ticket', 'queue', 'if_unused', 'if_empty', 'nowait'
 
         def __init__(self, ticket=0, queue='', if_unused=False,
                      if_empty=False, nowait=False):
@@ -916,6 +915,8 @@ class Queue(Class):
         INDEX = 0x00320029  # 50, 41; 3276841
         NAME = 'Queue.DeleteOk'
 
+        __slots__ = 'message_count',
+
         def __init__(self, message_count=None):
             self.message_count = message_count
 
@@ -931,6 +932,8 @@ class Queue(Class):
     class Unbind(SyncMethod):
         INDEX = 0x00320032  # 50, 50; 3276850
         NAME = 'Queue.Unbind'
+
+        __slots__ = 'ticket', 'queue', 'exchange', 'routing_key', 'arguments',
 
         def __init__(self, ticket=0, queue='', exchange=None,
                      routing_key='', arguments=None):
@@ -972,19 +975,21 @@ class Basic(Class):
         INDEX = 0x003C000A  # 60, 10; 3932170
         NAME = 'Basic.Qos'
 
+        __slots__ = 'prefetch_size', 'prefetch_count', 'is_global'
+
         def __init__(self,
                      prefetch_size: int = 0,
                      prefetch_count: int = 0,
-                     global_: bool = False):
+                     is_global: bool = False):
             self.prefetch_size = prefetch_size
             self.prefetch_count = prefetch_count
-            self.global_ = global_
+            self.is_global = is_global
 
         def decode(self, buffer: BytesIO):
             self.prefetch_size, self.prefetch_count = unpack_from(
                 '>IH', buffer
             )[0]
-            self.global_ = (unpack_from('B', buffer)[0] & (1 << 0)) != 0
+            self.is_global = (unpack_from('B', buffer)[0] & (1 << 0)) != 0
             return self
 
         def encode(self, buffer=None):
@@ -992,7 +997,7 @@ class Basic(Class):
             pack_into('>IH', buffer, self.prefetch_size, self.prefetch_count)
 
             bit_buffer = 0
-            if self.global_:
+            if self.is_global:
                 bit_buffer |= 1 << 0
 
             pack_into('B', buffer, bit_buffer)
@@ -1006,6 +1011,11 @@ class Basic(Class):
 
         INDEX = 0x003C0014  # 60, 20; 3932180
         NAME = 'Basic.Consume'
+
+        __slots__ = (
+            'ticket', 'queue', 'consumer_tag', 'no_local',
+            'no_ack', 'exclusive', 'nowait', 'arguments'
+        )
 
         def __init__(self, ticket=0, queue='', consumer_tag='',
                      no_local=False, no_ack=False, exclusive=False,
@@ -1057,6 +1067,8 @@ class Basic(Class):
         INDEX = 0x003C0015  # 60, 21; 3932181
         NAME = 'Basic.ConsumeOk'
 
+        __slots__ = 'consumer_tag',
+
         def __init__(self, consumer_tag=None):
             self.consumer_tag = consumer_tag
 
@@ -1072,6 +1084,8 @@ class Basic(Class):
     class Cancel(SyncMethod):
         INDEX = 0x003C001E  # 60, 30; 3932190
         NAME = 'Basic.Cancel'
+
+        __slots__ = 'consumer_tag', 'nowait',
 
         def __init__(self, consumer_tag=None, nowait=False):
             self.consumer_tag = consumer_tag
@@ -1098,6 +1112,8 @@ class Basic(Class):
         INDEX = 0x003C001F  # 60, 31; 3932191
         NAME = 'Basic.CancelOk'
 
+        __slots__ = 'consumer_tag',
+
         def __init__(self, consumer_tag=None):
             self.consumer_tag = consumer_tag
 
@@ -1114,6 +1130,10 @@ class Basic(Class):
 
         INDEX = 0x003C0028  # 60, 40; 3932200
         NAME = 'Basic.Publish'
+
+        __slots__ = (
+            'ticket', 'exchange', 'routing_key', 'mandatory', 'immediate'
+        )
 
         def __init__(self, ticket=0, exchange='', routing_key='',
                      mandatory=False, immediate=False):
@@ -1154,6 +1174,8 @@ class Basic(Class):
         INDEX = 0x003C0032  # 60, 50; 3932210
         NAME = 'Basic.Return'
 
+        __slots__ = 'reply_code', 'reply_text', 'exchange', 'routing_key'
+
         def __init__(self, reply_code=None, reply_text='',
                      exchange=None, routing_key=None):
             self.reply_code = reply_code
@@ -1180,6 +1202,8 @@ class Basic(Class):
 
         INDEX = 0x003C003C  # 60, 60; 3932220
         NAME = 'Basic.Deliver'
+
+        __slots__ = 'consumer_tag', 'redelivered', 'exchnage', 'routing_key',
 
         def __init__(self, consumer_tag=None, delivery_tag=None,
                      redelivered=False, exchange=None, routing_key=None):
@@ -1221,6 +1245,8 @@ class Basic(Class):
         INDEX = 0x003C0046  # 60, 70; 3932230
         NAME = 'Basic.Get'
 
+        __slots__ = 'ticket', 'queue', 'no_ack',
+
         def __init__(self, ticket=0, queue='', no_ack=False):
             self.ticket = ticket
             self.queue = queue
@@ -1249,6 +1275,11 @@ class Basic(Class):
 
         INDEX = 0x003C0047  # 60, 71; 3932231
         NAME = 'Basic.GetOk'
+
+        __slots__ = (
+            'delivery_tag', 'redelivered', 'exchange',
+            'routing_key', 'message_count',
+        )
 
         def __init__(self, delivery_tag=None, redelivered=False,
                      exchange=None, routing_key=None, message_count=None):
@@ -1288,6 +1319,8 @@ class Basic(Class):
         INDEX = 0x003C0048  # 60, 72; 3932232
         NAME = 'Basic.GetEmpty'
 
+        __slots__ = 'cluster_id',
+
         def __init__(self, cluster_id=''):
             self.cluster_id = cluster_id
 
@@ -1304,6 +1337,8 @@ class Basic(Class):
 
         INDEX = 0x003C0050  # 60, 80; 3932240
         NAME = 'Basic.Ack'
+
+        __slots__ = 'delivery_tag', 'multiple',
 
         def __init__(self, delivery_tag=0, multiple=False):
             self.delivery_tag = delivery_tag
@@ -1329,6 +1364,8 @@ class Basic(Class):
         INDEX = 0x003C005A  # 60, 90; 3932250
         NAME = 'Basic.Reject'
 
+        __slots__ = 'delivery_tag', 'requeue',
+
         def __init__(self, delivery_tag=None, requeue=True):
             self.delivery_tag = delivery_tag
             self.requeue = requeue
@@ -1352,6 +1389,8 @@ class Basic(Class):
         INDEX = 0x003C0064  # 60, 100; 3932260
         NAME = 'Basic.RecoverAsync'
 
+        __slots__ = 'requeue',
+
         def __init__(self, requeue=False):
             self.requeue = requeue
 
@@ -1373,6 +1412,8 @@ class Basic(Class):
 
         INDEX = 0x003C006E  # 60, 110; 3932270
         NAME = 'Basic.Recover'
+
+        __slots__ = 'requeue',
 
         def __init__(self, requeue=False):
             self.requeue = requeue
@@ -1400,6 +1441,8 @@ class Basic(Class):
 
         INDEX = 0x003C0078  # 60, 120; 3932280
         NAME = 'Basic.Nack'
+
+        __slots__ = 'delivery_tag', 'multiple', 'requeue',
 
         def __init__(self, delivery_tag=0, multiple=False, requeue=True):
             self.delivery_tag = delivery_tag
@@ -1462,6 +1505,8 @@ class Confirm(Class):
         INDEX = 0x0055000A  # 85, 10; 5570570
         NAME = 'Confirm.Select'
 
+        __slots__ = 'nowait',
+
         def __init__(self, nowait=False):
             self.nowait = nowait
 
@@ -1503,6 +1548,13 @@ class BasicProperties(Properties):
     FLAG_USER_ID = (1 << 4)
     FLAG_APP_ID = (1 << 3)
     FLAG_CLUSTER_ID = (1 << 2)
+
+    __slots__ = (
+        "content_type", "content_encoding", "headers",
+        "delivery_mode", "priority", "correlation_id",
+        "reply_to", "expiration", "message_id", "timestamp",
+        "type", "user_id", "app_id", "cluster_id"
+    )
 
     def __init__(self, content_type=None, content_encoding=None,
                  headers=None, delivery_mode=None, priority=None,

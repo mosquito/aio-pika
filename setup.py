@@ -16,10 +16,6 @@ try:
             "aio_pika.amqp.codec",
             ["aio_pika/amqp/codec.pyx"],
         ),
-        Extension(
-            "aio_pika.amqp.base",
-            ["aio_pika/amqp/base.pyx"],
-        ),
     ], force=True, emit_linenums=False, quiet=True)
 
 except ImportError:
@@ -27,10 +23,6 @@ except ImportError:
         Extension(
             "aio_pika.amqp.codec",
             ["aio_pika/amqp/codec.c"],
-        ),
-        Extension(
-            "aio_pika.amqp.base",
-            ["aio_pika/amqp/base.c"],
         ),
     ]
 
