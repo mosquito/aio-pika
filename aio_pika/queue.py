@@ -328,7 +328,7 @@ class Queue(BaseChannel):
         def __aiter__(self) -> 'QueueIterator':
             return self.iterator()
 
-    def iterator(self) -> 'QueueIterator':
+    def iterator(self, **kwargs) -> 'QueueIterator':
         """ Returns an iterator for async for expression.
 
         Full example:
@@ -372,14 +372,15 @@ class Queue(BaseChannel):
         :return: QueueIterator
         """
 
-        return QueueIterator(self)
+        return QueueIterator(self, **kwargs)
 
 
 class QueueIterator:
-    def __init__(self, queue: Queue):
+    def __init__(self, queue: Queue, **kwargs):
         self._amqp_queue = queue
         self._queue = asyncio.Queue(loop=self.loop)
         self._consumer_tag = None
+        self._consume_kwargs = kwargs
 
     @property
     def loop(self) -> asyncio.AbstractEventLoop:
@@ -390,7 +391,10 @@ class QueueIterator:
 
     @asyncio.coroutine
     def consume(self):
-        self._consumer_tag = yield from self._amqp_queue.consume(self.on_message)
+        self._consumer_tag = yield from self._amqp_queue.consume(
+            self.on_message, 
+            **self._consume_kwargs
+        )
 
     @asyncio.coroutine
     def _close(self):
