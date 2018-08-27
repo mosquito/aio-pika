@@ -6,7 +6,9 @@ from functools import partial
 from typing import Callable, Any, Generator
 from aio_pika.channel import Channel
 from aio_pika.queue import Queue
-from aio_pika.message import IncomingMessage, Message, DeliveryMode, ReturnedMessage
+from aio_pika.message import (
+    IncomingMessage, Message, DeliveryMode, ReturnedMessage
+)
 
 from .base import Proxy, Base
 

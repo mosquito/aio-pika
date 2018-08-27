@@ -25,6 +25,7 @@ class RPC(Base):
                  "dlx_exchange",)
 
     DLX_NAME = 'rpc.dlx'
+    DELIVERY_MODE = DeliveryMode.NOT_PERSISTENT
 
     __doc__ = """
     Remote Procedure Call helper.
@@ -240,8 +241,9 @@ class RPC(Base):
         return (yield from func(**payload))
 
     @asyncio.coroutine
-    def call(self, method_name, kwargs: dict=None, *, expiration: int=None,
-             priority: int=128, delivery_mode: DeliveryMode=DeliveryMode.NOT_PERSISTENT):
+    def call(self, method_name, kwargs: dict=None, *,
+             expiration: int=None, priority: int=128,
+             delivery_mode: DeliveryMode=DELIVERY_MODE):
 
         """ Call remote method and awaiting result.
 
