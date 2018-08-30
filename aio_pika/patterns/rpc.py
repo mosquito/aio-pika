@@ -293,7 +293,8 @@ class RPC(Base):
         :raises RuntimeError: Function already registered in this :class:`RPC` instance or
                               method_name already used.
         """
-        arguments = kwargs.pop('arguments', {}).update({
+        arguments = kwargs.pop('arguments', {})
+        arguments.update({
             'x-dead-letter-exchange': self.DLX_NAME,
         })
 
