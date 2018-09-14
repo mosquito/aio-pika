@@ -9,7 +9,7 @@ class Method:
         self.name = name
         self.func = func
 
-    def __getattr__(self, item):
+    def __getattr__(self, item) -> "Method":
         return Method(".".join((self.name, item)), func=self.func)
 
     def __call__(self, **kwargs):
@@ -22,7 +22,7 @@ class Proxy:
     def __init__(self, func):
         self.func = func
 
-    def __getattr__(self, item):
+    def __getattr__(self, item) -> Method:
         return Method(item, self.func)
 
 
