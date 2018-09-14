@@ -45,7 +45,7 @@ class TestCase(BaseTestCase):
 
         self.assertTrue(self.__closed)
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             await channel.initialize()
 
         await self.create_channel(connection=client)
@@ -91,7 +91,7 @@ class TestCase(BaseTestCase):
 
         body = bytes(shortuuid.uuid(), 'utf-8')
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             f = exchange.publish(
                 Message(
                     body, content_type='text/plain',
@@ -109,7 +109,7 @@ class TestCase(BaseTestCase):
         exchange_name = self.get_random_name()
         channel = await client.channel()
 
-        with self.assertRaises(aio_pika.exceptions.ChannelClosed):
+        with pytest.raises(aio_pika.exceptions.ChannelClosed):
             await self.declare_exchange(exchange_name, auto_delete=True, passive=True, channel=channel)
 
         channel1 = await client.channel()
@@ -324,7 +324,7 @@ class TestCase(BaseTestCase):
 
         incoming_message = await queue.get(timeout=5)
 
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             with incoming_message.process(requeue=True):
                 raise AssertionError
 
@@ -347,7 +347,7 @@ class TestCase(BaseTestCase):
 
         incoming_message = await queue.get(timeout=5)
 
-        with self.assertRaises(MessageProcessError):
+        with pytest.raises(MessageProcessError):
             with incoming_message.process():
                 incoming_message.reject(requeue=True)
 
@@ -369,12 +369,12 @@ class TestCase(BaseTestCase):
         )
 
         incoming_message = await queue.get(timeout=5)
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             with incoming_message.process(requeue=True, reject_on_redelivered=True):
                 raise AssertionError
 
         incoming_message = await queue.get(timeout=5)
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             with incoming_message.process(requeue=True, reject_on_redelivered=True):
                 raise AssertionError
 
@@ -404,14 +404,14 @@ class TestCase(BaseTestCase):
 
         incoming_message = await queue.get(timeout=5)
 
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             with incoming_message.process(requeue=True, reject_on_redelivered=True):
                 raise AssertionError
 
         incoming_message = await queue.get(timeout=5)
 
         with mock.patch('aio_pika.message.log') as message_logger:
-            with self.assertRaises(Exception):
+            with pytest.raises(Exception):
                 with incoming_message.process(requeue=True, reject_on_redelivered=True):
                     raise Exception
 
@@ -490,7 +490,7 @@ class TestCase(BaseTestCase):
         exchange = await channel.declare_exchange('direct', auto_delete=True)
         queue = await channel.declare_queue(queue_name, auto_delete=False)
 
-        with self.assertRaises(aio_pika.exceptions.QueueEmpty):
+        with pytest.raises(aio_pika.exceptions.QueueEmpty):
             await queue.get()
 
         await queue.unbind(exchange, routing_key)
@@ -522,7 +522,7 @@ class TestCase(BaseTestCase):
         incoming_message = await queue.get(timeout=5)
         incoming_message.ack()
 
-        with self.assertRaises(MessageProcessError):
+        with pytest.raises(MessageProcessError):
             incoming_message.ack()
 
         self.assertEqual(incoming_message.body, body)
@@ -555,7 +555,7 @@ class TestCase(BaseTestCase):
         incoming_message = await queue.get(timeout=5)
         incoming_message.reject(requeue=False)
 
-        with self.assertRaises(MessageProcessError):
+        with pytest.raises(MessageProcessError):
             incoming_message.reject(requeue=False)
 
         self.assertEqual(incoming_message.body, body)
@@ -666,7 +666,7 @@ class TestCase(BaseTestCase):
 
         incoming_message = await queue.get(timeout=5, no_ack=True)
 
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             incoming_message.ack()
 
         await exchange.publish(
@@ -693,7 +693,7 @@ class TestCase(BaseTestCase):
 
         incoming_message = await queue.get(timeout=5, no_ack=True)
 
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             await incoming_message.reject()
 
         self.assertEqual(incoming_message.body, body)
@@ -725,20 +725,20 @@ class TestCase(BaseTestCase):
 
             await queue.purge()
 
-            with self.assertRaises(asyncio.TimeoutError):
+            with pytest.raises(asyncio.TimeoutError):
                 await queue.get(timeout=1)
         except:
             await queue.unbind(exchange, routing_key)
             await queue.delete()
 
     async def test_connection_refused(self):
-        with self.assertRaises(ConnectionRefusedError):
+        with pytest.raises(ConnectionRefusedError):
             await connect('amqp://guest:guest@localhost:9999', loop=self.loop)
 
     async def test_wrong_credentials(self):
         amqp_url = AMQP_URL.with_user(uuid.uuid4().hex).with_password(uuid.uuid4().hex)
 
-        with self.assertRaises(ProbableAuthenticationError):
+        with pytest.raises(ProbableAuthenticationError):
             await connect(
                 amqp_url,
                 loop=self.loop
@@ -824,7 +824,7 @@ class TestCase(BaseTestCase):
         exchange = await channel.declare_exchange('direct', auto_delete=True)
 
         try:
-            with self.assertRaises(aio_pika.exceptions.ChannelClosed):
+            with pytest.raises(aio_pika.exceptions.ChannelClosed):
                 msg = Message(bytes(shortuuid.uuid(), 'utf-8'))
                 msg.delivery_mode = 8
 
@@ -987,8 +987,9 @@ class TestCase(BaseTestCase):
 
         channel = await client.channel()
 
-        with self.assertRaises(ChannelClosed):
-            await channel.declare_queue("amq.restricted_queue_name", auto_delete=True)
+        with pytest.raises(ChannelClosed):
+            await channel.declare_queue("amq.restricted_queue_name",
+                                        auto_delete=True)
 
         await wait((client.close(), client.closing), loop=self.loop)
 
@@ -1051,7 +1052,7 @@ class TestCase(BaseTestCase):
         channel = await client.channel()
         queue = await channel.declare_queue(queue_name, auto_delete=True)
 
-        with self.assertRaises(aio_pika.exceptions.QueueEmpty):
+        with pytest.raises(aio_pika.exceptions.QueueEmpty):
             await queue.get(timeout=5)
 
         await channel.default_exchange.publish(
@@ -1063,7 +1064,7 @@ class TestCase(BaseTestCase):
         self.assertEqual(message.body, b'test')
 
         # test again for #110
-        with self.assertRaises(aio_pika.exceptions.QueueEmpty):
+        with pytest.raises(aio_pika.exceptions.QueueEmpty):
             await queue.get(timeout=5)
 
         await queue.delete()
@@ -1111,13 +1112,13 @@ class TestCase(BaseTestCase):
         queue_name = self.get_random_name("test_on_return_raises")
         body = uuid.uuid4().bytes
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             await client.channel(publisher_confirms=False, on_return_raises=True)
 
         channel = await client.channel(publisher_confirms=True, on_return_raises=True)
 
         for _ in range(100):
-            with self.assertRaises(aio_pika.exceptions.UnroutableError):
+            with pytest.raises(aio_pika.exceptions.UnroutableError):
                 await channel.default_exchange.publish(
                     Message(body=body), routing_key=queue_name,
                 )
@@ -1126,7 +1127,7 @@ class TestCase(BaseTestCase):
 
     async def test_transaction_when_publisher_confirms_error(self):
         channel = await self.create_channel(publisher_confirms=True)
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             channel.transaction()
 
     async def test_transaction_simple_commit(self):
@@ -1150,7 +1151,7 @@ class TestCase(BaseTestCase):
     async def test_transaction_simple_async_rollback(self):
         channel = await self.create_channel(publisher_confirms=False)
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             async with channel.transaction():
                 raise ValueError
 

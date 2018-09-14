@@ -42,7 +42,7 @@ class TestCase(BaseTestCase):
 
         await rpc.register('test.rpc', rpc_func, auto_delete=True)
 
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             await rpc.proxy.test.rpc(foo=True, bar=None)
 
         await rpc.unregister(rpc_func)
@@ -54,7 +54,7 @@ class TestCase(BaseTestCase):
 
         await rpc.register('test.rpc', rpc_func, auto_delete=True)
 
-        with self.assertRaises(UnroutableError):
+        with pytest.raises(UnroutableError):
             await rpc.proxy.unroutable()
 
         await rpc.unregister(rpc_func)
@@ -72,7 +72,7 @@ class TestCase(BaseTestCase):
             }
         )
 
-        with self.assertRaises(asyncio.TimeoutError):
+        with pytest.raises(asyncio.TimeoutError):
             await rpc.call('test.timed_out', expiration=1)
 
         await rpc.unregister(rpc_func)
@@ -134,7 +134,7 @@ class TestCase(BaseTestCase):
         await rpc.close()
 
         for task in tasks:
-            with self.assertRaises(asyncio.CancelledError):
+            with pytest.raises(asyncio.CancelledError):
                 await task
 
     async def test_register_twice(self):
@@ -143,7 +143,7 @@ class TestCase(BaseTestCase):
 
         await rpc.register('test.sleeper', lambda x: None, auto_delete=True)
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             await rpc.register(
                 'test.sleeper', lambda x: None, auto_delete=True
             )
@@ -152,7 +152,7 @@ class TestCase(BaseTestCase):
             'test.one', rpc_func, auto_delete=True
         )
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             await rpc.register(
                 'test.two', rpc_func, auto_delete=True
             )
