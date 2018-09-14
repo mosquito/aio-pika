@@ -18,7 +18,7 @@ from aio_pika.exceptions import MessageProcessError, ProbableAuthenticationError
 from aio_pika.exchange import ExchangeType
 from aio_pika.tools import wait
 from unittest import mock
-from . import BaseTestCase, AMQP_URL, timeout
+from . import BaseTestCase, AMQP_URL
 
 log = logging.getLogger(__name__)
 pytestmark = pytest.mark.asyncio
