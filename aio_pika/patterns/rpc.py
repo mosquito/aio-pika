@@ -188,7 +188,7 @@ class RPC(Base):
             payload = self.deserialize(message.body)
             func = self.routes[method_name]
 
-            result = yield from self.execute(func, payload)
+            result = await self.execute(func, payload)
             result = self.serialize(result)
             message_type = 'result'
         except Exception as e:
