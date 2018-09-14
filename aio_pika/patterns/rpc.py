@@ -180,10 +180,10 @@ class RPC(Base):
             log.warning("Method %r not registered in %r", method_name, self)
             return
 
-        payload = self.deserialize(message.body)
-        func = self.routes[method_name]
-
         try:
+            payload = self.deserialize(message.body)
+            func = self.routes[method_name]
+
             result = yield from self.execute(func, payload)
             result = self.serialize(result)
             message_type = 'result'
