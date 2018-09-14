@@ -1,16 +1,22 @@
-import asyncio
 from unittest import skip
+
+import pytest
 
 from tests.test_amqp import TestCase as AMQPTestCase
 
 
-class TestCase(AMQPTestCase):
-    @asyncio.coroutine
-    def create_channel(self, connection=None, cleanup=True, publisher_confirms=False, **kwargs):
-        if connection is None:
-            connection = yield from self.create_connection()
+pytestmark = pytest.mark.asyncio
 
-        channel = yield from connection.channel(publisher_confirms=publisher_confirms, **kwargs)
+
+class TestCase(AMQPTestCase):
+    async def create_channel(self, connection=None, cleanup=True,
+                             publisher_confirms=False, **kwargs):
+        if connection is None:
+            connection = await self.create_connection()
+
+        channel = await connection.channel(
+            publisher_confirms=publisher_confirms, **kwargs
+        )
 
         if cleanup:
             self.addCleanup(channel.close)

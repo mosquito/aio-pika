@@ -46,7 +46,8 @@ def future_with_timeout(loop: asyncio.AbstractEventLoop,
 class FutureStore:
     __slots__ = "__collection", "__loop", "__main_store"
 
-    def __init__(self, loop: asyncio.AbstractEventLoop, main_store: 'FutureStore'=None):
+    def __init__(self, loop: asyncio.AbstractEventLoop,
+                 main_store: 'FutureStore'=None):
         self.__main_store = main_store
         self.__collection = set()
         self.__loop = loop or asyncio.get_event_loop()
@@ -81,7 +82,7 @@ class FutureStore:
 
         future.set_exception(asyncio.TimeoutError)
 
-    def create_future(self, timeout=None):
+    def create_future(self, timeout=None) -> asyncio.Future:
         future = future_with_timeout(self.__loop, timeout)
 
         self.add(future)
@@ -91,14 +92,15 @@ class FutureStore:
 
         return future
 
-    def get_child(self):
+    def get_child(self) -> "FutureStore":
         return FutureStore(self.__loop, main_store=self)
 
 
 class BaseChannel:
     __slots__ = ('_channel_futures', 'loop', '_futures', '_closing')
 
-    def __init__(self, loop: asyncio.AbstractEventLoop, future_store: FutureStore):
+    def __init__(self, loop: asyncio.AbstractEventLoop,
+                 future_store: FutureStore):
         self.loop = loop
         self._futures = future_store
         self._closing = create_future(loop=self.loop)
@@ -114,14 +116,16 @@ class BaseChannel:
     @staticmethod
     def _ensure_channel_is_open(func):
         @wraps(func)
-        @asyncio.coroutine
-        def wrap(self, *args, **kwargs):
+        async def wrap(self, *args, **kwargs):
             if self.is_closed:
                 raise exceptions.ChannelClosed
 
-            return (yield from func(self, *args, **kwargs))
+            return await func(self, *args, **kwargs)
 
         return wrap
 
     def __repr__(self):
-        return "<{}: {}>".format(self.__class__.__name__, getattr(self, 'name', id(self)))
+        return "<{}: {}>".format(
+            self.__class__.__name__,
+            getattr(self, 'name', id(self))
+        )
