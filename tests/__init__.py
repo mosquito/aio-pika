@@ -1,4 +1,3 @@
-import asyncio
 import asynctest
 import logging
 import os
