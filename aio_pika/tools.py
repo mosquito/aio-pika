@@ -1,7 +1,7 @@
 import asyncio
 from functools import partial, wraps
 
-__all__ = 'wait', 'create_future', 'create_task', 'iscoroutinepartial'
+__all__ = 'wait', 'create_task', 'iscoroutinepartial'
 
 
 def iscoroutinepartial(fn):
@@ -25,18 +25,6 @@ def iscoroutinepartial(fn):
             break
 
     return asyncio.iscoroutinefunction(parent)
-
-
-def create_future(*, loop):
-    """ Helper for `create a new future`_ with backward compatibility for Python 3.4
-
-    .. _create a new future: https://goo.gl/YrzGQ6
-    """
-
-    try:
-        return loop.create_future()
-    except AttributeError:
-        return asyncio.Future(loop=loop)
 
 
 def create_task(*, loop=None):

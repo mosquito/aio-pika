@@ -12,7 +12,6 @@ from aio_pika.exceptions import UnroutableError
 from aio_pika.message import (
     Message, IncomingMessage, DeliveryMode, ReturnedMessage
 )
-from aio_pika.tools import create_future
 from .base import Proxy, Base
 
 log = logging.getLogger(__name__)
@@ -68,7 +67,7 @@ class RPC(Base):
         self.dlx_exchange = None
 
     def create_future(self) -> asyncio.Future:
-        future = create_future(loop=self.loop)
+        future = self.loop.create_future()
         future_id = id(future)
         self.futures[future_id] = future
         future.add_done_callback(lambda f: self.futures.pop(future_id, None))

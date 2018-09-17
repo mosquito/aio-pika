@@ -6,7 +6,7 @@ from typing import Optional, Union
 from aio_pika.pika.channel import Channel
 from .common import BaseChannel, FutureStore
 from .message import Message
-from .tools import create_future
+
 
 log = getLogger(__name__)
 
@@ -210,7 +210,7 @@ class Exchange(BaseChannel):
         """
         log.info("Deleting %r", self)
         self._futures.reject_all(RuntimeError("Exchange was deleted"))
-        future = create_future(loop=self.loop)
+        future = self.loop.create_future()
         self._channel.exchange_delete(
             future.set_result, self.name, if_unused=if_unused
         )

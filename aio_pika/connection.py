@@ -12,7 +12,7 @@ from yarl import URL
 from . import exceptions
 from .channel import Channel
 from .common import FutureStore
-from .tools import create_future, shield
+from .tools import shield
 from .adapter import AsyncioConnection
 
 try:
@@ -216,7 +216,7 @@ class Connection:
 
             log.debug("Creating a new AMQP connection: %s", self)
 
-            f = create_future(loop=self.loop)
+            f = self.loop.create_future()
 
             connection = AsyncioConnection(
                 parameters=self.__connection_parameters,

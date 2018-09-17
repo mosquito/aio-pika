@@ -3,7 +3,6 @@ from typing import Callable, Any, Union, Awaitable
 
 from logging import getLogger
 
-from aio_pika.tools import create_future
 from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage
 from .queue import Queue
@@ -60,7 +59,7 @@ class RobustChannel(Channel):
         if not self._closing.done():
             self._closing.set_exception(exc)
 
-        self._closing = create_future(loop=self.loop)
+        self._closing = self.loop.create_future()
         self._futures.reject_all(exc)
         self._connection = connection
         self._channel_number = channel_number

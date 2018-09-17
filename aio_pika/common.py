@@ -6,7 +6,6 @@ from functools import wraps
 from enum import Enum, unique
 from typing import Union
 
-from .tools import create_future
 from . import exceptions
 
 
@@ -24,7 +23,7 @@ def future_with_timeout(loop: asyncio.AbstractEventLoop,
                         future: asyncio.Future=None) -> asyncio.Future:
 
     loop = loop or asyncio.get_event_loop()
-    f = future or create_future(loop=loop)
+    f = future or loop.create_future()
 
     def on_timeout():
         if f.done():
@@ -103,7 +102,7 @@ class BaseChannel:
                  future_store: FutureStore):
         self.loop = loop
         self._futures = future_store
-        self._closing = create_future(loop=self.loop)
+        self._closing = self.loop.create_future()
 
     @property
     def is_closed(self):
