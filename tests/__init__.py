@@ -5,7 +5,6 @@ import os
 from functools import wraps
 
 import shortuuid
-from typing import Generator, Any
 from yarl import URL
 
 from aio_pika import Connection, connect, Channel, Queue, Exchange
@@ -39,7 +38,7 @@ class AsyncTestCase(asynctest.TestCase):
 
 
 class BaseTestCase(AsyncTestCase):
-    async def create_connection(self, cleanup=True) -> Generator[Any, None, Connection]:
+    async def create_connection(self, cleanup=True) -> Connection:
         client = await connect(AMQP_URL, loop=self.loop)
 
         if cleanup:
@@ -47,7 +46,8 @@ class BaseTestCase(AsyncTestCase):
 
         return client
 
-    async def create_channel(self, connection=None, cleanup=True, **kwargs) -> Generator[Any, None, Channel]:
+    async def create_channel(self, connection=None,
+                             cleanup=True, **kwargs) -> Channel:
         if connection is None:
             connection = await self.create_connection()
 
@@ -58,7 +58,7 @@ class BaseTestCase(AsyncTestCase):
 
         return channel
 
-    async def declare_queue(self, *args, **kwargs) -> Generator[Any, None, Queue]:
+    async def declare_queue(self, *args, **kwargs) -> Queue:
         if 'channel' not in kwargs:
             channel = await self.create_channel()
         else:
@@ -68,7 +68,7 @@ class BaseTestCase(AsyncTestCase):
         self.addCleanup(queue.delete)
         return queue
 
-    async def declare_exchange(self, *args, **kwargs) -> Generator[Any, None, Exchange]:
+    async def declare_exchange(self, *args, **kwargs) -> Exchange:
         if 'channel' not in kwargs:
             channel = await self.create_channel()
         else:

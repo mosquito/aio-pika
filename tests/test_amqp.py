@@ -14,7 +14,9 @@ import aio_pika
 import aio_pika.exceptions
 from copy import copy
 from aio_pika import connect, Message, DeliveryMode, Channel
-from aio_pika.exceptions import MessageProcessError, ProbableAuthenticationError
+from aio_pika.exceptions import (
+    MessageProcessError, ProbableAuthenticationError
+)
 from aio_pika.exchange import ExchangeType
 from aio_pika.tools import wait
 from unittest import mock
@@ -69,7 +71,10 @@ class TestCase(BaseTestCase):
 
         body = os.urandom(32)
 
-        await channel.default_exchange.publish(Message(body=body), routing_key=queue.name)
+        await channel.default_exchange.publish(
+            Message(body=body),
+            routing_key=queue.name
+        )
 
         message = await queue.get()
 
@@ -84,7 +89,12 @@ class TestCase(BaseTestCase):
         exchange_name = self.get_random_name("internal", "exchange")
 
         channel = await client.channel()
-        exchange = await self.declare_exchange(exchange_name, auto_delete=True, internal=True, channel=channel)
+        exchange = await self.declare_exchange(
+            exchange_name,
+            auto_delete=True,
+            internal=True,
+            channel=channel
+        )
         queue = await self.declare_queue(auto_delete=True, channel=channel)
 
         await queue.bind(exchange, routing_key)
@@ -110,23 +120,42 @@ class TestCase(BaseTestCase):
         channel = await client.channel()
 
         with pytest.raises(aio_pika.exceptions.ChannelClosed):
-            await self.declare_exchange(exchange_name, auto_delete=True, passive=True, channel=channel)
+            await self.declare_exchange(
+                exchange_name,
+                auto_delete=True,
+                passive=True,
+                channel=channel
+            )
 
         channel1 = await client.channel()
         channel2 = await client.channel()
 
-        await self.declare_exchange(exchange_name, auto_delete=True, passive=False, channel=channel1)
+        await self.declare_exchange(
+            exchange_name,
+            auto_delete=True,
+            passive=False,
+            channel=channel1
+        )
 
         # Check ignoring different exchange options
-        await self.declare_exchange(exchange_name, auto_delete=False, passive=True, channel=channel2)
+        await self.declare_exchange(
+            exchange_name,
+            auto_delete=False,
+            passive=True,
+            channel=channel2
+        )
 
     async def test_simple_publish_and_receive(self):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
         channel = await self.create_channel()
-        exchange = await self.declare_exchange('direct', auto_delete=True, channel=channel)
-        queue = await self.declare_queue(queue_name, auto_delete=True, channel=channel)
+        exchange = await self.declare_exchange(
+            'direct', auto_delete=True, channel=channel
+        )
+        queue = await self.declare_queue(
+            queue_name, auto_delete=True, channel=channel
+        )
 
         await queue.bind(exchange, routing_key)
 
@@ -153,8 +182,12 @@ class TestCase(BaseTestCase):
         routing_key = self.get_random_name()
 
         channel = await self.create_channel(publisher_confirms=False)
-        exchange = await self.declare_exchange('direct', auto_delete=True, channel=channel)
-        queue = await self.declare_queue(queue_name, auto_delete=True, channel=channel)
+        exchange = await self.declare_exchange(
+            'direct', auto_delete=True, channel=channel
+        )
+        queue = await self.declare_queue(
+            queue_name, auto_delete=True, channel=channel
+        )
 
         await queue.bind(exchange, routing_key)
 
@@ -176,13 +209,17 @@ class TestCase(BaseTestCase):
 
         await queue.unbind(exchange, routing_key)
 
-    async def test_simple_publish_and_receive_delivery_mode_explicitly_none(self):
+    async def test_simple_publish_and_receive_delivery_mode_explicitly(self):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
         channel = await self.create_channel()
-        exchange = await self.declare_exchange('direct', auto_delete=True, channel=channel)
-        queue = await self.declare_queue(queue_name, auto_delete=True, channel=channel)
+        exchange = await self.declare_exchange(
+            'direct', auto_delete=True, channel=channel
+        )
+        queue = await self.declare_queue(
+            queue_name, auto_delete=True, channel=channel
+        )
 
         await queue.bind(exchange, routing_key)
 
@@ -210,8 +247,12 @@ class TestCase(BaseTestCase):
         dest_name = self.get_random_name("destination", "exchange")
 
         channel = await self.create_channel()
-        src_exchange = await self.declare_exchange(src_name, auto_delete=True, channel=channel)
-        dest_exchange = await self.declare_exchange(dest_name, auto_delete=True, channel=channel)
+        src_exchange = await self.declare_exchange(
+            src_name, auto_delete=True, channel=channel
+        )
+        dest_exchange = await self.declare_exchange(
+            dest_name, auto_delete=True, channel=channel
+        )
         queue = await self.declare_queue(auto_delete=True, channel=channel)
 
         await queue.bind(dest_exchange, routing_key)
@@ -241,8 +282,12 @@ class TestCase(BaseTestCase):
         routing_key = self.get_random_name()
 
         channel = await self.create_channel()
-        exchange = await self.declare_exchange('direct', auto_delete=True, channel=channel)
-        queue = await self.declare_queue(queue_name, auto_delete=True, channel=channel)
+        exchange = await self.declare_exchange(
+            'direct', auto_delete=True, channel=channel
+        )
+        queue = await self.declare_queue(
+            queue_name, auto_delete=True, channel=channel
+        )
 
         await queue.bind(exchange, routing_key)
 
@@ -307,8 +352,12 @@ class TestCase(BaseTestCase):
         routing_key = self.get_random_name()
 
         channel = await self.create_channel()
-        exchange = await self.declare_exchange('direct', auto_delete=True, channel=channel)
-        queue = await self.declare_queue(queue_name, auto_delete=True, channel=channel)
+        exchange = await self.declare_exchange(
+            'direct', auto_delete=True, channel=channel
+        )
+        queue = await self.declare_queue(
+            queue_name, auto_delete=True, channel=channel
+        )
 
         await queue.bind(exchange, routing_key)
 
@@ -370,12 +419,16 @@ class TestCase(BaseTestCase):
 
         incoming_message = await queue.get(timeout=5)
         with pytest.raises(AssertionError):
-            with incoming_message.process(requeue=True, reject_on_redelivered=True):
+            with incoming_message.process(
+                requeue=True, reject_on_redelivered=True
+            ):
                 raise AssertionError
 
         incoming_message = await queue.get(timeout=5)
         with pytest.raises(AssertionError):
-            with incoming_message.process(requeue=True, reject_on_redelivered=True):
+            with incoming_message.process(
+                requeue=True, reject_on_redelivered=True
+            ):
                 raise AssertionError
 
         self.assertEqual(incoming_message.locked, True)
@@ -387,8 +440,12 @@ class TestCase(BaseTestCase):
         routing_key = self.get_random_name()
 
         channel = await self.create_channel()
-        exchange = await self.declare_exchange('direct', auto_delete=True, channel=channel)
-        queue = await self.declare_queue(queue_name, auto_delete=True, channel=channel)
+        exchange = await self.declare_exchange(
+            'direct', auto_delete=True, channel=channel
+        )
+        queue = await self.declare_queue(
+            queue_name, auto_delete=True, channel=channel
+        )
 
         await queue.bind(exchange, routing_key)
 
@@ -405,18 +462,25 @@ class TestCase(BaseTestCase):
         incoming_message = await queue.get(timeout=5)
 
         with pytest.raises(AssertionError):
-            with incoming_message.process(requeue=True, reject_on_redelivered=True):
+            with incoming_message.process(
+                requeue=True, reject_on_redelivered=True
+            ):
                 raise AssertionError
 
         incoming_message = await queue.get(timeout=5)
 
         with mock.patch('aio_pika.message.log') as message_logger:
             with pytest.raises(Exception):
-                with incoming_message.process(requeue=True, reject_on_redelivered=True):
+                with incoming_message.process(
+                    requeue=True, reject_on_redelivered=True
+                ):
                     raise Exception
 
             self.assertTrue(message_logger.info.called)
-            self.assertEqual(message_logger.info.mock_calls[0][1][1].body, incoming_message.body)
+            self.assertEqual(
+                message_logger.info.mock_calls[0][1][1].body,
+                incoming_message.body
+            )
 
         self.assertEqual(incoming_message.body, body)
 
@@ -478,7 +542,8 @@ class TestCase(BaseTestCase):
             msg = Message(body)
             await exchange.publish(msg, routing_key)
 
-        # ack only last mesage with multiple flag, first message should be acked too
+        # ack only last mesage with multiple flag, first
+        # message should be acked too
         await queue.get(timeout=5)
         last_message = await queue.get(timeout=5)
         last_message.ack(multiple=True)
@@ -736,7 +801,11 @@ class TestCase(BaseTestCase):
             await connect('amqp://guest:guest@localhost:9999', loop=self.loop)
 
     async def test_wrong_credentials(self):
-        amqp_url = AMQP_URL.with_user(uuid.uuid4().hex).with_password(uuid.uuid4().hex)
+        amqp_url = AMQP_URL.with_user(
+            uuid.uuid4().hex
+        ).with_password(
+            uuid.uuid4().hex
+        )
 
         with pytest.raises(ProbableAuthenticationError):
             await connect(
@@ -768,9 +837,13 @@ class TestCase(BaseTestCase):
             self.assertEqual(message.routing_key, dlx_routing_key)
             f.set_result(True)
 
-        direct_exchange = await self.declare_exchange('direct', channel=channel, auto_delete=True)  # type:
-        # aio_pika.Exchange
-        dlx_exchange = await channel.declare_exchange('dlx', ExchangeType.DIRECT, auto_delete=True)
+        direct_exchange = await self.declare_exchange(
+            'direct', channel=channel, auto_delete=True
+        )  # type: aio_pika.Exchange
+
+        dlx_exchange = await channel.declare_exchange(
+            'dlx', ExchangeType.DIRECT, auto_delete=True
+        )
 
         direct_queue = await channel.declare_queue(
             "%s_direct_queue" % suffix,
@@ -831,7 +904,9 @@ class TestCase(BaseTestCase):
                 await exchange.publish(msg, routing_key)
 
             channel = await client.channel()
-            exchange = await channel.declare_exchange('direct', auto_delete=True)
+            exchange = await channel.declare_exchange(
+                'direct', auto_delete=True
+            )
         finally:
             await exchange.delete()
             await wait((client.close(), client.closing), loop=self.loop)
@@ -935,7 +1010,9 @@ class TestCase(BaseTestCase):
         message = await f
 
         self.assertEqual(message.body, body)
-        self.assertEqual(message.headers['x-death'][0]['original-expiration'], '500')
+        self.assertEqual(
+            message.headers['x-death'][0]['original-expiration'], '500'
+        )
 
         await wait((client.close(), client.closing), loop=self.loop)
 
@@ -1091,7 +1168,9 @@ class TestCase(BaseTestCase):
         channel = await client.channel()
         queue = await channel.declare_queue(queue_name, auto_delete=True)
 
-        await channel.default_exchange.publish(Message(body=body), routing_key=queue_name)
+        await channel.default_exchange.publish(
+            Message(body=body), routing_key=queue_name
+        )
 
         message = await queue.get()    # type: aio_pika.IncomingMessage
 
@@ -1227,7 +1306,9 @@ class TestCase(BaseTestCase):
 
         async with conn:
 
-            channel2 = await self.create_channel(connection=conn, cleanup=False)
+            channel2 = await self.create_channel(
+                connection=conn, cleanup=False
+            )
 
             queue = await channel2.declare_queue(
                 self.get_random_name("queue", "is_async", "for"),
