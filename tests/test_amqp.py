@@ -1,26 +1,25 @@
 import asyncio
-import os
-import uuid
 import logging
+import os
+import time
+import unittest
+import uuid
+from copy import copy
+from unittest import mock
 
 import pytest
 import shortuuid
-import time
-import unittest
-
-from aio_pika.exceptions import ChannelClosed
 
 import aio_pika
 import aio_pika.exceptions
-from copy import copy
 from aio_pika import connect, Message, DeliveryMode, Channel
 from aio_pika.exceptions import (
     MessageProcessError, ProbableAuthenticationError
 )
 from aio_pika.exchange import ExchangeType
 from aio_pika.tools import wait
-from unittest import mock
 from . import BaseTestCase, AMQP_URL
+
 
 log = logging.getLogger(__name__)
 pytestmark = pytest.mark.asyncio
@@ -792,7 +791,7 @@ class TestCase(BaseTestCase):
 
             with pytest.raises(asyncio.TimeoutError):
                 await queue.get(timeout=1)
-        finally:
+        except aio_pika.exceptions.QueueEmpty:
             await queue.unbind(exchange, routing_key)
             await queue.delete()
 
@@ -1064,7 +1063,7 @@ class TestCase(BaseTestCase):
 
         channel = await client.channel()
 
-        with pytest.raises(ChannelClosed):
+        with pytest.raises(aio_pika.exceptions.ChannelClosed):
             await channel.declare_queue("amq.restricted_queue_name",
                                         auto_delete=True)
 
