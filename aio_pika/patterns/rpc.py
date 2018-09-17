@@ -243,8 +243,8 @@ class RPC(Base):
         return await func(**payload)
 
     async def call(self, method_name, kwargs: dict=None, *,
-             expiration: int=None, priority: int=128,
-             delivery_mode: DeliveryMode=DELIVERY_MODE):
+                   expiration: int=None, priority: int=128,
+                   delivery_mode: DeliveryMode=DELIVERY_MODE):
 
         """ Call remote method and awaiting result.
 

@@ -2,7 +2,7 @@ import asyncio
 import logging
 from contextlib import suppress
 from functools import wraps, partial
-from typing import Callable, Any, Generator
+from typing import Callable
 
 from .pika.channel import Channel as PikaChannel
 from .pika import ConnectionParameters
@@ -238,8 +238,8 @@ class Connection:
 
     @_ensure_connection
     def channel(self, channel_number: int=None,
-                      publisher_confirms: bool=True,
-                      on_return_raises=False) -> Channel:
+                publisher_confirms: bool=True,
+                on_return_raises=False) -> Channel:
         """ Coroutine which returns new instance of :class:`Channel`.
 
         Example:

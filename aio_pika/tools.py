@@ -28,7 +28,8 @@ def iscoroutinepartial(fn):
 
 
 def create_task(*, loop=None):
-    """ Helper for `create a new Task`_ with backward compatibility for Python 3.4
+    """ Helper for `create a new Task`_ with backward compatibility
+    for Python 3.4
 
     .. _create a new Task: https://goo.gl/g4pMV9
     """

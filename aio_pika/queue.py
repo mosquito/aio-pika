@@ -169,9 +169,9 @@ class Queue(BaseChannel):
         return f
 
     @BaseChannel._ensure_channel_is_open
-    async def consume(self, callback: FunctionType, no_ack: bool=False,
-                exclusive: bool=False, arguments: dict=None,
-                consumer_tag=None, timeout=None) -> ConsumerTag:
+    async def consume(self, callback: FunctionType, no_ack: bool = False,
+                      exclusive: bool = False, arguments: dict = None,
+                      consumer_tag=None, timeout=None) -> ConsumerTag:
         """ Start to consuming the :class:`Queue`.
 
         :param timeout: :class:`asyncio.TimeoutError` will be raises when the
@@ -407,7 +407,7 @@ class QueueIterator:
 
     async def consume(self):
         self._consumer_tag = await self._amqp_queue.consume(
-            self.on_message, 
+            self.on_message,
             **self._consume_kwargs
         )
 

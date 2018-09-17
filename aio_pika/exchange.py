@@ -33,8 +33,9 @@ class Exchange(BaseChannel):
     )
 
     def __init__(self, channel: Channel, publish_method, name: str,
-                 type: ExchangeType=ExchangeType.DIRECT, *, auto_delete: Optional[bool],
-                 durable: Optional[bool], internal: Optional[bool], passive: Optional[bool],
+                 type: ExchangeType=ExchangeType.DIRECT, *,
+                 auto_delete: Optional[bool], durable: Optional[bool],
+                 internal: Optional[bool], passive: Optional[bool],
                  arguments: dict=None, loop: asyncio.AbstractEventLoop,
                  future_store: FutureStore):
 
@@ -179,8 +180,8 @@ class Exchange(BaseChannel):
     @BaseChannel._ensure_channel_is_open
     async def publish(self, message: Message, routing_key, *,
                       mandatory=True, immediate=False):
-        """ Publish the message to the queue. `aio_pika` use `publisher confirms`_
-        extension for message delivery.
+        """ Publish the message to the queue. `aio_pika` use
+        `publisher confirms`_ extension for message delivery.
 
         .. _publisher confirms: https://www.rabbitmq.com/confirms.html
 
