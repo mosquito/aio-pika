@@ -23,5 +23,9 @@ class TestCase(AMQPTestCase):
 
         return channel
 
-    test_simple_publish_and_receive = skip("skipped")(AMQPTestCase.test_simple_publish_and_receive)
-    test_simple_publish_without_confirm = skip("skipped")(AMQPTestCase.test_simple_publish_without_confirm)
+    test_simple_publish_and_receive = skip("skipped")(
+        AMQPTestCase.test_simple_publish_and_receive
+    )
+    test_simple_publish_without_confirm = skip("skipped")(
+        AMQPTestCase.test_simple_publish_without_confirm
+    )

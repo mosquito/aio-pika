@@ -792,7 +792,7 @@ class TestCase(BaseTestCase):
 
             with pytest.raises(asyncio.TimeoutError):
                 await queue.get(timeout=1)
-        except:
+        finally:
             await queue.unbind(exchange, routing_key)
             await queue.delete()
 
@@ -1192,9 +1192,13 @@ class TestCase(BaseTestCase):
         body = uuid.uuid4().bytes
 
         with pytest.raises(RuntimeError):
-            await client.channel(publisher_confirms=False, on_return_raises=True)
+            await client.channel(
+                publisher_confirms=False, on_return_raises=True
+            )
 
-        channel = await client.channel(publisher_confirms=True, on_return_raises=True)
+        channel = await client.channel(
+            publisher_confirms=True, on_return_raises=True
+        )
 
         for _ in range(100):
             with pytest.raises(aio_pika.exceptions.UnroutableError):
