@@ -1,4 +1,3 @@
-import asyncio
 import asynctest
 import logging
 import os
@@ -6,7 +5,6 @@ import os
 from functools import wraps
 
 import shortuuid
-from typing import Generator, Any
 from yarl import URL
 
 from aio_pika import Connection, connect, Channel, Queue, Exchange
@@ -40,71 +38,64 @@ class AsyncTestCase(asynctest.TestCase):
 
 
 class BaseTestCase(AsyncTestCase):
-    @asyncio.coroutine
-    def create_connection(self, cleanup=True) -> Generator[Any, None, Connection]:
-        client = yield from connect(AMQP_URL, loop=self.loop)
+    async def create_connection(self, cleanup=True) -> Connection:
+        client = await connect(AMQP_URL, loop=self.loop)
 
         if cleanup:
             self.addCleanup(client.close)
 
         return client
 
-    @asyncio.coroutine
-    def create_channel(self, connection=None, cleanup=True, **kwargs) -> Generator[Any, None, Channel]:
+    async def create_channel(self, connection=None,
+                             cleanup=True, **kwargs) -> Channel:
         if connection is None:
-            connection = yield from self.create_connection()
+            connection = await self.create_connection()
 
-        channel = yield from connection.channel(**kwargs)
+        channel = await connection.channel(**kwargs)
 
         if cleanup:
             self.addCleanup(channel.close)
 
         return channel
 
-    @asyncio.coroutine
-    def declare_queue(self, *args, **kwargs) -> Generator[Any, None, Queue]:
+    async def declare_queue(self, *args, **kwargs) -> Queue:
         if 'channel' not in kwargs:
-            channel = yield from self.create_channel()
+            channel = await self.create_channel()
         else:
             channel = kwargs.pop('channel')
 
-        queue = yield from channel.declare_queue(*args, **kwargs)
+        queue = await channel.declare_queue(*args, **kwargs)
         self.addCleanup(queue.delete)
         return queue
 
-    @asyncio.coroutine
-    def declare_exchange(self, *args, **kwargs) -> Generator[Any, None, Exchange]:
+    async def declare_exchange(self, *args, **kwargs) -> Exchange:
         if 'channel' not in kwargs:
-            channel = yield from self.create_channel()
+            channel = await self.create_channel()
         else:
             channel = kwargs.pop('channel')
 
-        exchange = yield from channel.declare_exchange(*args, **kwargs)
+        exchange = await channel.declare_exchange(*args, **kwargs)
         self.addCleanup(exchange.delete)
         return exchange
 
 
 def timeout(timeout_sec=5):
     def decorator(func):
-        @asyncio.coroutine
         @wraps(func)
-        def wrap(self, *args, **kwargs):
-            future = asyncio.Future(loop=self.loop)
+        async def wrap(self, *args, **kwargs):
+            loop = self.loop
 
-            def on_timeout(future: asyncio.Future):
-                if future.done():
+            task = loop.create_task(func(self, *args, **kwargs))
+
+            def on_timeout():
+                if task.done():
                     return
 
-                future.set_exception(asyncio.TimeoutError)
+                task.cancel()
 
-            self.loop.call_later(timeout_sec, on_timeout, future)
+            self.loop.call_later(timeout_sec, on_timeout)
 
-            result = yield from asyncio.coroutine(func)(self, *args, **kwargs)
-
-            if not future.done():
-                future.set_result(result)
-
-            return (yield from future)
+            return await task
 
         return wrap
     return decorator

@@ -3,7 +3,7 @@ import logging
 
 from functools import partial
 
-from typing import Callable, Any, Generator
+from typing import Callable, Any
 from aio_pika.channel import Channel
 from aio_pika.queue import Queue
 from aio_pika.message import (
@@ -29,9 +29,8 @@ class Worker:
 
         :return: :class:`asyncio.Task`
         """
-        @asyncio.coroutine
-        def closer():
-            yield from self.queue.cancel(self.consumer_tag)
+        async def closer():
+            await self.queue.cancel(self.consumer_tag)
 
         return self.loop.create_task(closer())
 
@@ -94,29 +93,26 @@ class Master(Base):
         return super().deserialize(data)
 
     @classmethod
-    @asyncio.coroutine
-    def execute(cls, func, kwargs):
+    async def execute(cls, func, kwargs):
         kwargs = kwargs or {}
-        result = yield from func(**kwargs)
+        result = await func(**kwargs)
         return result
 
-    @asyncio.coroutine
-    def on_message(self, func, message: IncomingMessage):
+    async def on_message(self, func, message: IncomingMessage):
         with message.process(requeue=True, ignore_processed=True):
             data = self.deserialize(message.body)
-            yield from self.execute(func, data)
+            await self.execute(func, data)
 
-    @asyncio.coroutine
-    def create_worker(self, channel_name: str,
-                      func: Callable, **kwargs) -> Generator[Any, None, Worker]:
+    async def create_worker(self, channel_name: str,
+                            func: Callable, **kwargs) -> Worker:
         """ Creates a new :class:`Worker` instance. """
-        queue = yield from self.channel.declare_queue(channel_name, **kwargs)
+        queue = await self.channel.declare_queue(channel_name, **kwargs)
 
         if hasattr(func, "_is_coroutine"):
             fn = func
         else:
             fn = asyncio.coroutine(func)
-        consumer_tag = yield from queue.consume(
+        consumer_tag = await queue.consume(
             partial(
                 self.on_message,
                 fn
@@ -125,8 +121,9 @@ class Master(Base):
 
         return Worker(queue, consumer_tag, self.loop)
 
-    @asyncio.coroutine
-    def create_task(self, channel_name: str, kwargs=None, **message_kwargs):
+    async def create_task(self, channel_name: str,
+                          kwargs=None, **message_kwargs):
+
         """ Creates a new task for the worker """
         message = Message(
             body=self.serialize(kwargs or {}),
@@ -135,6 +132,6 @@ class Master(Base):
             **message_kwargs
         )
 
-        yield from self.channel.default_exchange.publish(
+        await self.channel.default_exchange.publish(
             message, channel_name, mandatory=True
         )

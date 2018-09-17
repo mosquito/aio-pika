@@ -3,20 +3,22 @@ import sys
 from collections import namedtuple
 from logging import getLogger
 from types import FunctionType
-from typing import Any, Generator, Optional
+from typing import Optional
 
 from .adapter import Channel
 from .exchange import Exchange, ExchangeType_
 from .message import IncomingMessage
 from .common import BaseChannel, FutureStore
-from .tools import create_task, iscoroutinepartial
+from .tools import create_task, iscoroutinepartial, shield
 from .exceptions import QueueEmpty
 
 log = getLogger(__name__)
 
 
 ConsumerTag = str
-DeclarationResult = namedtuple('DeclarationResult', ('message_count', 'consumer_count'))
+DeclarationResult = namedtuple(
+    'DeclarationResult', ('message_count', 'consumer_count')
+)
 
 
 PY35 = sys.version_info >= (3, 5)
@@ -29,8 +31,10 @@ class Queue(BaseChannel):
                  'auto_delete', 'arguments', '_get_lock',
                  '_channel', '__closing', 'declaration_result')
 
-    def __init__(self, loop: asyncio.AbstractEventLoop, future_store: FutureStore,
-                 channel: Channel, name, durable, exclusive, auto_delete, arguments):
+    def __init__(self, loop: asyncio.AbstractEventLoop,
+                 future_store: FutureStore,
+                 channel: Channel, name,
+                 durable, exclusive, auto_delete, arguments):
 
         super().__init__(loop, future_store)
 
@@ -47,9 +51,18 @@ class Queue(BaseChannel):
         return "%s" % self.name
 
     def __repr__(self):
-        return "<Queue(%s): auto_delete=%s, durable=%s, exclusive=%s, arguments=%r>" % (
-            self, self.auto_delete, self.durable,
-            self.exclusive, self.arguments,
+        return (
+           "<Queue(%s): "
+           "auto_delete=%s, "
+           "durable=%s, "
+           "exclusive=%s, "
+           "arguments=%r>"
+        ) % (
+            self,
+            self.auto_delete,
+            self.durable,
+            self.exclusive,
+            self.arguments,
         )
 
     @BaseChannel._ensure_channel_is_open
@@ -89,17 +102,20 @@ class Queue(BaseChannel):
     def bind(self, exchange: ExchangeType_, routing_key: str=None, *,
              arguments=None, timeout: int=None) -> asyncio.Future:
 
-        """ A binding is a relationship between an exchange and a queue. This can be
-        simply read as: the queue is interested in messages from this exchange.
+        """ A binding is a relationship between an exchange and a queue.
+        This can be simply read as: the queue is interested in messages
+        from this exchange.
 
-        Bindings can take an extra routing_key parameter. To avoid the confusion
-        with a basic_publish parameter we're going to call it a binding key.
+        Bindings can take an extra routing_key parameter. To avoid
+        the confusion with a basic_publish parameter we're going to
+        call it a binding key.
 
         :param exchange: :class:`aio_pika.exchange.Exchange` instance
         :param routing_key: routing key
         :param arguments: additional arguments (will be passed to `pika`)
         :param timeout: execution timeout
-        :raises asyncio.TimeoutError: when the binding timeout period has elapsed.
+        :raises asyncio.TimeoutError:
+            when the binding timeout period has elapsed.
         :return: :class:`None`
         """
 
@@ -130,7 +146,8 @@ class Queue(BaseChannel):
         :param routing_key: routing key
         :param arguments: additional arguments (will be passed to `pika`)
         :param timeout: execution timeout
-        :raises asyncio.TimeoutError: when the unbinding timeout period has elapsed.
+        :raises asyncio.TimeoutError:
+            when the unbinding timeout period has elapsed.
         :return: :class:`None`
         """
 
@@ -152,23 +169,27 @@ class Queue(BaseChannel):
         return f
 
     @BaseChannel._ensure_channel_is_open
-    @asyncio.coroutine
-    def consume(self, callback: FunctionType, no_ack: bool=False,
-                exclusive: bool=False, arguments: dict=None,
-                consumer_tag=None, timeout=None) -> Generator[Any, None, ConsumerTag]:
+    async def consume(self, callback: FunctionType, no_ack: bool = False,
+                      exclusive: bool = False, arguments: dict = None,
+                      consumer_tag=None, timeout=None) -> ConsumerTag:
         """ Start to consuming the :class:`Queue`.
 
         :param timeout: :class:`asyncio.TimeoutError` will be raises when the
                         Future was not finished after this time.
         :param callback: Consuming callback. Could be a coroutine.
-        :param no_ack: if :class:`True` you don't need to call :func:`aio_pika.message.IncomingMessage.ack`
-        :param exclusive: Makes this queue exclusive. Exclusive queues may only be accessed by the current
-                          connection, and are deleted when that connection closes. Passive declaration of an
-                          exclusive queue by other connections are not allowed.
+        :param no_ack:
+            if :class:`True` you don't need to call
+            :func:`aio_pika.message.IncomingMessage.ack`
+        :param exclusive:
+            Makes this queue exclusive. Exclusive queues may only
+            be accessed by the current connection, and are deleted
+            when that connection closes. Passive declaration of an
+            exclusive queue by other connections are not allowed.
         :param arguments: extended arguments for pika
         :param consumer_tag: optional consumer tag
 
-        :raises asyncio.TimeoutError: when the consuming timeout period has elapsed.
+        :raises asyncio.TimeoutError:
+            when the consuming timeout period has elapsed.
         :return str: consumer tag :class:`str`
 
         """
@@ -200,12 +221,13 @@ class Queue(BaseChannel):
             result_callback=future.set_result,
         )
 
-        yield from future
+        await future
 
         return consumer_tag
 
     @BaseChannel._ensure_channel_is_open
-    def cancel(self, consumer_tag: ConsumerTag, timeout=None, nowait: bool=False):
+    def cancel(self, consumer_tag: ConsumerTag, timeout=None,
+               nowait: bool=False):
         """ This method cancels a consumer. This does not affect already
         delivered messages, but it does mean the server will not send any more
         messages for that consumer. The client may receive an arbitrary number
@@ -216,7 +238,8 @@ class Queue(BaseChannel):
         basic.cancel from the client). This allows clients to be notified of
         the loss of consumers due to events such as queue deletion.
 
-        :param consumer_tag: consumer tag returned by :func:`~aio_pika.Queue.consume`
+        :param consumer_tag:
+            consumer tag returned by :func:`~aio_pika.Queue.consume`
         :param timeout: execution timeout
         :param bool nowait: Do not expect a Basic.CancelOk response
         :return: Basic.CancelOk when operation completed successfully
@@ -234,8 +257,8 @@ class Queue(BaseChannel):
         return f
 
     @BaseChannel._ensure_channel_is_open
-    @asyncio.coroutine
-    def get(self, *, no_ack=False, timeout=None, fail=True) -> Generator[Any, None, Optional[IncomingMessage]]:
+    async def get(self, *, no_ack=False,
+                  timeout=None, fail=True) -> Optional[IncomingMessage]:
 
         """ Get message from the queue.
 
@@ -266,16 +289,17 @@ class Queue(BaseChannel):
 
             f.set_result(message)
 
-        with (yield from self._get_lock), self._channel.set_get_empty_callback(_on_getempty):
-            log.debug("Awaiting message from queue: %r", self)
+        async with self._get_lock:
+            with self._channel.set_get_empty_callback(_on_getempty):
+                log.debug("Awaiting message from queue: %r", self)
 
-            self._channel.basic_get(_on_getok, self.name, no_ack=no_ack)
+                self._channel.basic_get(_on_getok, self.name, no_ack=no_ack)
 
-            try:
-                message = yield from f
-                return message
-            finally:
-                self._channel._on_getempty = None
+                try:
+                    message = await f
+                    return message
+                finally:
+                    self._channel._on_getempty = None
 
     @BaseChannel._ensure_channel_is_open
     def purge(self, timeout=None) -> asyncio.Future:
@@ -292,7 +316,8 @@ class Queue(BaseChannel):
         return f
 
     @BaseChannel._ensure_channel_is_open
-    def delete(self, *, if_unused=True, if_empty=True, timeout=None) -> asyncio.Future:
+    def delete(self, *, if_unused=True,
+               if_empty=True, timeout=None) -> asyncio.Future:
         """ Delete the queue.
 
         :param if_unused: Perform delete only when unused
@@ -316,17 +341,8 @@ class Queue(BaseChannel):
 
         return future
 
-    if not PY35:
-        def __iter__(self) -> 'QueueIterator':
-            """ Return the :class:`QueueIterator` which might be used with `async for` syntax
-            before use it we are strongly recommended call :method:`set_qos` with argument `1`. """
-            iterator = self.iterator()
-            self.loop.create_task(iterator.consume())
-            return iterator
-
-    if PY35:
-        def __aiter__(self) -> 'QueueIterator':
-            return self.iterator()
+    def __aiter__(self) -> 'QueueIterator':
+        return self.iterator()
 
     def iterator(self, **kwargs) -> 'QueueIterator':
         """ Returns an iterator for async for expression.
@@ -389,16 +405,14 @@ class QueueIterator:
     def on_message(self, message: IncomingMessage):
         self._queue.put_nowait(message)
 
-    @asyncio.coroutine
-    def consume(self):
-        self._consumer_tag = yield from self._amqp_queue.consume(
-            self.on_message, 
+    async def consume(self):
+        self._consumer_tag = await self._amqp_queue.consume(
+            self.on_message,
             **self._consume_kwargs
         )
 
-    @asyncio.coroutine
-    def _close(self):
-        yield from self._amqp_queue.cancel(self._consumer_tag)
+    async def _close(self):
+        await self._amqp_queue.cancel(self._consumer_tag)
         self._consumer_tag = None
 
         def get_msg():
@@ -419,41 +433,30 @@ class QueueIterator:
             f.set_result(None)
             return f
 
-        return self.loop.create_task(self._close())
+        return self.loop.create_task(shield(self.loop)(self._close)())
 
     def __del__(self):
         self.close()
 
-    def __iter__(self):
+    def __aiter__(self):
         return self
 
-    @asyncio.coroutine
-    def __next__(self) -> IncomingMessage:
+    async def __aenter__(self):
+        if self._consumer_tag is None:
+            await self.consume()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
+
+    async def __anext__(self):
+        if not self._consumer_tag:
+            await self.consume()
         try:
-            return (yield from self._queue.get())
+            return await self._queue.get()
         except asyncio.CancelledError:
-            yield from self.close()
+            await self.close()
             raise
-
-    if PY35:
-        def __aiter__(self):
-            return self
-
-        @asyncio.coroutine
-        def __aenter__(self):
-            if self._consumer_tag is None:
-                yield from self.consume()
-            return self
-
-        @asyncio.coroutine
-        def __aexit__(self, exc_type, exc_val, exc_tb):
-            yield from self.close()
-
-        @asyncio.coroutine
-        def __anext__(self):
-            if not self._consumer_tag:
-                yield from self.consume()
-            return (yield from self.__next__())
 
 
 __all__ = 'Queue', 'QueueIterator'

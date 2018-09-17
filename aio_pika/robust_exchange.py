@@ -14,10 +14,11 @@ class RobustExchange(Exchange):
     """ Exchange abstraction """
 
     def __init__(self, channel: Channel, publish_method, name: str,
-                 type: ExchangeType=ExchangeType.DIRECT, *, auto_delete: Optional[bool],
-                 durable: Optional[bool], internal: Optional[bool],
-                 passive: Optional[bool], arguments: dict=None,
-                 loop: asyncio.AbstractEventLoop, future_store: FutureStore):
+                 type: ExchangeType=ExchangeType.DIRECT, *,
+                 auto_delete: Optional[bool], durable: Optional[bool],
+                 internal: Optional[bool], passive: Optional[bool],
+                 arguments: dict=None, loop: asyncio.AbstractEventLoop,
+                 future_store: FutureStore):
 
         super().__init__(
             channel=channel,
@@ -35,29 +36,33 @@ class RobustExchange(Exchange):
 
         self._bindings = dict()
 
-    @asyncio.coroutine
-    def on_reconnect(self, channel: Channel):
+    async def on_reconnect(self, channel: Channel):
         self._futures.reject_all(ConnectionError("Auto Reconnect Error"))
         self._channel = channel._channel
 
-        yield from self.declare()
+        await self.declare()
 
         for exchange, kwargs in self._bindings.items():
-            yield from self.bind(exchange, **kwargs)
+            await self.bind(exchange, **kwargs)
 
-    @asyncio.coroutine
-    def bind(self, exchange, routing_key: str='', *, arguments=None, timeout: int=None):
-        result = yield from super().bind(
-            exchange, routing_key=routing_key, arguments=arguments, timeout=timeout
+    async def bind(self, exchange, routing_key: str='', *,
+                   arguments=None, timeout: int=None):
+        result = await super().bind(
+            exchange, routing_key=routing_key,
+            arguments=arguments, timeout=timeout
         )
 
-        self._bindings[exchange] = dict(routing_key=routing_key, arguments=arguments)
+        self._bindings[exchange] = dict(
+            routing_key=routing_key, arguments=arguments
+        )
 
         return result
 
-    @asyncio.coroutine
-    def unbind(self, exchange, routing_key: str = '', arguments: dict=None, timeout: int=None):
-        result = yield from super().unbind(exchange, routing_key, arguments=arguments, timeout=timeout)
+    async def unbind(self, exchange, routing_key: str = '',
+                     arguments: dict=None, timeout: int=None):
+
+        result = await super().unbind(exchange, routing_key,
+                                      arguments=arguments, timeout=timeout)
         self._bindings.pop(exchange, None)
         return result
 

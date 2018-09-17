@@ -5,12 +5,13 @@ from aio_pika.patterns.master import Master
 from tests.test_amqp import BaseTestCase
 
 
+pytestmark = pytest.mark.asyncio
+
+
 class TestCase(BaseTestCase):
 
-    @pytest.mark.asyncio
-    @asyncio.coroutine
-    def test_simple(self):
-        channel = yield from self.create_channel()
+    async def test_simple(self):
+        channel = await self.create_channel()
         master = Master(channel)
 
         self.state = []
@@ -18,46 +19,41 @@ class TestCase(BaseTestCase):
         def worker_func(*, foo, bar):
             self.state.append((foo, bar))
 
-        worker = yield from master.create_worker(
+        worker = await master.create_worker(
             'worker.foo', worker_func, auto_delete=True
         )
 
-        yield from master.proxy.worker.foo(foo=1, bar=2)
+        await master.proxy.worker.foo(foo=1, bar=2)
 
-        yield from asyncio.sleep(0.5, loop=self.loop)
+        await asyncio.sleep(0.5, loop=self.loop)
 
         self.assertSequenceEqual(self.state, [(1, 2)])
 
-        yield from worker.close()
+        await worker.close()
 
-    @pytest.mark.asyncio
-    @asyncio.coroutine
-    def test_simple_coro(self):
-        channel = yield from self.create_channel()
+    async def test_simple_coro(self):
+        channel = await self.create_channel()
         master = Master(channel)
 
         self.state = []
 
-        @asyncio.coroutine
-        def worker_func(*, foo, bar):
+        async def worker_func(*, foo, bar):
             self.state.append((foo, bar))
 
-        worker = yield from master.create_worker(
+        worker = await master.create_worker(
             'worker.foo', worker_func, auto_delete=True
         )
 
-        yield from master.proxy.worker.foo(foo=1, bar=2)
+        await master.proxy.worker.foo(foo=1, bar=2)
 
-        yield from asyncio.sleep(0.5, loop=self.loop)
+        await asyncio.sleep(0.5, loop=self.loop)
 
         self.assertSequenceEqual(self.state, [(1, 2)])
 
-        yield from worker.close()
+        await worker.close()
 
-    @pytest.mark.asyncio
-    @asyncio.coroutine
-    def test_simple_many(self):
-        channel = yield from self.create_channel()
+    async def test_simple_many(self):
+        channel = await self.create_channel()
         master = Master(channel)
 
         self.state = []
@@ -65,15 +61,15 @@ class TestCase(BaseTestCase):
         def worker_func(*, foo):
             self.state.append(foo)
 
-        worker = yield from master.create_worker(
+        worker = await master.create_worker(
             'worker.foo', worker_func, auto_delete=True
         )
 
         for item in range(1000):
-            yield from master.proxy.worker.foo(foo=item)
+            await master.proxy.worker.foo(foo=item)
 
-        yield from asyncio.sleep(2, loop=self.loop)
+        await asyncio.sleep(2, loop=self.loop)
 
         self.assertSequenceEqual(self.state, range(1000))
 
-        yield from worker.close()
+        await worker.close()
