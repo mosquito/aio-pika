@@ -1,3 +1,8 @@
+4.0.1
+-----
+
+* Fix: RPC stuck when response deserialization error
+
 4.0.0
 -----
 
