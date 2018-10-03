@@ -163,7 +163,12 @@ class RPC(Base):
             log.warning("Unknown message: %r", message)
             return
 
-        payload = self.deserialize(message.body)
+        try:
+            payload = self.deserialize(message.body)
+        except Exception as e:
+            log.error("Failed to deserialize response on message: %r", message)
+            future.set_exception(e)
+            return
 
         if message.type == 'result':
             future.set_result(payload)
