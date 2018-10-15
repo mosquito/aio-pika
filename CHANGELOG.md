@@ -1,3 +1,8 @@
+4.1.0
+-----
+
+* Fix InvalidStateError when connection lost
+
 4.0.1
 -----
 
