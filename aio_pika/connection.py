@@ -12,7 +12,7 @@ from yarl import URL
 from . import exceptions
 from .channel import Channel
 from .common import FutureStore
-from .tools import shield
+from .tools import shield, future_check_wrap
 from .adapter import AsyncioConnection
 
 try:
@@ -221,7 +221,7 @@ class Connection:
             connection = AsyncioConnection(
                 parameters=self.__connection_parameters,
                 loop=self.loop,
-                on_open_callback=f.set_result,
+                on_open_callback=future_check_wrap(f),
                 on_close_callback=partial(self._on_connection_lost, f),
                 on_open_error_callback=partial(self._on_connection_refused, f),
             )

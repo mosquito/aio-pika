@@ -82,3 +82,11 @@ def shield(func, loop=None):
         )
 
     return wrap
+
+
+def future_check_wrap(future: asyncio.Future):
+    def on_called(result):
+        if not future.done():
+            future.set_result(result)
+
+    return on_called
