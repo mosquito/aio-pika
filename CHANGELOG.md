@@ -1,3 +1,8 @@
+4.2.0
+-----
+
+* Add default params for RPC.cereate()
+
 4.1.0
 -----
 
