@@ -99,11 +99,13 @@ class RPC(Base):
 
         return self.loop.create_task(closer())
 
-    async def initialize(self, **kwargs):
+    async def initialize(self, auto_delete=True, durable=False, **kwargs):
         if self.result_queue is not None:
             return
 
-        self.result_queue = await self.channel.declare_queue(None, **kwargs)
+        self.result_queue = await self.channel.declare_queue(
+            None, auto_delete=auto_delete, durable=durable, **kwargs
+        )
 
         self.dlx_exchange = await self.channel.declare_exchange(
             self.DLX_NAME,
