@@ -211,7 +211,7 @@ class Channel(BaseChannel):
             if confirmation_type == ConfirmationTypes.ACK:
                 future.set_result(True)
             elif confirmation_type == ConfirmationTypes.NACK:
-                future.set_exception(exceptions.NackError(method_frame))
+                future.set_exception(exceptions.DeliveryError(method_frame))
         except ValueError:
             future.set_exception(
                 RuntimeError('Unknown method frame', method_frame)

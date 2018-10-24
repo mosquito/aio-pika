@@ -29,3 +29,7 @@ class TestCase(AMQPTestCase):
     test_simple_publish_without_confirm = skip("skipped")(
         AMQPTestCase.test_simple_publish_without_confirm
     )
+
+    test_test_delivery_fail = skip("skipped")(
+        AMQPTestCase.test_delivery_fail
+    )

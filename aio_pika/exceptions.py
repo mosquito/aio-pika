@@ -39,6 +39,14 @@ class MessageProcessError(AMQPException):
     pass
 
 
+class DeliveryError(AMQPException):
+    __slots__ = 'channel_number', 'delivery_tag'
+
+    def __init__(self, method_frame):
+        self.channel_number = method_frame.channel_number
+        self.delivery_tag = method_frame.method.delivery_tag
+
+
 class QueueEmpty(AMQPException):
     pass
 

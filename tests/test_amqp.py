@@ -14,7 +14,7 @@ import aio_pika
 import aio_pika.exceptions
 from aio_pika import connect, Message, DeliveryMode, Channel
 from aio_pika.exceptions import (
-    MessageProcessError, ProbableAuthenticationError
+    MessageProcessError, ProbableAuthenticationError, DeliveryError
 )
 from aio_pika.exchange import ExchangeType
 from aio_pika.tools import wait
@@ -1383,6 +1383,25 @@ class TestCase(BaseTestCase):
             self.assertTrue(isinstance(channel, Channel))
 
         self.assertTrue(channel.is_closed)
+
+    async def test_delivery_fail(self):
+        channel = await self.create_channel(publisher_confirms=True)
+
+        queue = await channel.declare_queue(exclusive=True, arguments={
+            'x-max-length': 1,
+            'x-overflow': 'reject-publish',
+        })
+
+        await channel.default_exchange.publish(
+            aio_pika.Message(body=b'queue me'),
+            routing_key=queue.name
+        )
+
+        with pytest.raises(DeliveryError):
+            await channel.default_exchange.publish(
+                aio_pika.Message(body=b'reject me'),
+                routing_key=queue.name
+            )
 
 
 class MessageTestCase(unittest.TestCase):
