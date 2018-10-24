@@ -1390,7 +1390,7 @@ class TestCase(BaseTestCase):
         queue = await channel.declare_queue(exclusive=True, arguments={
             'x-max-length': 1,
             'x-overflow': 'reject-publish',
-        })
+        }, auto_delete=True)
 
         await channel.default_exchange.publish(
             aio_pika.Message(body=b'queue me'),
@@ -1398,10 +1398,11 @@ class TestCase(BaseTestCase):
         )
 
         with pytest.raises(DeliveryError):
-            await channel.default_exchange.publish(
-                aio_pika.Message(body=b'reject me'),
-                routing_key=queue.name
-            )
+            for _ in range(10):
+                await channel.default_exchange.publish(
+                    aio_pika.Message(body=b'reject me'),
+                    routing_key=queue.name
+                )
 
 
 class MessageTestCase(unittest.TestCase):
