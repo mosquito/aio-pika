@@ -422,7 +422,7 @@ class BaseConnection(connection.Connection):
         try:
             while self.outbound_buffer:
                 frame = self.outbound_buffer.popleft()
-                while True:
+                while self.socket:
                     try:
                         bw = self.socket.send(frame)
                         break
@@ -431,6 +431,12 @@ class BaseConnection(connection.Connection):
                             continue
                         else:
                             raise
+                else:
+                    if self.is_open:
+                        raise _SOCKET_ERROR(
+                            errno.ECONNABORTED,
+                            errno.errorcode[errno.ECONNABORTED]
+                        )
 
                 bytes_written += bw
                 if bw < len(frame):
@@ -471,6 +477,10 @@ class BaseConnection(connection.Connection):
         write.
 
         """
+
+        if not self.socket:
+            return
+
         if self.outbound_buffer:
             if not self.event_state & self.WRITE:
                 self.event_state |= self.WRITE
