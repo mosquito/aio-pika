@@ -244,12 +244,13 @@ class Channel(BaseChannel):
     async def _publish(self, queue_name, routing_key, body,
                        properties: BasicProperties, mandatory, immediate):
 
+        while self._connection.is_closed:
+            log.debug(
+                "Can't publish message because connection is inactive"
+            )
+            await asyncio.sleep(1, loop=self.loop)
+
         async with self._write_lock:
-            while self._connection.is_closed:
-                log.debug(
-                    "Can't publish message because connection is inactive"
-                )
-                await asyncio.sleep(1, loop=self.loop)
 
             f = self._create_future()
             self._delivery_tag += 1
