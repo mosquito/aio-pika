@@ -1,3 +1,8 @@
+4.4.0
+-----
+
+* More extendable Master
+
 4.3.0
 -----
 
