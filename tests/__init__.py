@@ -35,19 +35,16 @@ class AsyncTestCase(asynctest.TestCase):
     def _unset_loop(self):
         policy = asyncio.get_event_loop_policy()
 
-        if sys.version_info >= (3, 6):
-            self.loop.run_until_complete(self.loop.shutdown_asyncgens())
-        else:
-            tasks = list(filter(
-                lambda t: not t.done(),
-                asyncio.Task.all_tasks(self.loop)
-            ))
+        tasks = list(filter(
+            lambda t: not t.done(),
+            asyncio.Task.all_tasks(self.loop)
+        ))
 
-            for task in tasks:
-                task.cancel()
+        for task in tasks:
+            task.cancel()
 
-            if tasks:
-                self.loop.run_until_complete(asyncio.wait(tasks))
+        if tasks:
+            self.loop.run_until_complete(asyncio.wait(tasks))
 
         self.loop.close()
         policy.reset_watcher()
