@@ -52,7 +52,6 @@ class Worker:
 class Master(Base):
     __slots__ = 'channel', 'loop', 'proxy',
 
-    CONTENT_TYPE = 'application/python-pickle'
     DELIVERY_MODE = DeliveryMode.PERSISTENT
 
     __doc__ = """

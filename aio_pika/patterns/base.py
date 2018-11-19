@@ -28,6 +28,7 @@ class Proxy:
 
 class Base:
     SERIALIZER = pickle
+    CONTENT_TYPE = 'application/python-pickle'
 
     def serialize(self, data: Any) -> bytes:
         return self.SERIALIZER.dumps(data)

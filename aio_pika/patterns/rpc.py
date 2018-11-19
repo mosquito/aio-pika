@@ -203,8 +203,9 @@ class RPC(Base):
 
         result_message = Message(
             result,
-            delivery_mode=message.delivery_mode,
+            content_type=self.CONTENT_TYPE,
             correlation_id=message.correlation_id,
+            delivery_mode=message.delivery_mode,
             timestamp=time.time(),
             type=message_type,
         )
