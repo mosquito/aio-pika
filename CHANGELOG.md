@@ -1,3 +1,8 @@
+4.6.3
+-----
+
+* Fix code examples in the README.rst
+
 4.6.1
 -----
 
