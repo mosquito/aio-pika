@@ -18,8 +18,15 @@ async def main():
     rpc = await RPC.create(channel)
     await rpc.register('multiply', multiply, auto_delete=True)
 
+    return connection
+
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
-    loop.create_task(main())
-    loop.run_forever()
+    connection = loop.run_until_complete(main())
+
+    try:
+        loop.run_forever()
+    finally:
+        loop.run_until_complete(connection.close())
+        loop.shutdown_asyncgens()

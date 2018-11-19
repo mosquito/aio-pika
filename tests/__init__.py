@@ -31,12 +31,16 @@ class AsyncTestCase(asynctest.TestCase):
     use_default_loop = False
     forbid_get_event_loop = True
 
+    @property
+    def _all_tasks(self):
+        return getattr(asyncio, 'all_tasks', asyncio.Task.all_tasks)
+
     def _unset_loop(self):
         policy = asyncio.get_event_loop_policy()
 
         tasks = list(filter(
             lambda t: not t.done(),
-            asyncio.Task.all_tasks(self.loop)
+            self._all_tasks(self.loop)
         ))
 
         for task in tasks:

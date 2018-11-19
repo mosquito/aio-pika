@@ -25,8 +25,13 @@ async def main():
     master = Master(channel)
     await master.create_worker('my_task_name', worker, auto_delete=True)
 
+    return connection
+
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
-    loop.create_task(main())
-    loop.run_forever()
+    connection = loop.run_until_complete(main())
+    try:
+        loop.run_forever()
+    finally:
+        loop.run_until_complete(connection.close())
