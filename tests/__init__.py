@@ -1,5 +1,4 @@
 import asyncio
-import sys
 
 import asynctest
 import logging
