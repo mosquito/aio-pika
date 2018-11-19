@@ -411,6 +411,7 @@ class QueueIterator:
             **self._consume_kwargs
         )
 
+    @shield
     async def _close(self):
         await self._amqp_queue.cancel(self._consumer_tag)
         self._consumer_tag = None
@@ -433,7 +434,7 @@ class QueueIterator:
             f.set_result(None)
             return f
 
-        return self.loop.create_task(shield(self.loop)(self._close)())
+        return self.loop.create_task(self._close())
 
     def __del__(self):
         self.close()

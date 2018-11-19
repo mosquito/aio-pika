@@ -309,7 +309,7 @@ class Connection:
         if self.is_closed:
             return self._closing
 
-        @shield(self.loop)
+        @shield
         async def inner():
             if self._connection:
                 self._connection.close()

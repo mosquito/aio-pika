@@ -61,25 +61,17 @@ async def wait(tasks, loop=None):
     )
 
 
-def shield(func, loop=None):
+def shield(func):
     """
     Simple and useful decorator for wrap the coroutine to `asyncio.shield`.
     """
-
-    if isinstance(func, asyncio.AbstractEventLoop):
-        return partial(shield, loop=func)
 
     async def awaiter(future):
         return await future
 
     @wraps(func)
     def wrap(*args, **kwargs):
-        return awaiter(
-            asyncio.shield(
-                func(*args, **kwargs),
-                loop=loop or asyncio.get_event_loop()
-            )
-        )
+        return wraps(func)(awaiter)(asyncio.shield(func(*args, **kwargs)))
 
     return wrap
 
