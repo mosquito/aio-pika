@@ -1,3 +1,8 @@
+4.6.0
+-----
+
+* Add content_type for all patterns
+
 4.5.0
 -----
 
