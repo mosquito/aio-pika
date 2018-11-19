@@ -64,7 +64,12 @@ class Master(Base):
         self.channel = channel          # type: Channel
         self.loop = self.channel.loop   # type: asyncio.AbstractEventLoop
         self.proxy = Proxy(self.create_task)
+
         self.channel.add_on_return_callback(self.on_message_returned)
+
+    @property
+    def exchange(self):
+        return self.channel.default_exchange
 
     def on_message_returned(self, message: ReturnedMessage):
         log.warning(
@@ -103,10 +108,14 @@ class Master(Base):
             data = self.deserialize(message.body)
             await self.execute(func, data)
 
+    async def create_queue(self, channel_name, **kwargs) -> Queue:
+        return await self.channel.declare_queue(channel_name, **kwargs)
+
     async def create_worker(self, channel_name: str,
                             func: Callable, **kwargs) -> Worker:
         """ Creates a new :class:`Worker` instance. """
-        queue = await self.channel.declare_queue(channel_name, **kwargs)
+
+        queue = await self.create_queue(channel_name, **kwargs)
 
         if hasattr(func, "_is_coroutine"):
             fn = func
@@ -132,6 +141,6 @@ class Master(Base):
             **message_kwargs
         )
 
-        await self.channel.default_exchange.publish(
+        await self.exchange.publish(
             message, channel_name, mandatory=True
         )
