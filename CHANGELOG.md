@@ -1,3 +1,8 @@
+4.6.1
+-----
+
+* Close connection in examples
+
 4.6.0
 -----
 
