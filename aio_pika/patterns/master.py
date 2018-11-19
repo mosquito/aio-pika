@@ -16,6 +16,20 @@ from .base import Proxy, Base
 log = logging.getLogger(__name__)
 
 
+class MessageProcessingError(Exception):
+    pass
+
+
+class NackMessage(MessageProcessingError):
+    def __init__(self, requeue=False):
+        self.requeue = requeue
+
+
+class RejectMessage(MessageProcessingError):
+    def __init__(self, requeue=False):
+        self.requeue = requeue
+
+
 class Worker:
     __slots__ = 'queue', 'consumer_tag', 'loop',
 
@@ -106,7 +120,13 @@ class Master(Base):
     async def on_message(self, func, message: IncomingMessage):
         with message.process(requeue=True, ignore_processed=True):
             data = self.deserialize(message.body)
-            await self.execute(func, data)
+
+            try:
+                await self.execute(func, data)
+            except RejectMessage as e:
+                message.reject(requeue=e.requeue)
+            except NackMessage as e:
+                message.nack(requeue=e.requeue)
 
     async def create_queue(self, channel_name, **kwargs) -> Queue:
         return await self.channel.declare_queue(channel_name, **kwargs)

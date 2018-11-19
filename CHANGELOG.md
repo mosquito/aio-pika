@@ -1,3 +1,8 @@
+4.5.0
+-----
+
+* Add special exceptions for Worker
+
 4.4.0
 -----
 

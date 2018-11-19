@@ -1,9 +1,18 @@
 import asyncio
 from aio_pika import connect_robust
-from aio_pika.patterns import Master
+from aio_pika.patterns import Master, RejectMessage, NackMessage
 
 
 async def worker(*, task_id):
+    # If you want to reject message or send
+    # nack you might raise special exception
+
+    if task_id % 2 == 0:
+        raise RejectMessage(requeue=False)
+
+    if task_id % 2 == 1:
+        raise NackMessage(requeue=False)
+
     print(task_id)
 
 
