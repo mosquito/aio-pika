@@ -1,6 +1,7 @@
 4.6.3
 -----
 
+* RobustConnection fixes #162
 * Fix code examples in the README.rst
 
 4.6.1
