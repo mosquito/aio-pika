@@ -133,7 +133,7 @@ class RobustConnection(Connection):
         for number, channel in tuple(self._channels.items()):
             try:
                 await channel.on_reconnect(self, number)
-            except ChannelClosed:
+            except (RuntimeError, ChannelClosed):
                 self._on_channel_error(channel._channel)
                 return
 
