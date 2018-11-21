@@ -111,6 +111,10 @@ class Channel(BaseChannel):
         await self.close()
 
     def _on_channel_close(self, channel: PikaChannel, code: int, reason):
+        # We have to check if the channel has already been closed, as this
+        # could have been done within `_publish` method
+        if self.is_closed:
+            return
         # In case of normal closing, closing code should be unaltered
         # (0 by default)
         # See: https://github.com/pika/pika/blob/8d970e1/pika/channel.py#L84

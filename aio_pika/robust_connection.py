@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import suppress
 from functools import wraps
 from logging import getLogger
 from typing import Callable
@@ -47,6 +48,7 @@ class RobustConnection(Connection):
         self._on_connection_lost_callbacks = []
         self._on_reconnect_callbacks = []
         self._on_close_callbacks = []
+        self._connecting = None
 
     def add_connection_lost_callback(self, callback: Callable[[], None]):
         """ Add callback which will be called after connection was lost.
@@ -72,6 +74,12 @@ class RobustConnection(Connection):
 
         self._on_close_callbacks.append(lambda c: callback(c))
 
+    def _on_connection_open(self, future: asyncio.Future,
+                            connection: AsyncioConnection):
+        super()._on_connection_open(future, connection)
+        if self._connecting and not self._connecting.done():
+            self._connecting.set_result(connection)
+
     def _on_connection_lost(self, future: asyncio.Future,
                             connection: AsyncioConnection, code, reason):
         for callback in self._on_connection_lost_callbacks:
@@ -91,7 +99,7 @@ class RobustConnection(Connection):
 
         self.loop.call_later(
             self.reconnect_interval,
-            lambda: self.loop.create_task(self.connect())
+            lambda: self.loop.create_task(self.reconnect())
         )
 
     def _channel_cleanup(self, channel: PikaChannel):
@@ -110,23 +118,27 @@ class RobustConnection(Connection):
         self._on_channel_error(channel)
 
     async def connect(self):
-        result = await super().connect()
+        self._connecting = self.loop.create_future()
+        await self.reconnect()
+        result = await self._connecting
+        return result
 
-        while self._connection is None:
-            await asyncio.sleep(self.reconnect_interval, loop=self.loop)
-            result = await super().connect()
+    async def reconnect(self):
+        with suppress(Exception):
+            # Calls `_on_connection_lost` in case of errors
+            if await super().connect():
+                await self.on_reconnect()
 
+    async def on_reconnect(self):
         for number, channel in tuple(self._channels.items()):
             try:
                 await channel.on_reconnect(self, number)
-            except ChannelClosed:
+            except (RuntimeError, ChannelClosed):
                 self._on_channel_error(channel._channel)
                 return
 
         for callback in self._on_reconnect_callbacks:
             callback(self)
-
-        return result
 
     @property
     def is_closed(self):
