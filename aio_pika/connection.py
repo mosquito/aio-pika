@@ -12,7 +12,7 @@ from yarl import URL
 from . import exceptions
 from .channel import Channel
 from .common import FutureStore
-from .tools import shield, future_check_wrap
+from .tools import shield
 from .adapter import AsyncioConnection
 
 try:
@@ -168,6 +168,12 @@ class Connection:
         ch = self._channels.pop(channel.channel_number)     # type: Channel
         ch._futures.reject_all(exceptions.ChannelClosed)
 
+    def _on_connection_open(self, future: asyncio.Future,
+                            connection: AsyncioConnection):
+        log.debug("Connection ready: %r", self)
+        if not future.done():
+            future.set_result(connection)
+
     def _on_connection_refused(self, future: asyncio.Future,
                                connection: AsyncioConnection, message: str):
         self._on_connection_lost(future, connection, code=500,
@@ -175,7 +181,6 @@ class Connection:
 
     def _on_connection_lost(self, future: asyncio.Future,
                             connection: AsyncioConnection, code, reason):
-
         if self.__closing and self.__closing.done():
             return
 
@@ -207,7 +212,6 @@ class Connection:
             You shouldn't call it explicitly.
 
         """
-
         if self.__closing and self.__closing.done():
             raise RuntimeError("Invalid connection state")
 
@@ -221,7 +225,7 @@ class Connection:
             connection = AsyncioConnection(
                 parameters=self.__connection_parameters,
                 loop=self.loop,
-                on_open_callback=future_check_wrap(f),
+                on_open_callback=partial(self._on_connection_open, f),
                 on_close_callback=partial(self._on_connection_lost, f),
                 on_open_error_callback=partial(self._on_connection_refused, f),
             )
@@ -230,8 +234,6 @@ class Connection:
             connection.channel_cancel_callback = self._on_channel_cancel
 
             result = await f
-
-            log.debug("Connection ready: %r", self)
 
             self._connection = connection
             return result

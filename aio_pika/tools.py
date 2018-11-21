@@ -1,7 +1,7 @@
 import asyncio
 from functools import partial, wraps
 
-__all__ = 'wait', 'create_task', 'iscoroutinepartial'
+__all__ = 'wait', 'create_task', 'iscoroutinepartial', 'shield'
 
 
 def iscoroutinepartial(fn):
@@ -74,11 +74,3 @@ def shield(func):
         return wraps(func)(awaiter)(asyncio.shield(func(*args, **kwargs)))
 
     return wrap
-
-
-def future_check_wrap(future: asyncio.Future):
-    def on_called(result):
-        if not future.done():
-            future.set_result(result)
-
-    return on_called
