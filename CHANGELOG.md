@@ -1,3 +1,8 @@
+4.6.4
+-----
+
+* Fix UnboundLocalError exception #163 
+
 4.6.3
 -----
 
