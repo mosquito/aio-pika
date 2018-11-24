@@ -437,6 +437,7 @@ class BaseConnection(connection.Connection):
                             errno.ECONNABORTED,
                             errno.errorcode[errno.ECONNABORTED]
                         )
+                    break
 
                 bytes_written += bw
                 if bw < len(frame):
