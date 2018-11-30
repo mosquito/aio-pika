@@ -428,7 +428,7 @@ async def connect(url: str=None, *, host: str='localhost', port: int=5672,
 
             ssl_options[key] = url.query[key]
 
-        ssl = bool(ssl_options)
+        ssl = url.scheme.lower() == 'amqps'
 
     connection = connection_class(
         host=host, port=port, login=login, password=password,
