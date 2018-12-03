@@ -5,8 +5,8 @@ from logging import getLogger
 from pprint import pformat
 from typing import Union, Optional
 
-from pika import BasicProperties
-from pika.channel import Channel
+from aio_pika.pika import BasicProperties
+from aio_pika.pika.channel import Channel
 from contextlib import contextmanager
 from .exceptions import MessageProcessError
 
@@ -65,8 +65,9 @@ class Message:
         "__lock"
     )
 
-    def __init__(self, body: bytes, *, headers: dict=None, content_type: str=None,
-                 content_encoding: str=None, delivery_mode: DeliveryMode=None,
+    def __init__(self, body: bytes, *, headers: dict=None,
+                 content_type: str=None, content_encoding: str=None,
+                 delivery_mode: DeliveryMode=None,
                  priority: int=None, correlation_id=None,
                  reply_to: str=None, expiration: DateType=None,
                  message_id: str=None,
@@ -98,7 +99,9 @@ class Message:
         self.headers = headers
         self.content_type = content_type
         self.content_encoding = content_encoding
-        self.delivery_mode = DeliveryMode(int(delivery_mode or DeliveryMode.NOT_PERSISTENT)).value
+        self.delivery_mode = DeliveryMode(
+            int(delivery_mode or DeliveryMode.NOT_PERSISTENT)
+        ).value
         self.priority = priority
         self.correlation_id = self._as_bytes(correlation_id)
         self.reply_to = reply_to
@@ -180,7 +183,9 @@ class Message:
             priority=self.priority,
             correlation_id=self.correlation_id,
             reply_to=self.reply_to,
-            expiration=str(convert_timestamp(self.expiration * 1000)) if self.expiration else None,
+            expiration=str(
+                convert_timestamp(self.expiration * 1000)
+            ) if self.expiration else None,
             message_id=self.message_id,
             timestamp=self.timestamp,
             type=self.type,
@@ -210,7 +215,9 @@ class Message:
     def __copy__(self):
         return Message(
             body=self.body,
-            headers={k: v for k, v in self.headers.items()} if self.headers else {},
+            headers={
+                k: v for k, v in self.headers.items()
+            } if self.headers else {},
             content_encoding=self.content_encoding,
             content_type=self.content_type,
             delivery_mode=self.delivery_mode,
@@ -227,7 +234,8 @@ class Message:
 
 
 class IncomingMessage(Message):
-    """ Incoming message it's seems like Message but has additional methods for message acknowledgement.
+    """ Incoming message it's seems like Message but has additional methods for
+    message acknowledgement.
 
     Depending on the acknowledgement mode used, RabbitMQ can consider a
     message to be successfully delivered either immediately after it is sent
@@ -236,14 +244,17 @@ class IncomingMessage(Message):
     positive or negative and use one of the following protocol methods:
 
     * basic.ack is used for positive acknowledgements
-    * basic.nack is used for negative acknowledgements (note: this is a RabbitMQ extension to AMQP 0-9-1)
-    * basic.reject is used for negative acknowledgements but has one limitations compared to basic.nack
+    * basic.nack is used for negative acknowledgements (note: this is a RabbitMQ
+      extension to AMQP 0-9-1)
+    * basic.reject is used for negative acknowledgements but has one limitations
+      compared to basic.nack
 
-    Positive acknowledgements simply instruct RabbitMQ to record a message as delivered.
-    Negative acknowledgements with basic.reject have the same effect.
-    The difference is primarily in the semantics: positive acknowledgements assume a message was
-    successfully processed while their negative counterpart suggests that a delivery wasn't
-    processed but still should be deleted.
+    Positive acknowledgements simply instruct RabbitMQ to record a message as
+    delivered. Negative acknowledgements with basic.reject have the same effect.
+    The difference is primarily in the semantics: positive acknowledgements
+    assume a message was successfully processed while their negative
+    counterpart suggests that a delivery wasn't processed but still should
+    be deleted.
 
     """
     __slots__ = (
@@ -252,7 +263,9 @@ class IncomingMessage(Message):
         'redelivered', '__no_ack', '__processed'
     )
 
-    def __init__(self, channel: Channel, envelope, properties, body, no_ack: bool=False):
+    def __init__(self, channel: Channel, envelope, properties,
+                 body, no_ack: bool=False):
+
         """ Create an instance of :class:`IncomingMessage`
 
         :param channel: :class:`aio_pika.channel.Channel`
@@ -281,7 +294,9 @@ class IncomingMessage(Message):
             reply_to=properties.reply_to,
             expiration=expiration / 1000. if expiration else None,
             message_id=properties.message_id,
-            timestamp=convert_timestamp(float(properties.timestamp)) if properties.timestamp else None,
+            timestamp=convert_timestamp(
+                float(properties.timestamp)
+            ) if properties.timestamp else None,
             type=properties.type,
             user_id=properties.user_id,
             app_id=properties.app_id,
@@ -300,7 +315,8 @@ class IncomingMessage(Message):
             self.__processed = True
 
     @contextmanager
-    def process(self, requeue=False, reject_on_redelivered=False, ignore_processed=False):
+    def process(self, requeue=False, reject_on_redelivered=False,
+                ignore_processed=False):
         """ Context manager for processing the message
 
             >>> def on_message_received(message: IncomingMessage):
@@ -313,13 +329,16 @@ class IncomingMessage(Message):
 
             >>> def on_message_received(message: IncomingMessage):
             ...    with message.process(ignore_processed=True):
-            ...        # Now (with ignore_processed=True) you may reject (or ack) message manually too
+            ...        # Now (with ignore_processed=True) you may reject
+            ...        # (or ack) message manually too
             ...        if True:  # some reasonable condition here
             ...            message.reject()
             ...        print(message.body)
 
         :param requeue: Requeue message when exception.
-        :param reject_on_redelivered: When True message will be rejected only when message was redelivered.
+        :param reject_on_redelivered:
+            When True message will be rejected only when
+            message was redelivered.
         :param ignore_processed: Do nothing if message already processed
 
         """
@@ -330,7 +349,9 @@ class IncomingMessage(Message):
         except:
             if not ignore_processed or not self.processed:
                 if reject_on_redelivered and self.redelivered:
-                    log.info("Message %r was redelivered and will be rejected", self)
+                    log.info(
+                        "Message %r was redelivered and will be rejected", self
+                    )
                     self.reject(requeue=False)
                 else:
                     self.reject(requeue=requeue)
@@ -340,13 +361,14 @@ class IncomingMessage(Message):
         """ Send basic.ack is used for positive acknowledgements
 
         .. note::
-            This method looks like a blocking-method, but actually it's just send bytes to the
-            socket and not required any responses from the broker.
+            This method looks like a blocking-method, but actually it's
+            just send bytes to the socket and not required any responses
+            from the broker.
 
-        :param multiple: If set to True, the message's delivery tag is treated as
-                         "up to and including", so that multiple messages
-                         can be acknowledged with a single method. If set
-                         to False, the ack refers to a single message.
+        :param multiple: If set to True, the message's delivery tag is
+                         treated as "up to and including", so that multiple
+                         messages can be acknowledged with a single method.
+                         If set to False, the ack refers to a single message.
         :return: None
         """
         if self.__no_ack:
@@ -355,18 +377,22 @@ class IncomingMessage(Message):
         if self.__processed:
             raise MessageProcessError("Message already processed")
 
-        self.__channel.basic_ack(delivery_tag=self.delivery_tag, multiple=multiple)
+        self.__channel.basic_ack(
+            delivery_tag=self.delivery_tag, multiple=multiple
+        )
         self.__processed = True
 
         if not self.locked:
             self.lock()
 
     def reject(self, requeue=False):
-        """ When `requeue=True` the message will be returned to queue. Otherwise message will be dropped.
+        """ When `requeue=True` the message will be returned to queue.
+        Otherwise message will be dropped.
 
         .. note::
-            This method looks like a blocking-method, but actually it's just send bytes to the
-            socket and not required any responses from the broker.
+            This method looks like a blocking-method, but actually it's just
+            send bytes to the socket and not required any responses from
+            the broker.
 
         :param requeue: bool
         """
@@ -376,7 +402,9 @@ class IncomingMessage(Message):
         if self.__processed:
             raise MessageProcessError("Message already processed")
 
-        self.__channel.basic_reject(delivery_tag=self.delivery_tag, requeue=requeue)
+        self.__channel.basic_reject(
+            delivery_tag=self.delivery_tag, requeue=requeue
+        )
         self.__processed = True
         if not self.locked:
             self.lock()

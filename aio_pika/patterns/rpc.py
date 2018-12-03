@@ -9,14 +9,16 @@ from typing import Callable, Any, TypeVar
 from aio_pika.exchange import ExchangeType
 from aio_pika.channel import Channel
 from aio_pika.exceptions import UnroutableError
-from aio_pika.message import Message, IncomingMessage, DeliveryMode, ReturnedMessage
-from aio_pika.tools import create_future
+from aio_pika.message import (
+    Message, IncomingMessage, DeliveryMode, ReturnedMessage
+)
 from .base import Proxy, Base
 
 log = logging.getLogger(__name__)
 
 R = TypeVar('R')
-P = [TypeVar('P')]
+P = TypeVar('P')
+CallbackType = Callable[[P], R]
 
 
 class RPC(Base):
@@ -25,6 +27,7 @@ class RPC(Base):
                  "dlx_exchange",)
 
     DLX_NAME = 'rpc.dlx'
+    DELIVERY_MODE = DeliveryMode.NOT_PERSISTENT
 
     __doc__ = """
     Remote Procedure Call helper.
@@ -64,15 +67,14 @@ class RPC(Base):
         self.dlx_exchange = None
 
     def create_future(self) -> asyncio.Future:
-        future = create_future(loop=self.loop)
+        future = self.loop.create_future()
         future_id = id(future)
         self.futures[future_id] = future
         future.add_done_callback(lambda f: self.futures.pop(future_id, None))
         return future
 
     def close(self) -> asyncio.Task:
-        @asyncio.coroutine
-        def closer():
+        async def closer():
             nonlocal self
 
             if self.result_queue is None:
@@ -81,7 +83,7 @@ class RPC(Base):
             for future in self.futures.values():
                 future.set_exception(asyncio.CancelledError)
 
-            yield from self.result_queue.unbind(
+            await self.result_queue.unbind(
                 self.dlx_exchange, "",
                 arguments={
                     "From": self.result_queue.name,
@@ -89,28 +91,29 @@ class RPC(Base):
                 }
             )
 
-            yield from self.result_queue.cancel(self.result_consumer_tag)
+            await self.result_queue.cancel(self.result_consumer_tag)
             self.result_consumer_tag = None
 
-            yield from self.result_queue.delete()
+            await self.result_queue.delete()
             self.result_queue = None
 
         return self.loop.create_task(closer())
 
-    @asyncio.coroutine
-    def initialize(self, **kwargs):
+    async def initialize(self, auto_delete=True, durable=False, **kwargs):
         if self.result_queue is not None:
             return
 
-        self.result_queue = yield from self.channel.declare_queue(None, **kwargs)
+        self.result_queue = await self.channel.declare_queue(
+            None, auto_delete=auto_delete, durable=durable, **kwargs
+        )
 
-        self.dlx_exchange = yield from self.channel.declare_exchange(
+        self.dlx_exchange = await self.channel.declare_exchange(
             self.DLX_NAME,
             type=ExchangeType.HEADERS,
             auto_delete=True,
         )
 
-        yield from self.result_queue.bind(
+        await self.result_queue.bind(
             self.dlx_exchange, "",
             arguments={
                 "From": self.result_queue.name,
@@ -118,15 +121,14 @@ class RPC(Base):
             }
         )
 
-        self.result_consumer_tag = yield from self.result_queue.consume(
+        self.result_consumer_tag = await self.result_queue.consume(
             self.on_result_message, exclusive=True, no_ack=True
         )
 
         self.channel.add_on_return_callback(self.on_message_returned)
 
     @classmethod
-    @asyncio.coroutine
-    def create(cls, channel: Channel, **kwargs) -> "RPC":
+    async def create(cls, channel: Channel, **kwargs) -> "RPC":
         """ Creates a new instance of :class:`aio_pika.patterns.RPC`.
         You should use this method instead of :func:`__init__`,
         because :func:`create` returns coroutine and makes async initialize
@@ -136,11 +138,14 @@ class RPC(Base):
 
         """
         rpc = cls(channel)
-        yield from rpc.initialize(**kwargs)
+        await rpc.initialize(**kwargs)
         return rpc
 
     def on_message_returned(self, message: ReturnedMessage):
-        correlation_id = int(message.correlation_id) if message.correlation_id else None
+        correlation_id = int(
+            message.correlation_id
+        ) if message.correlation_id else None
+
         future = self.futures.pop(correlation_id, None)   # type: asyncio.Future
 
         if not future or future.done():
@@ -149,16 +154,23 @@ class RPC(Base):
 
         future.set_exception(UnroutableError([message]))
 
-    @asyncio.coroutine
-    def on_result_message(self, message: IncomingMessage):
-        correlation_id = int(message.correlation_id) if message.correlation_id else None
+    async def on_result_message(self, message: IncomingMessage):
+        correlation_id = int(
+            message.correlation_id
+        ) if message.correlation_id else None
+
         future = self.futures.pop(correlation_id, None)  # type: asyncio.Future
 
         if future is None:
             log.warning("Unknown message: %r", message)
             return
 
-        payload = self.deserialize(message.body)
+        try:
+            payload = self.deserialize(message.body)
+        except Exception as e:
+            log.error("Failed to deserialize response on message: %r", message)
+            future.set_exception(e)
+            return
 
         if message.type == 'result':
             future.set_result(payload)
@@ -173,17 +185,16 @@ class RPC(Base):
                 RuntimeError("Unknown message type %r" % message.type)
             )
 
-    @asyncio.coroutine
-    def on_call_message(self, method_name: str, message: IncomingMessage):
+    async def on_call_message(self, method_name: str, message: IncomingMessage):
         if method_name not in self.routes:
             log.warning("Method %r not registered in %r", method_name, self)
             return
 
-        payload = self.deserialize(message.body)
-        func = self.routes[method_name]
-
         try:
-            result = yield from self.execute(func, payload)
+            payload = self.deserialize(message.body)
+            func = self.routes[method_name]
+
+            result = await self.execute(func, payload)
             result = self.serialize(result)
             message_type = 'result'
         except Exception as e:
@@ -192,13 +203,14 @@ class RPC(Base):
 
         result_message = Message(
             result,
-            delivery_mode=message.delivery_mode,
+            content_type=self.CONTENT_TYPE,
             correlation_id=message.correlation_id,
+            delivery_mode=message.delivery_mode,
             timestamp=time.time(),
             type=message_type,
         )
 
-        yield from self.channel.default_exchange.publish(
+        await self.channel.default_exchange.publish(
             result_message,
             message.reply_to,
             mandatory=False
@@ -234,21 +246,21 @@ class RPC(Base):
         """
         return pickle.dumps(exception)
 
-    @asyncio.coroutine
-    def execute(self, func: Callable[P, R], payload: P) -> R:
+    async def execute(self, func: CallbackType, payload: P) -> R:
         """ Executes rpc call. Might be overlapped. """
-        return (yield from func(**payload))
+        return await func(**payload)
 
-    @asyncio.coroutine
-    def call(self, method_name, kwargs: dict=None, *, expiration: int=None,
-             priority: int=128, delivery_mode: DeliveryMode=DeliveryMode.NOT_PERSISTENT):
+    async def call(self, method_name, kwargs: dict=None, *,
+                   expiration: int=None, priority: int=128,
+                   delivery_mode: DeliveryMode=DELIVERY_MODE):
 
         """ Call remote method and awaiting result.
 
         :param method_name: Name of method
         :param kwargs: Methos kwargs
-        :param expiration: If not `None` messages which staying in queue longer
-                           will be returned and :class:`asyncio.TimeoutError` will be raised.
+        :param expiration:
+            If not `None` messages which staying in queue longer
+            will be returned and :class:`asyncio.TimeoutError` will be raised.
         :param priority: Message priority
         :param delivery_mode: Call message delivery mode
         :raises asyncio.TimeoutError: when message expired
@@ -274,30 +286,32 @@ class RPC(Base):
         if expiration is not None:
             message.expiration = expiration
 
-        yield from self.channel.default_exchange.publish(
+        await self.channel.default_exchange.publish(
             message, routing_key=method_name, mandatory=True
         )
 
-        return (yield from future)
+        return await future
 
-    @asyncio.coroutine
-    def register(self, method_name, func: Callable[P, R], **kwargs):
-        """ Method creates a queue with name which equal of `method_name` argument.
-        Then subscribes this queue.
+    async def register(self, method_name, func: CallbackType, **kwargs):
+        """ Method creates a queue with name which equal of
+        `method_name` argument. Then subscribes this queue.
 
         :param method_name: Method name
-        :param func: target function. Function **MUST** accept only keyword arguments.
+        :param func:
+            target function. Function **MUST** accept only keyword arguments.
         :param kwargs: arguments which will be passed to `queue_declare`
-        :raises RuntimeError: Function already registered in this :class:`RPC` instance or
-                              method_name already used.
+        :raises RuntimeError:
+            Function already registered in this :class:`RPC` instance
+            or method_name already used.
         """
-        arguments = kwargs.pop('arguments', {}).update({
+        arguments = kwargs.pop('arguments', {})
+        arguments.update({
             'x-dead-letter-exchange': self.DLX_NAME,
         })
 
         kwargs['arguments'] = arguments
 
-        queue = yield from self.channel.declare_queue(method_name, **kwargs)
+        queue = await self.channel.declare_queue(method_name, **kwargs)
 
         if func in self.consumer_tags:
             raise RuntimeError('Function already registered')
@@ -307,15 +321,14 @@ class RPC(Base):
                 'Method name already used for %r' % self.routes[method_name]
             )
 
-        self.consumer_tags[func] = yield from queue.consume(
+        self.consumer_tags[func] = await queue.consume(
             partial(self.on_call_message, method_name)
         )
 
         self.routes[method_name] = asyncio.coroutine(func)
         self.queues[func] = queue
 
-    @asyncio.coroutine
-    def unregister(self, func):
+    async def unregister(self, func):
         """ Cancels subscription to the method-queue.
 
         :param func: Function
@@ -326,6 +339,6 @@ class RPC(Base):
         consumer_tag = self.consumer_tags.pop(func)
         queue = self.queues.pop(func)
 
-        yield from queue.cancel(consumer_tag)
+        await queue.cancel(consumer_tag)
 
         self.routes.pop(queue.name)

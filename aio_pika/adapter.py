@@ -4,8 +4,8 @@ import platform
 from contextlib import contextmanager
 from functools import partial
 
-from pika.adapters import base_connection
-from pika import channel
+from .pika.adapters import base_connection
+from .pika import channel
 
 from .version import __version__
 
@@ -190,18 +190,23 @@ class AsyncioConnection(base_connection.BaseConnection):
     def _create_channel(self, channel_number, on_open_callback):
         log.debug('Creating channel %s', channel_number)
         channel = Channel(self, channel_number, on_open_callback)
-        channel.add_on_cancel_callback(lambda method_frame: self._on_channel_cancel(channel))
+        channel.add_on_cancel_callback(
+            lambda method_frame: self._on_channel_cancel(channel)
+        )
         return channel
 
 
 class Channel(channel.Channel):
     def __init__(self, connection, channel_number, on_open_callback=None):
-        super().__init__(connection, channel_number, on_open_callback=on_open_callback)
+        super().__init__(connection, channel_number,
+                         on_open_callback=on_open_callback)
         self._consume_results = {}
         self._on_getempty_callback = None
 
     def _on_eventok(self, method_frame):
-        callback = self._consume_results.pop(method_frame.method.consumer_tag, None)
+        callback = self._consume_results.pop(
+            method_frame.method.consumer_tag, None
+        )
 
         if callback:
             callback(method_frame)

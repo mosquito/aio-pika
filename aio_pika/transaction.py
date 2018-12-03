@@ -8,7 +8,7 @@ class Transaction:
     def __init__(self, channel, future_store: FutureStore):
         self._channel = channel
         self._future_store = future_store
-        self.closing = self._future_store.create_future()  # type: asyncio.Future
+        self.closing = self._future_store.create_future()
 
     def _create_future(self, timeout=None):
         if self.closing.done():
@@ -36,19 +36,15 @@ class Transaction:
             self.closing.set_result(None)
         self._future_store.reject_all(exc)
 
-    @asyncio.coroutine
-    def __aenter__(self):
-        """ Only for python 3.5+ """
-        result = yield from self.select()
+    async def __aenter__(self):
+        result = await self.select()
         return result
 
-    @asyncio.coroutine
-    def __aexit__(self, exc_type, exc_val, exc_tb):
-        """ Only for python 3.5+ """
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         if exc_type:
-            yield from self.rollback()
+            await self.rollback()
         else:
-            yield from self.commit()
+            await self.commit()
 
         self.close()
 

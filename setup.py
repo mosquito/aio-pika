@@ -3,7 +3,9 @@ from setuptools import setup, find_packages
 from importlib.machinery import SourceFileLoader
 
 
-module = SourceFileLoader("version", os.path.join("aio_pika", "version.py")).load_module()
+module = SourceFileLoader(
+    "version", os.path.join("aio_pika", "version.py")
+).load_module()
 
 
 setup(
@@ -27,33 +29,30 @@ setup(
         'Operating System :: Microsoft',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: Implementation :: PyPy',
         'Programming Language :: Python :: Implementation :: CPython',
     ],
     packages=find_packages(exclude=['tests']),
     install_requires=[
         'shortuuid',
-        'pika==0.10.0',
         'yarl',
     ],
-    python_requires=">3.4.*, <4",
+    python_requires=">3.5.*, <4",
     extras_require={
         'develop': [
-            'asynctest<0.11',
+            'asynctest~=0.12',
             'coverage!=4.3',
             'coveralls',
             'pylama',
             'pytest',
-            'pytest-asyncio<0.6',
             'pytest-cov',
             'sphinx',
             'sphinx-autobuild',
             'timeout-decorator',
             'tox>=2.4',
         ],
-        ':python_version < "3.5"': 'typing >= 3.5.3',
     },
 )
