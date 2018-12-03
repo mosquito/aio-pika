@@ -42,7 +42,8 @@ Features
 * Object oriented API.
 * Transparent auto-reconnects with complete state recovery with `connect_robust`
   (e.g. declared queues or exchanges, consuming state and bindings).
-* Python 3.4+ compatible (include 3.6).
+* Python 3.5+ compatible (include 3.7).
+* For python 3.4 users available `aio-pika<4`
 * Transparent `publisher confirms`_ support
 * `Transactions`_ support
 
@@ -71,22 +72,28 @@ Simple consumer:
 
 
     async def main(loop):
-        connection = await aio_pika.connect_robust("amqp://guest:guest@127.0.0.1/", loop=loop)
+        connection = await aio_pika.connect_robust(
+            "amqp://guest:guest@127.0.0.1/", loop=loop
+        )
 
-        queue_name = "test_queue"
+        async with connection:
+            queue_name = "test_queue"
 
-        # Creating channel
-        channel = await connection.channel()    # type: aio_pika.Channel
+            # Creating channel
+            channel = await connection.channel()    # type: aio_pika.Channel
 
-        # Declaring queue
-        queue = await channel.declare_queue(queue_name, auto_delete=True)   # type: aio_pika.Queue
+            # Declaring queue
+            queue = await channel.declare_queue(
+                queue_name,
+                auto_delete=True
+            )   # type: aio_pika.Queue
 
-        async for message in queue:
-            with message.process():
-                print(message.body)
+            async for message in queue:
+                with message.process():
+                    print(message.body)
 
-                if queue.name in message.body.decode():
-                    break
+                    if queue.name in message.body.decode():
+                        break
 
 
     if __name__ == "__main__":
@@ -103,7 +110,9 @@ Simple publisher:
 
 
     async def main(loop):
-        connection = await aio_pika.connect_robust("amqp://guest:guest@127.0.0.1/", loop=loop)
+        connection = await aio_pika.connect_robust(
+            "amqp://guest:guest@127.0.0.1/", loop=loop
+        )
 
         routing_key = "test_queue"
 
@@ -134,7 +143,10 @@ Get single message example:
 
 
     async def main(loop):
-        connection = await connect_robust("amqp://guest:guest@127.0.0.1/", loop=loop)
+        connection = await connect_robust(
+            "amqp://guest:guest@127.0.0.1/",
+            loop=loop
+        )
 
         queue_name = "test_queue"
         routing_key = "test_queue"

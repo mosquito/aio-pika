@@ -8,24 +8,23 @@ async def main():
         "amqp://guest:guest@127.0.0.1/"
     )
 
-    # Creating channel
-    channel = await connection.channel()
+    async with connection:
+        # Creating channel
+        channel = await connection.channel()
 
-    rpc = await RPC.create(channel)
+        rpc = await RPC.create(channel)
 
-    # Creates tasks by proxy object
-    for i in range(1000):
-        print(await rpc.proxy.multiply(x=100, y=i))
+        # Creates tasks by proxy object
+        for i in range(1000):
+            print(await rpc.proxy.multiply(x=100, y=i))
 
-    # Or using create_task method
-    for i in range(1000):
-        print(
-            await rpc.call(
-                'multiply', kwargs=dict(x=100, y=i)
+        # Or using create_task method
+        for i in range(1000):
+            print(
+                await rpc.call(
+                    'multiply', kwargs=dict(x=100, y=i)
+                )
             )
-        )
-
-    await connection.close()
 
 
 if __name__ == "__main__":

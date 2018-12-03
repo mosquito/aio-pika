@@ -1,5 +1,3 @@
-import asyncio
-
 import pytest
 
 from aio_pika import connect_robust
@@ -7,17 +5,18 @@ from tests import AMQP_URL
 from tests.test_amqp import TestCase as AMQPTestCase
 
 
+pytestmark = pytest.mark.asyncio
+
+
 class TestCase(AMQPTestCase):
-    @asyncio.coroutine
-    def create_connection(self, cleanup=True):
-        client = yield from connect_robust(str(AMQP_URL), loop=self.loop)
+    async def create_connection(self, cleanup=True):
+        client = await connect_robust(str(AMQP_URL), loop=self.loop)
 
         if cleanup:
             self.addCleanup(client.close)
 
         return client
 
-    @pytest.mark.asyncio
-    def test_set_qos(self):
-        channel = yield from self.create_channel()
-        yield from channel.set_qos(prefetch_count=1)
+    async def test_set_qos(self):
+        channel = await self.create_channel()
+        await channel.set_qos(prefetch_count=1)

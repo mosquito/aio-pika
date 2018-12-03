@@ -1,10 +1,11 @@
 import asyncio
+from contextlib import suppress
 from functools import wraps
 from logging import getLogger
-from typing import Callable, Generator, Any
+from typing import Callable
 
-import pika.channel
-from pika.exceptions import ChannelClosed
+from aio_pika.pika.channel import Channel as PikaChannel
+from .pika.exceptions import ChannelClosed
 
 from .adapter import AsyncioConnection
 from .exceptions import ProbableAuthenticationError
@@ -31,20 +32,23 @@ class RobustConnection(Connection):
     DEFAULT_RECONNECT_INTERVAL = 1
     CHANNEL_CLASS = RobustChannel
 
-    def __init__(self, host: str = 'localhost', port: int=5672, login: str = 'guest',
-                 password: str = 'guest', virtual_host: str = '/',
-                 ssl: bool=False, *, loop=None, **kwargs):
+    def __init__(self, host: str = 'localhost', port: int=5672,
+                 login: str = 'guest', password: str = 'guest',
+                 virtual_host: str = '/', ssl: bool=False, *,
+                 loop=None, **kwargs):
 
         self.reconnect_interval = kwargs.pop('reconnect_interval',
                                              self.DEFAULT_RECONNECT_INTERVAL)
 
-        super().__init__(host=host, port=port, login=login, password=password,
-                         virtual_host=virtual_host, ssl=ssl, loop=loop, **kwargs)
+        super().__init__(host=host, port=port, login=login,
+                         password=password, virtual_host=virtual_host,
+                         ssl=ssl, loop=loop, **kwargs)
 
         self._closed = False
         self._on_connection_lost_callbacks = []
         self._on_reconnect_callbacks = []
         self._on_close_callbacks = []
+        self._connecting = None
 
     def add_connection_lost_callback(self, callback: Callable[[], None]):
         """ Add callback which will be called after connection was lost.
@@ -70,7 +74,14 @@ class RobustConnection(Connection):
 
         self._on_close_callbacks.append(lambda c: callback(c))
 
-    def _on_connection_lost(self, future: asyncio.Future, connection: AsyncioConnection, code, reason):
+    def _on_connection_open(self, future: asyncio.Future,
+                            connection: AsyncioConnection):
+        super()._on_connection_open(future, connection)
+        if self._connecting and not self._connecting.done():
+            self._connecting.set_result(connection)
+
+    def _on_connection_lost(self, future: asyncio.Future,
+                            connection: AsyncioConnection, code, reason):
         for callback in self._on_connection_lost_callbacks:
             callback(self)
 
@@ -88,43 +99,46 @@ class RobustConnection(Connection):
 
         self.loop.call_later(
             self.reconnect_interval,
-            lambda: self.loop.create_task(self.connect())
+            lambda: self.loop.create_task(self.reconnect())
         )
 
-    def _channel_cleanup(self, channel: pika.channel.Channel):
+    def _channel_cleanup(self, channel: PikaChannel):
         ch = self._channels[channel.channel_number]     # type: RobustChannel
         ch._futures.reject_all(ChannelClosed)
 
         if ch._closed:
             self._channels.pop(channel.channel_number)  # type: RobustChannel
 
-    def _on_channel_error(self, channel: pika.channel.Channel):
+    def _on_channel_error(self, channel: PikaChannel):
         log.error("Channel closed: %s. Will attempt to reconnect", channel)
         channel.connection.close(reply_code=500, reply_text="Channel canceled")
 
-    def _on_channel_cancel(self, channel: pika.channel.Channel):
+    def _on_channel_cancel(self, channel: PikaChannel):
         log.debug("Channel canceled: %s", channel)
         self._on_channel_error(channel)
 
-    @asyncio.coroutine
-    def connect(self):
-        result = yield from super().connect()
+    async def connect(self):
+        self._connecting = self.loop.create_future()
+        await self.reconnect()
+        result = await self._connecting
+        return result
 
-        while self._connection is None:
-            yield from asyncio.sleep(self.reconnect_interval, loop=self.loop)
-            result = yield from super().connect()
+    async def reconnect(self):
+        with suppress(Exception):
+            # Calls `_on_connection_lost` in case of errors
+            if await super().connect():
+                await self.on_reconnect()
 
+    async def on_reconnect(self):
         for number, channel in tuple(self._channels.items()):
             try:
-                yield from channel.on_reconnect(self, number)
-            except ChannelClosed:
+                await channel.on_reconnect(self, number)
+            except (RuntimeError, ChannelClosed):
                 self._on_channel_error(channel._channel)
                 return
 
         for callback in self._on_reconnect_callbacks:
             callback(self)
-
-        return result
 
     @property
     def is_closed(self):
@@ -134,23 +148,22 @@ class RobustConnection(Connection):
 
     def close(self) -> asyncio.Task:
         """ Close AMQP connection """
-        self._closed = True
-
         try:
             for callback in self._on_close_callbacks:
                 callback(self)
         finally:
-            return super().close()
+            task = super().close()
+            self._closed = True
+            return task
 
 
-@asyncio.coroutine
-def connect_robust(url: str=None, *, host: str='localhost',
-                   port: int=5672, login: str='guest',
-                   password: str='guest', virtualhost: str='/',
-                   ssl: bool=False, loop=None,
-                   ssl_options: dict=None,
-                   connection_class=RobustConnection,
-                   **kwargs) -> Generator[Any, None, Connection]:
+async def connect_robust(url: str=None, *, host: str='localhost',
+                         port: int=5672, login: str='guest',
+                         password: str='guest', virtualhost: str='/',
+                         ssl: bool=False, loop=None,
+                         ssl_options: dict=None,
+                         connection_class=RobustConnection,
+                         **kwargs) -> Connection:
 
     """ Make robust connection to the broker.
 
@@ -165,7 +178,9 @@ def connect_robust(url: str=None, *, host: str='localhost',
         import aio_pika
 
         async def main():
-            connection = await aio_pika.connect_robust("amqp://guest:guest@127.0.0.1/")
+            connection = await aio_pika.connect_robust(
+                "amqp://guest:guest@127.0.0.1/"
+            )
 
     Connect to localhost with default credentials:
 
@@ -185,37 +200,39 @@ def connect_robust(url: str=None, *, host: str='localhost',
             * ssl_version
 
         For an information on what the ssl_options can be set to reference the
-        `official Python documentation`_.
-
-        .. _official Python documentation: http://docs.python.org/3/library/ssl.html
+        `official Python documentation`_ .
 
     URL string might be contain ssl parameters e.g.
-    `amqps://user:password@10.0.0.1//?ca_certs=ca.pem&certfile=cert.pem&keyfile=key.pem`
+    `amqps://user:pass@host//?ca_certs=ca.pem&certfile=crt.pem&keyfile=key.pem`
 
-    :param url: `RFC3986`_ formatted broker address. When :class:`None` \
-                will be used keyword arguments.
+    :param url:
+        RFC3986_ formatted broker address. When :class:`None`
+        will be used keyword arguments.
     :param host: hostname of the broker
     :param port: broker port 5672 by default
-    :param login: username string. `'guest'` by default. Provide empty string \
-                  for pika.credentials.ExternalCredentials usage.
+    :param login:
+        username string. `'guest'` by default. Provide empty string
+        for pika.credentials.ExternalCredentials usage.
     :param password: password string. `'guest'` by default.
     :param virtualhost: virtualhost parameter. `'/'` by default
-    :param ssl: use SSL for connection. Should be used with addition kwargs. \
-                See `pika documentation`_ for more info.
+    :param ssl:
+        use SSL for connection. Should be used with addition kwargs.
+        See `pika documentation`_ for more info.
     :param ssl_options: A dict of values for the SSL connection.
-    :param loop: Event loop (:func:`asyncio.get_event_loop()` \
-                 when :class:`None`)
+    :param loop:
+        Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
     :param connection_class: Factory of a new connection
-    :param kwargs: addition parameters which will be passed to \
-                   the pika connection.
+    :param kwargs:
+        addition parameters which will be passed to the pika connection.
     :return: :class:`aio_pika.connection.Connection`
 
-    .. _RFC3986: https://tools.ietf.org/html/rfc3986
+    .. _RFC3986: https://goo.gl/MzgYAs
     .. _pika documentation: https://goo.gl/TdVuZ9
+    .. _official Python documentation: https://goo.gl/pty9xA
 
     """
     return (
-        yield from connect(
+        await connect(
             url=url, host=host, port=port, login=login,
             password=password, virtualhost=virtualhost, ssl=ssl,
             loop=loop, connection_class=connection_class,

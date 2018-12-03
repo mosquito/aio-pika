@@ -1,7 +1,8 @@
-from .master import Master, Worker
+from .master import Master, Worker, NackMessage, RejectMessage
 from .rpc import RPC
 
 
 __all__ = (
-    'Master', 'Worker', 'RPC',
+    'Master', 'NackMessage', 'RejectMessage',
+    'RPC', 'Worker',
 )

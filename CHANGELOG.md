@@ -1,3 +1,59 @@
+4.6.4
+-----
+
+* Fix UnboundLocalError exception #163 
+
+4.6.3
+-----
+
+* RobustConnection fixes #162
+* Fix code examples in the README.rst
+
+4.6.1
+-----
+
+* Close connection in examples
+
+4.6.0
+-----
+
+* Add content_type for all patterns
+
+4.5.0
+-----
+
+* Add special exceptions for Worker
+
+4.4.0
+-----
+
+* More extendable Master
+
+4.3.0
+-----
+
+* Fix #112
+
+4.2.0
+-----
+
+* Add default params for RPC.cereate()
+
+4.1.0
+-----
+
+* Fix InvalidStateError when connection lost
+
+4.0.1
+-----
+
+* Fix: RPC stuck when response deserialization error
+
+4.0.0
+-----
+
+* Drop python 3.4 support
+
 2.9.0
 -----
 
