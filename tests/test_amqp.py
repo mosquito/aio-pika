@@ -1402,6 +1402,7 @@ class MessageTestCase(unittest.TestCase):
         self.assertDictEqual(info, msg.info())
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize('url,kwargs,exp', [
     ('amqps://', {}, {'ssl': True}),
     ('localhost', {'ssl': True}, {'ssl': True}),
