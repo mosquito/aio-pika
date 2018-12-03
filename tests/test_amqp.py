@@ -1400,3 +1400,16 @@ class MessageTestCase(unittest.TestCase):
         )
 
         self.assertDictEqual(info, msg.info())
+
+@pytest.mark.parametrize('url,kwargs,exp', [
+    ('amqps://', {}, {'ssl': True}),
+    ('localhost', {'ssl': True}, {'ssl': True}),
+    ('localhost', {'ssl_options': {'ssl_version': '2'}}, {'ssl': True}),
+    ('localhost?ssl_version=2', {}, {'ssl': True}),
+])
+async def test_connection_url_params(url, kwargs, exp):
+    connection_mock = mock.MagicMock()
+    await connect(url, connection_class=connection_mock, **kwargs)
+    _, mock_kwargs = connection_mock.call_args
+    for item in exp.items():
+        assert item in mock_kwargs.items()
