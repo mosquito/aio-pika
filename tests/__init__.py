@@ -66,7 +66,7 @@ class AsyncTestCase(asynctest.TestCase):
 
 class BaseTestCase(AsyncTestCase):
     async def create_connection(self, cleanup=True) -> Connection:
-        client = await connect(AMQP_URL, loop=self.loop)
+        client = await connect(str(AMQP_URL), loop=self.loop)
 
         if cleanup:
             self.addCleanup(client.close)

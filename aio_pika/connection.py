@@ -406,8 +406,8 @@ async def connect(url: str=None, *, host: str='localhost', port: int=5672,
 
     ssl_options = ssl_options or {}
 
-    if url:
-        url = URL(str(url))
+    if url is not None:
+        url = URL(url)
         host = url.host or host
         port = url.port or port
         login = url.user or login

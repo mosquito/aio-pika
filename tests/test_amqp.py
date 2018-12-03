@@ -807,10 +807,7 @@ class TestCase(BaseTestCase):
         )
 
         with pytest.raises(ProbableAuthenticationError):
-            await connect(
-                amqp_url,
-                loop=self.loop
-            )
+            await connect(str(amqp_url), loop=self.loop)
 
     async def test_set_qos(self):
         channel = await self.create_channel()

@@ -10,7 +10,7 @@ pytestmark = pytest.mark.asyncio
 
 class TestCase(AMQPTestCase):
     async def create_connection(self, cleanup=True):
-        client = await connect_robust(AMQP_URL, loop=self.loop)
+        client = await connect_robust(str(AMQP_URL), loop=self.loop)
 
         if cleanup:
             self.addCleanup(client.close)
