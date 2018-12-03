@@ -1,3 +1,9 @@
+4.7.0
+-----
+
+* fixed inconsistent argument type for connection.connect #136
+* fixed conditions for creating SSL connection. #135
+
 4.6.4
 -----
 
