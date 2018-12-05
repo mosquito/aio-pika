@@ -125,6 +125,7 @@ Thanks for contributing
 .. _@decaz: https://github.com/decaz
 .. _@kajetanj: https://github.com/kajetanj
 .. _@iselind: https://github.com/iselind
+.. _@driverx: https://github.com/DriverX
 
 
 Versioning
