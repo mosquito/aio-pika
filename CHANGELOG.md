@@ -1,3 +1,8 @@
+4.8.0
+-----
+
+* save passive flag on reconnect #170
+
 4.7.0
 -----
 
