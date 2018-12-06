@@ -29,12 +29,14 @@ class Queue(BaseChannel):
 
     __slots__ = ('name', 'durable', 'exclusive',
                  'auto_delete', 'arguments', '_get_lock',
-                 '_channel', '__closing', 'declaration_result')
+                 '_channel', '__closing', 'declaration_result',
+                 'passive')
 
     def __init__(self, loop: asyncio.AbstractEventLoop,
                  future_store: FutureStore,
                  channel: Channel, name,
-                 durable, exclusive, auto_delete, arguments):
+                 durable, exclusive, auto_delete, arguments,
+                 passive: bool = False,):
 
         super().__init__(loop, future_store)
 
@@ -44,7 +46,8 @@ class Queue(BaseChannel):
         self.exclusive = exclusive
         self.auto_delete = auto_delete
         self.arguments = arguments
-        self.declaration_result = None      # type: DeclarationResult
+        self.passive = passive
+        self.declaration_result = None  # type: DeclarationResult
         self._get_lock = asyncio.Lock(loop=self.loop)
 
     def __str__(self):
@@ -66,13 +69,16 @@ class Queue(BaseChannel):
         )
 
     @BaseChannel._ensure_channel_is_open
-    def declare(self, timeout: int=None, passive: bool=False) -> asyncio.Future:
+    def declare(self, timeout: int=None, passive: bool = None) -> asyncio.Future:
         """ Declare queue.
 
         :param timeout: execution timeout
         :param passive: Only check to see if the queue exists.
         :return: :class:`None`
         """
+
+        if passive is None:
+            passive = self.passive
 
         log.debug("Declaring queue: %r", self)
 

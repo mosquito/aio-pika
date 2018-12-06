@@ -311,10 +311,11 @@ class Channel(BaseChannel):
 
             queue = self.QUEUE_CLASS(
                 self.loop, self._futures.get_child(), self._channel, name,
-                durable, exclusive, auto_delete, arguments
+                durable, exclusive, auto_delete, arguments,
+                passive=passive
             )
 
-            await queue.declare(timeout, passive=passive)
+            await queue.declare(timeout)
             return queue
 
     async def close(self) -> None:

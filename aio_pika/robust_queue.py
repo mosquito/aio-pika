@@ -18,13 +18,17 @@ DeclarationResult = namedtuple(
 
 
 class RobustQueue(Queue):
+    __slots__ = ('_consumers', '_bindings')
+
     def __init__(self, loop: asyncio.AbstractEventLoop,
                  future_store: FutureStore, channel: Channel,
-                 name, durable, exclusive, auto_delete, arguments):
+                 name, durable, exclusive, auto_delete, arguments,
+                 passive: bool = False):
 
         super().__init__(loop, future_store, channel,
                          name or "amq_%s" % shortuuid.uuid(),
-                         durable, exclusive, auto_delete, arguments)
+                         durable, exclusive, auto_delete, arguments,
+                         passive=passive)
 
         self._consumers = {}
         self._bindings = {}

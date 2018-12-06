@@ -144,6 +144,38 @@ class TestCase(BaseTestCase):
             channel=channel2
         )
 
+    async def test_declare_queue_with_passive_flag(self):
+        client = await self.create_connection()
+
+        queue_name = self.get_random_name()
+        channel = await client.channel()
+
+        with pytest.raises(aio_pika.exceptions.ChannelClosed):
+            await self.declare_queue(
+                queue_name,
+                auto_delete=True,
+                passive=True,
+                channel=channel
+            )
+
+        channel1 = await client.channel()
+        channel2 = await client.channel()
+
+        await self.declare_queue(
+            queue_name,
+            auto_delete=True,
+            passive=False,
+            channel=channel1
+        )
+
+        # Check ignoring different queue options
+        await self.declare_queue(
+            queue_name,
+            auto_delete=False,
+            passive=True,
+            channel=channel2
+        )
+
     async def test_simple_publish_and_receive(self):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
