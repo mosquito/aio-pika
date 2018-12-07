@@ -6,7 +6,6 @@ steps:
   - name: python 3.5
     image: snakepacker/python:all
     commands:
-      - pip3.5 install pylava
       - tox
     environment:
       AMQP_URL: amqp://guest:guest@rabbitmq
@@ -15,7 +14,6 @@ steps:
   - name: python 3.6
     image: snakepacker/python:all
     commands:
-      - pip3.6 install pylava
       - tox
     environment:
       AMQP_URL: amqp://guest:guest@rabbitmq
@@ -24,7 +22,6 @@ steps:
   - name: python 3.7
     image: snakepacker/python:all
     commands:
-      - pip3.7 install pylava
       - tox
     environment:
       AMQP_URL: amqp://guest:guest@rabbitmq
