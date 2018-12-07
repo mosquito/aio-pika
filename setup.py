@@ -46,7 +46,7 @@ setup(
             'asynctest~=0.12',
             'coverage!=4.3',
             'coveralls',
-            'pylama',
+            'pylava',
             'pytest',
             'pytest-cov',
             'sphinx',

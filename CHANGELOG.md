@@ -1,3 +1,9 @@
+4.8.1
+-----
+
+* Migrate from travis to drone.io
+* Use pylava instead of pylama
+
 4.8.0
 -----
 
@@ -44,6 +50,7 @@
 -----
 
 * Fix #112
+* Fix #155
 
 4.2.0
 -----
