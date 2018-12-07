@@ -30,3 +30,4 @@ steps:
 services:
   - name: rabbitmq
     image: rabbitmq:3-alpine
+
