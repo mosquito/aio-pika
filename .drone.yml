@@ -6,7 +6,7 @@ steps:
   - name: python 3.5
     image: snakepacker/python:all
     commands:
-      - echo ${COVERALLS_REPO_TOKEN}
+      - echo $COVERALLS_REPO_TOKEN
       - tox
     environment:
       AMQP_URL: amqp://guest:guest@rabbitmq
