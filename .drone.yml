@@ -6,8 +6,7 @@ steps:
   - name: python 3.5
     image: snakepacker/python:all
     commands:
-      - set STOLEN=$COVERALLS_TOKEN
-      - bash -c "echo ${STOLEN}"
+      - echo $COVERALLS_TOKEN
       - tox
     environment:
       AMQP_URL: amqp://guest:guest@rabbitmq
