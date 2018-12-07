@@ -55,4 +55,5 @@ setup(
             'tox>=2.4',
         ],
     },
+    url='https://github.com/mosquito/aio-pika'
 )
