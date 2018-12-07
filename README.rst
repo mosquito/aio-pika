@@ -12,8 +12,8 @@ aio-pika
     :target: https://coveralls.io/github/mosquito/aio-pika
     :alt: Coveralls
 
-.. image:: https://travis-ci.org/mosquito/aio-pika.svg
-    :target: https://travis-ci.org/mosquito/aio-pika
+.. image:: https://cloud.drone.io/api/badges/mosquito/aio-pika/status.svg
+    :target: https://cloud.drone.io/mosquito/aio-pika
     :alt: Travis CI
 
 .. image:: https://img.shields.io/pypi/v/aio-pika.svg

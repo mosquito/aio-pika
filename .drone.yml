@@ -1,0 +1,16 @@
+kind: pipeline
+name: default
+
+
+steps:
+  - name: tox
+    image: snakepacker/python:all
+    commands:
+      - tox
+    environment:
+      AMQP_URL: amqp://guest:guest@rabbitmq
+
+
+services:
+  - name: rabbitmq
+    image: rabbitmq:3-alpine
