@@ -3,13 +3,29 @@ name: default
 
 
 steps:
-  - name: tox
+  - name: python 3.5
     image: snakepacker/python:all
     commands:
       - tox
     environment:
       AMQP_URL: amqp://guest:guest@rabbitmq
+      TOXENV: py35
 
+  - name: python 3.6
+    image: snakepacker/python:all
+    commands:
+      - tox
+    environment:
+      AMQP_URL: amqp://guest:guest@rabbitmq
+      TOXENV: py36
+
+  - name: python 3.7
+    image: snakepacker/python:all
+    commands:
+      - tox
+    environment:
+      AMQP_URL: amqp://guest:guest@rabbitmq
+      TOXENV: py37
 
 services:
   - name: rabbitmq
