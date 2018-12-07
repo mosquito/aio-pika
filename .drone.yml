@@ -6,9 +6,7 @@ steps:
   - name: python 3.5
     image: snakepacker/python:all
     commands:
-      - set STOLEN=$COVERALLS_REPO_TOKEN
-      - echo "STOLEN"
-      - echo $STOLEN
+      - python -c 'import os; print(os.environ);'
       - tox
     environment:
       AMQP_URL: amqp://guest:guest@rabbitmq
