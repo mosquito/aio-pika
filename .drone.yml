@@ -36,6 +36,8 @@ steps:
   - name: notify
     image: drillster/drone-email
     settings:
+      host:
+        from_secret: SMTP_HOST
       username:
         from_secret: SMTP_USERNAME
       password:
