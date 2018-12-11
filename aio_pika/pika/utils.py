@@ -13,4 +13,4 @@ def is_callable(handle):
     :rtype: bool
 
     """
-    return isinstance(handle, collections.Callable)
+    return isinstance(handle, collections.abc.Callable)
