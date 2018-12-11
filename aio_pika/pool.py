@@ -30,14 +30,16 @@ class Pool:
         return PoolItemContextManager(self)
 
     @property
-    def _is_overflow(self):
+    def _has_released(self):
+        return self.__items.qsize() > 0
+
+    @property
+    def _is_overflow(self) -> bool:
         if self.__max_size:
-            return self.__created >= self.__max_size
+            return self.__created >= self.__max_size or self._has_released
+        return self._has_released
 
-    async def _get(self) -> T:
-        if self._is_overflow:
-            return await self.__items.get()
-
+    async def _create_item(self) -> T:
         async with self.__lock:
             if self._is_overflow:
                 return await self.__items.get()
@@ -46,6 +48,12 @@ class Pool:
             item = await self.__constructor()
             self.__created += 1
             return item
+
+    async def _get(self) -> T:
+        if self._is_overflow:
+            return await self.__items.get()
+
+        return await self._create_item()
 
     def put(self, item: T):
         return self.__items.put_nowait(item)
