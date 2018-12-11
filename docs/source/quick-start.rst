@@ -45,3 +45,9 @@ External credentials example
 
 .. literalinclude:: examples/external-credentials.py
    :language: python
+
+Connection pooling
+~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: examples/pooling.py
+   :language: python
