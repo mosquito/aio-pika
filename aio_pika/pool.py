@@ -40,7 +40,7 @@ class Pool:
 
         async with self.__lock:
             if self._is_overflow:
-                return await self._get()
+                return await self.__items.get()
 
             log.debug('Creating a new instance of %r', self.__constructor)
             item = await self.__constructor()
