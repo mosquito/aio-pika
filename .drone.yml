@@ -9,9 +9,6 @@ steps:
       - tox
     environment:
       TOXENV: lint
-    when:
-      event:
-        - push
 
   - name: python 3.5
     image: snakepacker/python:all

@@ -346,7 +346,7 @@ class IncomingMessage(Message):
             yield self
             if not ignore_processed or not self.processed:
                 self.ack()
-        except:
+        except Exception:
             if not ignore_processed or not self.processed:
                 if reject_on_redelivered and self.redelivered:
                     log.info(

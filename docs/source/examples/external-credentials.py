@@ -2,8 +2,10 @@ import asyncio
 import aio_pika
 import ssl
 
+
 async def main(loop):
-    connection = await aio_pika.connect_robust(host='127.0.0.1',
+    connection = await aio_pika.connect_robust(
+        host='127.0.0.1',
         login='',
         ssl=True,
         ssl_options=dict(

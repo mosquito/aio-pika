@@ -69,7 +69,8 @@ class Queue(BaseChannel):
         )
 
     @BaseChannel._ensure_channel_is_open
-    def declare(self, timeout: int=None, passive: bool = None) -> asyncio.Future:
+    def declare(self, timeout: int=None,
+                passive: bool = None) -> asyncio.Future:
         """ Declare queue.
 
         :param timeout: execution timeout

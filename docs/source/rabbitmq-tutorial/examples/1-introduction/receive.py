@@ -10,7 +10,7 @@ async def on_message(message: IncomingMessage):
     print(" [x] Received message %r" % message)
     print("Message body is: %r" % message.body)
     print("Before sleep!")
-    await asyncio.sleep(5) # Represents async I/O operations
+    await asyncio.sleep(5)   # Represents async I/O operations
     print("After sleep!")
 
 
@@ -34,6 +34,7 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.create_task(main(loop))
 
-    # we enter a never-ending loop that waits for data and runs callbacks whenever necessary.
+    # we enter a never-ending loop that waits for data and
+    # runs callbacks whenever necessary.
     print(" [*] Waiting for messages. To exit press CTRL+C")
     loop.run_forever()
