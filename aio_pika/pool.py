@@ -47,7 +47,7 @@ class Pool:
             self.__created += 1
             return item
 
-    def put(self, item: ItemType):
+    def put(self, item: T):
         return self.__items.put_nowait(item)
 
 
