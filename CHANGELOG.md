@@ -1,3 +1,9 @@
+4.9.0
+-----
+
+* Fixed Deprecation Warnings in Python 3.7 #153
+
+
 4.8.1
 -----
 

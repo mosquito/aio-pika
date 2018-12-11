@@ -3,6 +3,16 @@ name: default
 
 
 steps:
+  - name: linter
+    image: snakepacker/python:all
+    commands:
+      - tox
+    environment:
+      TOXENV: lint
+    when:
+      event:
+        - push
+
   - name: python 3.5
     image: snakepacker/python:all
     commands:
@@ -12,6 +22,9 @@ steps:
       TOXENV: py35
       COVERALLS_REPO_TOKEN:
         from_secret: COVERALLS_TOKEN
+    when:
+      event:
+        - pull_request
 
   - name: python 3.6
     image: snakepacker/python:all
@@ -22,6 +35,9 @@ steps:
       TOXENV: py36
       COVERALLS_REPO_TOKEN:
         from_secret: COVERALLS_TOKEN
+    when:
+      event:
+        - pull_request
 
   - name: python 3.7
     image: snakepacker/python:all
@@ -32,6 +48,26 @@ steps:
       TOXENV: py37
       COVERALLS_REPO_TOKEN:
         from_secret: COVERALLS_TOKEN
+    when:
+      event:
+        - pull_request
+
+  - name: test all
+    image: snakepacker/python:all
+    commands:
+      - tox
+      - coveralls
+    environment:
+      AMQP_URL: amqp://guest:guest@rabbitmq
+      TOXENV: py37
+      COVERALLS_REPO_TOKEN:
+        from_secret: COVERALLS_TOKEN
+    when:
+      branch:
+        - master
+      event:
+        exclude:
+          - pull_request
 
   - name: notify
     image: drillster/drone-email
@@ -48,9 +84,17 @@ steps:
         status:
           - changed
           - failure
+    when:
+      event:
+        exclude:
+          - pull_request
+          - push
 
 
 services:
   - name: rabbitmq
     image: rabbitmq:3-alpine
-
+    when:
+      event:
+        exclude:
+          - push
