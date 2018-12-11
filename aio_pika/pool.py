@@ -19,9 +19,8 @@ class Pool:
 
     def __init__(self, constructor: ConstructorType, max_size: int = None,
                  loop: asyncio.AbstractEventLoop = None):
-
         self.loop = loop or asyncio.get_event_loop()
-        self.__max_size = max_size or -1
+        self.__max_size = max_size
         self.__items = asyncio.Queue(loop=self.loop)
         self.__constructor = constructor
         self.__created = 0
@@ -32,7 +31,8 @@ class Pool:
 
     @property
     def _is_overflow(self):
-        return self.__created >= self.__max_size
+        if self.__max_size:
+            return self.__created >= self.__max_size
 
     async def _get(self) -> T:
         if self._is_overflow:

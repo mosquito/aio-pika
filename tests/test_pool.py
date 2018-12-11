@@ -8,8 +8,8 @@ from tests import AsyncTestCase
 pytestmark = pytest.mark.asyncio
 
 
-class TestCase(AsyncTestCase):
-    max_size = 10
+class BaseTestCase(AsyncTestCase):
+    max_size = None
 
     def setUp(self):
         super().setUp()
@@ -24,6 +24,10 @@ class TestCase(AsyncTestCase):
         await asyncio.sleep(0, loop=self.loop)
         self.counter += 1
         return self.counter
+
+
+class TestCase(BaseTestCase):
+    max_size = 10
 
     async def test_simple(self):
         async def getter():
@@ -55,3 +59,25 @@ class TestCase(AsyncTestCase):
             self.assertIsInstance(result, RuntimeError)
 
         self.assertEqual(self.counter, self.max_size)
+
+
+class TestCaseNoMaxSize(BaseTestCase):
+    max_size = None
+
+    async def test_simple(self):
+        call_count = 200
+
+        async def getter():
+            async with self.pool.acquire() as instance:
+                assert instance > 0
+                return self.counter
+
+        results = await asyncio.gather(
+            *[getter() for _ in range(call_count)],
+            loop=self.loop, return_exceptions=True
+        )
+
+        for result in results:
+            self.assertGreater(result, -1)
+
+        self.assertEqual(self.counter, call_count)
