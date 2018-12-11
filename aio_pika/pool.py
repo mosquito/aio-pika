@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import AsyncContextManager, TypeVar, Coroutine, Callable, Any
+from typing import Any, AsyncContextManager, Callable, Coroutine, TypeVar
 
 
 T = TypeVar("T")
