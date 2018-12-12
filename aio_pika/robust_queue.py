@@ -1,9 +1,10 @@
 import asyncio
+from base64 import b64encode
 from collections import namedtuple
 from logging import getLogger
 from types import FunctionType
 
-import shortuuid
+import uuid
 
 from .common import FutureStore
 from .channel import Channel
@@ -25,10 +26,12 @@ class RobustQueue(Queue):
                  name, durable, exclusive, auto_delete, arguments,
                  passive: bool = False):
 
-        super().__init__(loop, future_store, channel,
-                         name or "amq_%s" % shortuuid.uuid(),
-                         durable, exclusive, auto_delete, arguments,
-                         passive=passive)
+        super().__init__(
+            loop, future_store, channel,
+            name or "amq_%s" % b64encode(uuid.uuid4().bytes).decode(),
+            durable, exclusive, auto_delete, arguments,
+            passive=passive
+        )
 
         self._consumers = {}
         self._bindings = {}

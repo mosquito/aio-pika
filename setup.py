@@ -37,7 +37,7 @@ setup(
     ],
     packages=find_packages(exclude=['tests']),
     install_requires=[
-        'shortuuid',
+        'pamqp',
         'yarl',
     ],
     python_requires=">3.5.*, <4",
