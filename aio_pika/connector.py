@@ -114,9 +114,11 @@ class Base:
     def _cancel_tasks(self):
         tasks = []
 
+        # noinspection PyShadowingNames
         async def awaiter(task):
             return await task
 
+        # noinspection PyShadowingNames
         for task in self.tasks:
             if task.done():
                 continue
@@ -418,10 +420,10 @@ class Channel(Base):
             raise spec.AMQPFrameError(frame)
 
     async def _read_content(self, frame):
-        content_header = await self._get_frame()
+        content_header = await self._get_frame()    # type: ContentHeader
 
         body = BytesIO()
-        content = await self._get_frame()
+        content = await self._get_frame()       # type: ContentBody
         while (isinstance(content, ContentBody) and
                body.tell() < content_header.body_size):
             body.write(content.value)
