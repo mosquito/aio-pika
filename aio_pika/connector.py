@@ -4,25 +4,22 @@ import logging
 import os
 import platform
 import ssl
+import typing
 from binascii import hexlify
 from contextlib import suppress
 from enum import Enum
 from functools import wraps, partial
 from io import BytesIO
-from types import MappingProxyType
 
 import pamqp.frame
-import typing
 from pamqp import ProtocolHeader, ContentHeader
 from pamqp import specification as spec
 from pamqp.body import ContentBody
 from pamqp.heartbeat import Heartbeat
-
 from yarl import URL
 
-from . import exceptions
+from .exceptions import InvalidFrameError, ChannelClosed
 from .version import __version__
-
 
 T = typing.TypeVar('T')
 log = logging.getLogger(__name__)
@@ -34,7 +31,6 @@ PLATFORM = '{} {} ({} build {})'.format(
     *platform.python_build()
 )
 
-
 SSLCerts = typing.NamedTuple(
     'SSLCerts', [
         ('cert', str),
@@ -43,14 +39,12 @@ SSLCerts = typing.NamedTuple(
     ]
 )
 
-
 FrameReceived = typing.NamedTuple(
     'FrameReceived', [
         ('channel', int),
         ('frame', str),
     ]
 )
-
 
 DeliveredMessage = typing.NamedTuple(
     'DeliveredMessage', [
@@ -63,7 +57,6 @@ DeliveredMessage = typing.NamedTuple(
 
 def create_default_ssl_context(certs: SSLCerts,
                                auth_type=ssl.Purpose.SERVER_AUTH):
-
     return ssl.create_default_context(
         auth_type,
         cafile=certs.ca,
@@ -102,6 +95,7 @@ def task(func: T) -> T:
     async def wrap(self: "AMQPConnector", *args, **kwargs):
         # noinspection PyCallingNonCallable
         return await self.create_task(func(self, *args, **kwargs))
+
     return wrap
 
 
@@ -136,7 +130,7 @@ class Base:
 
     def create_task(self, coro) -> asyncio.Task:
         # noinspection PyShadowingNames
-        task = self.loop.create_task(coro)     # type: asyncio.Task
+        task = self.loop.create_task(coro)  # type: asyncio.Task
         self.tasks.add(task)
         task.add_done_callback(self.tasks.remove)
         return task
@@ -155,8 +149,8 @@ class AMQPConnector(Base):
         self.loop = loop or asyncio.get_event_loop()
         self.url = url
         self.vhost = self.url.path.strip("/") or "/"
-        self.reader = None      # type: asyncio.StreamReader
-        self.writer = None      # type: asyncio.StreamWriter
+        self.reader = None  # type: asyncio.StreamReader
+        self.writer = None  # type: asyncio.StreamWriter
         self.ssl_certs = SSLCerts(
             ca=self.url.query.get('keyfile'),
             key=self.url.query.get('keyfile'),
@@ -165,15 +159,15 @@ class AMQPConnector(Base):
 
         self.started = False
         self.lock = asyncio.Lock(loop=self.loop)
-        self.channels = {}      # type: typing.Dict[int, Channel]
+        self.channels = {}  # type: typing.Dict[int, Channel]
         self.channel_lock = asyncio.Lock(loop=self.loop)
 
-        self.reader_task = None     # type: asyncio.Task
+        self.reader_task = None  # type: asyncio.Task
         self.server_properties = None
 
-        self.channel_max = None     # type: int
-        self.frame_max = None       # type: int
-        self.heartbeat = None       # type: int
+        self.channel_max = None  # type: int
+        self.frame_max = None  # type: int
+        self.heartbeat = None  # type: int
 
         self.last_channel = 0
         self.tasks = set()
@@ -243,7 +237,7 @@ class AMQPConnector(Base):
             )
         )
 
-        _, _, frame = await self._receive_frame()   # type: spec.Connection.Tune
+        _, _, frame = await self._receive_frame()  # type: spec.Connection.Tune
 
         self.heartbeat = frame.heartbeat
         self.frame_max = frame.frame_max
@@ -323,7 +317,7 @@ class AMQPConnector(Base):
         writer.close()
 
         results = [self._cancel_tasks()]
-        for channel in tuple(self.channels.values()):   # type: Channel
+        for channel in tuple(self.channels.values()):  # type: Channel
             results.append(channel._cancel_tasks())
 
         return asyncio.gather(*results, return_exceptions=True)
@@ -348,7 +342,7 @@ class AMQPConnector(Base):
     def publisher_confirms(self):
         return self.server_capabilities.get('publisher_confirms', False)
 
-    async def channel(self, channel_number: int=None) -> "Channel":
+    async def channel(self, channel_number: int = None) -> "Channel":
         async with self.channel_lock:
             if channel_number is None:
                 self.last_channel += 1
@@ -398,9 +392,9 @@ class Channel(Base):
     def handle_exception(self, frame):
         if isinstance(frame, spec.Channel.Close):
             self._cancel_tasks()
-            raise exceptions.ChannelClosed(frame.reply_code, frame.reply_text)
+            raise ChannelClosed(frame.reply_code, frame.reply_text)
 
-        raise exceptions.InvalidFrameError(frame)
+        raise InvalidFrameError(frame)
 
     @task
     async def rpc(self, frame: spec.Frame) -> typing.Optional[spec.Frame]:
@@ -478,9 +472,9 @@ class Channel(Base):
 
     async def close(self) -> spec.Channel.CloseOk:
         result = await self.rpc(spec.Channel.Close(
-                reply_code=spec.REPLY_SUCCESS,
-            )
-        )   # type: spec.Channel.CloseOk
+            reply_code=spec.REPLY_SUCCESS,
+        )
+        )  # type: spec.Channel.CloseOk
 
         await self._cancel_tasks()
 
@@ -533,7 +527,7 @@ class Channel(Base):
         ))
 
     async def basic_publish(
-        self, body: bytes, *, exchange: str='', routing_key: str='',
+        self, body: bytes, *, exchange: str = '', routing_key: str = '',
         properties: spec.Basic.Properties = None,
         mandatory: bool = False, immediate: bool = False
     ):
