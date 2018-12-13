@@ -8,9 +8,10 @@ from collections import defaultdict
 from contextlib import suppress
 from enum import Enum
 from functools import partial, wraps
+from io import BytesIO
 
 import pamqp.frame
-from typing import NamedTuple, TypeVar, Dict, Union, Tuple
+import typing
 from pamqp import ProtocolHeader, ContentHeader
 from pamqp import specification as spec
 from pamqp.body import ContentBody
@@ -20,7 +21,7 @@ from yarl import URL
 from .version import __version__
 
 
-T = TypeVar('T')
+T = typing.TypeVar('T')
 log = logging.getLogger(__name__)
 
 PRODUCT = 'aio-pika'
@@ -31,7 +32,7 @@ PLATFORM = '{} {} ({} build {})'.format(
 )
 
 
-SSLCerts = NamedTuple(
+SSLCerts = typing.NamedTuple(
     'SSLCerts', [
         ('cert', str),
         ('key', str),
@@ -40,10 +41,19 @@ SSLCerts = NamedTuple(
 )
 
 
-FrameReceived = NamedTuple(
+FrameReceived = typing.NamedTuple(
     'FrameReceived', [
         ('channel', int),
         ('frame', str),
+    ]
+)
+
+
+DeliveredMessage = typing.NamedTuple(
+    'DeliveredMessage', [
+        ('delivery', spec.Basic.Deliver),
+        ('header', ContentHeader),
+        ('body', bytes),
     ]
 )
 
@@ -92,6 +102,13 @@ def task(func: T) -> T:
     return wrap
 
 
+ChannelRType = typing.Tuple[int, spec.Channel.OpenOk]
+CallbackCoro = typing.Coroutine[DeliveredMessage, None, typing.Any]
+ConsumerCallback = typing.Callable[[], CallbackCoro]
+ReturnCallback = typing.Callable[[], CallbackCoro]
+ArgumentsType = typing.Dict[str, typing.Union[str, int, bool]]
+
+
 class AMQPConnectorBase:
     HEADER_LENGTH = 8
     FRAME_BUFFER = 10
@@ -113,7 +130,11 @@ class AMQPConnectorBase:
         )
 
         self.frames = defaultdict(
-            partial(asyncio.PriorityQueue, loop=self.loop)
+            partial(
+                asyncio.PriorityQueue,
+                maxsize=self.FRAME_BUFFER,
+                loop=self.loop
+            )
         )
 
         self.locks = defaultdict(
@@ -128,8 +149,21 @@ class AMQPConnectorBase:
         self.heartbeat = None       # type: int
         self.last_channel = 0
         self.tasks = set()
+        self.consumers = dict()
+        self.readers = dict()
+        self.return_callbacks = set()
+        self.return_callbacks_lock = asyncio.Lock(loop=self.loop)
 
-    def create_task(self, coro):
+    async def add_return_callback(self, callback: ReturnCallback):
+        async with self.return_callbacks_lock:
+            self.return_callbacks.add(callback)
+
+    async def remove_return_callback(self, callback: ReturnCallback):
+        async with self.return_callbacks_lock:
+            self.return_callbacks.remove(callback)
+
+    def create_task(self, coro) -> asyncio.Task:
+        # noinspection PyShadowingNames
         task = self.loop.create_task(coro)     # type: asyncio.Task
         self.tasks.add(task)
         task.add_done_callback(self.tasks.remove)
@@ -181,6 +215,7 @@ class AMQPConnectorBase:
             ssl=ssl_context,
         )
 
+        # noinspection PyAsyncCall
         self.create_task(self._reader())
 
         protocol_header = ProtocolHeader()
@@ -222,12 +257,34 @@ class AMQPConnectorBase:
 
     async def _get_frame(self, channel: int) -> spec.Frame:
         weight, received_frame = await self.frames[channel].get()
-        return received_frame.frame
+        return received_frame
 
+    # noinspection PyAsyncCall,PyTypeChecker
     async def _reader(self):
-        connecton_started = False
+        connection_started = False
 
-        while True:
+        async def read_content(parsed_frame) -> DeliveredMessage:
+            weight, channel, content_header = await receive_frame()
+
+            body = BytesIO()
+            weight, channel, content = await receive_frame()
+            while (isinstance(content, ContentBody) and
+                   body.tell() < content_header.body_size):
+                body.write(content.value)
+
+                if body.tell() < content_header.body_size:
+                    weight, channel, content = await receive_frame()
+
+            # noinspection PyTypeChecker
+            return DeliveredMessage(
+                delivery=parsed_frame,
+                header=content_header,
+                body=body.getvalue()
+            )
+
+        async def receive_frame() -> typing.Tuple[int, int, spec.Frame]:
+            nonlocal connection_started
+
             frame_header = await self.reader.readexactly(1)
 
             if frame_header == b'\0x00':
@@ -235,11 +292,12 @@ class AMQPConnectorBase:
 
             frame_header += await self.reader.readexactly(6)
 
-            if not connecton_started and frame_header.startswith(b'AMQP'):
+            if not connection_started and frame_header.startswith(b'AMQP'):
                 raise spec.AMQPSyntaxError
             else:
-                connecton_started = True
+                connection_started = True
 
+            # noinspection PyProtectedMember
             frame_type, _, frame_length = pamqp.frame._frame_parts(
                 frame_header
             )
@@ -248,14 +306,29 @@ class AMQPConnectorBase:
                 frame_length + 1
             )
 
-            weight, channel, parsed_frame = pamqp.frame.unmarshal(
-                frame_header + frame_payload
-            )
+            return pamqp.frame.unmarshal(frame_header + frame_payload)
 
-            await self.frames[channel].put((
-                weight,
-                FrameReceived(channel=channel, frame=parsed_frame)
-            ))
+        while True:
+            weight, channel, parsed_frame = await receive_frame()
+
+            if isinstance(parsed_frame, spec.Basic.Deliver):
+                message = await read_content(parsed_frame)
+
+                consumer = self.consumers.get(parsed_frame.consumer_tag)
+                if consumer is not None:
+                    with suppress(Exception):
+                        self.create_task(consumer(message))
+
+                continue
+            elif isinstance(parsed_frame, spec.Basic.Return):
+                message = await read_content(parsed_frame)
+                async with self.return_callbacks_lock:
+                    for func in self.return_callbacks:
+                        with suppress(Exception):
+                            self.create_task(func(message))
+                continue
+
+            await self.frames[channel].put((weight, parsed_frame))
 
     @task
     async def rpc(self, channel, frame_value: spec.Frame) -> spec.Frame:
@@ -272,6 +345,7 @@ class AMQPConnectorBase:
 
     def close(self) -> asyncio.Future:
         if not self.writer:
+            # noinspection PyShadowingNames
             task = asyncio.Future()
             task.set_result(None)
             return task
@@ -280,6 +354,7 @@ class AMQPConnectorBase:
         self.reader = None
         self.writer = None
 
+        # noinspection PyShadowingNames
         async def closer():
             writer.close()
 
@@ -298,7 +373,7 @@ class AMQPConnectorBase:
         return self.loop.create_task(closer())
 
     @property
-    def server_capabilities(self) -> Dict[str, Union[str, int, bool]]:
+    def server_capabilities(self) -> ArgumentsType:
         return self.server_properties['server_capabilities']
 
     @property
@@ -316,9 +391,6 @@ class AMQPConnectorBase:
     @property
     def publisher_confirms(self):
         return self.server_capabilities.get('publisher_confirms', False)
-
-
-ChannelRType = Tuple[int, spec.Channel.OpenOk]
 
 
 class AMQPConnector(AMQPConnectorBase):
@@ -339,12 +411,16 @@ class AMQPConnector(AMQPConnectorBase):
         return channel, frame
 
     async def channel_close(self, channel) -> spec.Channel.CloseOk:
-        # noinspection PyTypeChecker
-        return await self.rpc(
+        result = await self.rpc(
             channel, spec.Channel.Close(
                 reply_code=spec.REPLY_SUCCESS,
             )
-        )
+        )   # type: spec.Channel.CloseOk
+
+        self.locks.pop(channel, None)
+        self.frames.pop(channel, None)
+
+        return result
 
     def basic_ack(self, channel: int, delivery_tag, multiple=False):
         return self.rpc(channel, spec.Basic.Ack(
@@ -365,14 +441,18 @@ class AMQPConnector(AMQPConnectorBase):
             nowait=nowait,
         ))
 
-    async def basic_consume(self, channel: int, queue: str = '',
-                            *, no_ack: bool = False,  exclusive: bool = False,
-                            arguments: Dict[str, Union[str, int, bytes]] = None,
+    async def basic_consume(self, channel: int, queue: str,
+                            consumer_callback: ConsumerCallback, *,
+
+                            no_ack: bool = False, exclusive: bool = False,
+                            arguments: ArgumentsType = None,
                             consumer_tag: str = None) -> spec.Basic.ConsumeOk:
 
         consumer_tag = consumer_tag or 'ctag%i.%s' % (
             channel, uuid.uuid4().hex
         )
+
+        self.consumers[consumer_tag] = consumer_callback
 
         # noinspection PyTypeChecker
         return await self.rpc(channel, spec.Basic.Consume(
@@ -390,9 +470,9 @@ class AMQPConnector(AMQPConnectorBase):
 
     async def basic_publish(
         self, channel: int, body: bytes,
-        *, exchange: str='direct', routing_key: str='',
+        *, exchange: str='', routing_key: str='',
         properties: spec.Basic.Properties = None,
-        mandatory: bool = True, immediate: bool = False
+        mandatory: bool = False, immediate: bool = False
     ):
 
         frame = spec.Basic.Publish(
@@ -463,11 +543,11 @@ class AMQPConnector(AMQPConnectorBase):
         ))
 
     async def exchange_unbind(self, channel: int,
-                        destination: str = None,
-                        source: str = None,
-                        routing_key: str = '', *,
-                        nowait: bool = False,
-                        arguments: dict = None) -> spec.Exchange.UnbindOk:
+                              destination: str = None,
+                              source: str = None,
+                              routing_key: str = '', *,
+                              nowait: bool = False,
+                              arguments: dict = None) -> spec.Exchange.UnbindOk:
         # noinspection PyTypeChecker
         return await self.rpc(channel, spec.Exchange.Unbind(
             destination=destination, source=source, routing_key=routing_key,
@@ -513,9 +593,11 @@ class AMQPConnector(AMQPConnectorBase):
         ))
 
     async def queue_purge(self, channel: int, queue: str = '',
-                    nowait: bool = False) -> spec.Queue.PurgeOk:
+                          nowait: bool = False) -> spec.Queue.PurgeOk:
         # noinspection PyTypeChecker
-        return await self.rpc(channel, spec.Queue.Purge(queue=queue, nowait=nowait))
+        return await self.rpc(channel, spec.Queue.Purge(
+            queue=queue, nowait=nowait
+        ))
 
     async def queue_unbind(self, channel: int, queue: str = '',
                            exchange: str = None, routing_key: str = None,
