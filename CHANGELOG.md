@@ -1,6 +1,7 @@
 4.9.0
 -----
 
+* Add abstract pool #174
 * Fixed Deprecation Warnings in Python 3.7 #153
 
 
