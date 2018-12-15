@@ -1,4 +1,5 @@
 from . import patterns
+from . import pool
 from .connection import Connection, connect
 from .channel import Channel
 from .exchange import Exchange, ExchangeType
@@ -28,6 +29,7 @@ __all__ = (
     'author_info',
     'package_info',
     'patterns',
+    'pool',
     'version_info',
     'package_license',
     'AMQPException',
