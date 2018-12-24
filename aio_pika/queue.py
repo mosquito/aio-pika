@@ -1,6 +1,7 @@
 import asyncio
 import sys
 from collections import namedtuple
+from contextlib import suppress
 from logging import getLogger
 from types import FunctionType
 from typing import Optional
@@ -97,13 +98,14 @@ class Queue(BaseChannel):
             exclusive=self.exclusive
         )
 
-        def on_queue_declared(result):
-            res = result.result()
-            self.name = res.method.queue
-            self.declaration_result = DeclarationResult(
-                message_count=res.method.message_count,
-                consumer_count=res.method.consumer_count,
-            )
+        def on_queue_declared(future):
+            with suppress(Exception):
+                res = future.result()
+                self.name = res.method.queue
+                self.declaration_result = DeclarationResult(
+                    message_count=res.method.message_count,
+                    consumer_count=res.method.consumer_count,
+                )
 
         f.add_done_callback(on_queue_declared)
 
