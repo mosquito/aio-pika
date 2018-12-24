@@ -160,11 +160,14 @@ class Channel(BaseChannel):
     async def _create_channel(self, timeout=None):
         f = self._create_future(timeout)
 
-        def _on_channel(result):
+        def _on_channel_made(result):
             if not f.done():
                 f.set_result(result)
 
-        self._channel_maker(_on_channel, channel_number=self._channel_number)
+        self._channel_maker(
+            _on_channel_made,
+            channel_number=self._channel_number
+        )
 
         channel = await f  # type: pika.channel.Channel
 
