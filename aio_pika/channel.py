@@ -158,14 +158,15 @@ class Channel(BaseChannel):
         self._on_return_callbacks.append(asyncio.coroutine(callback))
 
     async def _create_channel(self, timeout=None):
-        future = self._create_future(timeout=timeout)
+        f = self._create_future(timeout)
 
-        self._channel_maker(
-            future.set_result,
-            channel_number=self._channel_number
-        )
+        def _on_channel(result):
+            if not f.done():
+                f.set_result(result)
 
-        channel = await future  # type: pika.channel.Channel
+        self._channel_maker(_on_channel, channel_number=self._channel_number)
+
+        channel = await f  # type: pika.channel.Channel
 
         if self._publisher_confirms:
             channel.confirm_delivery(self._on_delivery_confirmation)
@@ -330,12 +331,16 @@ class Channel(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     async def set_qos(self, prefetch_count: int=0, prefetch_size: int=0,
-                      all_channels=False, timeout: int=None):
+                      all_channels: bool=False, timeout: int=None):
         async with self._write_lock:
-            f = self._create_future(timeout=timeout)
+            f = self._create_future(timeout)
+
+            def _on_qosok(result):
+                if not f.done():
+                    f.set_result(result)
 
             self._channel.basic_qos(
-                f.set_result,
+                _on_qosok,
                 prefetch_count=prefetch_count,
                 prefetch_size=prefetch_size,
                 all_channels=all_channels
@@ -349,10 +354,14 @@ class Channel(BaseChannel):
                            nowait: bool=False):
 
         async with self._write_lock:
-            f = self._create_future(timeout=timeout)
+            f = self._create_future(timeout)
+
+            def _on_deleteok(result):
+                if not f.done():
+                    f.set_result(result)
 
             self._channel.queue_delete(
-                callback=f.set_result,
+                _on_deleteok,
                 queue=queue_name,
                 if_unused=if_unused,
                 if_empty=if_empty,
@@ -363,13 +372,19 @@ class Channel(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     async def exchange_delete(self, exchange_name: str, timeout: int=None,
-                              if_unused=False, nowait=False):
+                              if_unused: bool=False, nowait: bool=False):
         async with self._write_lock:
-            f = self._create_future(timeout=timeout)
+            f = self._create_future(timeout)
+
+            def _on_deleteok(result):
+                if not f.done():
+                    f.set_result(result)
 
             self._channel.exchange_delete(
-                callback=f.set_result, exchange=exchange_name,
-                if_unused=if_unused, nowait=nowait
+                _on_deleteok,
+                exchange=exchange_name,
+                if_unused=if_unused,
+                nowait=nowait
             )
 
             return await f

@@ -17,19 +17,34 @@ class Transaction:
         return self._future_store.create_future(timeout)
 
     def select(self, timeout=None):
-        future = self._create_future(timeout)
-        self._channel.tx_select(future.set_result)
-        return future
+        f = self._create_future(timeout)
+
+        def _on_selectok(result):
+            if not f.done():
+                f.set_result(result)
+
+        self._channel.tx_select(_on_selectok)
+        return f
 
     def rollback(self, timeout=None):
-        future = self._create_future(timeout)
-        self._channel.tx_rollback(future.set_result)
-        return future
+        f = self._create_future(timeout)
+
+        def _on_rollbackok(result):
+            if not f.done():
+                f.set_result(result)
+
+        self._channel.tx_rollback(_on_rollbackok)
+        return f
 
     def commit(self, timeout=None):
-        future = self._create_future(timeout)
-        self._channel.tx_commit(future.set_result)
-        return future
+        f = self._create_future(timeout)
+
+        def _on_commitok(result):
+            if not f.done():
+                f.set_result(result)
+
+        self._channel.tx_commit(_on_commitok)
+        return f
 
     def close(self, exc: Exception=TransactionClosed):
         if not self.closing.done():
