@@ -1,6 +1,7 @@
 import asyncio
 import sys
 from collections import namedtuple
+from contextlib import suppress
 from logging import getLogger
 from types import FunctionType
 from typing import Optional
@@ -85,21 +86,26 @@ class Queue(BaseChannel):
 
         f = self._create_future(timeout)
 
+        def _on_declareok(result):
+            if not f.done():
+                f.set_result(result)
+
         self._channel.queue_declare(
-            f.set_result,
+            _on_declareok,
             self.name, durable=self.durable,
             auto_delete=self.auto_delete, passive=passive,
             arguments=self.arguments,
             exclusive=self.exclusive
         )
 
-        def on_queue_declared(result):
-            res = result.result()
-            self.name = res.method.queue
-            self.declaration_result = DeclarationResult(
-                message_count=res.method.message_count,
-                consumer_count=res.method.consumer_count,
-            )
+        def on_queue_declared(future):
+            with suppress(Exception):
+                res = future.result()
+                self.name = res.method.queue
+                self.declaration_result = DeclarationResult(
+                    message_count=res.method.message_count,
+                    consumer_count=res.method.consumer_count,
+                )
 
         f.add_done_callback(on_queue_declared)
 
@@ -133,8 +139,12 @@ class Queue(BaseChannel):
 
         f = self._create_future(timeout)
 
+        def _on_bindok(result):
+            if not f.done():
+                f.set_result(result)
+
         self._channel.queue_bind(
-            f.set_result,
+            _on_bindok,
             self.name,
             Exchange._get_exchange_name(exchange),
             routing_key=routing_key,
@@ -165,8 +175,12 @@ class Queue(BaseChannel):
 
         f = self._create_future(timeout)
 
+        def _on_unbindok(result):
+            if not f.done():
+                f.set_result(result)
+
         self._channel.queue_unbind(
-            f.set_result,
+            _on_unbindok,
             self.name,
             Exchange._get_exchange_name(exchange),
             routing_key=routing_key,
@@ -202,7 +216,11 @@ class Queue(BaseChannel):
         """
 
         log.debug("Start to consuming queue: %r", self)
-        future = self._futures.create_future(timeout=timeout)
+        f = self._futures.create_future(timeout)
+
+        def _on_consumeok(result):
+            if not f.done():
+                f.set_result(result)
 
         def consumer(channel: Channel, envelope, properties, body: bytes):
             message = IncomingMessage(
@@ -225,10 +243,10 @@ class Queue(BaseChannel):
             exclusive=exclusive,
             arguments=arguments,
             consumer_tag=consumer_tag,
-            result_callback=future.set_result,
+            result_callback=_on_consumeok,
         )
 
-        await future
+        await f
 
         return consumer_tag
 
@@ -252,8 +270,13 @@ class Queue(BaseChannel):
         :return: Basic.CancelOk when operation completed successfully
         """
         f = self._create_future(timeout)
+
+        def _on_cancelok(result):
+            if not f.done():
+                f.set_result(result)
+
         self._channel.basic_cancel(
-            None if nowait else f.set_result,
+            None if nowait else _on_cancelok,
             consumer_tag=consumer_tag,
             nowait=nowait
         )
@@ -282,7 +305,7 @@ class Queue(BaseChannel):
         def _on_getempty(method_frame, *a, **kw):
             if fail:
                 f.set_exception(QueueEmpty(method_frame))
-            elif not f.cancelled():
+            elif not f.done():
                 f.set_result(None)
 
         def _on_getok(channel, envelope, props, body):
@@ -293,8 +316,8 @@ class Queue(BaseChannel):
                 body,
                 no_ack=no_ack,
             )
-
-            f.set_result(message)
+            if not f.done():
+                f.set_result(message)
 
         async with self._get_lock:
             with self._channel.set_get_empty_callback(_on_getempty):
@@ -319,7 +342,12 @@ class Queue(BaseChannel):
         log.info("Purging queue: %r", self)
 
         f = self._create_future(timeout)
-        self._channel.queue_purge(f.set_result, self.name)
+
+        def _on_purgeok(result):
+            if not f.done():
+                f.set_result(result)
+
+        self._channel.queue_purge(_on_purgeok, self.name)
         return f
 
     @BaseChannel._ensure_channel_is_open
@@ -337,16 +365,20 @@ class Queue(BaseChannel):
 
         self._futures.reject_all(RuntimeError("Queue was deleted"))
 
-        future = self._create_future(timeout)
+        f = self._create_future(timeout)
+
+        def _on_deleteok(result):
+            if not f.done():
+                f.set_result(result)
 
         self._channel.queue_delete(
-            future.set_result,
+            _on_deleteok,
             self.name,
             if_unused=if_unused,
             if_empty=if_empty
         )
 
-        return future
+        return f
 
     def __aiter__(self) -> 'QueueIterator':
         return self.iterator()

@@ -64,10 +64,14 @@ class Exchange(BaseChannel):
 
     @BaseChannel._ensure_channel_is_open
     def declare(self, timeout: int=None):
-        future = self._create_future(timeout=timeout)
+        f = self._create_future(timeout)
+
+        def _on_declareok(result):
+            if not f.done():
+                f.set_result(result)
 
         self._channel.exchange_declare(
-            future.set_result,
+            _on_declareok,
             self.name,
             self.__type,
             durable=self.durable,
@@ -77,7 +81,7 @@ class Exchange(BaseChannel):
             arguments=self.arguments,
         )
 
-        return future
+        return f
 
     @staticmethod
     def _get_exchange_name(exchange: ExchangeType_):
@@ -135,8 +139,12 @@ class Exchange(BaseChannel):
 
         f = self._create_future(timeout)
 
+        def _on_bindok(result):
+            if not f.done():
+                f.set_result(result)
+
         self._channel.exchange_bind(
-            f.set_result,
+            _on_bindok,
             self.name,
             self._get_exchange_name(exchange),
             routing_key=routing_key,
@@ -167,8 +175,12 @@ class Exchange(BaseChannel):
 
         f = self._create_future(timeout)
 
+        def _on_unbindok(result):
+            if not f.done():
+                f.set_result(result)
+
         self._channel.exchange_unbind(
-            f.set_result,
+            _on_unbindok,
             self.name,
             self._get_exchange_name(exchange),
             routing_key=routing_key,
@@ -209,13 +221,14 @@ class Exchange(BaseChannel):
 
         :param if_unused: perform deletion when queue has no bindings.
         """
+
         log.info("Deleting %r", self)
         self._futures.reject_all(RuntimeError("Exchange was deleted"))
-        future = self.loop.create_future()
+        f = self.loop.create_future()
         self._channel.exchange_delete(
-            future.set_result, self.name, if_unused=if_unused
+            f.set_result, self.name, if_unused=if_unused
         )
-        return future
+        return f
 
 
 __all__ = ('Exchange',)
