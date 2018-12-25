@@ -34,13 +34,13 @@ async def main(loop):
         'logs', ExchangeType.DIRECT
     )
 
-    # Declaring queue
-    queue = await channel.declare_queue('task_queue', durable=True)
+    # Declaring random queue
+    queue = await channel.declare_queue(durable=True)
 
     for severity in severities:
         await queue.bind(direct_logs_exchange, routing_key=severity)
 
-    # Start listening the queue with name 'task_queue'
+    # Start listening the random queue
     await queue.consume(on_message)
 
 
