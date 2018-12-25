@@ -14,7 +14,7 @@ aio-pika
 
 .. image:: https://cloud.drone.io/api/badges/mosquito/aio-pika/status.svg
     :target: https://cloud.drone.io/mosquito/aio-pika
-    :alt: Travis CI
+    :alt: Drone CI
 
 .. image:: https://img.shields.io/pypi/v/aio-pika.svg
     :target: https://pypi.python.org/pypi/aio-pika/

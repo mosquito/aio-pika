@@ -1,3 +1,8 @@
+4.9.1
+-----
+
+* Fix race condition on callback timeout #180
+
 4.9.0
 -----
 
