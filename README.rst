@@ -200,6 +200,50 @@ This software follows `Semantic Versioning`_
 For contributors
 ----------------
 
+Setting up development environment
+__________________________________
+
+Clone the project:
+
+.. code-block:: shell
+
+    git clone https://github.com/mosquito/aio-pika.git
+    cd aio-pika
+
+Create a new virtualenv for `aio_pika`_:
+
+.. code-block:: shell
+
+    virtualenv -p python3.5 env
+
+Install all requirements for `aio_pika`_:
+
+.. code-block:: shell
+
+    env/bin/pip install -e '.[develop]'
+
+
+Running Tests
+_____________
+
+**NOTE: In order to run the tests locally you need to run a RabbitMQ instance with default user/password (guest/guest) and port (5672).**
+
+* ProTip: Use Docker for this:
+
+.. code-block:: bash
+
+    docker run -d -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+
+To test just run:
+
+.. code-block:: bash
+
+    make test
+
+
+Creating Pull Requests
+______________________
+
 You feel free to create pull request, but you should describe your cases and add some examples.
 
 The changes should follow simple rules:
