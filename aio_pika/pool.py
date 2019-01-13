@@ -64,12 +64,12 @@ class PoolItemContextManager(AsyncContextManager):
 
     def __init__(self, pool: Pool):
         self.pool = pool
-        self.item = ...
+        self.item = None
 
     async def __aenter__(self) -> T:
         self.item = await self.pool._get()
         return self.item
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self.item is not ...:
+        if self.item is not None:
             self.pool.put(self.item)
