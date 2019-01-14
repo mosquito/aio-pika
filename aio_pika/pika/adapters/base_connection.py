@@ -112,7 +112,7 @@ class BaseConnection(connection.Connection):
         """
         self.ioloop.remove_timeout(timeout_id)
 
-    def _adapter_connect(self):
+    def _sync_adapter_connect(self):
         """Connect to the RabbitMQ broker, returning True if connected.
 
         :returns: error string or exception instance on error; None on success

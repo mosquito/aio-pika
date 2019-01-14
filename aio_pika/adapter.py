@@ -136,8 +136,8 @@ class AsyncioConnection(base_connection.BaseConnection):
                          on_close_callback, self.ioloop,
                          stop_ioloop_on_close=stop_ioloop_on_close)
 
-    def _adapter_connect(self):
-        error = super()._adapter_connect()
+    async def _adapter_connect(self):
+        error = await self.loop.run_in_executor(None, self._sync_adapter_connect)
 
         if not error:
             self.ioloop.add_handler(

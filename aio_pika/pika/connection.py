@@ -610,7 +610,6 @@ class Connection(object):
 
         # Initialize the connection state and connect
         self._init_connection_state()
-        self.connect()
 
     def add_backpressure_callback(self, callback_method):
         """Call method "callback" when pika believes backpressure is being
@@ -736,13 +735,13 @@ class Connection(object):
             # called in _on_channel_cleanup once all channels have been closed
             self._on_close_ready()
 
-    def connect(self):
+    async def connect(self):
         """Invoke if trying to reconnect to a RabbitMQ server. Constructing the
         Connection object should connect on its own.
 
         """
         self._set_connection_state(self.CONNECTION_INIT)
-        error = self._adapter_connect()
+        error = await self._adapter_connect()
         if not error:
             return self._on_connected()
         self.remaining_connection_attempts -= 1
@@ -848,7 +847,7 @@ class Connection(object):
     # Internal methods for managing the communication process
     #
 
-    def _adapter_connect(self):
+    async def _adapter_connect(self):
         """Subclasses should override to set up the outbound socket connection.
 
         :raises: NotImplementedError
