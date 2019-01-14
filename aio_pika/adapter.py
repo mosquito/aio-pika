@@ -137,7 +137,9 @@ class AsyncioConnection(base_connection.BaseConnection):
                          stop_ioloop_on_close=stop_ioloop_on_close)
 
     async def _adapter_connect(self):
-        error = await self.loop.run_in_executor(None, self._sync_adapter_connect)
+        error = await self.loop.run_in_executor(
+            None, self._sync_adapter_connect
+        )
 
         if not error:
             self.ioloop.add_handler(
