@@ -1,19 +1,14 @@
 import asyncio
 import logging
-from contextlib import suppress
-from functools import wraps, partial
+from functools import partial
 from typing import Callable
 
-from .pika.channel import Channel as PikaChannel
-from .pika import ConnectionParameters
-from .pika.credentials import ExternalCredentials, PlainCredentials
-from .pika.spec import REPLY_SUCCESS
+import aiormq
+from aiormq.tools import censor_url
 from yarl import URL
-from . import exceptions
+
 from .channel import Channel
-from .common import FutureStore
-from .tools import shield
-from .adapter import AsyncioConnection
+
 
 try:
     from yarl import DEFAULT_PORTS
@@ -27,68 +22,42 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 
-def _ensure_connection(func):
-    @wraps(func)
-    def wrap(self, *args, **kwargs):
-        if self.is_closed:
-            raise RuntimeError("Connection closed")
-
-        return func(self, *args, **kwargs)
-    return wrap
-
-
 class Connection:
     """ Connection abstraction """
 
-    __slots__ = (
-        'loop', '__closing', '_connection', 'future_store', '__sender_lock',
-        '_io_loop', '__connection_parameters', '__credentials',
-        '__write_lock', '_channels',
-    )
-
     CHANNEL_CLASS = Channel
 
-    def __init__(self, host: str = 'localhost', port: int=5672,
-                 login: str = 'guest', password: str = 'guest',
-                 virtual_host: str = '/', ssl: bool=False, *,
-                 loop=None, **kwargs):
+    @property
+    def is_closed(self):
+        return self.closing.done()
 
-        self.loop = loop if loop else asyncio.get_event_loop()
-        self.future_store = FutureStore(loop=self.loop)
+    async def close(self, exc=asyncio.CancelledError):
+        if not self.closing.done():
+            self.closing.set_result(exc)
 
-        self.__credentials = (
-            PlainCredentials(login, password)
-            if login else ExternalCredentials()
-        )
+        return await self.connection.close(exc)
 
-        self.__connection_parameters = ConnectionParameters(
-            host=host,
-            port=port,
-            credentials=self.__credentials,
-            virtual_host=virtual_host,
-            ssl=ssl,
-            **kwargs
-        )
+    def _get_connection_argument(self, name, default=None):
+        return self.kwargs.get(name, self.url.query.get(name, default))
 
-        self._channels = dict()
-        self._connection = None
-        self.__closing = None
-        self.__write_lock = asyncio.Lock(loop=self.loop)
+    def __init__(self, url, loop=None, **kwargs):
+        self.loop = loop or asyncio.get_event_loop()
+        self.url = URL(url)
+        self.kwargs = kwargs
+
+        self.connection = None     # type: aiormq.Connection
+        self.close_callbacks = set()
+        self.closing = self.loop.create_future()
+
+    @property
+    def _channels(self) -> dict:
+        return self.connection.channels
 
     def __str__(self):
-        return 'amqp://{credentials}{host}:{port}/{vhost}'.format(
-            credentials=(
-                "{0.username}:********@".format(self.__credentials)
-                if isinstance(self.__credentials, PlainCredentials) else ''
-            ),
-            host=self.__connection_parameters.host,
-            port=self.__connection_parameters.port,
-            vhost=self.__connection_parameters.virtual_host,
-        )
+        return str(censor_url(self.url))
 
     def __repr__(self):
-        cls_name = self.__class__.__name__
-        return '<{0}: "{1}">'.format(cls_name, str(self))
+        return '<{0}: "{1}">'.format(self.__class__.__name__, str(self))
 
     def add_close_callback(self, callback: Callable[[], None]):
         """ Add callback which will be called after connection will be closed.
@@ -112,98 +81,20 @@ class Connection:
 
         :return: None
         """
+        self.close_callbacks.add(callback)
 
-        self._closing.add_done_callback(callback)
+    def _on_connection_close(self, connection, closing):
+        exc = closing.exception()
 
-    @property
-    def is_closed(self):
-        """ Is this connection are closed """
+        for cb in self.close_callbacks:
+            try:
+                cb(exc)
+            except Exception:
+                log.exception('Callback error')
 
-        if not (self._connection and self._connection.socket):
-            return True
+        log.debug("Closing AMQP connection %r", connection)
 
-        if self._closing.done():
-            return True
-
-        return False
-
-    @property
-    def _closing(self):
-        self._create_closing_future()
-        return self.__closing
-
-    def _create_closing_future(self, force=False):
-        if self.__closing is None or force:
-            self.__closing = self.future_store.create_future()
-
-    @property
-    async def closing(self):
-        """ Return coroutine which will be finished after connection close.
-
-        Example:
-
-        .. code-block:: python
-
-            import aio_pika
-
-            async def async_close(connection):
-                await asyncio.sleep(2)
-                await connection.close()
-
-            async def main(loop):
-                connection = await aio_pika.connect(
-                    "amqp://guest:guest@127.0.0.1/"
-                )
-                loop.create_task(async_close(connection))
-
-                await connection.closing
-
-        """
-        return await self._closing
-
-    def _on_channel_open(self, channel: Channel):
-        self._channels[channel.number] = channel
-
-    def _channel_cleanup(self, channel: PikaChannel):
-        ch = self._channels.pop(channel.channel_number)     # type: Channel
-        ch._futures.reject_all(exceptions.ChannelClosed)
-
-    def _on_connection_open(self, future: asyncio.Future,
-                            connection: AsyncioConnection):
-        log.debug("Connection ready: %r", self)
-        if not future.done():
-            future.set_result(connection)
-
-    def _on_connection_refused(self, future: asyncio.Future,
-                               connection: AsyncioConnection, message: str):
-        self._on_connection_lost(future, connection, code=500,
-                                 reason=ConnectionRefusedError(message))
-
-    def _on_connection_lost(self, future: asyncio.Future,
-                            connection: AsyncioConnection, code, reason):
-        if self.__closing and self.__closing.done():
-            return
-
-        if code == REPLY_SUCCESS:
-            return self.__closing.set_result(reason)
-
-        if isinstance(reason, Exception):
-            exc = reason
-        else:
-            exc = ConnectionError(reason, code)
-
-        self.future_store.reject_all(exc)
-
-        if future.done():
-            return
-
-        future.set_exception(exc)
-
-    def _on_channel_cancel(self, channel: PikaChannel):
-        ch = self._channels.pop(channel.channel_number)     # type: Channel
-        ch._futures.reject_all(exceptions.ChannelClosed)
-
-    async def connect(self) -> AsyncioConnection:
+    async def connect(self, timeout=None):
         """ Connect to AMQP server. This method should be called after
         :func:`aio_pika.connection.Connection.__init__`
 
@@ -212,35 +103,16 @@ class Connection:
             You shouldn't call it explicitly.
 
         """
-        if self.__closing and self.__closing.done():
-            raise RuntimeError("Invalid connection state")
 
-        async with self.__write_lock:
-            self._connection = None
+        self.connection = await asyncio.wait_for(
+            aiormq.connect(self.url),
+            timeout=timeout, loop=self.loop
+        )   # type: aiormq.Connection
 
-            log.debug("Creating a new AMQP connection: %s", self)
+        self.connection.closing.add_done_callback(
+            partial(self._on_connection_close, self.connection)
+        )
 
-            f = self.loop.create_future()
-
-            connection = AsyncioConnection(
-                parameters=self.__connection_parameters,
-                loop=self.loop,
-                on_open_callback=partial(self._on_connection_open, f),
-                on_close_callback=partial(self._on_connection_lost, f),
-                on_open_error_callback=partial(self._on_connection_refused, f),
-            )
-
-            await connection.connect()
-
-            connection.channel_cleanup_callback = self._channel_cleanup
-            connection.channel_cancel_callback = self._on_channel_cancel
-
-            result = await f
-
-            self._connection = connection
-            return result
-
-    @_ensure_connection
     def channel(self, channel_number: int=None,
                 publisher_confirms: bool=True,
                 on_return_raises=False) -> Channel:
@@ -296,9 +168,10 @@ class Connection:
             raise an :class:`aio_pika.exceptions.UnroutableError`
             when mandatory message will be returned
         """
+
         log.debug("Creating AMQP channel for connection: %r", self)
 
-        channel = self.CHANNEL_CLASS(self, self.loop, self.future_store,
+        channel = self.CHANNEL_CLASS(connection=self,
                                      channel_number=channel_number,
                                      publisher_confirms=publisher_confirms,
                                      on_return_raises=on_return_raises)
@@ -306,25 +179,11 @@ class Connection:
         log.debug("Channel created: %r", channel)
         return channel
 
-    def close(self) -> asyncio.Task:
-        """ Close AMQP connection """
-        log.debug("Closing AMQP connection")
-
-        if self.is_closed:
-            return self._closing
-
-        @shield
-        async def inner():
-            if self._connection:
-                self._connection.close()
-            await self.closing
-
-        return self.loop.create_task(inner())
-
     def __del__(self):
-        with suppress(Exception):
-            if not self.is_closed:
-                self.close()
+        if any((self.is_closed, self.loop.is_closed())):
+            return
+
+        asyncio.shield(self.close(), loop=self.loop)
 
     async def __aenter__(self) -> 'Connection':
         return self
@@ -406,40 +265,21 @@ async def connect(url: str=None, *, host: str='localhost', port: int=5672,
 
     """
 
-    ssl_options = ssl_options or {}
+    if url is None:
+        kw = kwargs
+        kw.update(ssl_options)
 
-    if url is not None:
-        url = URL(url)
-        host = url.host or host
-        port = url.port or port
-        login = url.user or login
-        password = url.password or password
-        virtualhost = url.path[1:] if len(url.path) > 1 else virtualhost
-        ssl = url.scheme == 'amqps' or ssl
-
-        ssl_keys = (
-            'ca_certs',
-            'cert_reqs',
-            'certfile',
-            'keyfile',
-            'ssl_version',
+        url = URL.build(
+            scheme='amqps' if ssl else 'amqp',
+            host=host,
+            port=port,
+            user=login,
+            password=password,
+            path=virtualhost,
+            query=kw
         )
 
-        for key in ssl_keys:
-            if key not in url.query:
-                continue
-
-            ssl_options[key] = url.query[key]
-
-        if ssl_options:
-            ssl = True
-
-    connection = connection_class(
-        host=host, port=port, login=login, password=password,
-        virtual_host=virtualhost, ssl=ssl, loop=loop,
-        ssl_options=ssl_options, **kwargs
-    )
-
+    connection = connection_class(url, loop=loop)
     await connection.connect()
     return connection
 

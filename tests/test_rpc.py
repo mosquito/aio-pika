@@ -3,9 +3,10 @@ import logging
 
 import pytest
 
-from aio_pika import Message
-from aio_pika.exceptions import UnroutableError
+from aio_pika import Message, connect_robust
+from aio_pika.exceptions import DeliveryError
 from aio_pika.patterns.rpc import RPC, log as rpc_logger
+from tests import AMQP_URL
 from tests.test_amqp import BaseTestCase
 
 
@@ -54,7 +55,7 @@ class TestCase(BaseTestCase):
 
         await rpc.register('test.rpc', rpc_func, auto_delete=True)
 
-        with pytest.raises(UnroutableError):
+        with pytest.raises(DeliveryError):
             await rpc.proxy.unroutable()
 
         await rpc.unregister(rpc_func)
@@ -124,15 +125,18 @@ class TestCase(BaseTestCase):
         async def sleeper():
             await asyncio.sleep(60, loop=self.loop)
 
-        await rpc.register('test.sleeper', sleeper, auto_delete=True)
+        method_name = self.get_random_name('test', 'sleeper')
+
+        await rpc.register(method_name, sleeper, auto_delete=True)
 
         tasks = set()
 
         for _ in range(10):
-            tasks.add(self.loop.create_task(rpc.proxy.test.sleeper()))
+            tasks.add(self.loop.create_task(rpc.call(method_name)))
 
         await rpc.close()
 
+        logging.info("Waiting for results")
         for task in tasks:
             with pytest.raises(asyncio.CancelledError):
                 await task
@@ -161,3 +165,13 @@ class TestCase(BaseTestCase):
         await rpc.unregister(rpc_func)
 
         await rpc.close()
+
+
+class TestCaseRobust(TestCase):
+    async def create_connection(self, cleanup=True):
+        client = await connect_robust(str(AMQP_URL), loop=self.loop)
+
+        if cleanup:
+            self.addCleanup(client.close)
+
+        return client

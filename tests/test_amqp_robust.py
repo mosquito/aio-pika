@@ -1,8 +1,13 @@
 import asyncio
+
+import aiormq
 import pytest
 from contextlib import suppress
 
 from aio_pika import connect_robust
+from aio_pika.robust_channel import RobustChannel
+from aio_pika.robust_connection import RobustConnection
+from aio_pika.robust_queue import RobustQueue
 from tests import AMQP_URL
 from tests.test_amqp import TestCase as AMQPTestCase
 
@@ -25,7 +30,10 @@ class TestCase(AMQPTestCase):
 
     async def test_revive_passive_queue_on_reconnect(self):
         client1 = await self.create_connection()
+        self.assertIsInstance(client1, RobustConnection)
+
         client2 = await self.create_connection()
+        self.assertIsInstance(client2, RobustConnection)
 
         reconnect_event = asyncio.Event()
         reconnect_count = 0
@@ -40,22 +48,27 @@ class TestCase(AMQPTestCase):
 
         queue_name = self.get_random_name()
         channel1 = await client1.channel()
-        channel2 = await client2.channel()
-        queue_name, channel1, channel2, asyncio
+        self.assertIsInstance(channel1, RobustChannel)
 
-        await self.declare_queue(
+        channel2 = await client2.channel()
+        self.assertIsInstance(channel2, RobustChannel)
+
+        queue1 = await self.declare_queue(
             queue_name,
             auto_delete=False,
             passive=False,
             channel=channel1
         )
-        await self.declare_queue(
+        self.assertIsInstance(queue1, RobustQueue)
+
+        queue2 = await self.declare_queue(
             queue_name,
             passive=True,
             channel=channel2
         )
+        self.assertIsInstance(queue2, RobustQueue)
 
-        client2._connection.close(320, 'Closed')
+        await client2.connection.close(aiormq.AMQPError(320, 'Closed'))
 
         await reconnect_event.wait()
 

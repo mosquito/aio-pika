@@ -65,12 +65,12 @@ class TestCase(BaseTestCase):
             'worker.foo', worker_func, auto_delete=True
         )
 
-        for item in range(1000):
+        for item in range(100):
             await master.proxy.worker.foo(foo=item)
 
         await asyncio.sleep(2, loop=self.loop)
 
-        self.assertSequenceEqual(self.state, range(1000))
+        self.assertSequenceEqual(self.state, range(100))
 
         await worker.close()
 

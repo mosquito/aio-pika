@@ -5,6 +5,7 @@ import time
 import unittest
 import uuid
 from copy import copy
+from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -17,7 +18,6 @@ from aio_pika.exceptions import (
     MessageProcessError, ProbableAuthenticationError, DeliveryError
 )
 from aio_pika.exchange import ExchangeType
-from aio_pika.tools import wait
 from . import BaseTestCase, AMQP_URL
 
 
@@ -118,7 +118,7 @@ class TestCase(BaseTestCase):
         exchange_name = self.get_random_name()
         channel = await client.channel()
 
-        with pytest.raises(aio_pika.exceptions.ChannelClosed):
+        with pytest.raises(aio_pika.exceptions.ChannelNotFoundEntity):
             await self.declare_exchange(
                 exchange_name,
                 auto_delete=True,
@@ -150,7 +150,7 @@ class TestCase(BaseTestCase):
         queue_name = self.get_random_name()
         channel = await client.channel()
 
-        with pytest.raises(aio_pika.exceptions.ChannelClosed):
+        with pytest.raises(aio_pika.exceptions.ChannelNotFoundEntity):
             await self.declare_queue(
                 queue_name,
                 auto_delete=True,
@@ -327,16 +327,16 @@ class TestCase(BaseTestCase):
         self.maxDiff = None
 
         info = {
-            'headers': {"foo": "bar"},
+            'headers': {"foo": b"bar"},
             'content_type': "application/json",
             'content_encoding': "text",
             'delivery_mode': DeliveryMode.PERSISTENT.value,
             'priority': 0,
-            'correlation_id': b'1',
+            'correlation_id': '1',
             'reply_to': 'test',
             'expiration': 1.5,
             'message_id': shortuuid.uuid(),
-            'timestamp': int(time.time()),
+            'timestamp': datetime.utcfromtimestamp(int(time.time())),
             'type': '0',
             'user_id': 'guest',
             'app_id': 'test',
@@ -345,7 +345,7 @@ class TestCase(BaseTestCase):
 
         msg = Message(
             body=body,
-            headers={'foo': 'bar'},
+            headers={'foo': b'bar'},
             content_type='application/json',
             content_encoding='text',
             delivery_mode=DeliveryMode.PERSISTENT,
@@ -365,7 +365,6 @@ class TestCase(BaseTestCase):
         incoming_message = await queue.get(timeout=5)
         incoming_message.ack()
 
-        info['synchronous'] = incoming_message.synchronous
         info['routing_key'] = incoming_message.routing_key
         info['redelivered'] = incoming_message.redelivered
         info['exchange'] = incoming_message.exchange
@@ -405,14 +404,14 @@ class TestCase(BaseTestCase):
         incoming_message = await queue.get(timeout=5)
 
         with pytest.raises(AssertionError):
-            with incoming_message.process(requeue=True):
+            async with incoming_message.process(requeue=True):
                 raise AssertionError
 
         self.assertEqual(incoming_message.locked, True)
 
         incoming_message = await queue.get(timeout=5)
 
-        with incoming_message.process():
+        async with incoming_message.process():
             pass
 
         self.assertEqual(incoming_message.body, body)
@@ -428,14 +427,14 @@ class TestCase(BaseTestCase):
         incoming_message = await queue.get(timeout=5)
 
         with pytest.raises(MessageProcessError):
-            with incoming_message.process():
+            async with incoming_message.process():
                 incoming_message.reject(requeue=True)
 
         self.assertEqual(incoming_message.locked, True)
 
         incoming_message = await queue.get(timeout=5)
 
-        with incoming_message.process(ignore_processed=True):
+        async with incoming_message.process(ignore_processed=True):
             incoming_message.reject(requeue=False)
 
         self.assertEqual(incoming_message.body, body)
@@ -450,14 +449,14 @@ class TestCase(BaseTestCase):
 
         incoming_message = await queue.get(timeout=5)
         with pytest.raises(AssertionError):
-            with incoming_message.process(
+            async with incoming_message.process(
                 requeue=True, reject_on_redelivered=True
             ):
                 raise AssertionError
 
         incoming_message = await queue.get(timeout=5)
         with pytest.raises(AssertionError):
-            with incoming_message.process(
+            async with incoming_message.process(
                 requeue=True, reject_on_redelivered=True
             ):
                 raise AssertionError
@@ -493,7 +492,7 @@ class TestCase(BaseTestCase):
         incoming_message = await queue.get(timeout=5)
 
         with pytest.raises(AssertionError):
-            with incoming_message.process(
+            async with incoming_message.process(
                 requeue=True, reject_on_redelivered=True
             ):
                 raise AssertionError
@@ -502,7 +501,7 @@ class TestCase(BaseTestCase):
 
         with mock.patch('aio_pika.message.log') as message_logger:
             with pytest.raises(Exception):
-                with incoming_message.process(
+                async with incoming_message.process(
                     requeue=True, reject_on_redelivered=True
                 ):
                     raise Exception
@@ -591,7 +590,7 @@ class TestCase(BaseTestCase):
 
         await queue.unbind(exchange, routing_key)
         await queue.delete()
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_ack_twice(self):
         client = await self.create_connection()
@@ -624,7 +623,7 @@ class TestCase(BaseTestCase):
         self.assertEqual(incoming_message.body, body)
         await queue.unbind(exchange, routing_key)
         await queue.delete()
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_reject_twice(self):
         client = await self.create_connection()
@@ -657,7 +656,7 @@ class TestCase(BaseTestCase):
         self.assertEqual(incoming_message.body, body)
         await queue.unbind(exchange, routing_key)
         await queue.delete()
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_consuming(self):
         client = await self.create_connection()
@@ -696,7 +695,7 @@ class TestCase(BaseTestCase):
 
         await queue.unbind(exchange, routing_key)
         await exchange.delete()
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_consuming_not_coroutine(self):
         client = await self.create_connection()
@@ -735,7 +734,7 @@ class TestCase(BaseTestCase):
 
         await queue.unbind(exchange, routing_key)
         await exchange.delete()
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_ack_reject(self):
         client = await self.create_connection()
@@ -796,7 +795,7 @@ class TestCase(BaseTestCase):
 
         await queue.unbind(exchange, routing_key)
         await queue.delete()
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_purge_queue(self):
         queue_name = self.get_random_name("test_connection4")
@@ -828,7 +827,7 @@ class TestCase(BaseTestCase):
             await queue.delete()
 
     async def test_connection_refused(self):
-        with pytest.raises(ConnectionRefusedError):
+        with pytest.raises(ConnectionError):
             await connect('amqp://guest:guest@localhost:9999', loop=self.loop)
 
     async def test_wrong_credentials(self):
@@ -925,7 +924,7 @@ class TestCase(BaseTestCase):
         exchange = await channel.declare_exchange('direct', auto_delete=True)
 
         try:
-            with pytest.raises(aio_pika.exceptions.ChannelClosed):
+            with pytest.raises(aio_pika.exceptions.ChannelPreconditionFailed):
                 msg = Message(bytes(shortuuid.uuid(), 'utf-8'))
                 msg.delivery_mode = 8
 
@@ -937,7 +936,7 @@ class TestCase(BaseTestCase):
             )
         finally:
             await exchange.delete()
-            await wait((client.close(), client.closing), loop=self.loop)
+            await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_basic_return(self):
         client = await self.create_connection()
@@ -993,7 +992,7 @@ class TestCase(BaseTestCase):
 
         self.assertEqual(returned.body, body)
 
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_expiration(self):
         client = await self.create_connection()
@@ -1039,18 +1038,18 @@ class TestCase(BaseTestCase):
 
         self.assertEqual(message.body, body)
         self.assertEqual(
-            message.headers['x-death'][0]['original-expiration'], '500'
+            message.headers['x-death'][0]['original-expiration'], b'500'
         )
 
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_add_close_callback(self):
         client = await self.create_connection()
 
         shared_list = []
 
-        def share(f):
-            shared_list.append(f)
+        def share(*a, **kw):
+            shared_list.append((a, kw))
 
         client.add_close_callback(share)
         await client.close()
@@ -1085,7 +1084,7 @@ class TestCase(BaseTestCase):
         self.assertEqual(incoming_message.body, body)
         await queue.unbind(exchange, routing_key)
         await queue.delete()
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_unexpected_channel_close(self):
         client = await self.create_connection()
@@ -1096,7 +1095,7 @@ class TestCase(BaseTestCase):
             await channel.declare_queue("amq.restricted_queue_name",
                                         auto_delete=True)
 
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_declaration_result(self):
         client = await self.create_connection()
@@ -1108,7 +1107,7 @@ class TestCase(BaseTestCase):
         self.assertEqual(queue.declaration_result.message_count, 0)
         self.assertEqual(queue.declaration_result.consumer_count, 0)
 
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_declaration_result_with_consumers(self):
         client = await self.create_connection()
@@ -1125,7 +1124,7 @@ class TestCase(BaseTestCase):
 
         self.assertEqual(queue2.declaration_result.consumer_count, 1)
 
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_declaration_result_with_messages(self):
         client = await self.create_connection()
@@ -1148,7 +1147,7 @@ class TestCase(BaseTestCase):
         self.assertEqual(queue2.declaration_result.consumer_count, 0)
         self.assertEqual(queue2.declaration_result.message_count, 1)
 
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_queue_empty_exception(self):
 
@@ -1173,7 +1172,7 @@ class TestCase(BaseTestCase):
             await queue.get(timeout=5)
 
         await queue.delete()
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_queue_empty_fail_false(self):
 
@@ -1186,7 +1185,7 @@ class TestCase(BaseTestCase):
         self.assertIsNone(result)
 
         await queue.delete()
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_message_nack(self):
 
@@ -1212,7 +1211,7 @@ class TestCase(BaseTestCase):
         message.ack()
 
         await queue.delete()
-        await wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing), loop=self.loop)
 
     async def test_on_return_raises(self):
         client = await self.create_connection()
@@ -1229,7 +1228,7 @@ class TestCase(BaseTestCase):
         )
 
         for _ in range(100):
-            with pytest.raises(aio_pika.exceptions.UnroutableError):
+            with pytest.raises(aio_pika.exceptions.DeliveryError):
                 await channel.default_exchange.publish(
                     Message(body=body), routing_key=queue_name,
                 )
@@ -1281,7 +1280,8 @@ class TestCase(BaseTestCase):
 
             for i in range(messages):
                 await channel1.default_exchange.publish(
-                    Message(body=str(i).encode()), routing_key=queue.name)
+                    Message(body=str(i).encode()), routing_key=queue.name
+                )
 
         self.loop.create_task(publisher())
 
@@ -1289,7 +1289,7 @@ class TestCase(BaseTestCase):
         data = list()
 
         async for message in queue:
-            with message.process():
+            async with message.process():
                 count += 1
                 data.append(message.body)
 
@@ -1323,7 +1323,7 @@ class TestCase(BaseTestCase):
 
         async with queue.iterator() as queue_iterator:
             async for message in queue_iterator:
-                with message.process():
+                async with message.process():
                     count += 1
                     data.append(message.body)
 
@@ -1365,7 +1365,7 @@ class TestCase(BaseTestCase):
 
             async with queue.iterator() as queue_iterator:
                 async for message in queue_iterator:
-                    with message.process():
+                    async with message.process():
                         count += 1
                         data.append(message.body)
 
@@ -1418,16 +1418,16 @@ class MessageTestCase(unittest.TestCase):
         body = bytes(shortuuid.uuid(), 'utf-8')
 
         info = {
-            'headers': {"foo": "bar"},
+            'headers': {"foo": b"bar"},
             'content_type': "application/json",
             'content_encoding': "text",
             'delivery_mode': DeliveryMode.PERSISTENT.value,
             'priority': 0,
-            'correlation_id': b'1',
+            'correlation_id': '1',
             'reply_to': 'test',
             'expiration': 1.5,
             'message_id': shortuuid.uuid(),
-            'timestamp': int(time.time()),
+            'timestamp': datetime.utcfromtimestamp(int(time.time())),
             'type': '0',
             'user_id': 'guest',
             'app_id': 'test',
@@ -1436,7 +1436,7 @@ class MessageTestCase(unittest.TestCase):
 
         msg = Message(
             body=body,
-            headers={'foo': 'bar'},
+            headers={'foo': b'bar'},
             content_type='application/json',
             content_encoding='text',
             delivery_mode=DeliveryMode.PERSISTENT,
@@ -1452,21 +1452,3 @@ class MessageTestCase(unittest.TestCase):
         )
 
         self.assertDictEqual(info, msg.info())
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize('url,kwargs,exp', [
-    ('amqps://', {}, {'ssl': True}),
-    ('localhost', {'ssl': True}, {'ssl': True}),
-    ('localhost', {'ssl_options': {'ssl_version': '2'}}, {'ssl': True}),
-    ('localhost?ssl_version=2', {}, {'ssl': True}),
-])
-async def test_connection_url_params(url, kwargs, exp):
-    connection_mock = mock.MagicMock()
-
-    await connect(url, connection_class=connection_mock, **kwargs)
-
-    _, mock_kwargs = connection_mock.call_args
-
-    for item in exp.items():
-        assert item in mock_kwargs.items()

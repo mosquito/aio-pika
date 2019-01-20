@@ -1,3 +1,24 @@
+5.0.0
+-----
+
+* Connector is now `aiormq` and not `pika`
+* Remove vendored `pika`
+* Compatibility changes:
+    * **[HIGH]** Exceptions hierarchy completely changed:
+        * ``UnroutableError`` removed. Use ``DeliveryError`` instead.
+        * ``ConnectionRefusedError`` is now standard ``ConnectionError``
+        * Each error code has separate exception type.
+    * **[LOW]** ``Connection.close`` method requires exception instead 
+    of ``code`` ``reason`` pair or ``None``
+    * **[MEDIUM]** ``IncomingMessage.ack`` ``IncomingMessage.nack`` 
+    ``IncomingMessage.reject`` returns coroutines. Old usage compatible 
+    but event loop might throw warnings.
+    * **[HIGH]** ``Message.timestamp`` property is now ``datetime.datetime``
+    * **[LOW]** Tracking of ``publisher confirms`` removed, using 
+    similar feature from ``aiormq`` instead.
+    * **[LOW]** non async context manager ``IncomingMessage.process()`` 
+    is deprecated. Use ``async with message.process():`` instead.
+
 4.9.1
 -----
 

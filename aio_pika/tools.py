@@ -1,7 +1,8 @@
 import asyncio
-from functools import partial, wraps
+from functools import wraps
 
-__all__ = 'wait', 'create_task', 'iscoroutinepartial', 'shield'
+
+__all__ = 'create_task', 'iscoroutinepartial', 'shield'
 
 
 def iscoroutinepartial(fn):
@@ -27,38 +28,26 @@ def iscoroutinepartial(fn):
     return asyncio.iscoroutinefunction(parent)
 
 
-def create_task(*, loop=None):
-    """ Helper for `create a new Task`_ with backward compatibility
-    for Python 3.4
-
-    .. _create a new Task: https://goo.gl/g4pMV9
-    """
-
+def create_task(func, *args, loop=None, **kwargs):
     loop = loop or asyncio.get_event_loop()
 
-    try:
-        return loop.create_task
-    except AttributeError:
-        return partial(asyncio.ensure_future, loop=loop)
+    if iscoroutinepartial(func):
+        return loop.create_task(func(*args, **kwargs))
 
+    def run(future):
+        if future.done():
+            return
 
-async def wait(tasks, loop=None):
-    """
-    Simple helper for gathering all passed :class:`Task`s.
+        try:
+            future.set_result(func(*args, **kwargs))
+        except Exception as e:
+            future.set_exception(e)
 
-    :param tasks: list of the :class:`asyncio.Task`s
-    :param loop:
-        Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
-    :return: :class:`tuple` of results
-    """
+        return future
 
-    loop = loop or asyncio.get_event_loop()
-    done = await asyncio.gather(*list(tasks), loop=loop)
-    return tuple(
-        map(
-            lambda x: x.result() if isinstance(x, asyncio.Future) else x, done
-        )
-    )
+    future = loop.create_future()
+    loop.call_soon(run, future)
+    return future
 
 
 def shield(func):

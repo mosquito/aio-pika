@@ -30,9 +30,19 @@ aio-pika
     :target: https://pypi.python.org/pypi/aio-pika/
 
 
-Wrapper for the PIKA for asyncio and humans. See examples and the tutorial in `documentation`_.
+Wrapper for the `aiormq`_ for asyncio and humans.
+
+.. note::
+   Since version ``5.0.0`` this library doesn't use ``pika`` as AMQP connector.
+   Versions below ``5.0.0`` contains or requires ``pika``'s source codes.
+
+
+See examples and the tutorial in `documentation`_.
 
 If you are newcomer in the RabbitMQ let's start the `adopted official RabbitMQ tutorial`_
+
+
+.. _aiormq: http://github.com/mosquito/aiormq/
 
 
 Features
