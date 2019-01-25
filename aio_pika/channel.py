@@ -30,19 +30,27 @@ class Channel(BaseChannel):
     __slots__ = ('_connection', '__closing', '_confirmations', '_delivery_tag',
                  'loop', '_futures', '_channel', '_on_return_callbacks',
                  'default_exchange', '_write_lock', '_channel_number',
-                 '_publisher_confirms', '_on_return_raises')
+                 '_publisher_confirms', '_on_return_raises',
+                 '_success_close_codes')
 
     def __init__(self, connection, loop: asyncio.AbstractEventLoop,
                  future_store: FutureStore, channel_number: int=None,
-                 publisher_confirms: bool=True, on_return_raises=False):
+                 publisher_confirms: bool=True, on_return_raises: bool=False,
+                 success_close_codes: tuple=(0,)):
         """
 
         :param connection: :class:`aio_pika.adapter.AsyncioConnection` instance
         :param loop: Event loop (:func:`asyncio.get_event_loop()`
                 when :class:`None`)
         :param future_store: :class:`aio_pika.common.FutureStore` instance
+        :param channel_number: specify the channel number explicit
         :param publisher_confirms: False if you don't need delivery
                 confirmations (in pursuit of performance)
+        :param on_return_raises:
+            raise an :class:`aio_pika.exceptions.UnroutableError`
+            when mandatory message will be returned
+        :param success_close_codes: don't set exception and don't log error if
+            the channel was closed with specified codes
         """
         super().__init__(loop, future_store.get_child())
 
@@ -61,6 +69,7 @@ class Channel(BaseChannel):
             )
 
         self._on_return_raises = on_return_raises
+        self._success_close_codes = success_close_codes
 
         self.default_exchange = self.EXCHANGE_CLASS(
             self._channel,
@@ -120,7 +129,7 @@ class Channel(BaseChannel):
         # See: https://github.com/pika/pika/blob/8d970e1/pika/channel.py#L84
         exc = exceptions.ChannelClosed(code, reason)
 
-        if code == 0:
+        if code in self._success_close_codes:
             self._closing.set_result(None)
             log_method = log.debug
         else:

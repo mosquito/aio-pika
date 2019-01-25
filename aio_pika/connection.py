@@ -243,7 +243,8 @@ class Connection:
     @_ensure_connection
     def channel(self, channel_number: int=None,
                 publisher_confirms: bool=True,
-                on_return_raises=False) -> Channel:
+                on_return_raises: bool=False,
+                success_close_codes: tuple=(0,)) -> Channel:
         """ Coroutine which returns new instance of :class:`Channel`.
 
         Example:
@@ -295,13 +296,16 @@ class Connection:
         :param on_return_raises:
             raise an :class:`aio_pika.exceptions.UnroutableError`
             when mandatory message will be returned
+        :param success_close_codes: don't set exception and don't log error if
+            the channel was closed with specified codes
         """
         log.debug("Creating AMQP channel for connection: %r", self)
 
         channel = self.CHANNEL_CLASS(self, self.loop, self.future_store,
                                      channel_number=channel_number,
                                      publisher_confirms=publisher_confirms,
-                                     on_return_raises=on_return_raises)
+                                     on_return_raises=on_return_raises,
+                                     success_close_codes=success_close_codes)
 
         log.debug("Channel created: %r", channel)
         return channel

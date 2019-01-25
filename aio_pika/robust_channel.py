@@ -28,16 +28,23 @@ class RobustChannel(Channel):
 
     def __init__(self, connection, loop: asyncio.AbstractEventLoop,
                  future_store: FutureStore, channel_number: int=None,
-                 publisher_confirms: bool=True, on_return_raises=False):
+                 publisher_confirms: bool=True, on_return_raises=False,
+                 success_close_codes: tuple=(0,)):
         """
 
         :param connection: :class:`aio_pika.adapter.AsyncioConnection` instance
         :param loop:
             Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
         :param future_store: :class:`aio_pika.common.FutureStore` instance
+        :param channel_number: specify the channel number explicit
         :param publisher_confirms:
             False if you don't need delivery confirmations
             (in pursuit of performance)
+        :param on_return_raises:
+            raise an :class:`aio_pika.exceptions.UnroutableError`
+            when mandatory message will be returned
+        :param success_close_codes: don't set exception and don't log error if
+            the channel was closed with specified codes
         """
         super().__init__(
             loop=loop,
@@ -46,6 +53,7 @@ class RobustChannel(Channel):
             channel_number=channel_number,
             publisher_confirms=publisher_confirms,
             on_return_raises=on_return_raises,
+            success_close_codes=success_close_codes,
         )
 
         self._closed = False
