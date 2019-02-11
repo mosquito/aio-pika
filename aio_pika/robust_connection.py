@@ -50,6 +50,12 @@ class RobustConnection(Connection):
 
     def _on_connection_close(self, connection, closing):
         self.connection = None
+
+        # Have to remove non initialized channels
+        self.__channels = {
+            ch for ch in self.__channels if ch.number is not None
+        }
+
         super()._on_connection_close(connection, closing)
 
         self.loop.call_later(

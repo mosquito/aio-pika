@@ -145,6 +145,8 @@ class Channel:
         self._return_callbacks.remove(callback)
 
     async def _create_channel(self):
+        await self._connection.ready()
+
         return await self._connection.connection.channel(
             publisher_confirms=self._publisher_confirms,
             on_return_raises=self._on_return_raises,
