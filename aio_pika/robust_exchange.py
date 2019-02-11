@@ -1,8 +1,8 @@
-import asyncio
 from logging import getLogger
 from typing import Optional
 
-from .common import FutureStore
+import aiormq
+
 from .exchange import Exchange, ExchangeType
 from .channel import Channel
 
@@ -13,16 +13,15 @@ log = getLogger(__name__)
 class RobustExchange(Exchange):
     """ Exchange abstraction """
 
-    def __init__(self, channel: Channel, publish_method, name: str,
-                 type: ExchangeType=ExchangeType.DIRECT, *,
+    def __init__(self, connection, channel: aiormq.Channel, name: str,
+                 type: ExchangeType = ExchangeType.DIRECT, *,
                  auto_delete: Optional[bool], durable: Optional[bool],
                  internal: Optional[bool], passive: Optional[bool],
-                 arguments: dict=None, loop: asyncio.AbstractEventLoop,
-                 future_store: FutureStore):
+                 arguments: dict = None):
 
         super().__init__(
+            connection=connection,
             channel=channel,
-            publish_method=publish_method,
             name=name,
             type=type,
             auto_delete=auto_delete,
@@ -30,14 +29,11 @@ class RobustExchange(Exchange):
             internal=internal,
             passive=passive,
             arguments=arguments,
-            loop=loop,
-            future_store=future_store
         )
 
         self._bindings = dict()
 
     async def on_reconnect(self, channel: Channel):
-        self._futures.reject_all(ConnectionError("Auto Reconnect Error"))
         self._channel = channel._channel
 
         await self.declare()

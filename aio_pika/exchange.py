@@ -3,10 +3,9 @@ from enum import Enum, unique
 from logging import getLogger
 from typing import Optional, Union
 
-from aio_pika.pika.channel import Channel
-from .common import BaseChannel, FutureStore
-from .message import Message
+import aiormq
 
+from .message import Message
 
 log = getLogger(__name__)
 
@@ -24,28 +23,21 @@ class ExchangeType(Enum):
     X_CONSISTENT_HASH = 'x-consistent-hash'
 
 
-class Exchange(BaseChannel):
+class Exchange:
     """ Exchange abstraction """
 
-    __slots__ = (
-        'name', '__type', '__publish_method', 'arguments', 'durable',
-        'auto_delete', 'internal', 'passive', '_channel'
-    )
-
-    def __init__(self, channel: Channel, publish_method, name: str,
+    def __init__(self, connection, channel: aiormq.Channel, name: str,
                  type: ExchangeType=ExchangeType.DIRECT, *,
                  auto_delete: Optional[bool], durable: Optional[bool],
                  internal: Optional[bool], passive: Optional[bool],
-                 arguments: dict=None, loop: asyncio.AbstractEventLoop,
-                 future_store: FutureStore):
+                 arguments: dict=None):
 
-        super().__init__(loop, future_store)
+        self.loop = connection.loop
 
         if not arguments:
             arguments = {}
 
         self._channel = channel
-        self.__publish_method = publish_method
         self.__type = type.value
         self.name = name
         self.auto_delete = auto_delete
@@ -53,6 +45,13 @@ class Exchange(BaseChannel):
         self.internal = internal
         self.passive = passive
         self.arguments = arguments
+
+    @property
+    def channel(self) -> aiormq.Channel:
+        if self._channel is None:
+            raise RuntimeError("Channel not opened")
+
+        return self._channel
 
     def __str__(self):
         return self.name
@@ -62,26 +61,18 @@ class Exchange(BaseChannel):
             self, self.auto_delete, self.durable, self.arguments
         )
 
-    @BaseChannel._ensure_channel_is_open
-    def declare(self, timeout: int=None):
-        f = self._create_future(timeout)
-
-        def _on_declareok(result):
-            if not f.done():
-                f.set_result(result)
-
-        self._channel.exchange_declare(
-            _on_declareok,
+    async def declare(
+        self, timeout=None
+    ) -> aiormq.spec.Exchange.DeclareOk:
+        return await asyncio.wait_for(self.channel.exchange_declare(
             self.name,
-            self.__type,
+            exchange_type=self.__type,
             durable=self.durable,
             auto_delete=self.auto_delete,
             internal=self.internal,
             passive=self.passive,
             arguments=self.arguments,
-        )
-
-        return f
+        ), timeout=timeout, loop=self.loop)
 
     @staticmethod
     def _get_exchange_name(exchange: ExchangeType_):
@@ -93,10 +84,10 @@ class Exchange(BaseChannel):
             raise ValueError(
                 'exchange argument must be an exchange instance or str')
 
-    @BaseChannel._ensure_channel_is_open
-    def bind(self, exchange: ExchangeType_,
-             routing_key: str='', *, arguments=None,
-             timeout: int=None) -> asyncio.Future:
+    async def bind(
+        self, exchange: ExchangeType_, routing_key: str='', *,
+        arguments=None, timeout: int=None
+    ) -> aiormq.spec.Exchange.BindOk:
 
         """ A binding can also be a relationship between two exchanges.
         This can be simply read as: this exchange is interested in messages
@@ -137,25 +128,19 @@ class Exchange(BaseChannel):
             self, exchange, routing_key, arguments
         )
 
-        f = self._create_future(timeout)
-
-        def _on_bindok(result):
-            if not f.done():
-                f.set_result(result)
-
-        self._channel.exchange_bind(
-            _on_bindok,
-            self.name,
-            self._get_exchange_name(exchange),
-            routing_key=routing_key,
-            arguments=arguments
+        return await asyncio.wait_for(
+            self.channel.exchange_bind(
+                arguments=arguments,
+                destination=self.name,
+                routing_key=routing_key,
+                source=self._get_exchange_name(exchange),
+            ), timeout=timeout, loop=self.loop
         )
 
-        return f
-
-    @BaseChannel._ensure_channel_is_open
-    def unbind(self, exchange: ExchangeType_, routing_key: str = '',
-               arguments: dict=None, timeout: int=None) -> asyncio.Future:
+    async def unbind(
+        self, exchange: ExchangeType_, routing_key: str = '',
+        arguments: dict=None, timeout: int=None
+    ) -> aiormq.spec.Exchange.UnbindOk:
 
         """ Remove exchange-to-exchange binding for this
         :class:`Exchange` instance
@@ -173,25 +158,20 @@ class Exchange(BaseChannel):
             self, exchange, routing_key, arguments
         )
 
-        f = self._create_future(timeout)
-
-        def _on_unbindok(result):
-            if not f.done():
-                f.set_result(result)
-
-        self._channel.exchange_unbind(
-            _on_unbindok,
-            self.name,
-            self._get_exchange_name(exchange),
-            routing_key=routing_key,
-            arguments=arguments
+        return await asyncio.wait_for(
+            self.channel.exchange_unbind(
+                arguments=arguments,
+                destination=self.name,
+                routing_key=routing_key,
+                source=self._get_exchange_name(exchange),
+            ), timeout=timeout, loop=self.loop
         )
 
-        return f
+    async def publish(
+        self, message: Message, routing_key, *, mandatory=True,
+        immediate=False, timeout=None
+    ) -> Optional[aiormq.types.ConfirmationFrameType]:
 
-    @BaseChannel._ensure_channel_is_open
-    async def publish(self, message: Message, routing_key, *,
-                      mandatory=True, immediate=False):
         """ Publish the message to the queue. `aio_pika` use
         `publisher confirms`_ extension for message delivery.
 
@@ -199,36 +179,44 @@ class Exchange(BaseChannel):
 
         """
 
-        log.debug("Publishing message via exchange %s: %r", self, message)
+        log.debug(
+            "Publishing message with routing key %r via exchange %r: %r",
+            routing_key, self, message
+        )
+
         if self.internal:
             # Caught on the client side to prevent channel closure
             raise ValueError(
-                "cannot publish to internal exchange: '%s'!" % self.name
+                "Can not publish to internal exchange: '%s'!" % self.name
             )
 
-        return await self.__publish_method(
-            self.name,
-            routing_key,
-            message.body,
-            properties=message.properties,
-            mandatory=mandatory,
-            immediate=immediate
+        return await asyncio.wait_for(
+            self.channel.basic_publish(
+                exchange=self.name,
+                routing_key=routing_key,
+                body=message.body,
+                properties=message.properties,
+                mandatory=mandatory,
+                immediate=immediate
+            ),
+            loop=self.loop, timeout=timeout
         )
 
-    @BaseChannel._ensure_channel_is_open
-    def delete(self, if_unused=False) -> asyncio.Future:
+    async def delete(self, if_unused=False,
+                     timeout=None) -> aiormq.spec.Exchange.DeleteOk:
+
         """ Delete the queue
 
+        :param timeout: operation timeout
         :param if_unused: perform deletion when queue has no bindings.
         """
 
         log.info("Deleting %r", self)
-        self._futures.reject_all(RuntimeError("Exchange was deleted"))
-        f = self.loop.create_future()
-        self._channel.exchange_delete(
-            f.set_result, self.name, if_unused=if_unused
+        return await asyncio.wait_for(
+            self.channel.exchange_delete(self.name, if_unused=if_unused),
+            timeout=timeout,
+            loop=self.loop
         )
-        return f
 
 
-__all__ = ('Exchange',)
+__all__ = ('Exchange', 'ExchangeType', 'ExchangeType_')

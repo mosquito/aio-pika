@@ -37,18 +37,19 @@ setup(
     ],
     packages=find_packages(exclude=['tests']),
     install_requires=[
-        'shortuuid',
+        'aiormq~=1.1.0',
         'yarl',
     ],
     python_requires=">3.5.*, <4",
     extras_require={
         'develop': [
-            'asynctest~=0.12',
+            'asynctest~=0.12.2',
             'coverage!=4.3',
             'coveralls',
             'pylava',
             'pytest',
             'pytest-cov',
+            'shortuuid',
             'sphinx',
             'sphinx-autobuild',
             'timeout-decorator',

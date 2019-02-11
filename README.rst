@@ -30,9 +30,19 @@ aio-pika
     :target: https://pypi.python.org/pypi/aio-pika/
 
 
-Wrapper for the PIKA for asyncio and humans. See examples and the tutorial in `documentation`_.
+Wrapper for the `aiormq`_ for asyncio and humans.
+
+.. note::
+   Since version ``5.0.0`` this library doesn't use ``pika`` as AMQP connector.
+   Versions below ``5.0.0`` contains or requires ``pika``'s source codes.
+
+
+See examples and the tutorial in `documentation`_.
 
 If you are newcomer in the RabbitMQ let's start the `adopted official RabbitMQ tutorial`_
+
+
+.. _aiormq: http://github.com/mosquito/aiormq/
 
 
 Features
@@ -88,12 +98,14 @@ Simple consumer:
                 auto_delete=True
             )   # type: aio_pika.Queue
 
-            async for message in queue:
-                with message.process():
-                    print(message.body)
+            async with queue:
+                # Cancel consuming after __aexit__
+                async for message in queue:
+                    async with message.process():
+                        print(message.body)
 
-                    if queue.name in message.body.decode():
-                        break
+                        if queue.name in message.body.decode():
+                            break
 
 
     if __name__ == "__main__":
@@ -176,7 +188,7 @@ Get single message example:
         incoming_message = await queue.get(timeout=5)
 
         # Confirm message
-        incoming_message.ack()
+        await incoming_message.ack()
 
         await queue.unbind(exchange, routing_key)
         await queue.delete()

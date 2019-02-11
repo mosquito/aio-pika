@@ -1,13 +1,14 @@
-import asyncio
+import os
+from base64 import b32encode
 from collections import namedtuple
 from logging import getLogger
 from types import FunctionType
 
-import shortuuid
+import aiormq
 
-from .common import FutureStore
 from .channel import Channel
-from .queue import ExchangeType_, Queue, ConsumerTag
+from .exchange import ExchangeType_
+from .queue import Queue, ConsumerTag
 
 log = getLogger(__name__)
 
@@ -20,21 +21,30 @@ DeclarationResult = namedtuple(
 class RobustQueue(Queue):
     __slots__ = ('_consumers', '_bindings')
 
-    def __init__(self, loop: asyncio.AbstractEventLoop,
-                 future_store: FutureStore, channel: Channel,
-                 name, durable, exclusive, auto_delete, arguments,
+    @staticmethod
+    def _get_random_queue_name():
+        rb = os.urandom(16)
+        return "amq_%s" % b32encode(rb).decode().replace("=", "").lower()
+
+    def __init__(self, connection, channel: aiormq.Channel, name,
+                 durable, exclusive, auto_delete, arguments,
                  passive: bool = False):
 
-        super().__init__(loop, future_store, channel,
-                         name or "amq_%s" % shortuuid.uuid(),
-                         durable, exclusive, auto_delete, arguments,
-                         passive=passive)
+        super().__init__(
+            connection=connection,
+            channel=channel,
+            name=name or self._get_random_queue_name(),
+            durable=durable,
+            exclusive=exclusive,
+            auto_delete=auto_delete,
+            arguments=arguments,
+            passive=passive
+        )
 
         self._consumers = {}
         self._bindings = {}
 
     async def on_reconnect(self, channel: Channel):
-        self._futures.reject_all(ConnectionError("Auto Reconnect Error"))
         self._channel = channel._channel
 
         await self.declare()

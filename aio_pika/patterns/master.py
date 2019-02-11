@@ -113,11 +113,14 @@ class Master(Base):
     @classmethod
     async def execute(cls, func, kwargs):
         kwargs = kwargs or {}
-        result = await func(**kwargs)
-        return result
+
+        if not isinstance(kwargs, dict):
+            raise RejectMessage(requeue=False)
+
+        return await func(**kwargs)
 
     async def on_message(self, func, message: IncomingMessage):
-        with message.process(requeue=True, ignore_processed=True):
+        async with message.process(requeue=True, ignore_processed=True):
             data = self.deserialize(message.body)
 
             try:

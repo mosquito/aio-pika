@@ -26,9 +26,10 @@ async def main():
                 queue_name, durable=False, auto_delete=False
             )
 
-            async for message in queue:
-                print(message)
-                message.ack()
+            async with queue:
+                async for message in queue:
+                    print(message)
+                    await message.ack()
 
     async def publish():
         async with channel_pool.acquire() as channel:  # type: aio_pika.Channel

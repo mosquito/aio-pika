@@ -8,8 +8,12 @@ from .queue import Queue
 from .robust_connection import connect_robust
 from .exceptions import AMQPException, MessageProcessError
 from .version import (
-    __author__, __version__, author_info, package_info,
-    package_license, version_info
+    __author__,
+    __version__,
+    author_info,
+    package_info,
+    package_license,
+    version_info,
 )
 
 

@@ -3,7 +3,7 @@ import aio_pika
 
 
 async def process_message(message: aio_pika.IncomingMessage):
-    with message.process():
+    async with message.process():
         print(message.body)
         await asyncio.sleep(1)
 
