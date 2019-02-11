@@ -390,7 +390,7 @@ class QueueIterator:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
 
-    async def __anext__(self):
+    async def __anext__(self) -> IncomingMessage:
         if not self._consumer_tag:
             await self.consume()
         try:

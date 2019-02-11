@@ -39,7 +39,7 @@ async def main(loop):
     incoming_message = await queue.get(timeout=5)
 
     # Confirm message
-    incoming_message.ack()
+    await incoming_message.ack()
 
     await queue.unbind(exchange, routing_key)
     await queue.delete()
