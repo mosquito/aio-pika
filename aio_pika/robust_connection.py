@@ -112,6 +112,11 @@ class RobustConnection(Connection):
         """ Is this connection is closed """
         return self._closed or super().is_closed
 
+    async def close(self, exc=asyncio.CancelledError):
+        if self.connection is None:
+            return
+        return await super().close(exc)
+
 
 async def connect_robust(url: str=None, *, host: str='localhost',
                          port: int=5672, login: str='guest',
