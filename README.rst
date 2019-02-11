@@ -98,9 +98,9 @@ Simple consumer:
                 auto_delete=True
             )   # type: aio_pika.Queue
 
-            async with queue:
+            async with queue.iterator() as queue_iter:
                 # Cancel consuming after __aexit__
-                async for message in queue:
+                async for message in queue_iter:
                     async with message.process():
                         print(message.body)
 

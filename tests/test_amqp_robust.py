@@ -1,10 +1,12 @@
 import asyncio
+import logging
+from socket import socket
 
 import aiormq
 import pytest
 from contextlib import suppress
 
-from aio_pika import connect_robust
+from aio_pika import connect_robust, Message
 from aio_pika.robust_channel import RobustChannel
 from aio_pika.robust_connection import RobustConnection
 from aio_pika.robust_queue import RobustQueue
@@ -15,12 +17,98 @@ from tests.test_amqp import TestCase as AMQPTestCase
 pytestmark = pytest.mark.asyncio
 
 
+class Proxy:
+    CHUNK_SIZE = 1500
+
+    def __init__(self, *, loop, shost='127.0.0.1', sport,
+                 dhost='127.0.0.1', dport):
+
+        self.loop = loop
+
+        self.src_host = shost
+        self.src_port = sport
+        self.dst_host = dhost
+        self.dst_port = dport
+        self.connections = set()
+
+    async def _pipe(self, reader: asyncio.StreamReader,
+                    writer: asyncio.StreamWriter):
+        try:
+            while not reader.at_eof():
+                writer.write(await reader.read(self.CHUNK_SIZE))
+        finally:
+            writer.close()
+
+    async def handle_client(self, creader: asyncio.StreamReader,
+                            cwriter: asyncio.StreamWriter):
+        sreader, swriter = await asyncio.open_connection(
+            host=self.dst_host,
+            port=self.dst_port,
+            loop=self.loop,
+        )
+
+        self.connections.add(swriter)
+        self.connections.add(cwriter)
+
+        await asyncio.wait([
+            self._pipe(sreader, cwriter),
+            self._pipe(creader, swriter),
+        ])
+
+    async def start(self):
+        result = await asyncio.start_server(
+            self.handle_client,
+            host=self.src_host,
+            port=self.src_port,
+            loop=self.loop,
+        )
+
+        return result
+
+    async def disconnect(self):
+        tasks = list()
+
+        async def close(writer):
+            writer.close()
+            await writer.wait_closed()
+
+        while self.connections:
+            writer = self.connections.pop()     # type: asyncio.StreamWriter
+            tasks.append(self.loop.create_task(close(writer)))
+
+        await asyncio.wait(tasks, loop=self.loop)
+
+
 class TestCase(AMQPTestCase):
+    @staticmethod
+    def get_unused_port() -> int:
+        sock = socket()
+        sock.bind(('', 0))
+        port = sock.getsockname()[-1]
+        sock.close()
+        return port
+
     async def create_connection(self, cleanup=True):
-        client = await connect_robust(str(AMQP_URL), loop=self.loop)
+        self.proxy = Proxy(
+            dhost=AMQP_URL.host,
+            dport=AMQP_URL.port,
+            sport=self.get_unused_port(),
+            loop=self.loop,
+        )
+
+        await self.proxy.start()
+
+        url = AMQP_URL.with_host(
+            self.proxy.src_host
+        ).with_port(
+            self.proxy.src_port
+        ).update_query(reconnect_interval=1)
+
+        client = await connect_robust(str(url), loop=self.loop)
 
         if cleanup:
             self.addCleanup(client.close)
+            self.addCleanup(self.proxy.disconnect)
 
         return client
 
@@ -81,3 +169,47 @@ class TestCase(AMQPTestCase):
             )
 
         self.assertEqual(reconnect_count, 1)
+
+    async def test_robust_reconnect(self):
+        channel1 = await self.create_channel()
+        channel2 = await self.create_channel()
+
+        shared = []
+        queue = await channel1.declare_queue()
+
+        async def reader():
+            nonlocal shared
+            async with queue.iterator() as q:
+                async for message in q:
+                    shared.append(message)
+                    await message.ack()
+
+        reader_task = self.loop.create_task(reader())
+        self.addCleanup(reader_task.cancel)
+
+        for _ in range(5):
+            await channel2.default_exchange.publish(
+                Message(b''), queue.name,
+            )
+
+        logging.info("Disconnect all clients")
+        await self.proxy.disconnect()
+
+        logging.info("Waiting for reconnect")
+        await asyncio.sleep(5, loop=self.loop)
+
+        logging.info("Waiting connections")
+        await asyncio.wait([
+            channel1._connection.ready(),
+            channel2._connection.ready()
+        ], loop=self.loop)
+
+        for _ in range(5):
+            await channel2.default_exchange.publish(
+                Message(b''), queue.name,
+            )
+
+        while len(shared) < 10:
+            await asyncio.sleep(0.1, loop=self.loop)
+
+        assert len(shared) == 10

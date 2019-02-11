@@ -64,7 +64,7 @@ class Channel:
 
         self._delivery_tag = 0
 
-        self.default_exchange = None
+        self.default_exchange = None       # type: Exchange
 
     @property
     def is_closed(self):

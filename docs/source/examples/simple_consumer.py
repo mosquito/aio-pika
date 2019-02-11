@@ -18,8 +18,8 @@ async def main(loop):
             queue_name, auto_delete=True
         )
 
-        async with queue:
-            async for message in queue:
+        async with queue.iterator() as queue_iter:
+            async for message in queue_iter:
                 async with message.process():
                     print(message.body)
 

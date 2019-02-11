@@ -26,8 +26,8 @@ async def main():
                 queue_name, durable=False, auto_delete=False
             )
 
-            async with queue:
-                async for message in queue:
+            async with queue.iterator() as queue_iter:
+                async for message in queue_iter:
                     print(message)
                     await message.ack()
 

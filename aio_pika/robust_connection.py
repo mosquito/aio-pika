@@ -32,14 +32,16 @@ class RobustConnection(Connection):
             loop=loop or asyncio.get_event_loop(), url=url, **kwargs
         )
 
-        self.reconnect_interval = self._get_connection_argument(
-            'reconnect_interval', self.DEFAULT_RECONNECT_INTERVAL
+        self.reconnect_interval = int(
+            self._get_connection_argument(
+                'reconnect_interval',
+                self.DEFAULT_RECONNECT_INTERVAL
+            )
         )
 
         self.__channels = set()
         self._on_connection_lost_callbacks = set()
         self._on_reconnect_callbacks = set()
-        self._connecting = None
         self._closed = False
 
     @property
@@ -47,6 +49,7 @@ class RobustConnection(Connection):
         return {ch.number: ch for ch in self.__channels}
 
     def _on_connection_close(self, connection, closing):
+        self.connection = None
         super()._on_connection_close(connection, closing)
 
         self.loop.call_later(

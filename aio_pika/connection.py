@@ -83,7 +83,7 @@ class Connection:
         """
         self.close_callbacks.add(callback)
 
-    def _on_connection_close(self, connection, closing):
+    def _on_connection_close(self, connection, closing, *a, **kw):
         exc = closing.exception()
 
         for cb in self.close_callbacks:
@@ -178,6 +178,10 @@ class Connection:
 
         log.debug("Channel created: %r", channel)
         return channel
+
+    async def ready(self):
+        while not self.connection:
+            await asyncio.sleep(0, loop=self.loop)
 
     def __del__(self):
         if any((self.is_closed, self.loop.is_closed())):
