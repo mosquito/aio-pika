@@ -50,6 +50,11 @@ class Connection:
         self.closing = self.loop.create_future()
 
     @property
+    def heartbeat_last(self) -> float:
+        """ returns loop.time() value since last received heartbeat """
+        return self.connection.heartbeat_last
+
+    @property
     def _channels(self) -> dict:
         return self.connection.channels
 
