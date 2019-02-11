@@ -24,7 +24,7 @@ def _ensure_connection(func):
 class RobustConnection(Connection):
     """ Robust connection """
 
-    DEFAULT_RECONNECT_INTERVAL = 1
+    DEFAULT_RECONNECT_INTERVAL = 5
     CHANNEL_CLASS = RobustChannel
 
     def __init__(self, url, loop=None, **kwargs):
@@ -69,6 +69,11 @@ class RobustConnection(Connection):
             await self._on_reconnect()
         except Exception:
             log.exception('Connection attempt error')
+
+            self.loop.call_later(
+                self.reconnect_interval,
+                lambda: self.loop.create_task(self.reconnect())
+            )
 
     def channel(self, channel_number: int=None,
                 publisher_confirms: bool=True,

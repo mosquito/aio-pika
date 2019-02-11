@@ -267,7 +267,7 @@ async def connect(url: str=None, *, host: str='localhost', port: int=5672,
 
     if url is None:
         kw = kwargs
-        kw.update(ssl_options)
+        kw.update(ssl_options or {})
 
         url = URL.build(
             scheme='amqps' if ssl else 'amqp',
