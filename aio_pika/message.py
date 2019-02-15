@@ -163,7 +163,7 @@ class HeaderProxy(Mapping):
 
     def __iter__(self):
         for key in self._headers:
-            yield key, self[key]
+            yield key
 
 
 @singledispatch
