@@ -5,7 +5,7 @@ from typing import Any, AsyncContextManager, Callable, Coroutine, TypeVar
 
 T = TypeVar("T")
 ItemType = Coroutine[Any, None, T]
-ConstructorType = Callable[[], ItemType]
+ConstructorType = Callable[..., ItemType]
 
 
 log = logging.getLogger(__name__)
@@ -14,15 +14,17 @@ log = logging.getLogger(__name__)
 class Pool:
     __slots__ = (
         'loop', '__max_size', '__items',
-        '__constructor', '__created', '__lock'
+        '__constructor', '__created', '__lock',
+        '__constructor_args'
     )
 
-    def __init__(self, constructor: ConstructorType, max_size: int = None,
-                 loop: asyncio.AbstractEventLoop = None):
+    def __init__(self, constructor: ConstructorType, *args, max_size: int =
+                 None, loop: asyncio.AbstractEventLoop = None):
         self.loop = loop or asyncio.get_event_loop()
         self.__max_size = max_size
         self.__items = asyncio.Queue(loop=self.loop)
         self.__constructor = constructor
+        self.__constructor_args = args or ()
         self.__created = 0
         self.__lock = asyncio.Lock(loop=self.loop)
 
@@ -45,7 +47,7 @@ class Pool:
                 return await self.__items.get()
 
             log.debug('Creating a new instance of %r', self.__constructor)
-            item = await self.__constructor()
+            item = await self.__constructor(*self.__constructor_args)
             self.__created += 1
             return item
 
