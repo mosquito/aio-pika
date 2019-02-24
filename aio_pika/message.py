@@ -86,6 +86,11 @@ def encode_timestamp(value) -> Optional[time.struct_time]:
     raise ValueError('Invalid timestamp type: %r' % type(value), value)
 
 
+@encode_timestamp.register(time.struct_time)
+def _(value):
+    return value
+
+
 @encode_timestamp.register(datetime)
 def _(value):
     return value.timetuple()
