@@ -1409,6 +1409,9 @@ class MessageTestCase(unittest.TestCase):
     def test_message_copy(self):
         msg1 = Message(
             bytes(shortuuid.uuid(), 'utf-8'),
+            content_type='application/json',
+            content_encoding='text',
+            timestamp=datetime(2000, 1, 1),
             headers={'h1': 'v1', 'h2': 'v2'},
         )
         msg2 = copy(msg1)
