@@ -345,6 +345,9 @@ class Queue:
 class QueueIterator:
     @shield
     async def close(self):
+        if not self._consumer_tag:
+            return
+
         await self._amqp_queue.cancel(self._consumer_tag)
         self._consumer_tag = None
 

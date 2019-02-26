@@ -6,6 +6,8 @@ import aiormq
 import pytest
 from contextlib import suppress
 
+from aiormq import ChannelLockedResource
+
 from aio_pika import connect_robust, Message
 from aio_pika.robust_channel import RobustChannel
 from aio_pika.robust_connection import RobustConnection
@@ -213,3 +215,16 @@ class TestCase(AMQPTestCase):
             await asyncio.sleep(0.1, loop=self.loop)
 
         assert len(shared) == 10
+
+    async def test_channel_locked_resource2(self):
+        ch1 = await self.create_channel()
+        ch2 = await self.create_channel()
+
+        qname = self.get_random_name("channel", "locked", "resource")
+
+        q1 = await ch1.declare_queue(qname, exclusive=True, robust=False)
+        await q1.consume(print, exclusive=True)
+
+        with self.assertRaises(ChannelLockedResource):
+            q2 = await ch2.declare_queue(qname, exclusive=True, robust=False)
+            await q2.consume(print, exclusive=True)
