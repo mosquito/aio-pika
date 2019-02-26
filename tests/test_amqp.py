@@ -1442,7 +1442,7 @@ class TestCase(BaseTestCase):
         task = self.loop.create_task(task_inner())
         self.loop.call_later(1, task.cancel)
 
-        with self.assertLogs(logger) as expected:
+        with self.assertLogs(logger):
             with self.assertRaises(asyncio.CancelledError):
                 await task
 
