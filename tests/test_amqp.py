@@ -1418,6 +1418,34 @@ class TestCase(BaseTestCase):
             q2 = await ch2.declare_queue(qname, exclusive=True)
             await q2.consume(print, exclusive=True)
 
+    async def test_queue_iterator_close_is_called_twice(self):
+        logger = logging.getLogger().getChild(self.get_random_name("logger"))
+
+        async def task_inner():
+            nonlocal logger
+            try:
+                connection = await self.create_connection()
+
+                async with connection:
+                    channel = await connection.channel()
+
+                    queue = await channel.declare_queue('test')
+
+                    async with queue.iterator() as q:
+                        async for message in q:
+                            with message.process():
+                                break
+            except Exception:
+                logger.exception("Error")
+                raise
+
+        task = self.loop.create_task(task_inner())
+        self.loop.call_later(1, task.cancel)
+
+        with self.assertLogs(logger) as expected:
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+
 
 class MessageTestCase(unittest.TestCase):
     def test_message_copy(self):
