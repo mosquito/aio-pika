@@ -10,6 +10,7 @@ from unittest import mock
 
 import pytest
 import shortuuid
+from aiormq import ChannelLockedResource
 
 import aio_pika
 import aio_pika.exceptions
@@ -1403,6 +1404,47 @@ class TestCase(BaseTestCase):
                     aio_pika.Message(body=b'reject me'),
                     routing_key=queue.name
                 )
+
+    async def test_channel_locked_resource(self):
+        ch1 = await self.create_channel()
+        ch2 = await self.create_channel()
+
+        qname = self.get_random_name("channel", "locked", "resource")
+
+        q1 = await ch1.declare_queue(qname, exclusive=True)
+        await q1.consume(print, exclusive=True)
+
+        with self.assertRaises(ChannelLockedResource):
+            q2 = await ch2.declare_queue(qname, exclusive=True)
+            await q2.consume(print, exclusive=True)
+
+    async def test_queue_iterator_close_is_called_twice(self):
+        logger = logging.getLogger().getChild(self.get_random_name("logger"))
+
+        async def task_inner():
+            nonlocal logger
+            try:
+                connection = await self.create_connection()
+
+                async with connection:
+                    channel = await connection.channel()
+
+                    queue = await channel.declare_queue('test')
+
+                    async with queue.iterator() as q:
+                        async for message in q:
+                            with message.process():
+                                break
+            except Exception:
+                logger.exception("Error")
+                raise
+
+        task = self.loop.create_task(task_inner())
+        self.loop.call_later(1, task.cancel)
+
+        with self.assertLogs(logger) as expected:
+            with self.assertRaises(asyncio.CancelledError):
+                await task
 
 
 class MessageTestCase(unittest.TestCase):
