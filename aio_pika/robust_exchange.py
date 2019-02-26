@@ -63,4 +63,4 @@ class RobustExchange(Exchange):
         return result
 
 
-__all__ = ('Exchange',)
+__all__ = ('RobustExchange',)
