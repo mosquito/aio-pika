@@ -37,7 +37,7 @@ setup(
     ],
     packages=find_packages(exclude=['tests']),
     install_requires=[
-        'aiormq~=1.2',
+        'aiormq~=2.0',
         'yarl',
     ],
     python_requires=">3.5.*, <4",
