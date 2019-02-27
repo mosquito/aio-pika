@@ -229,8 +229,11 @@ class RPC(Base):
             message_type = RPCMessageTypes.error.value
 
         if not message.reply_to:
-            log.warning('RPC message without "reply_to" header %r', message)
-            await message.nack(requeue=False)
+            log.info(
+                'RPC message without "reply_to" header %r call result '
+                'will be lost', message
+            )
+            await message.ack()
             return
 
         result_message = Message(
@@ -254,7 +257,7 @@ class RPC(Base):
             return
 
         if message_type == RPCMessageTypes.error.value:
-            await message.nack(requeue=False)
+            await message.ack()
             return
 
         await message.ack()
