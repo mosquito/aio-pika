@@ -72,7 +72,7 @@ class TestCaseNoMaxSize(BaseTestCase):
 
         async def getter():
             async with self.pool.acquire() as instance:
-                await asyncio.sleep(0.05, loop=self.loop)
+                await asyncio.sleep(1, loop=self.loop)
                 assert instance > 0
                 return self.counter
 
