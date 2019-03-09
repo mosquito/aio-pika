@@ -59,6 +59,9 @@ class RobustQueue(Queue):
     async def bind(self, exchange: ExchangeType_, routing_key: str=None, *,
                    arguments=None, timeout: int=None):
 
+        if routing_key is None:
+            routing_key = self.name
+
         kwargs = dict(arguments=arguments, timeout=timeout)
 
         result = await super().bind(
@@ -71,8 +74,11 @@ class RobustQueue(Queue):
 
         return result
 
-    async def unbind(self, exchange: ExchangeType_, routing_key: str,
+    async def unbind(self, exchange: ExchangeType_, routing_key: str=None,
                      arguments: dict=None, timeout: int=None):
+
+        if routing_key is None:
+            routing_key = self.name
 
         result = await super().unbind(exchange, routing_key, arguments, timeout)
         self._bindings.pop((exchange, routing_key), None)

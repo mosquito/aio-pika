@@ -111,6 +111,9 @@ class Queue:
         :return: :class:`None`
         """
 
+        if routing_key is None:
+            routing_key = self.name
+
         log.debug(
             "Binding queue %r: exchange=%r, routing_key=%r, arguments=%r",
             self, exchange, routing_key, arguments
@@ -126,7 +129,7 @@ class Queue:
         )
 
     async def unbind(
-        self, exchange: ExchangeType_, routing_key: str,
+        self, exchange: ExchangeType_, routing_key: str=None,
         arguments: dict=None, timeout: int=None
     ) -> aiormq.spec.Queue.UnbindOk:
 
@@ -140,6 +143,9 @@ class Queue:
             when the unbinding timeout period has elapsed.
         :return: :class:`None`
         """
+
+        if routing_key is None:
+            routing_key = self.name
 
         log.debug(
             "Unbinding queue %r: exchange=%r, routing_key=%r, arguments=%r",
