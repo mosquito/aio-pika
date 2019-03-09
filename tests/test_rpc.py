@@ -10,9 +10,6 @@ from tests import AMQP_URL
 from tests.test_amqp import BaseTestCase
 
 
-pytestmark = pytest.mark.asyncio
-
-
 def rpc_func(*, foo, bar):
     assert not foo
     assert not bar

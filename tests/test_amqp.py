@@ -23,7 +23,6 @@ from . import BaseTestCase, AMQP_URL
 
 
 log = logging.getLogger(__name__)
-pytestmark = pytest.mark.asyncio
 
 
 class TestCase(BaseTestCase):

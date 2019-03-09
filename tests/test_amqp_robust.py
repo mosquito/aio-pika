@@ -3,7 +3,6 @@ import logging
 from socket import socket
 
 import aiormq
-import pytest
 from contextlib import suppress
 
 from aiormq import ChannelLockedResource
@@ -14,9 +13,6 @@ from aio_pika.robust_connection import RobustConnection
 from aio_pika.robust_queue import RobustQueue
 from tests import AMQP_URL
 from tests.test_amqp import TestCase as AMQPTestCase
-
-
-pytestmark = pytest.mark.asyncio
 
 
 class Proxy:

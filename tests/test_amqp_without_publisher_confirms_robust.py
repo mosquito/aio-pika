@@ -7,9 +7,6 @@ from tests import AMQP_URL
 from tests.test_amqp_without_publisher_confirms import TestCase as AMQPTestCase
 
 
-pytestmark = pytest.mark.asyncio
-
-
 class TestCase(AMQPTestCase):
     @asyncio.coroutine
     def create_connection(self, cleanup=True):
