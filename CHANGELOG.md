@@ -1,3 +1,63 @@
+5.4.0
+-----
+
+* Fix routing key handling (#206 @decaz)
+* Fix URL building (#207 @decaz)
+* Test suite for `connect` function
+
+
+5.3.2
+-----
+
+* Fix tests for `Pool`
+
+
+5.3.1
+-----
+
+* no duplicate call message when exception
+* add robust classes to apidoc
+
+5.3.0
+-----
+
+* use None instead of Elipsis for initial state (@chibby0ne)
+* `Pool`: enable arguments for pool constructor (@chibby0ne)
+* Create py.typed (#176 @zarybnicky)
+* 
+
+5.2.4
+-----
+
+* Fix encode timestamp error on copy (#198 @tzoiker) 
+* Bump `aiormq`
+
+5.2.2
+-----
+
+* Fix HeaderProxy bug (#195 @tzoiker)
+
+5.2.1
+-----
+
+* remove non-initialized channels when reconnect
+
+5.2.0
+-----
+
+* robust connection close only when unclosed
+* `heartbeat_last` property
+
+5.1.1
+-----
+
+* Simple test suite for testing robust connection via tcp proxy
+
+5.0.1
+-----
+
+* robust connection initialization hotfix
+
 5.0.0
 -----
 
