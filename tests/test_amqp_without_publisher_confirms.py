@@ -1,11 +1,6 @@
 from unittest import skip
 
-import pytest
-
 from tests.test_amqp import TestCase as AMQPTestCase
-
-
-pytestmark = pytest.mark.asyncio
 
 
 class TestCase(AMQPTestCase):

@@ -278,6 +278,10 @@ async def connect(url: str=None, *, host: str='localhost', port: int=5672,
         kw = kwargs
         kw.update(ssl_options or {})
 
+        # yarl >= 1.3.0 requires path beginning with slash
+        if virtualhost and virtualhost[0] != '/':
+            virtualhost = '/' + virtualhost
+
         url = URL.build(
             scheme='amqps' if ssl else 'amqp',
             host=host,

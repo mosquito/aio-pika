@@ -1,12 +1,8 @@
 import asyncio
 from collections import Counter
 
-import pytest
 from aio_pika.pool import Pool
 from tests import AsyncTestCase
-
-
-pytestmark = pytest.mark.asyncio
 
 
 class BaseTestCase(AsyncTestCase):

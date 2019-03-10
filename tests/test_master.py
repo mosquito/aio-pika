@@ -1,11 +1,7 @@
 import asyncio
-import pytest
 
 from aio_pika.patterns.master import Master, RejectMessage, NackMessage
 from tests.test_amqp import BaseTestCase
-
-
-pytestmark = pytest.mark.asyncio
 
 
 class TestCase(BaseTestCase):
