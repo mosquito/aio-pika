@@ -36,6 +36,7 @@ setup(
         'Programming Language :: Python :: Implementation :: CPython',
     ],
     packages=find_packages(exclude=['tests']),
+    package_data={'aio_pika': ['py.typed']},
     install_requires=[
         'aiormq~=2.1',
         'yarl',
