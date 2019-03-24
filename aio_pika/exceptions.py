@@ -20,11 +20,11 @@ from aiormq.exceptions import (
 )
 
 
-class MessageProcessError(AMQPException):
+class MessageProcessError(AMQPError):
     pass
 
 
-class QueueEmpty(AMQPException, asyncio.QueueEmpty):
+class QueueEmpty(AMQPError, asyncio.QueueEmpty):
     pass
 
 
