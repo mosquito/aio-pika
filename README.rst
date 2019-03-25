@@ -269,3 +269,4 @@ The changes should follow simple rules:
 
 .. _"thank's to" section: https://github.com/mosquito/aio-pika/blob/master/docs/source/index.rst#thanks-for-contributing
 .. _Semantic Versioning: http://semver.org/
+.. _aio_pika: https://github.com/mosquito/aio-pika/
