@@ -24,6 +24,30 @@ steps:
       - name: cache
         path: /drone/src/.tox
 
+  - name: mypy
+    image: snakepacker/python:all
+    group: tests
+    pull: always
+    commands:
+      - tox
+    environment:
+      TOXENV: mypy
+    volumes:
+      - name: cache
+        path: /drone/src/.tox
+
+  - name: checkdoc
+    image: snakepacker/python:all
+    group: tests
+    pull: always
+    commands:
+      - tox
+    environment:
+      TOXENV: checkdoc
+    volumes:
+      - name: cache
+        path: /drone/src/.tox
+
   - name: python 3.7
     image: snakepacker/python:all
     commands:
@@ -127,6 +151,6 @@ services:
     image: rabbitmq:3-alpine
 ---
 kind: signature
-hmac: 81afa70dcba4cfd9c9240a24be8333d47b3b2cc432cb1639a03f90b92f6216cd
+hmac: 866246845cde0b874bf7e96343ec1a336d0a8b2918623c37f3a1cacceb3b49a8
 
 ...

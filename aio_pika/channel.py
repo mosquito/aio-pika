@@ -144,14 +144,14 @@ class Channel:
     def remove_on_return_callback(self, callback: ReturnCallbackType) -> None:
         self._return_callbacks.remove(callback)
 
-    async def _create_channel(self):
+    async def _create_channel(self) -> aiormq.Channel:
         await self._connection.ready()
 
         return await self._connection.connection.channel(
             publisher_confirms=self._publisher_confirms,
             on_return_raises=self._on_return_raises,
             channel_number=self._channel_number,
-        )   # type: aiormq.Channel
+        )
 
     async def initialize(self, timeout=None) -> None:
         if self._channel is not None:
