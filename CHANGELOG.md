@@ -1,3 +1,14 @@
+5.5.0
+-----
+
+* Fixed #209 int values for headers
+
+5.4.1
+-----
+
+* update aiormq version
+* use `AMQPError` instead of `AMQPException`. `AMQPException` is now alias for `AMQPError`
+
 5.4.0
 -----
 
