@@ -1499,3 +1499,20 @@ class MessageTestCase(unittest.TestCase):
         )
 
         self.assertDictEqual(info, msg.info())
+
+    def test_headers_content(self):
+        data = (
+            [42, 42, 42],
+            ['foo', b'foo', 'foo'],
+            [b'\00', b'\00', '\00'],
+        )
+
+        for src, raw, value in data:
+            msg = Message(b'', headers={'value': src})
+            self.assertEqual(
+                msg.headers_raw['value'], raw, "%r != %r" % (src, raw)
+            )
+
+            self.assertEqual(
+                msg.headers['value'], value, "%r != %r" % (src, value)
+            )

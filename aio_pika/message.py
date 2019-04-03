@@ -161,7 +161,8 @@ class HeaderProxy(Mapping):
         return self._cache[k]
 
     def __setitem__(self, key, value):
-        self._headers[key] = str(value).encode()
+        self._headers[key] = format_headers(value)
+        self._cache.pop(key, None)
 
     def __len__(self) -> int:
         return len(self._headers)
@@ -183,6 +184,7 @@ def header_converter(value: Any) -> bytes:
 @header_converter.register(datetime)
 @header_converter.register(NoneType)
 @header_converter.register(list)
+@header_converter.register(int)
 def _(v: bytes):
     return v
 
