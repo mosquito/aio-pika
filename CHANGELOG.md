@@ -1,3 +1,9 @@
+5.5.1
+-----
+
+* Allow to specify `requeue=` and `reject_on_redelivered=` in Master pattern #212
+
+
 5.5.0
 -----
 
