@@ -69,7 +69,11 @@ class Master(Base):
         await master.proxy.test_worker('foo')
     """
 
-    def __init__(self, channel: Channel):
+    def __init__(
+            self, channel: Channel,
+            requeue: bool = True,
+            reject_on_redelivered: bool = False
+    ):
         """ Creates a new :class:`Master` instance.
 
         :param channel: Initialized instance of :class:`aio_pika.Channel`
@@ -79,6 +83,9 @@ class Master(Base):
         self.proxy = Proxy(self.create_task)
 
         self.channel.add_on_return_callback(self.on_message_returned)
+
+        self._requeue = requeue
+        self._reject_on_redelivered = reject_on_redelivered
 
     @property
     def exchange(self):
@@ -120,7 +127,11 @@ class Master(Base):
         return await func(**kwargs)
 
     async def on_message(self, func, message: IncomingMessage):
-        async with message.process(requeue=True, ignore_processed=True):
+        async with message.process(
+                requeue=self._requeue,
+                reject_on_redelivered=self._reject_on_redelivered,
+                ignore_processed=True
+        ):
             data = self.deserialize(message.body)
 
             try:
