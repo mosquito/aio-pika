@@ -28,7 +28,7 @@ class FibonacciRpcClient:
         future.set_result(message.body)
 
     async def call(self, n):
-        correlation_id = str(uuid.uuid4()).encode()
+        correlation_id = str(uuid.uuid4())
         future = loop.create_future()
 
         self.futures[correlation_id] = future
