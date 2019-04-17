@@ -223,19 +223,19 @@ class Message:
     __slots__ = (
         "app_id", "body", "body_size", "content_encoding", "content_type",
         "correlation_id", "delivery_mode", "expiration", "headers",
-        "headers_raw", "message_id", "priority", "reply_to", "timestamp",
+        "headers_raw", "message_id", "priority", "reply_to", "timestamp_raw",
         "type", "user_id", "__lock",
     )
 
-    def __init__(self, body: bytes, *, headers: dict=None,
-                 content_type: str=None, content_encoding: str=None,
-                 delivery_mode: DeliveryMode=None,
-                 priority: int=None, correlation_id=None,
-                 reply_to: str=None, expiration: DateType=None,
-                 message_id: str=None,
-                 timestamp: DateType=None,
-                 type: str=None, user_id: str=None,
-                 app_id: str=None):
+    def __init__(self, body: bytes, *, headers: dict = None,
+                 content_type: str = None, content_encoding: str = None,
+                 delivery_mode: DeliveryMode = None,
+                 priority: int = None, correlation_id = None,
+                 reply_to: str = None, expiration: DateType = None,
+                 message_id: str = None,
+                 timestamp: DateType = None, timestamp_raw=None,
+                 type: str = None, user_id: str = None,
+                 app_id: str = None):
 
         """ Creates a new instance of Message
 
@@ -274,10 +274,18 @@ class Message:
         self.reply_to = optional(reply_to)
         self.expiration = expiration
         self.message_id = optional(message_id)
-        self.timestamp = encode_timestamp(timestamp)
+        self.timestamp_raw = timestamp_raw or encode_timestamp(timestamp)
         self.type = optional(type)
         self.user_id = optional(user_id)
         self.app_id = optional(app_id)
+
+    @property
+    def timestamp(self):
+        return decode_timestamp(self.timestamp_raw)
+
+    @timestamp.setter
+    def timestamp(self, value):
+        self.timestamp_raw = encode_timestamp(value)
 
     @staticmethod
     def _as_bytes(value):
@@ -428,7 +436,7 @@ class IncomingMessage(Message):
         '__no_ack', '__processed', 'message_count'
     )
 
-    def __init__(self, message: DeliveredMessage, no_ack: bool=False):
+    def __init__(self, message: DeliveredMessage, no_ack: bool = False):
         """ Create an instance of :class:`IncomingMessage` """
 
         self.__channel = message.channel
@@ -437,7 +445,10 @@ class IncomingMessage(Message):
 
         expiration = None       # type: time.struct_time
         if message.header.properties.expiration:
-            expiration = decode_expiration(message.header.properties.expiration)
+            # noinspection PyTypeChecker
+            expiration = decode_expiration(
+                message.header.properties.expiration
+            )
 
         super().__init__(
             body=message.body,
@@ -450,7 +461,7 @@ class IncomingMessage(Message):
             reply_to=message.header.properties.reply_to,
             expiration=expiration / 1000. if expiration else None,
             message_id=message.header.properties.message_id,
-            timestamp=decode_timestamp(message.header.properties.timestamp),
+            timestamp_raw=message.header.properties.timestamp,
             type=message.header.properties.message_type,
             user_id=message.header.properties.user_id,
             app_id=message.header.properties.app_id,
@@ -511,7 +522,7 @@ class IncomingMessage(Message):
             ignore_processed=ignore_processed,
         )
 
-    def ack(self, multiple: bool=False) -> asyncio.Task:
+    def ack(self, multiple: bool = False) -> asyncio.Task:
         """ Send basic.ack is used for positive acknowledgements
 
         .. note::
@@ -569,7 +580,9 @@ class IncomingMessage(Message):
 
         return task
 
-    def nack(self, multiple: bool=False, requeue: bool=True) -> asyncio.Task:
+    def nack(self, multiple: bool = False,
+             requeue: bool = True) -> asyncio.Task:
+
         if not self.__channel.connection.basic_nack:
             raise RuntimeError("Method not supported on server")
 
