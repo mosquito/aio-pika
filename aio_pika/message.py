@@ -457,12 +457,8 @@ class IncomingMessage(Message):
         )
 
         self.cluster_id = message.header.properties.cluster_id
-
-        self.cluster_id = None
         self.consumer_tag = None
         self.delivery_tag = None
-        self.exchange = None
-        self.routing_key = None
         self.redelivered = None
         self.message_count = None
 
