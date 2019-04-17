@@ -27,7 +27,8 @@ class DeliveryMode(IntEnum):
     PERSISTENT = 2
 
 
-DateType = Union[int, datetime, float, timedelta, None]
+DateType = Union[int, datetime, float, timedelta, time.struct_time, None]
+DateTypeRaw = Union[int, float, datetime, time.struct_time, None]
 
 MICROSECONDS = 1000
 
@@ -230,10 +231,10 @@ class Message:
     def __init__(self, body: bytes, *, headers: dict = None,
                  content_type: str = None, content_encoding: str = None,
                  delivery_mode: DeliveryMode = None,
-                 priority: int = None, correlation_id = None,
+                 priority: int = None, correlation_id=None,
                  reply_to: str = None, expiration: DateType = None,
                  message_id: str = None,
-                 timestamp: DateType = None, timestamp_raw=None,
+                 timestamp: DateType = None, timestamp_raw: DateTypeRaw = None,
                  type: str = None, user_id: str = None,
                  app_id: str = None):
 
@@ -241,7 +242,6 @@ class Message:
 
         :param body: message body
         :param headers: message headers
-        :param headers_raw: message raw headers
         :param content_type: content type
         :param content_encoding: content encoding
         :param delivery_mode: delivery mode
@@ -251,6 +251,7 @@ class Message:
         :param expiration: expiration in seconds (or datetime or timedelta)
         :param message_id: message id
         :param timestamp: timestamp
+        :param timestamp_raw: internal timestamp representation
         :param type: type
         :param user_id: user id
         :param app_id: app id

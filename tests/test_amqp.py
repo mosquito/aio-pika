@@ -1492,7 +1492,7 @@ class MessageTestCase(unittest.TestCase):
             reply_to='test',
             expiration=1.5,
             message_id=info['message_id'],
-            timestamp=info['timestamp'],
+            timestamp_raw=info['timestamp'],
             type='0',
             user_id='guest',
             app_id='test'
