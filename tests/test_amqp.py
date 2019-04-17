@@ -1417,6 +1417,21 @@ class TestCase(BaseTestCase):
             q2 = await ch2.declare_queue(qname, exclusive=True)
             await q2.consume(print, exclusive=True)
 
+    # async def test_timestamp_raw_field(self):
+    #     ch = await self.create_channel()
+    #
+    #     qname = self.get_random_name("channel", "locked", "resource")
+    #
+    #     q = await ch.declare_queue(qname, exclusive=True)
+    #
+    #     await ch.default_exchange.publish(
+    #         Message(b'foo', timestamp_raw=43),
+    #         routing_key=qname
+    #     )
+    #     message = await q.get(no_ack=True)
+    #
+    #     assert message.timestamp_raw == 43
+
     async def test_queue_iterator_close_is_called_twice(self):
         logger = logging.getLogger().getChild(self.get_random_name("logger"))
 
