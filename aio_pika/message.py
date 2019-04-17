@@ -333,7 +333,7 @@ class Message:
             "reply_to": self.reply_to,
             "expiration": self.expiration,
             "message_id": self.message_id,
-            "timestamp": decode_timestamp(self.timestamp),
+            "timestamp": self.timestamp_raw,
             "type": str(self.type),
             "user_id": self.user_id,
             "app_id": self.app_id,
@@ -360,7 +360,7 @@ class Message:
             reply_to=self.reply_to,
             expiration=encode_expiration(self.expiration),
             message_id=self.message_id,
-            timestamp=self.timestamp,
+            timestamp=self.timestamp_raw,
             message_type=self.type,
             user_id=self.user_id,
             app_id=self.app_id
@@ -399,7 +399,7 @@ class Message:
             reply_to=self.reply_to,
             expiration=self.expiration,
             message_id=self.message_id,
-            timestamp=self.timestamp,
+            timestamp_raw=self.timestamp_raw,
             type=self.type,
             user_id=self.user_id,
             app_id=self.app_id
