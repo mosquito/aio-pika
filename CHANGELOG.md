@@ -1,3 +1,8 @@
+5.5.2
+-----
+
+* Fixed #216. Exception in Queue.consume callback isn't propagated properly.
+
 5.5.1
 -----
 
