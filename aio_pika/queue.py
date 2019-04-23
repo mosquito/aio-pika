@@ -23,7 +23,7 @@ DeclarationResult = namedtuple(
 
 async def consumer(callback, msg: DeliveredMessage, *, no_ack, loop):
     message = IncomingMessage(msg, no_ack=no_ack)
-    return create_task(callback, message, loop=loop)
+    return await create_task(callback, message, loop=loop)
 
 
 class Queue:
