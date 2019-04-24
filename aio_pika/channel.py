@@ -1,7 +1,12 @@
 import asyncio
 from enum import unique, Enum
 from logging import getLogger
-from typing import Callable, Any, Union, Awaitable
+from typing import Callable, Any, Union
+
+try:  # pragma: no cover
+    from typing import Awaitable  # noqa
+except ImportError:
+    from typing_extensions import Awaitable  # noqa
 
 import aiormq
 import aiormq.types

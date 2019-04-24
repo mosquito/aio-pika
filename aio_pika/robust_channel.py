@@ -1,4 +1,9 @@
-from typing import Callable, Any, Union, Awaitable
+from typing import Callable, Any, Union
+
+try:  # pragma: no cover
+    from typing import Awaitable  # noqa
+except ImportError:
+    from typing_extensions import Awaitable  # noqa
 
 from logging import getLogger
 

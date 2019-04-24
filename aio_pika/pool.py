@@ -1,6 +1,11 @@
 import asyncio
 import logging
-from typing import Any, AsyncContextManager, Callable, Coroutine, TypeVar
+from typing import Any, Callable, TypeVar
+
+try:  # pragma: no cover
+    from typing import AsyncContextManager, Coroutine  # noqa
+except ImportError:
+    from typing_extensions import AsyncContextManager, Coroutine  # noqa
 
 
 T = TypeVar("T")
