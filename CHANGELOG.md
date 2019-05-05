@@ -1,3 +1,8 @@
+5.5.3
+-----
+
+* Fixed #218. How to properly close RobustConnection?
+
 5.5.2
 -----
 
