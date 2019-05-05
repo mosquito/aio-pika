@@ -122,6 +122,9 @@ class RobustConnection(Connection):
         return self._closed or super().is_closed
 
     async def close(self, exc=asyncio.CancelledError):
+        if self.is_closed:
+            return
+
         self._closed = True
 
         if self.connection is None:
