@@ -48,7 +48,7 @@ class RobustConnection(Connection):
     def _channels(self) -> dict:
         return {ch.number: ch for ch in self.__channels}
 
-    def _on_connection_close(self, connection, closing):
+    def _on_connection_close(self, connection, closing, **_):
         self.connection = None
 
         # Have to remove non initialized channels
@@ -72,6 +72,9 @@ class RobustConnection(Connection):
         self._on_reconnect_callbacks.add(callback)
 
     async def reconnect(self):
+        if self.is_closed:
+            return
+
         try:
             # Calls `_on_connection_lost` in case of errors
             await self.connect()
@@ -84,8 +87,8 @@ class RobustConnection(Connection):
                 lambda: self.loop.create_task(self.reconnect())
             )
 
-    def channel(self, channel_number: int=None,
-                publisher_confirms: bool=True,
+    def channel(self, channel_number: int = None,
+                publisher_confirms: bool = True,
                 on_return_raises=False):
 
         channel = super().channel(
@@ -119,16 +122,18 @@ class RobustConnection(Connection):
         return self._closed or super().is_closed
 
     async def close(self, exc=asyncio.CancelledError):
+        self._closed = True
+
         if self.connection is None:
             return
         return await super().close(exc)
 
 
-async def connect_robust(url: str=None, *, host: str='localhost',
-                         port: int=5672, login: str='guest',
-                         password: str='guest', virtualhost: str='/',
-                         ssl: bool=False, loop=None,
-                         ssl_options: dict=None,
+async def connect_robust(url: str = None, *, host: str = 'localhost',
+                         port: int = 5672, login: str = 'guest',
+                         password: str = 'guest', virtualhost: str = '/',
+                         ssl: bool = False, loop=None,
+                         ssl_options: dict = None,
                          connection_class=RobustConnection,
                          **kwargs) -> Connection:
 
