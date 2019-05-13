@@ -92,7 +92,7 @@ class Queue:
     async def bind(
         self, exchange: ExchangeType_, routing_key: str=None, *,
         arguments=None, timeout: int=None
-    ) -> aiormq.spec.Queue.DeclareOk:
+    ) -> aiormq.spec.Queue.BindOk:
 
         """ A binding is a relationship between an exchange and a queue.
         This can be simply read as: the queue is interested in messages
