@@ -189,7 +189,7 @@ class Connection:
             await asyncio.sleep(0, loop=self.loop)
 
     def __del__(self):
-        if any((self.is_closed, self.loop.is_closed())):
+        if any((self.is_closed, self.loop.is_closed(), not self.connection)):
             return
 
         asyncio.shield(self.close(), loop=self.loop)
