@@ -1448,6 +1448,7 @@ class TestCase(BaseTestCase):
     async def test_queue_iterator_close_with_noack(self):
         messages = []
         queue_name = self.get_random_name("test_queue")
+        body = self.get_random_name("test_body").encode()
 
         async def task_inner():
             nonlocal messages
@@ -1466,10 +1467,11 @@ class TestCase(BaseTestCase):
 
         connection = await self.create_connection()
         channel = await connection.channel()
-        queue = await channel.declare_queue(queue_name)
+
+        await channel.declare_queue(queue_name)
 
         await channel.default_exchange.publish(
-            Message(b'fooz'),
+            Message(body),
             routing_key=queue_name,
         )
 
@@ -1478,7 +1480,7 @@ class TestCase(BaseTestCase):
         await task
 
         assert messages
-        assert messages[0].body == b'fooz'
+        assert messages[0].body == body
 
 
 class MessageTestCase(unittest.TestCase):
