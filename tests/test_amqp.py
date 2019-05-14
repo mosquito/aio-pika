@@ -1445,6 +1445,41 @@ class TestCase(BaseTestCase):
             with self.assertRaises(asyncio.CancelledError):
                 await task
 
+    async def test_queue_iterator_close_with_noack(self):
+        messages = []
+        queue_name = self.get_random_name("test_queue")
+
+        async def task_inner():
+            nonlocal messages
+
+            connection = await self.create_connection()
+
+            async with connection:
+                channel = await connection.channel()
+
+                queue = await channel.declare_queue(queue_name)
+
+                async with queue.iterator(no_ack=True) as q:
+                    async for message in q:
+                        messages.append(message)
+                        return
+
+        connection = await self.create_connection()
+        channel = await connection.channel()
+        queue = await channel.declare_queue(queue_name)
+
+        await channel.default_exchange.publish(
+            Message(b'fooz'),
+            routing_key=queue_name,
+        )
+
+        task = self.loop.create_task(task_inner())
+
+        await task
+
+        assert messages
+        assert messages[0].body == b'fooz'
+
 
 class MessageTestCase(unittest.TestCase):
     def test_message_copy(self):
