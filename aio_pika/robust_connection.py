@@ -25,10 +25,9 @@ def _ensure_connection(func):
 class RobustConnection(Connection):
     """ Robust connection """
 
-    DEFAULT_RECONNECT_INTERVAL = 5
     CHANNEL_CLASS = RobustChannel
     KWARGS_TYPES = (
-        ('reconnect_interval', parse_int, DEFAULT_RECONNECT_INTERVAL),
+        ('reconnect_interval', parse_int, '5'),
         ('fail_fast', parse_bool, '1'),
     )
 
@@ -83,11 +82,11 @@ class RobustConnection(Connection):
                 log.warning(
                     "First connection attempt failed "
                     "and will be retried after %d seconds",
-                    self.DEFAULT_RECONNECT_INTERVAL,
+                    self.reconnect_interval,
                     exc_info=True,
                 )
 
-                await asyncio.sleep(self.DEFAULT_RECONNECT_INTERVAL)
+                await asyncio.sleep(self.reconnect_interval)
 
             return
 
