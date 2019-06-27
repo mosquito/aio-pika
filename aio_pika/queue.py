@@ -392,6 +392,7 @@ class QueueIterator:
         return self
 
     async def __aenter__(self):
+        # TODO: Shield or handle CancelledError
         if self._consumer_tag is None:
             await self.consume()
         return self

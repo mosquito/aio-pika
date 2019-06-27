@@ -26,6 +26,7 @@ class Connection:
     """ Connection abstraction """
 
     CHANNEL_CLASS = Channel
+    KWARGS_TYPES = ()
 
     @property
     def is_closed(self):
@@ -37,13 +38,18 @@ class Connection:
 
         return await self.connection.close(exc)
 
-    def _get_connection_argument(self, name, default=None):
-        return self.kwargs.get(name, self.url.query.get(name, default))
+    @classmethod
+    def _parse_kwargs(cls, kwargs):
+        result = {}
+        for key, parser, default in cls.KWARGS_TYPES:
+            result[key] = parser(kwargs.get(key, default))
+        return result
 
     def __init__(self, url, loop=None, **kwargs):
         self.loop = loop or asyncio.get_event_loop()
         self.url = URL(url)
-        self.kwargs = kwargs
+
+        self.kwargs = self._parse_kwargs(kwargs or self.url.query)
 
         self.connection = None     # type: aiormq.Connection
         self.close_callbacks = set()

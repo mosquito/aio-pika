@@ -431,7 +431,7 @@ class IncomingMessage(Message):
         '__no_ack', '__processed', 'message_count'
     )
 
-    def __init__(self, message: DeliveredMessage, no_ack: bool=False):
+    def __init__(self, message: DeliveredMessage, no_ack: bool = False):
         """ Create an instance of :class:`IncomingMessage` """
 
         self.__channel = message.channel
@@ -440,7 +440,9 @@ class IncomingMessage(Message):
 
         expiration = None       # type: time.struct_time
         if message.header.properties.expiration:
-            expiration = decode_expiration(message.header.properties.expiration)
+            expiration = decode_expiration(
+                message.header.properties.expiration
+            )
 
         super().__init__(
             body=message.body,
@@ -514,7 +516,7 @@ class IncomingMessage(Message):
             ignore_processed=ignore_processed,
         )
 
-    def ack(self, multiple: bool=False) -> asyncio.Task:
+    def ack(self, multiple: bool = False) -> asyncio.Task:
         """ Send basic.ack is used for positive acknowledgements
 
         .. note::
@@ -572,7 +574,9 @@ class IncomingMessage(Message):
 
         return task
 
-    def nack(self, multiple: bool=False, requeue: bool=True) -> asyncio.Task:
+    def nack(self, multiple: bool = False,
+             requeue: bool = True) -> asyncio.Task:
+
         if not self.__channel.connection.basic_nack:
             raise RuntimeError("Method not supported on server")
 
