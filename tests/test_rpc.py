@@ -100,7 +100,7 @@ class TestCase(BaseTestCase):
                 Message(b''), routing_key=rpc.result_queue.name
             )
 
-            await asyncio.sleep(0.5, loop=self.loop)
+            await asyncio.sleep(0.5)
 
         self.assertIn('Unknown message: ', capture.output[0])
 
@@ -109,7 +109,7 @@ class TestCase(BaseTestCase):
                 Message(b''), routing_key='should-returned'
             )
 
-            await asyncio.sleep(0.5, loop=self.loop)
+            await asyncio.sleep(0.5)
 
         self.assertIn('Unknown message was returned: ', capture.output[0])
 
@@ -120,7 +120,7 @@ class TestCase(BaseTestCase):
         rpc = await RPC.create(channel, auto_delete=True)
 
         async def sleeper():
-            await asyncio.sleep(60, loop=self.loop)
+            await asyncio.sleep(60)
 
         method_name = self.get_random_name('test', 'sleeper')
 

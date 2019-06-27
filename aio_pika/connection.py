@@ -117,7 +117,7 @@ class Connection:
 
         self.connection = await asyncio.wait_for(
             aiormq.connect(self.url),
-            timeout=timeout, loop=self.loop
+            timeout=timeout
         )   # type: aiormq.Connection
 
         self.connection.closing.add_done_callback(
@@ -192,7 +192,7 @@ class Connection:
 
     async def ready(self):
         while not self.connection:
-            await asyncio.sleep(0, loop=self.loop)
+            await asyncio.sleep(0)
 
     def __del__(self):
         if any((self.is_closed, self.loop.is_closed(), not self.connection)):

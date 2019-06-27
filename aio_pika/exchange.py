@@ -72,7 +72,7 @@ class Exchange:
             internal=self.internal,
             passive=self.passive,
             arguments=self.arguments,
-        ), timeout=timeout, loop=self.loop)
+        ), timeout=timeout)
 
     @staticmethod
     def _get_exchange_name(exchange: ExchangeType_):
@@ -134,7 +134,7 @@ class Exchange:
                 destination=self.name,
                 routing_key=routing_key,
                 source=self._get_exchange_name(exchange),
-            ), timeout=timeout, loop=self.loop
+            ), timeout=timeout
         )
 
     async def unbind(
@@ -164,7 +164,7 @@ class Exchange:
                 destination=self.name,
                 routing_key=routing_key,
                 source=self._get_exchange_name(exchange),
-            ), timeout=timeout, loop=self.loop
+            ), timeout=timeout
         )
 
     async def publish(
@@ -198,8 +198,7 @@ class Exchange:
                 properties=message.properties,
                 mandatory=mandatory,
                 immediate=immediate
-            ),
-            loop=self.loop, timeout=timeout
+            ), timeout=timeout
         )
 
     async def delete(self, if_unused=False,
@@ -214,8 +213,7 @@ class Exchange:
         log.info("Deleting %r", self)
         return await asyncio.wait_for(
             self.channel.exchange_delete(self.name, if_unused=if_unused),
-            timeout=timeout,
-            loop=self.loop
+            timeout=timeout
         )
 
 
