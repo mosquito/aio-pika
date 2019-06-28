@@ -15,7 +15,7 @@ class TestCase(AMQPTestCase):
         return client
 
     async def create_channel(self, connection=None, cleanup=False,
-                       publisher_confirms=False, **kwargs):
+                             publisher_confirms=False, **kwargs):
         if connection is None:
             connection = await self.create_connection()
 
