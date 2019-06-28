@@ -28,6 +28,7 @@ log = logging.getLogger(__name__)
 class TestCase(BaseTestCase):
     async def test_channel_close(self):
         client = await self.create_connection()
+        event = asyncio.Event()
 
         self.get_random_name("test_connection")
         self.get_random_name()
@@ -35,14 +36,16 @@ class TestCase(BaseTestCase):
         self.__closed = False
 
         def on_close(ch):
+            nonlocal event
             log.info("Close called")
             self.__closed = True
+            event.set()
 
         channel = await client.channel()
         channel.add_close_callback(on_close)
         await channel.close()
 
-        await asyncio.sleep(0.5, loop=self.loop)
+        await event.wait()
 
         self.assertTrue(self.__closed)
 
@@ -590,7 +593,7 @@ class TestCase(BaseTestCase):
 
         await queue.unbind(exchange, routing_key)
         await queue.delete()
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_ack_twice(self):
         client = await self.create_connection()
@@ -623,7 +626,7 @@ class TestCase(BaseTestCase):
         self.assertEqual(incoming_message.body, body)
         await queue.unbind(exchange, routing_key)
         await queue.delete()
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_reject_twice(self):
         client = await self.create_connection()
@@ -656,7 +659,7 @@ class TestCase(BaseTestCase):
         self.assertEqual(incoming_message.body, body)
         await queue.unbind(exchange, routing_key)
         await queue.delete()
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_consuming(self):
         client = await self.create_connection()
@@ -695,7 +698,7 @@ class TestCase(BaseTestCase):
 
         await queue.unbind(exchange, routing_key)
         await exchange.delete()
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_consuming_not_coroutine(self):
         client = await self.create_connection()
@@ -734,7 +737,7 @@ class TestCase(BaseTestCase):
 
         await queue.unbind(exchange, routing_key)
         await exchange.delete()
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_ack_reject(self):
         client = await self.create_connection()
@@ -795,7 +798,7 @@ class TestCase(BaseTestCase):
 
         await queue.unbind(exchange, routing_key)
         await queue.delete()
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_purge_queue(self):
         queue_name = self.get_random_name("test_connection4")
@@ -828,7 +831,7 @@ class TestCase(BaseTestCase):
 
     async def test_connection_refused(self):
         with pytest.raises(ConnectionError):
-            await connect('amqp://guest:guest@localhost:9999', loop=self.loop)
+            await connect('amqp://guest:guest@localhost:9999')
 
     async def test_wrong_credentials(self):
         amqp_url = AMQP_URL.with_user(
@@ -838,7 +841,7 @@ class TestCase(BaseTestCase):
         )
 
         with pytest.raises(ProbableAuthenticationError):
-            await connect(str(amqp_url), loop=self.loop)
+            await connect(str(amqp_url))
 
     async def test_set_qos(self):
         channel = await self.create_channel()
@@ -936,7 +939,7 @@ class TestCase(BaseTestCase):
             )
         finally:
             await exchange.delete()
-            await asyncio.wait((client.close(), client.closing), loop=self.loop)
+            await asyncio.wait((client.close(), client.closing))
 
     async def test_basic_return(self):
         client = await self.create_connection()
@@ -992,7 +995,7 @@ class TestCase(BaseTestCase):
 
         self.assertEqual(returned.body, body)
 
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_expiration(self):
         client = await self.create_connection()
@@ -1041,7 +1044,7 @@ class TestCase(BaseTestCase):
             message.headers['x-death'][0]['original-expiration'], b'500'
         )
 
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_add_close_callback(self):
         client = await self.create_connection()
@@ -1084,7 +1087,7 @@ class TestCase(BaseTestCase):
         self.assertEqual(incoming_message.body, body)
         await queue.unbind(exchange, routing_key)
         await queue.delete()
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_unexpected_channel_close(self):
         client = await self.create_connection()
@@ -1095,7 +1098,7 @@ class TestCase(BaseTestCase):
             await channel.declare_queue("amq.restricted_queue_name",
                                         auto_delete=True)
 
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_declaration_result(self):
         client = await self.create_connection()
@@ -1107,7 +1110,7 @@ class TestCase(BaseTestCase):
         self.assertEqual(queue.declaration_result.message_count, 0)
         self.assertEqual(queue.declaration_result.consumer_count, 0)
 
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_declaration_result_with_consumers(self):
         client = await self.create_connection()
@@ -1124,7 +1127,7 @@ class TestCase(BaseTestCase):
 
         self.assertEqual(queue2.declaration_result.consumer_count, 1)
 
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_declaration_result_with_messages(self):
         client = await self.create_connection()
@@ -1147,7 +1150,7 @@ class TestCase(BaseTestCase):
         self.assertEqual(queue2.declaration_result.consumer_count, 0)
         self.assertEqual(queue2.declaration_result.message_count, 1)
 
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_queue_empty_exception(self):
 
@@ -1172,7 +1175,7 @@ class TestCase(BaseTestCase):
             await queue.get(timeout=5)
 
         await queue.delete()
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_queue_empty_fail_false(self):
 
@@ -1185,7 +1188,7 @@ class TestCase(BaseTestCase):
         self.assertIsNone(result)
 
         await queue.delete()
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_message_nack(self):
 
@@ -1211,7 +1214,7 @@ class TestCase(BaseTestCase):
         message.ack()
 
         await queue.delete()
-        await asyncio.wait((client.close(), client.closing), loop=self.loop)
+        await asyncio.wait((client.close(), client.closing))
 
     async def test_on_return_raises(self):
         client = await self.create_connection()
@@ -1419,18 +1422,24 @@ class TestCase(BaseTestCase):
 
     async def test_queue_iterator_close_is_called_twice(self):
         logger = logging.getLogger().getChild(self.get_random_name("logger"))
+        event = asyncio.Event()
+
+        queue_name = self.get_random_name()
 
         async def task_inner():
             nonlocal logger
+            nonlocal event
             try:
                 connection = await self.create_connection()
 
                 async with connection:
                     channel = await connection.channel()
 
-                    queue = await channel.declare_queue('test')
+                    queue = await channel.declare_queue(queue_name)
 
                     async with queue.iterator() as q:
+                        event.set()
+
                         async for message in q:
                             with message.process():
                                 break
@@ -1439,7 +1448,9 @@ class TestCase(BaseTestCase):
                 raise
 
         task = self.loop.create_task(task_inner())
-        self.loop.call_later(1, task.cancel)
+
+        await event.wait()
+        self.loop.call_soon(task.cancel)
 
         with self.assertLogs(logger):
             with self.assertRaises(asyncio.CancelledError):
@@ -1448,6 +1459,7 @@ class TestCase(BaseTestCase):
     async def test_queue_iterator_close_with_noack(self):
         messages = []
         queue_name = self.get_random_name("test_queue")
+        body = self.get_random_name("test_body").encode()
 
         async def task_inner():
             nonlocal messages
@@ -1466,10 +1478,11 @@ class TestCase(BaseTestCase):
 
         connection = await self.create_connection()
         channel = await connection.channel()
-        queue = await channel.declare_queue(queue_name)
+
+        await channel.declare_queue(queue_name)
 
         await channel.default_exchange.publish(
-            Message(b'fooz'),
+            Message(body),
             routing_key=queue_name,
         )
 
@@ -1478,7 +1491,7 @@ class TestCase(BaseTestCase):
         await task
 
         assert messages
-        assert messages[0].body == b'fooz'
+        assert messages[0].body == body
 
 
 class MessageTestCase(unittest.TestCase):

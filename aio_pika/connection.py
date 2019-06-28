@@ -26,6 +26,7 @@ class Connection:
     """ Connection abstraction """
 
     CHANNEL_CLASS = Channel
+    KWARGS_TYPES = ()
 
     @property
     def is_closed(self):
@@ -37,13 +38,18 @@ class Connection:
 
         return await self.connection.close(exc)
 
-    def _get_connection_argument(self, name, default=None):
-        return self.kwargs.get(name, self.url.query.get(name, default))
+    @classmethod
+    def _parse_kwargs(cls, kwargs):
+        result = {}
+        for key, parser, default in cls.KWARGS_TYPES:
+            result[key] = parser(kwargs.get(key, default))
+        return result
 
     def __init__(self, url, loop=None, **kwargs):
         self.loop = loop or asyncio.get_event_loop()
         self.url = URL(url)
-        self.kwargs = kwargs
+
+        self.kwargs = self._parse_kwargs(kwargs or self.url.query)
 
         self.connection = None     # type: aiormq.Connection
         self.close_callbacks = set()
@@ -111,7 +117,7 @@ class Connection:
 
         self.connection = await asyncio.wait_for(
             aiormq.connect(self.url),
-            timeout=timeout, loop=self.loop
+            timeout=timeout
         )   # type: aiormq.Connection
 
         self.connection.closing.add_done_callback(
@@ -186,7 +192,7 @@ class Connection:
 
     async def ready(self):
         while not self.connection:
-            await asyncio.sleep(0, loop=self.loop)
+            await asyncio.sleep(0)
 
     def __del__(self):
         if any((self.is_closed, self.loop.is_closed(), not self.connection)):

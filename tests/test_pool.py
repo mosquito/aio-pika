@@ -18,7 +18,7 @@ class BaseTestCase(AsyncTestCase):
         )
 
     async def create_instance(self):
-        await asyncio.sleep(0, loop=self.loop)
+        await asyncio.sleep(0)
         self.counter += 1
         return self.counter
 
@@ -30,7 +30,7 @@ class TestCase(BaseTestCase):
         async def getter():
             async with self.pool.acquire() as instance:
                 assert instance > 0
-                await asyncio.sleep(0.01, loop=self.loop)
+                await asyncio.sleep(0.01)
                 return self.counter
 
         results = await asyncio.gather(
@@ -46,7 +46,7 @@ class TestCase(BaseTestCase):
     async def test_errored(self):
         async def getter():
             async with self.pool.acquire() as instance:
-                await asyncio.sleep(0.01, loop=self.loop)
+                await asyncio.sleep(0.01)
                 raise RuntimeError(instance)
 
         results = await asyncio.gather(
@@ -68,7 +68,7 @@ class TestCaseNoMaxSize(BaseTestCase):
 
         async def getter():
             async with self.pool.acquire() as instance:
-                await asyncio.sleep(1, loop=self.loop)
+                await asyncio.sleep(1)
                 assert instance > 0
                 return self.counter
 
@@ -109,7 +109,7 @@ class TestCaseItemReuse(BaseTestCase):
             nonlocal counter
 
             async with self.pool.acquire() as instance:
-                await asyncio.sleep(0.05, loop=self.loop)
+                await asyncio.sleep(0.05)
                 counter[instance] += 1
 
         await asyncio.gather(

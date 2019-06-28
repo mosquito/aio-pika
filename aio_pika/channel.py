@@ -163,7 +163,7 @@ class Channel:
             raise RuntimeError("Can't initialize channel")
 
         self._channel = await asyncio.wait_for(
-            self._create_channel(), timeout=timeout, loop=self.loop
+            self._create_channel(), timeout=timeout
         )
 
         self._delivery_tag = 0
@@ -254,7 +254,7 @@ class Channel:
                 prefetch_count=prefetch_count,
                 prefetch_size=prefetch_size
             ),
-            timeout=timeout, loop=self.loop
+            timeout=timeout
         )
 
     async def queue_delete(self, queue_name: str, timeout: int=None,
@@ -268,7 +268,7 @@ class Channel:
                 if_empty=if_empty,
                 nowait=nowait,
             ),
-            timeout=timeout, loop=self.loop
+            timeout=timeout
         )
 
     async def exchange_delete(
@@ -282,7 +282,7 @@ class Channel:
                 if_unused=if_unused,
                 nowait=nowait,
             ),
-            timeout=timeout, loop=self.loop
+            timeout=timeout
         )
 
     def transaction(self) -> Transaction:

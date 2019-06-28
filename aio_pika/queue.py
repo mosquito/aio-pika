@@ -83,7 +83,7 @@ class Queue:
                 queue=self.name, durable=self.durable,
                 exclusive=self.exclusive, auto_delete=self.auto_delete,
                 arguments=self.arguments, passive=self.passive,
-            ), timeout=timeout, loop=self.loop
+            ), timeout=timeout
         )  # type: aiormq.spec.Queue.DeclareOk
 
         self.name = self.declaration_result.queue
@@ -125,7 +125,7 @@ class Queue:
                 exchange=Exchange._get_exchange_name(exchange),
                 routing_key=routing_key,
                 arguments=arguments
-            ), timeout=timeout, loop=self.loop
+            ), timeout=timeout
         )
 
     async def unbind(
@@ -158,7 +158,7 @@ class Queue:
                 exchange=Exchange._get_exchange_name(exchange),
                 routing_key=routing_key,
                 arguments=arguments
-            ), timeout=timeout, loop=self.loop
+            ), timeout=timeout
         )
 
     async def consume(
@@ -202,7 +202,7 @@ class Queue:
                 arguments=arguments,
                 consumer_tag=consumer_tag,
             ),
-            timeout=timeout, loop=self.loop
+            timeout=timeout
         )).consumer_tag
 
     async def cancel(self, consumer_tag: ConsumerTag, timeout=None,
@@ -229,7 +229,7 @@ class Queue:
                 consumer_tag=consumer_tag,
                 nowait=nowait
             ),
-            timeout=timeout, loop=self.loop
+            timeout=timeout
         )
 
     async def get(
@@ -248,7 +248,7 @@ class Queue:
 
         msg = await asyncio.wait_for(self.channel.basic_get(
                 self.name, no_ack=no_ack
-            ), timeout=timeout, loop=self.loop
+            ), timeout=timeout
         )   # type: Optional[DeliveredMessage]
 
         if msg is None:
@@ -274,7 +274,7 @@ class Queue:
             self.channel.queue_purge(
                 self.name,
                 nowait=no_wait,
-            ), timeout=timeout, loop=self.loop
+            ), timeout=timeout
         )
 
     async def delete(self, *, if_unused=True, if_empty=True,
@@ -293,7 +293,7 @@ class Queue:
         result = await asyncio.wait_for(
             self.channel.queue_delete(
                 self.name, if_unused=if_unused, if_empty=if_empty
-            ), timeout=timeout, loop=self.loop
+            ), timeout=timeout
         )
 
         return result
@@ -391,6 +391,7 @@ class QueueIterator:
     def __aiter__(self):
         return self
 
+    @shield
     async def __aenter__(self):
         if self._consumer_tag is None:
             await self.consume()
