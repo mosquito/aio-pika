@@ -124,8 +124,8 @@ class Connection:
             partial(self._on_connection_close, self.connection)
         )
 
-    def channel(self, channel_number: int=None,
-                publisher_confirms: bool=True,
+    def channel(self, channel_number: int = None,
+                publisher_confirms: bool = True,
                 on_return_raises=False) -> Channel:
         """ Coroutine which returns new instance of :class:`Channel`.
 

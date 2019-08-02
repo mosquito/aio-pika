@@ -65,10 +65,10 @@ class Channel:
         self._channel_number = channel_number
         self._on_return_raises = on_return_raises
         self._publisher_confirms = publisher_confirms
-        self._publisher_confirms = self._publisher_confirms
 
         self._delivery_tag = 0
 
+        # noinspection PyTypeChecker
         self.default_exchange = None       # type: Exchange
 
     @property
@@ -291,6 +291,9 @@ class Channel:
                                "confirms are enabled")
 
         return Transaction(self._channel)
+
+    async def flow(self, active=True):
+        return await self.channel.flow(active=active)
 
 
 __all__ = ('Channel', 'ConfirmationTypes')
