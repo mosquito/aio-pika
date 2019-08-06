@@ -1564,3 +1564,23 @@ class MessageTestCase(unittest.TestCase):
             self.assertEqual(
                 msg.headers['value'], value, "%r != %r" % (src, value)
             )
+
+    def test_headers_set(self):
+        msg = Message(b'', headers={'header': 'value'})
+
+        data = (
+            ['header-1', 42, 42, 42],
+            ['header-2', 'foo', b'foo', 'foo'],
+            ['header-3', b'\00', b'\00', '\00'],
+        )
+
+        for name, src, raw, value in data:
+            msg.headers[name] = value
+            self.assertEqual(
+                msg.headers_raw[name], raw, "%r != %r" % (src, raw)
+            )
+            self.assertEqual(
+                msg.headers[name], value, "%r != %r" % (src, value)
+            )
+
+        self.assertEqual(msg.headers['header'], 'value')

@@ -164,7 +164,7 @@ class HeaderProxy(Mapping):
         return self._cache[k]
 
     def __setitem__(self, key, value):
-        self._headers[key] = format_headers(value)
+        self._headers[key] = header_converter(value)
         self._cache.pop(key, None)
 
     def __len__(self) -> int:
