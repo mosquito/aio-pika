@@ -556,7 +556,7 @@ class IncomingMessage(Message):
 
         return task
 
-    def reject(self, requeue=False) -> asyncio.Task:
+    def reject(self, requeue: bool = False) -> asyncio.Task:
         """ When `requeue=True` the message will be returned to queue.
         Otherwise message will be dropped.
 

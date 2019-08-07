@@ -1,7 +1,7 @@
 import asyncio
 from enum import unique, Enum
 from logging import getLogger
-from typing import Callable, Any, Union
+
 
 try:  # pragma: no cover
     from typing import Awaitable  # noqa
@@ -15,16 +15,9 @@ from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage
 from .queue import Queue
 from .transaction import Transaction
+from .types import ReturnCallbackType, CloseCallbackType, TimeoutType
 
 log = getLogger(__name__)
-
-FunctionOrCoroutine = Union[
-    Callable[[IncomingMessage], Any],
-    Awaitable[IncomingMessage]
-]
-
-ReturnCallbackType = Callable[[aiormq.types.DeliveredMessage], Any]
-CloseCallbackType = Callable[[Exception], Any]
 
 
 @unique
@@ -39,8 +32,9 @@ class Channel:
     QUEUE_CLASS = Queue
     EXCHANGE_CLASS = Exchange
 
-    def __init__(self, connection, channel_number: int=None,
-                 publisher_confirms: bool=True, on_return_raises=False):
+    def __init__(self, connection, channel_number: int = None,
+                 publisher_confirms: bool = True,
+                 on_return_raises: bool = False):
         """
 
         :param connection: :class:`aio_pika.adapter.AsyncioConnection` instance
@@ -158,7 +152,7 @@ class Channel:
             channel_number=self._channel_number,
         )
 
-    async def initialize(self, timeout=None) -> None:
+    async def initialize(self, timeout: TimeoutType = None) -> None:
         if self._channel is not None:
             raise RuntimeError("Can't initialize channel")
 
@@ -190,11 +184,12 @@ class Channel:
             except Exception:
                 log.exception("Unhandled return callback exception")
 
-    async def declare_exchange(self, name: str,
-                               type: ExchangeType=ExchangeType.DIRECT,
-                               durable: bool=None, auto_delete: bool=False,
-                               internal: bool=False, passive: bool=False,
-                               arguments: dict=None, timeout=None) -> Exchange:
+    async def declare_exchange(
+        self, name: str, type: ExchangeType = ExchangeType.DIRECT,
+        durable: bool = None, auto_delete: bool = False,
+        internal: bool = False, passive: bool = False, arguments: dict = None,
+        timeout: TimeoutType = None
+    ) -> Exchange:
 
         if auto_delete and durable is None:
             durable = False
@@ -211,10 +206,13 @@ class Channel:
 
         return exchange
 
-    async def declare_queue(self, name: str=None, *, durable: bool=None,
-                            exclusive: bool=False, passive: bool=False,
-                            auto_delete: bool=False, arguments: dict=None,
-                            timeout: int=None) -> Queue:
+    async def declare_queue(
+        self, name: str = None, *, durable: bool = None,
+        exclusive: bool = False, passive: bool = False,
+        auto_delete: bool = False, arguments: dict = None,
+        timeout: TimeoutType = None
+    ) -> Queue:
+
         """
 
         :param name: queue name
@@ -245,9 +243,10 @@ class Channel:
 
         return queue
 
-    async def set_qos(self, prefetch_count: int=0, prefetch_size: int=0,
-                      all_channels: bool=False,
-                      timeout: int=None) -> aiormq.spec.Basic.QosOk:
+    async def set_qos(
+        self, prefetch_count: int = 0, prefetch_size: int = 0,
+        all_channels: bool = False, timeout: TimeoutType = None
+    ) -> aiormq.spec.Basic.QosOk:
 
         return await asyncio.wait_for(
             self.channel.basic_qos(
@@ -257,9 +256,10 @@ class Channel:
             timeout=timeout
         )
 
-    async def queue_delete(self, queue_name: str, timeout: int=None,
-                           if_unused: bool=False, if_empty: bool=False,
-                           nowait: bool=False) -> aiormq.spec.Queue.DeleteOk:
+    async def queue_delete(
+        self, queue_name: str, timeout: TimeoutType = None,
+        if_unused: bool = False, if_empty: bool = False, nowait: bool = False
+    ) -> aiormq.spec.Queue.DeleteOk:
 
         return await asyncio.wait_for(
             self.channel.queue_delete(
@@ -272,8 +272,8 @@ class Channel:
         )
 
     async def exchange_delete(
-        self, exchange_name: str, timeout: int=None,
-        if_unused: bool=False, nowait: bool=False
+        self, exchange_name: str, timeout: TimeoutType = None,
+        if_unused: bool = False, nowait: bool = False
     ) -> aiormq.spec.Exchange.DeleteOk:
 
         return await asyncio.wait_for(
@@ -292,7 +292,7 @@ class Channel:
 
         return Transaction(self._channel)
 
-    async def flow(self, active=True):
+    async def flow(self, active: bool = True) -> aiormq.spec.Channel.FlowOk:
         return await self.channel.flow(active=active)
 
 
