@@ -1550,7 +1550,7 @@ class MessageTestCase(unittest.TestCase):
 
     def test_headers_setter(self):
         data = {'foo': 'bar'}
-        data_expected = {b'foo': b'bar'}
+        data_expected = {'foo': b'bar'}
 
         msg = Message(b'', headers={'bar': 'baz'})
         msg.headers = data
