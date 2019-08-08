@@ -23,8 +23,8 @@ class Pool:
         '__constructor_args'
     )
 
-    def __init__(self, constructor: ConstructorType, *args, max_size: int =
-                 None, loop: asyncio.AbstractEventLoop = None):
+    def __init__(self, constructor: ConstructorType, *args,
+                 max_size: int = None, loop: asyncio.AbstractEventLoop = None):
         self.loop = loop or asyncio.get_event_loop()
         self.__max_size = max_size
         self.__items = asyncio.Queue(loop=self.loop)

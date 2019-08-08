@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from functools import partial
-from typing import Callable
+from typing import Callable, Type
 
 import aiormq
 from aiormq.tools import censor_url
@@ -105,7 +105,7 @@ class Connection:
 
         log.debug("Closing AMQP connection %r", connection)
 
-    async def connect(self, timeout=None):
+    async def connect(self, timeout: TimeoutError = None):
         """ Connect to AMQP server. This method should be called after
         :func:`aio_pika.connection.Connection.__init__`
 
@@ -126,7 +126,7 @@ class Connection:
 
     def channel(self, channel_number: int = None,
                 publisher_confirms: bool = True,
-                on_return_raises=False) -> Channel:
+                on_return_raises: bool = False) -> Channel:
         """ Coroutine which returns new instance of :class:`Channel`.
 
         Example:
@@ -210,11 +210,13 @@ class Connection:
         await self.close()
 
 
-async def connect(url: str=None, *, host: str='localhost', port: int=5672,
-                  login: str='guest', password: str='guest',
-                  virtualhost: str='/', ssl: bool=False, loop=None,
-                  ssl_options: dict=None, connection_class=Connection,
-                  **kwargs) -> Connection:
+async def connect(
+    url: str = None, *, host: str = 'localhost', port: int = 5672,
+    login: str = 'guest', password: str = 'guest', virtualhost: str = '/',
+    ssl: bool = False, loop: asyncio.AbstractEventLoop = None,
+    ssl_options: dict = None, connection_class: Type[Connection] = Connection,
+    **kwargs
+  ) -> Connection:
 
     """ Make connection to the broker.
 

@@ -1548,6 +1548,18 @@ class MessageTestCase(unittest.TestCase):
 
         self.assertDictEqual(info, msg.info())
 
+    def test_headers_setter(self):
+        data = {'foo': 'bar'}
+        data_expected = {'foo': b'bar'}
+
+        msg = Message(b'', headers={'bar': 'baz'})
+        msg.headers = data
+
+        self.assertEqual(
+            msg.headers_raw, data_expected,
+            "%r != %r" % (msg.headers_raw, data_expected)
+        )
+
     def test_headers_content(self):
         data = (
             [42, 42, 42],

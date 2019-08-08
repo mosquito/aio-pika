@@ -1,16 +1,14 @@
 import asyncio
 from enum import Enum, unique
 from logging import getLogger
-from typing import Optional, Union
+from typing import Optional
 
 import aiormq
-
 from .message import Message
+from .types import ExchangeType as ExchangeType_, TimeoutType
+
 
 log = getLogger(__name__)
-
-
-ExchangeType_ = Union['Exchange', str]
 
 
 @unique
@@ -27,10 +25,10 @@ class Exchange:
     """ Exchange abstraction """
 
     def __init__(self, connection, channel: aiormq.Channel, name: str,
-                 type: ExchangeType=ExchangeType.DIRECT, *,
+                 type: ExchangeType = ExchangeType.DIRECT, *,
                  auto_delete: Optional[bool], durable: Optional[bool],
                  internal: Optional[bool], passive: Optional[bool],
-                 arguments: dict=None):
+                 arguments: dict = None):
 
         self.loop = connection.loop
 
@@ -62,7 +60,7 @@ class Exchange:
         )
 
     async def declare(
-        self, timeout=None
+        self, timeout: TimeoutType = None
     ) -> aiormq.spec.Exchange.DeclareOk:
         return await asyncio.wait_for(self.channel.exchange_declare(
             self.name,
@@ -85,8 +83,8 @@ class Exchange:
                 'exchange argument must be an exchange instance or str')
 
     async def bind(
-        self, exchange: ExchangeType_, routing_key: str='', *,
-        arguments=None, timeout: int=None
+        self, exchange: ExchangeType_, routing_key: str = '', *,
+        arguments: dict = None, timeout: TimeoutType = None
     ) -> aiormq.spec.Exchange.BindOk:
 
         """ A binding can also be a relationship between two exchanges.
@@ -139,7 +137,7 @@ class Exchange:
 
     async def unbind(
         self, exchange: ExchangeType_, routing_key: str = '',
-        arguments: dict=None, timeout: int=None
+        arguments: dict = None, timeout: TimeoutType = None
     ) -> aiormq.spec.Exchange.UnbindOk:
 
         """ Remove exchange-to-exchange binding for this
@@ -168,8 +166,8 @@ class Exchange:
         )
 
     async def publish(
-        self, message: Message, routing_key, *, mandatory=True,
-        immediate=False, timeout=None
+        self, message: Message, routing_key, *, mandatory: bool = True,
+        immediate: bool = False, timeout: TimeoutType = None
     ) -> Optional[aiormq.types.ConfirmationFrameType]:
 
         """ Publish the message to the queue. `aio_pika` use
@@ -201,8 +199,9 @@ class Exchange:
             ), timeout=timeout
         )
 
-    async def delete(self, if_unused=False,
-                     timeout=None) -> aiormq.spec.Exchange.DeleteOk:
+    async def delete(
+        self, if_unused: bool = False, timeout: TimeoutType = None
+    ) -> aiormq.spec.Exchange.DeleteOk:
 
         """ Delete the queue
 
@@ -217,4 +216,4 @@ class Exchange:
         )
 
 
-__all__ = ('Exchange', 'ExchangeType', 'ExchangeType_')
+__all__ = ('Exchange', 'ExchangeType')

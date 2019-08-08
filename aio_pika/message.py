@@ -225,7 +225,7 @@ class Message:
 
     __slots__ = (
         "app_id", "body", "body_size", "content_encoding", "content_type",
-        "correlation_id", "delivery_mode", "expiration", "headers",
+        "correlation_id", "delivery_mode", "expiration", "_headers",
         "headers_raw", "message_id", "priority", "reply_to", "timestamp",
         "type", "user_id", "__lock",
     )
@@ -263,7 +263,7 @@ class Message:
         self.body = body if isinstance(body, bytes) else bytes(body)
         self.body_size = len(self.body) if self.body else 0
         self.headers_raw = format_headers(headers)
-        self.headers = HeaderProxy(self.headers_raw)
+        self._headers = HeaderProxy(self.headers_raw)
         self.content_type = content_type
         self.content_encoding = content_encoding
         self.delivery_mode = DeliveryMode(
@@ -281,6 +281,14 @@ class Message:
         self.type = optional(type)
         self.user_id = optional(user_id)
         self.app_id = optional(app_id)
+
+    @property
+    def headers(self):
+        return self._headers
+
+    @headers.setter
+    def headers(self, value: dict):
+        self.headers_raw = format_headers(value)
 
     @staticmethod
     def _as_bytes(value):
@@ -438,7 +446,7 @@ class IncomingMessage(Message):
         self.__no_ack = no_ack
         self.__processed = False
 
-        expiration = None       # type: time.struct_time
+        expiration = None
         if message.header.properties.expiration:
             expiration = decode_expiration(
                 message.header.properties.expiration
@@ -548,7 +556,7 @@ class IncomingMessage(Message):
 
         return task
 
-    def reject(self, requeue=False) -> asyncio.Task:
+    def reject(self, requeue: bool = False) -> asyncio.Task:
         """ When `requeue=True` the message will be returned to queue.
         Otherwise message will be dropped.
 
