@@ -1,3 +1,14 @@
+5.6.3
+-----
+
+* add more type annotations
+* consistent setting headers for message #233
+
+5.6.2
+-----
+
+* Fixes: set header value on HeaderProxy #232
+
 5.5.3
 -----
 
