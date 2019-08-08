@@ -4,7 +4,7 @@ from logging import getLogger
 
 
 try:  # pragma: no cover
-    from typing import Awaitable  # noqa
+    from typing import Awaitable, Union  # noqa
 except ImportError:
     from typing_extensions import Awaitable  # noqa
 
@@ -185,11 +185,27 @@ class Channel:
                 log.exception("Unhandled return callback exception")
 
     async def declare_exchange(
-        self, name: str, type: ExchangeType = ExchangeType.DIRECT,
+        self, name: str, type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         durable: bool = None, auto_delete: bool = False,
         internal: bool = False, passive: bool = False, arguments: dict = None,
         timeout: TimeoutType = None
     ) -> Exchange:
+        """
+        Declare an exchange.
+
+        :param name: string with exchange name or
+            :class:`aio_pika.exchange.Exchange` instance
+        :param type: Exchange type. Enum ExchangeType value or string.
+            String values must be one of 'fanout', 'direct', 'topic',
+            'headers', 'x-delayed-message', 'x-consistent-hash'.
+        :param durable: Durability (exchange survive broker restart)
+        :param auto_delete: Delete queue when channel will be closed.
+        :param internal: Do not send it to broker just create an object
+        :param passive: Only check to see if the queue exists.
+        :param arguments: additional arguments
+        :param timeout: execution timeout
+        :return: :class:`aio_pika.exchange.Exchange` instance
+        """
 
         if auto_delete and durable is None:
             durable = False
@@ -221,9 +237,10 @@ class Channel:
             be accessed by the current connection, and are deleted when that
             connection closes. Passive declaration of an exclusive queue by
             other connections are not allowed.
-        :param passive: Only check to see if the queue exists.
+        :param passive: Do not fail when entity was declared
+            previously but has another params.
         :param auto_delete: Delete queue when channel will be closed.
-        :param arguments: pika additional arguments
+        :param arguments: additional arguments
         :param timeout: execution timeout
         :return: :class:`aio_pika.queue.Queue` instance
         """
