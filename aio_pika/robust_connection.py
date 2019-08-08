@@ -4,7 +4,7 @@ from logging import getLogger
 from typing import Callable
 
 from aiormq.connection import parse_bool, parse_int
-from .exceptions import ChannelClosed, AMQPError
+from .exceptions import AMQPError, CONNECTION_EXCEPTIONS
 from .connection import Connection, connect
 from .robust_channel import RobustChannel
 
@@ -40,7 +40,6 @@ class RobustConnection(Connection):
         self.fail_fast = self.kwargs['fail_fast']
 
         self.__channels = set()
-        self._on_connection_lost_callbacks = set()
         self._on_reconnect_callbacks = set()
         self._closed = False
 
@@ -48,7 +47,7 @@ class RobustConnection(Connection):
     def _channels(self) -> dict:
         return {ch.number: ch for ch in self.__channels}
 
-    def _on_connection_close(self, connection, closing, **_):
+    def _on_connection_close(self, connection, closing, *args, **kwargs):
         self.connection = None
 
         # Have to remove non initialized channels
@@ -72,13 +71,13 @@ class RobustConnection(Connection):
         self._on_reconnect_callbacks.add(callback)
 
     async def connect(self, timeout=None):
-        if self.fail_fast:
-            return await super().connect(timeout=timeout)
-
         while True:
             try:
-                await super().connect(timeout=timeout)
-            except (ConnectionError, AMQPError):
+                return await super().connect(timeout=timeout)
+            except CONNECTION_EXCEPTIONS:
+                if self.fail_fast:
+                    raise
+
                 log.warning(
                     "First connection attempt failed "
                     "and will be retried after %d seconds",
@@ -88,23 +87,21 @@ class RobustConnection(Connection):
 
                 await asyncio.sleep(self.reconnect_interval)
 
-            return
-
     async def reconnect(self):
         if self.is_closed:
             return
 
         try:
-            # Calls `_on_connection_lost` in case of errors
-            await self.connect()
-            await self._on_reconnect()
-        except Exception:
+            await super().connect()
+        except CONNECTION_EXCEPTIONS:
             log.exception('Connection attempt error')
 
             self.loop.call_later(
                 self.reconnect_interval,
                 lambda: self.loop.create_task(self.reconnect())
             )
+        else:
+            await self._on_reconnect()
 
     def channel(self, channel_number: int = None,
                 publisher_confirms: bool = True,
@@ -124,7 +121,7 @@ class RobustConnection(Connection):
         for number, channel in self._channels.items():
             try:
                 await channel.on_reconnect(self, number)
-            except (RuntimeError, ChannelClosed, AMQPError):
+            except (RuntimeError, AMQPError):
                 log.exception('Open channel failure')
                 await self.close()
                 return
