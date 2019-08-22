@@ -15,7 +15,10 @@ class TestCase(BaseTestCase):
 
     def test_basic(self):
         collection = self.make_collection()
-        func = lambda x: None
+
+        def func():
+            pass
+
         collection.add(func)
 
         self.assertTrue(func in collection)
