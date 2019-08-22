@@ -1,3 +1,8 @@
+6.0.1
+-----
+
+* Extended ExchangeType #237. Added `x-modulus-hash` exchange type.
+
 6.0.0
 -----
 
