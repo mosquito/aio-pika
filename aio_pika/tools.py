@@ -73,13 +73,24 @@ class CallbackCollection(Set):
         self.__callbacks = set()
 
     def add(self, callback: Callable):
+        if self.is_frozen:
+            raise RuntimeError('Collection frozen')
         if not callable(callback):
             raise ValueError("Callback is not callable")
 
         self.__callbacks.add(callback)
 
     def remove(self, callback: Callable):
+        if self.is_frozen:
+            raise RuntimeError('Collection frozen')
+
         self.__callbacks.remove(callback)
+
+    def clear(self):
+        if self.is_frozen:
+            raise RuntimeError('Collection frozen')
+
+        self.__callbacks.clear()
 
     @property
     def is_frozen(self) -> bool:
