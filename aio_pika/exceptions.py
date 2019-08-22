@@ -20,10 +20,15 @@ from aiormq.exceptions import (
     ChannelNotFoundEntity
 )
 
-PAMQP_EXCEPTIONS = (pamqp.exceptions.PAMQPException,) + tuple(
-    pamqp.specification.ERRORS.values()
-)
-CONNECTION_EXCEPTIONS = (ConnectionError, AMQPError) + PAMQP_EXCEPTIONS
+PAMQP_EXCEPTIONS = (
+    pamqp.exceptions.PAMQPException,
+) + tuple(pamqp.specification.ERRORS.values())
+
+CONNECTION_EXCEPTIONS = (
+    RuntimeError,
+    ConnectionError,
+    AMQPError,
+) + PAMQP_EXCEPTIONS
 
 
 class MessageProcessError(AMQPError):

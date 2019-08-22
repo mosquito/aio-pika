@@ -4,7 +4,7 @@ from logging import getLogger
 from typing import Callable
 
 from aiormq.connection import parse_bool, parse_int
-from .exceptions import AMQPError, CONNECTION_EXCEPTIONS
+from .exceptions import CONNECTION_EXCEPTIONS
 from .connection import Connection, connect
 from .robust_channel import RobustChannel
 
@@ -121,7 +121,7 @@ class RobustConnection(Connection):
         for number, channel in self._channels.items():
             try:
                 await channel.on_reconnect(self, number)
-            except (RuntimeError, AMQPError):
+            except CONNECTION_EXCEPTIONS:
                 log.exception('Open channel failure')
                 await self.close()
                 return
