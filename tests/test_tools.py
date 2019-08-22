@@ -7,6 +7,7 @@ from aio_pika.tools import CallbackCollection
 log = logging.getLogger(__name__)
 
 
+# noinspection PyTypeChecker
 class TestCase(BaseTestCase):
     @classmethod
     def make_collection(cls):
