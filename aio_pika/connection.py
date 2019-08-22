@@ -94,7 +94,7 @@ class Connection:
         """
         self.close_callbacks.add(callback)
 
-    def _on_connection_close(self, connection, closing, *a, **kw):
+    def _on_connection_close(self, connection, closing, *args, **kwargs):
         exc = closing.exception()
 
         for cb in self.close_callbacks:
