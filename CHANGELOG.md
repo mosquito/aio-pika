@@ -1,3 +1,9 @@
+6.0.0
+-----
+
+* `RobustConnection` logic changes (see #234). 
+  Thanks to @decaz for analysis and fixes. 
+
 5.6.3
 -----
 
