@@ -2,6 +2,7 @@ import asyncio
 from enum import unique, Enum
 from logging import getLogger
 
+from aio_pika.tools import CallbackCollection
 
 try:  # pragma: no cover
     from typing import Awaitable, Union  # noqa
@@ -52,9 +53,9 @@ class Channel:
 
         self.loop = connection.loop
 
-        self._return_callbacks = set()
         self._connection = connection
-        self._done_callbacks = set()
+        self._done_callbacks = CallbackCollection()
+        self._return_callbacks = CallbackCollection()
         self._channel = None  # type: aiormq.Channel
         self._channel_number = channel_number
         self._on_return_raises = on_return_raises
@@ -64,6 +65,14 @@ class Channel:
 
         # noinspection PyTypeChecker
         self.default_exchange = None       # type: Exchange
+
+    @property
+    def done_callbacks(self) -> CallbackCollection:
+        return self._done_callbacks
+
+    @property
+    def return_callbacks(self) -> CallbackCollection:
+        return self._return_callbacks
 
     @property
     def is_closed(self):
@@ -79,6 +88,7 @@ class Channel:
         if self.channel.is_closed:
             return
 
+        # noinspection PyTypeChecker
         channel = self._channel     # type: aiormq.Channel
         self._channel = ()
         await channel.close()

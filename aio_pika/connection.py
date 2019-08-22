@@ -3,12 +3,12 @@ import logging
 from functools import partial
 from typing import Callable, Type
 
-import aiormq
-from aiormq.tools import censor_url
 from yarl import URL
 
+import aiormq
+from aiormq.tools import censor_url
 from .channel import Channel
-
+from .tools import CallbackCollection
 
 try:
     from yarl import DEFAULT_PORTS
@@ -51,9 +51,13 @@ class Connection:
 
         self.kwargs = self._parse_kwargs(kwargs or self.url.query)
 
+        self._close_callbacks = CallbackCollection()
         self.connection = None     # type: aiormq.Connection
-        self.close_callbacks = set()
         self.closing = self.loop.create_future()
+
+    @property
+    def close_callbacks(self) -> CallbackCollection:
+        return self._close_callbacks
 
     @property
     def heartbeat_last(self) -> float:
