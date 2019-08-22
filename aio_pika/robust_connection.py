@@ -6,6 +6,7 @@ from typing import Callable
 from aiormq.connection import parse_bool, parse_int
 from .exceptions import CONNECTION_EXCEPTIONS
 from .connection import Connection, connect
+from .tools import CallbackCollection
 from .robust_channel import RobustChannel
 
 
@@ -40,8 +41,12 @@ class RobustConnection(Connection):
         self.fail_fast = self.kwargs['fail_fast']
 
         self.__channels = set()
-        self._on_reconnect_callbacks = set()
+        self._on_reconnect_callbacks = CallbackCollection()
         self._closed = False
+
+    @property
+    def on_reconnect_callbacks(self) -> CallbackCollection:
+        return self._on_reconnect_callbacks
 
     @property
     def _channels(self) -> dict:
