@@ -104,7 +104,7 @@ class CallbackCollection(Set):
 
     def unfreeze(self):
         if not self.is_frozen:
-            raise RuntimeError("Not collection is not frozen")
+            raise RuntimeError("Collection is not frozen")
 
         self.__callbacks = set(self.__callbacks)
 
