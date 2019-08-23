@@ -40,4 +40,4 @@ class JsonGZipRPC(JsonRPC):
         return gzip.compress(super().serialize(data))
 
     def deserialize(self, data: Any) -> bytes:
-        return gzip.decompress(super().deserialize(data))
+        return super().deserialize(gzip.decompress(data))
