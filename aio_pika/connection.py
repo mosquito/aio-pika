@@ -100,13 +100,7 @@ class Connection:
 
     def _on_connection_close(self, connection, closing, *args, **kwargs):
         exc = closing.exception()
-
-        for cb in self.close_callbacks:
-            try:
-                cb(exc)
-            except Exception:
-                log.exception('Callback error')
-
+        self.close_callbacks(exc)
         log.debug("Closing AMQP connection %r", connection)
 
     async def connect(self, timeout: TimeoutError = None):

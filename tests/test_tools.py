@@ -56,6 +56,8 @@ class TestCase(BaseTestCase):
         collection2 = copy(collection)
         collection.unfreeze()
 
+        self.assertFalse(copy(collection).is_frozen)
+
         self.assertNotEqual(collection.is_frozen, collection2.is_frozen)
 
         with self.assertRaises(RuntimeError):
@@ -64,3 +66,20 @@ class TestCase(BaseTestCase):
         collection.clear()
         self.assertTrue(collection2)
         self.assertFalse(collection)
+
+    def test_callback_call(self):
+        l1 = list()
+        l2 = list()
+
+        self.assertListEqual(l1, l2)
+
+        cbs = self.make_collection()
+
+        cbs.add(lambda x: l1.append(x))
+        cbs.add(lambda x: l2.append(x))
+
+        cbs(1)
+        cbs(2)
+
+        self.assertListEqual(l1, l2)
+        self.assertListEqual(l1, [1, 2])

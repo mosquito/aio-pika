@@ -1,9 +1,13 @@
 import asyncio
+import logging
 from functools import wraps
 from collections.abc import Set
+from threading import Lock
 from typing import Callable, Iterable
 
 __all__ = 'create_task', 'iscoroutinepartial', 'shield', 'CallbackCollection',
+
+log = logging.getLogger(__name__)
 
 
 def iscoroutinepartial(fn):
@@ -67,10 +71,11 @@ def shield(func):
 
 
 class CallbackCollection(Set):
-    __slots__ = '__callbacks',
+    __slots__ = '__callbacks', '__lock'
 
     def __init__(self):
         self.__callbacks = set()
+        self.__lock = Lock()
 
     def add(self, callback: Callable):
         if self.is_frozen:
@@ -78,19 +83,22 @@ class CallbackCollection(Set):
         if not callable(callback):
             raise ValueError("Callback is not callable")
 
-        self.__callbacks.add(callback)
+        with self.__lock:
+            self.__callbacks.add(callback)
 
     def remove(self, callback: Callable):
         if self.is_frozen:
             raise RuntimeError('Collection frozen')
 
-        self.__callbacks.remove(callback)
+        with self.__lock:
+            self.__callbacks.remove(callback)
 
     def clear(self):
         if self.is_frozen:
             raise RuntimeError('Collection frozen')
 
-        self.__callbacks.clear()
+        with self.__lock:
+            self.__callbacks.clear()
 
     @property
     def is_frozen(self) -> bool:
@@ -100,13 +108,15 @@ class CallbackCollection(Set):
         if self.is_frozen:
             raise RuntimeError("Collection already frozen")
 
-        self.__callbacks = frozenset(self.__callbacks)
+        with self.__lock:
+            self.__callbacks = frozenset(self.__callbacks)
 
     def unfreeze(self):
         if not self.is_frozen:
             raise RuntimeError("Collection is not frozen")
 
-        self.__callbacks = set(self.__callbacks)
+        with self.__lock:
+            self.__callbacks = set(self.__callbacks)
 
     def __contains__(self, x: object) -> bool:
         return x in self.__callbacks
@@ -122,10 +132,20 @@ class CallbackCollection(Set):
 
     def __copy__(self):
         instance = self.__class__()
-        for cb in self.__callbacks:
-            instance.add(cb)
+
+        with self.__lock:
+            for cb in self.__callbacks:
+                instance.add(cb)
 
         if self.is_frozen:
             instance.freeze()
 
         return instance
+
+    def __call__(self, *args, **kwargs):
+        with self.__lock:
+            for cb in self.__callbacks:
+                try:
+                    cb(*args, **kwargs)
+                except Exception:
+                    log.exception('Callback error')
