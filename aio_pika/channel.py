@@ -93,11 +93,7 @@ class Channel:
         self._channel = ()
         await channel.close()
 
-        for cb in self._done_callbacks:
-            try:
-                cb(exc)
-            except Exception:
-                log.exception('Callback exception')
+        self._done_callbacks(exc)
 
     @property
     def channel(self) -> aiormq.Channel:
@@ -187,12 +183,7 @@ class Channel:
         self.channel.on_return_callbacks.add(self._on_return)
 
     def _on_return(self, message: aiormq.types.DeliveredMessage):
-        msg = IncomingMessage(message, no_ack=True)
-        for cb in self._return_callbacks:
-            try:
-                cb(msg)
-            except Exception:
-                log.exception("Unhandled return callback exception")
+        self._return_callbacks(IncomingMessage(message, no_ack=True))
 
     async def declare_exchange(
         self, name: str, type: Union[ExchangeType, str] = ExchangeType.DIRECT,

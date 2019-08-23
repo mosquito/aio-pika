@@ -131,11 +131,7 @@ class RobustConnection(Connection):
                 await self.close()
                 return
 
-        for callback in self._on_reconnect_callbacks:
-            try:
-                callback(self)
-            except Exception:
-                log.exception("Callback exception")
+        self._on_reconnect_callbacks(self)
 
     @property
     def is_closed(self):
