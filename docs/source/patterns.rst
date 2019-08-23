@@ -49,3 +49,16 @@ One or multimple callees executing tasks:
 
 .. literalinclude:: examples/rpc-callee.py
    :language: python
+
+Extending
+~~~~~~~~~
+
+Both patterns serialization behaviour might be changed by inheritance and
+redefinition of methods :func:`aio_pika.patterns.base.serialize`
+and :func:`aio_pika.patterns.base.deserialize`.
+
+
+Following examples demonstrates it:
+
+.. literalinclude:: examples/extend-patterns.py
+   :language: python
