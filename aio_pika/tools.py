@@ -1,6 +1,6 @@
 import asyncio
 from functools import wraps
-from collections import Set
+from collections.abc import Set
 from typing import Callable, Iterable
 
 __all__ = 'create_task', 'iscoroutinepartial', 'shield', 'CallbackCollection',
