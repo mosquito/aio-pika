@@ -1,4 +1,5 @@
 import logging
+from copy import copy
 from unittest import TestCase as BaseTestCase
 
 from aio_pika.tools import CallbackCollection
@@ -52,9 +53,14 @@ class TestCase(BaseTestCase):
         with self.assertRaises(RuntimeError):
             collection.clear()
 
+        collection2 = copy(collection)
         collection.unfreeze()
+
+        self.assertNotEqual(collection.is_frozen, collection2.is_frozen)
 
         with self.assertRaises(RuntimeError):
             collection.unfreeze()
 
         collection.clear()
+        self.assertTrue(collection2)
+        self.assertFalse(collection)

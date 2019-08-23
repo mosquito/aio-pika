@@ -117,9 +117,15 @@ class CallbackCollection(Set):
     def __iter__(self) -> Iterable[Callable]:
         return iter(self.__callbacks)
 
+    def __bool__(self):
+        return bool(self.__callbacks)
+
     def __copy__(self):
         instance = self.__class__()
         for cb in self.__callbacks:
             instance.add(cb)
+
+        if self.is_frozen:
+            instance.freeze()
 
         return instance
