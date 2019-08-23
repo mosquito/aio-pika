@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 
 from functools import partial
@@ -154,12 +155,7 @@ class Master(Base):
             fn = func
         else:
             fn = asyncio.coroutine(func)
-        consumer_tag = await queue.consume(
-            partial(
-                self.on_message,
-                fn
-            )
-        )
+        consumer_tag = await queue.consume(partial(self.on_message, fn))
 
         return Worker(queue, consumer_tag, self.loop)
 
@@ -177,3 +173,11 @@ class Master(Base):
         await self.exchange.publish(
             message, channel_name, mandatory=True
         )
+
+
+class JsonMaster(Master):
+    SERIALIZER = json
+    CONTENT_TYPE = 'application/json'
+
+    def serialize(self, data: Any) -> bytes:
+        return self.SERIALIZER.dumps(data, ensure_ascii=False)

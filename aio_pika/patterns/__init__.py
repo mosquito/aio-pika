@@ -1,8 +1,8 @@
-from .master import Master, Worker, NackMessage, RejectMessage
-from .rpc import RPC
+from .master import Master, Worker, NackMessage, RejectMessage, JsonMaster
+from .rpc import RPC, JsonRPC
 
 
 __all__ = (
     'Master', 'NackMessage', 'RejectMessage',
-    'RPC', 'Worker',
+    'RPC', 'Worker', 'JsonMaster', 'JsonRPC',
 )
