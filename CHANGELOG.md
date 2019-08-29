@@ -1,3 +1,11 @@
+6.1.0
+-----
+
+* Unified `CallbackCollection`s for channels and connections
+* Make RobustConnection more robust
+* `JsonRPC` and `JsonMaster` adapters
+* Improve patterns documentation
+
 6.0.1
 -----
 
