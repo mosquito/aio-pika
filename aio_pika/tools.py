@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 
 def iscoroutinepartial(fn):
     """
-    Function returns True if function it's a partial instance of coroutine.
+    Function returns True if function is a partial instance of coroutine.
     See additional information here_.
 
     :param fn: Function

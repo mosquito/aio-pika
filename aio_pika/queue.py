@@ -105,7 +105,7 @@ class Queue:
 
         :param exchange: :class:`aio_pika.exchange.Exchange` instance
         :param routing_key: routing key
-        :param arguments: additional arguments (will be passed to `pika`)
+        :param arguments: additional arguments
         :param timeout: execution timeout
         :raises asyncio.TimeoutError:
             when the binding timeout period has elapsed.
@@ -138,7 +138,7 @@ class Queue:
 
         :param exchange: :class:`aio_pika.exchange.Exchange` instance
         :param routing_key: routing key
-        :param arguments: additional arguments (will be passed to `pika`)
+        :param arguments: additional arguments
         :param timeout: execution timeout
         :raises asyncio.TimeoutError:
             when the unbinding timeout period has elapsed.
@@ -181,7 +181,7 @@ class Queue:
             be accessed by the current connection, and are deleted
             when that connection closes. Passive declaration of an
             exclusive queue by other connections are not allowed.
-        :param arguments: extended arguments for pika
+        :param arguments: additional arguments
         :param consumer_tag: optional consumer tag
 
         :raises asyncio.TimeoutError:

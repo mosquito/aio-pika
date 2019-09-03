@@ -222,13 +222,13 @@ Clone the project:
     git clone https://github.com/mosquito/aio-pika.git
     cd aio-pika
 
-Create a new virtualenv for `aio_pika`_:
+Create a new virtualenv for `aio-pika`_:
 
 .. code-block:: shell
 
     virtualenv -p python3.5 env
 
-Install all requirements for `aio_pika`_:
+Install all requirements for `aio-pika`_:
 
 .. code-block:: shell
 
@@ -269,4 +269,4 @@ The changes should follow simple rules:
 
 .. _"thank's to" section: https://github.com/mosquito/aio-pika/blob/master/docs/source/index.rst#thanks-for-contributing
 .. _Semantic Versioning: http://semver.org/
-.. _aio_pika: https://github.com/mosquito/aio-pika/
+.. _aio-pika: https://github.com/mosquito/aio-pika/

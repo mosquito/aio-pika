@@ -194,7 +194,7 @@ command as many times as we like, and only one will be created.
 
 .. note::
     This article contains adopted official examples only.
-    But `aio_pika` allows to use Python 3.5+ `async for` notation.
+    But `aio-pika` allows to use Python 3.5+ `async for` notation.
 
     For example:
 

@@ -117,7 +117,7 @@ class Exchange:
 
         :param exchange: :class:`aio_pika.exchange.Exchange` instance
         :param routing_key: routing key
-        :param arguments: additional arguments (will be passed to `pika`)
+        :param arguments: additional arguments
         :param timeout: execution timeout
         :return: :class:`None`
         """
@@ -146,7 +146,7 @@ class Exchange:
 
         :param exchange: :class:`aio_pika.exchange.Exchange` instance
         :param routing_key: routing key
-        :param arguments: additional arguments (will be passed to `pika`)
+        :param arguments: additional arguments
         :param timeout: execution timeout
         :return: :class:`None`
         """
@@ -171,7 +171,7 @@ class Exchange:
         immediate: bool = False, timeout: TimeoutType = None
     ) -> Optional[aiormq.types.ConfirmationFrameType]:
 
-        """ Publish the message to the queue. `aio_pika` use
+        """ Publish the message to the queue. `aio-pika` uses
         `publisher confirms`_ extension for message delivery.
 
         .. _publisher confirms: https://www.rabbitmq.com/confirms.html

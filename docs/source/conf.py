@@ -112,7 +112,7 @@ html_theme = 'alabaster'
 # html_theme_options = {}
 html_theme_options = {
     'codecov_button': True,
-    'description': 'Wrapper for the PIKA for asyncio and humans',
+    'description': 'Wrapper for the aiormq for asyncio and humans',
     'github_banner': True,
     'github_button': True,
     'github_repo': 'aio-pika',

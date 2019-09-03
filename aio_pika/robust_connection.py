@@ -202,24 +202,18 @@ async def connect_robust(url: str = None, *, host: str = 'localhost',
         will be used keyword arguments.
     :param host: hostname of the broker
     :param port: broker port 5672 by default
-    :param login:
-        username string. `'guest'` by default. Provide empty string
-        for pika.credentials.ExternalCredentials usage.
+    :param login: username string. `'guest'` by default.
     :param password: password string. `'guest'` by default.
     :param virtualhost: virtualhost parameter. `'/'` by default
-    :param ssl:
-        use SSL for connection. Should be used with addition kwargs.
-        See `pika documentation`_ for more info.
+    :param ssl: use SSL for connection. Should be used with addition kwargs.
     :param ssl_options: A dict of values for the SSL connection.
     :param loop:
         Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
     :param connection_class: Factory of a new connection
-    :param kwargs:
-        addition parameters which will be passed to the pika connection.
+    :param kwargs: addition parameters which will be passed to the connection.
     :return: :class:`aio_pika.connection.Connection`
 
     .. _RFC3986: https://goo.gl/MzgYAs
-    .. _pika documentation: https://goo.gl/TdVuZ9
     .. _official Python documentation: https://goo.gl/pty9xA
 
     """
