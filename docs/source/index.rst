@@ -3,9 +3,9 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-.. _aio_pika: https://github.com/mosquito/aio-pika
+.. _aio-pika: https://github.com/mosquito/aio-pika
 .. _asyncio: https://docs.python.org/3/library/asyncio.html
-.. _PIKA: https://github.com/pika/pika
+.. _aiormq: http://github.com/mosquito/aiormq/
 
 
 Welcome to aio-pika's documentation!
@@ -33,7 +33,7 @@ Welcome to aio-pika's documentation!
     :target: https://pypi.python.org/pypi/aio-pika/
 
 
-`aio_pika`_ it's a wrapper for the `PIKA`_ for `asyncio`_ and humans.
+`aio-pika`_ is a wrapper for the `aiormq`_ for `asyncio`_ and humans.
 
 
 Features
@@ -80,13 +80,13 @@ Clone the project:
     cd aio-pika
 
 
-Create a new virtualenv for `aio_pika`_:
+Create a new virtualenv for `aio-pika`_:
 
 .. code-block:: shell
 
     virtualenv -p python3.5 env
 
-Install all requirements for `aio_pika`_:
+Install all requirements for `aio-pika`_:
 
 .. code-block:: shell
 

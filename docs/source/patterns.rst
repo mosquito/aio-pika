@@ -1,4 +1,4 @@
-.. _aio_pika: https://github.com/mosquito/aio-pika
+.. _aio-pika: https://github.com/mosquito/aio-pika
 
 
 Patterns and helpers
@@ -6,7 +6,7 @@ Patterns and helpers
 
 .. note:: Available since `aio-pika>=1.7.0`
 
-`aio_pika`_ includes some useful patterns for creating distributed systems.
+`aio-pika`_ includes some useful patterns for creating distributed systems.
 
 
 .. _patterns-worker:

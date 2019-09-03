@@ -352,7 +352,7 @@ class Message:
 
     @property
     def properties(self) -> aiormq.spec.Basic.Properties:
-        """ Build :class:`pika.BasicProperties` object """
+        """ Build :class:`aiormq.spec.Basic.Properties` object """
         return aiormq.spec.Basic.Properties(
             content_type=self.content_type,
             content_encoding=self.content_encoding,
@@ -410,7 +410,7 @@ class Message:
 
 
 class IncomingMessage(Message):
-    """ Incoming message it's seems like Message but has additional methods for
+    """ Incoming message is seems like Message but has additional methods for
     message acknowledgement.
 
     Depending on the acknowledgement mode used, RabbitMQ can consider a
@@ -528,9 +528,9 @@ class IncomingMessage(Message):
         """ Send basic.ack is used for positive acknowledgements
 
         .. note::
-            This method looks like a blocking-method, but actually it's
-            just send bytes to the socket and not required any responses
-            from the broker.
+            This method looks like a blocking-method, but actually it just
+            sends bytes to the socket and doesn't require any responses from
+            the broker.
 
         :param multiple: If set to True, the message's delivery tag is
                          treated as "up to and including", so that multiple
@@ -561,8 +561,8 @@ class IncomingMessage(Message):
         Otherwise message will be dropped.
 
         .. note::
-            This method looks like a blocking-method, but actually it's just
-            send bytes to the socket and not required any responses from
+            This method looks like a blocking-method, but actually it just
+            sends bytes to the socket and doesn't require any responses from
             the broker.
 
         :param requeue: bool
