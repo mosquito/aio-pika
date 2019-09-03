@@ -32,7 +32,7 @@ class FakeConnection:
         self.url = URL(url)
         self.kwargs = kwargs
 
-    async def connect(self):
+    async def connect(self, timeout=None):
         return
 
 

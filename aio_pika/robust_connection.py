@@ -1,12 +1,13 @@
 import asyncio
 from functools import wraps
 from logging import getLogger
-from typing import Callable
+from typing import Callable, Type
 
 from aiormq.connection import parse_bool, parse_int
 from .exceptions import CONNECTION_EXCEPTIONS
-from .connection import Connection, connect
+from .connection import Connection, connect, ConnectionType
 from .tools import CallbackCollection
+from .types import TimeoutType
 from .robust_channel import RobustChannel
 
 
@@ -75,7 +76,7 @@ class RobustConnection(Connection):
 
         self._on_reconnect_callbacks.add(callback)
 
-    async def connect(self, timeout=None):
+    async def connect(self, timeout: TimeoutType = None):
         while True:
             try:
                 return await super().connect(timeout=timeout)
@@ -149,13 +150,13 @@ class RobustConnection(Connection):
         return await super().close(exc)
 
 
-async def connect_robust(url: str = None, *, host: str = 'localhost',
-                         port: int = 5672, login: str = 'guest',
-                         password: str = 'guest', virtualhost: str = '/',
-                         ssl: bool = False, loop=None,
-                         ssl_options: dict = None,
-                         connection_class=RobustConnection,
-                         **kwargs) -> Connection:
+async def connect_robust(
+    url: str = None, *, host: str = 'localhost', port: int = 5672,
+    login: str = 'guest', password: str = 'guest', virtualhost: str = '/',
+    ssl: bool = False, loop: asyncio.AbstractEventLoop = None,
+    ssl_options: dict = None, timeout: TimeoutType = None,
+    connection_class: Type[ConnectionType] = RobustConnection, **kwargs
+) -> ConnectionType:
 
     """ Make robust connection to the broker.
 
@@ -207,6 +208,7 @@ async def connect_robust(url: str = None, *, host: str = 'localhost',
     :param virtualhost: virtualhost parameter. `'/'` by default
     :param ssl: use SSL for connection. Should be used with addition kwargs.
     :param ssl_options: A dict of values for the SSL connection.
+    :param timeout: connection timeout in seconds
     :param loop:
         Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
     :param connection_class: Factory of a new connection
@@ -222,7 +224,7 @@ async def connect_robust(url: str = None, *, host: str = 'localhost',
             url=url, host=host, port=port, login=login,
             password=password, virtualhost=virtualhost, ssl=ssl,
             loop=loop, connection_class=connection_class,
-            ssl_options=ssl_options, **kwargs
+            ssl_options=ssl_options, timeout=timeout, **kwargs
         )
     )
 
