@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from functools import partial
-from typing import Callable, Type
+from typing import Callable, Type, TypeVar
 
 from yarl import URL
 
@@ -9,6 +9,7 @@ import aiormq
 from aiormq.tools import censor_url
 from .channel import Channel
 from .tools import CallbackCollection
+from .types import TimeoutType
 
 try:
     from yarl import DEFAULT_PORTS
@@ -103,7 +104,7 @@ class Connection:
         self.close_callbacks(exc)
         log.debug("Closing AMQP connection %r", connection)
 
-    async def connect(self, timeout: TimeoutError = None):
+    async def connect(self, timeout: TimeoutType = None):
         """ Connect to AMQP server. This method should be called after
         :func:`aio_pika.connection.Connection.__init__`
 
@@ -208,13 +209,16 @@ class Connection:
         await self.close()
 
 
+ConnectionType = TypeVar('ConnectionType', bound=Connection)
+
+
 async def connect(
     url: str = None, *, host: str = 'localhost', port: int = 5672,
     login: str = 'guest', password: str = 'guest', virtualhost: str = '/',
     ssl: bool = False, loop: asyncio.AbstractEventLoop = None,
-    ssl_options: dict = None, connection_class: Type[Connection] = Connection,
-    **kwargs
-  ) -> Connection:
+    ssl_options: dict = None, timeout: TimeoutType = None,
+    connection_class: Type[ConnectionType] = Connection, **kwargs
+  ) -> ConnectionType:
 
     """ Make connection to the broker.
 
@@ -266,6 +270,7 @@ async def connect(
         use SSL for connection. Should be used with addition kwargs.
         See `pika documentation`_ for more info.
     :param ssl_options: A dict of values for the SSL connection.
+    :param timeout: connection timeout in seconds
     :param loop:
         Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
     :param connection_class: Factory of a new connection
@@ -296,7 +301,7 @@ async def connect(
         )
 
     connection = connection_class(url, loop=loop)
-    await connection.connect()
+    await connection.connect(timeout=timeout)
     return connection
 
 
