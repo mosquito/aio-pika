@@ -1,3 +1,9 @@
+6.1.1
+-----
+
+* Documentation fixes
+* Missed timeout parameter on `connect()` #245
+
 6.1.0
 -----
 
