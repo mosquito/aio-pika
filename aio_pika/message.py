@@ -32,11 +32,11 @@ class DeliveryMode(IntEnum):
 
 DateType = Union[int, datetime, float, timedelta, None]
 
-MICROSECONDS = 1000
+MILLISECONDS = 1000
 
 
-def to_microseconds(seconds):
-    return int(seconds * MICROSECONDS)
+def to_milliseconds(seconds):
+    return int(seconds * MILLISECONDS)
 
 
 @singledispatch
@@ -47,13 +47,13 @@ def encode_expiration(value) -> Optional[str]:
 @encode_expiration.register(datetime)
 def _(value):
     now = datetime.now()
-    return str(to_microseconds((value - now).total_seconds()))
+    return str(to_milliseconds((value - now).total_seconds()))
 
 
 @encode_expiration.register(int)
 @encode_expiration.register(float)
 def _(value):
-    return str(to_microseconds(value))
+    return str(to_milliseconds(value))
 
 
 @encode_expiration.register(timedelta)
