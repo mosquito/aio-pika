@@ -42,12 +42,12 @@ class RobustConnection(Connection):
         self.fail_fast = self.kwargs['fail_fast']
 
         self.__channels = set()
-        self._on_reconnect_callbacks = CallbackCollection()
+        self._reconnect_callbacks = CallbackCollection()
         self._closed = False
 
     @property
-    def on_reconnect_callbacks(self) -> CallbackCollection:
-        return self._on_reconnect_callbacks
+    def reconnect_callbacks(self) -> CallbackCollection:
+        return self._reconnect_callbacks
 
     @property
     def _channels(self) -> dict:
@@ -74,7 +74,7 @@ class RobustConnection(Connection):
         :return: None
         """
 
-        self._on_reconnect_callbacks.add(callback)
+        self._reconnect_callbacks.add(callback)
 
     async def connect(self, timeout: TimeoutType = None):
         while True:
@@ -132,7 +132,7 @@ class RobustConnection(Connection):
                 await self.close()
                 return
 
-        self._on_reconnect_callbacks(self)
+        self._reconnect_callbacks(self)
 
     @property
     def is_closed(self):
