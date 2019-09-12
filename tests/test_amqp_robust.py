@@ -54,14 +54,12 @@ class Proxy:
         ])
 
     async def start(self):
-        result = await asyncio.start_server(
+        return await asyncio.start_server(
             self.handle_client,
             host=self.src_host,
             port=self.src_port,
             loop=self.loop,
         )
-
-        return result
 
     async def disconnect(self):
         tasks = list()

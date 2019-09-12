@@ -291,13 +291,11 @@ class Queue:
 
         log.info("Deleting %r", self)
 
-        result = await asyncio.wait_for(
+        return await asyncio.wait_for(
             self.channel.queue_delete(
                 self.name, if_unused=if_unused, if_empty=if_empty
             ), timeout=timeout
         )
-
-        return result
 
     def __aiter__(self) -> 'QueueIterator':
         return self.iterator()

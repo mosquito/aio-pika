@@ -49,8 +49,7 @@ class RobustQueue(Queue):
 
         await self.declare()
 
-        for item, kwargs in self._bindings.items():
-            exchange, routing_key = item
+        for (exchange, routing_key), kwargs in self._bindings.items():
             await self.bind(exchange, routing_key, **kwargs)
 
         for consumer_tag, kwargs in tuple(self._consumers.items()):
@@ -80,7 +79,9 @@ class RobustQueue(Queue):
         if routing_key is None:
             routing_key = self.name
 
-        result = await super().unbind(exchange, routing_key, arguments, timeout)
+        result = await super().unbind(
+            exchange, routing_key, arguments, timeout
+        )
         self._bindings.pop((exchange, routing_key), None)
 
         return result
