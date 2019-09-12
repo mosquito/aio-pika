@@ -42,15 +42,16 @@ class RobustExchange(Exchange):
             await self.bind(exchange, **kwargs)
 
     async def bind(self, exchange, routing_key: str='', *,
-                   arguments=None, timeout: int=None):
+                   arguments=None, timeout: int=None, robust: bool = True):
         result = await super().bind(
             exchange, routing_key=routing_key,
             arguments=arguments, timeout=timeout
         )
 
-        self._bindings[exchange] = dict(
-            routing_key=routing_key, arguments=arguments
-        )
+        if robust:
+            self._bindings[exchange] = dict(
+                routing_key=routing_key, arguments=arguments
+            )
 
         return result
 
