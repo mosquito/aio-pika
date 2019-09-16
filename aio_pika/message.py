@@ -492,7 +492,7 @@ class IncomingMessage(Message):
             self.__processed = True
 
     def process(self, requeue=False, reject_on_redelivered=False,
-                ignore_processed=False):
+                ignore_processed=False) -> AsyncContextManager:
         """ Context manager for processing the message
 
             >>> async def on_message_received(message: IncomingMessage):
