@@ -1,3 +1,7 @@
+6.1.2
+-----
+* Added typing on process method #252
+
 6.1.1
 -----
 
