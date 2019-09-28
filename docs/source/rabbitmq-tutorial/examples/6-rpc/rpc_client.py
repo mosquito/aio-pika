@@ -29,7 +29,7 @@ class FibonacciRpcClient:
 
     async def call(self, n):
         correlation_id = str(uuid.uuid4())
-        future = loop.create_future()
+        future = self.loop.create_future()
 
         self.futures[correlation_id] = future
 
