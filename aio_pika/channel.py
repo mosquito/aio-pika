@@ -107,6 +107,11 @@ class Channel:
     def number(self):
         return self.channel.number if self._channel else None
 
+    def _get_operation_timeout(self, timeout: TimeoutType = None):
+        if timeout is not None:
+            return timeout
+        return self._connection.operation_timeout
+
     def __str__(self):
         return "{0}".format(
             self.number or "Not initialized channel"
@@ -164,7 +169,8 @@ class Channel:
             raise RuntimeError("Can't initialize channel")
 
         self._channel = await asyncio.wait_for(
-            self._create_channel(), timeout=timeout
+            self._create_channel(),
+            timeout=self._get_operation_timeout(timeout)
         )
 
         self._delivery_tag = 0
@@ -248,7 +254,7 @@ class Channel:
         """
 
         queue = self.QUEUE_CLASS(
-            connection=self,
+            connection=self._connection,
             channel=self.channel,
             name=name,
             durable=durable,
@@ -277,7 +283,7 @@ class Channel:
                 prefetch_size=prefetch_size,
                 global_=global_
             ),
-            timeout=timeout
+            timeout=self._get_operation_timeout(timeout)
         )
 
     async def queue_delete(
@@ -292,7 +298,7 @@ class Channel:
                 if_empty=if_empty,
                 nowait=nowait,
             ),
-            timeout=timeout
+            timeout=self._get_operation_timeout(timeout)
         )
 
     async def exchange_delete(
@@ -306,7 +312,7 @@ class Channel:
                 if_unused=if_unused,
                 nowait=nowait,
             ),
-            timeout=timeout
+            timeout=self._get_operation_timeout(timeout)
         )
 
     def transaction(self) -> Transaction:
@@ -314,7 +320,7 @@ class Channel:
             raise RuntimeError("Cannot create transaction when publisher "
                                "confirms are enabled")
 
-        return Transaction(self._channel)
+        return Transaction(connection=self._connection, channel=self._channel)
 
     async def flow(self, active: bool = True) -> aiormq.spec.Channel.FlowOk:
         return await self.channel.flow(active=active)

@@ -186,6 +186,7 @@ async def connect_robust(
     login: str = 'guest', password: str = 'guest', virtualhost: str = '/',
     ssl: bool = False, loop: asyncio.AbstractEventLoop = None,
     ssl_options: dict = None, timeout: TimeoutType = None,
+    operation_timeout: TimeoutType = None,
     connection_class: Type[ConnectionType] = RobustConnection,
     client_properties: dict = None, **kwargs
 ) -> ConnectionType:
@@ -241,6 +242,7 @@ async def connect_robust(
     :param ssl: use SSL for connection. Should be used with addition kwargs.
     :param ssl_options: A dict of values for the SSL connection.
     :param timeout: connection timeout in seconds
+    :param operation_timeout: execution timeout in seconds
     :param loop:
         Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
     :param connection_class: Factory of a new connection
@@ -257,6 +259,7 @@ async def connect_robust(
             password=password, virtualhost=virtualhost, ssl=ssl,
             loop=loop, connection_class=connection_class,
             ssl_options=ssl_options, timeout=timeout,
+            operation_timeout=operation_timeout,
             client_properties=client_properties, **kwargs
         )
     )

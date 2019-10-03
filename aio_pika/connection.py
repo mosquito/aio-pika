@@ -46,9 +46,11 @@ class Connection:
             result[key] = parser(kwargs.get(key, default))
         return result
 
-    def __init__(self, url, loop=None, **kwargs):
+    def __init__(self, url, operation_timeout: TimeoutType = None, loop=None,
+                 **kwargs):
         self.loop = loop or asyncio.get_event_loop()
         self.url = URL(url)
+        self.operation_timeout = operation_timeout
 
         self.kwargs = self._parse_kwargs(kwargs or self.url.query)
 
@@ -219,6 +221,7 @@ async def connect(
     login: str = 'guest', password: str = 'guest', virtualhost: str = '/',
     ssl: bool = False, loop: asyncio.AbstractEventLoop = None,
     ssl_options: dict = None, timeout: TimeoutType = None,
+    operation_timeout: TimeoutType = None,
     connection_class: Type[ConnectionType] = Connection,
     client_properties: dict = None, **kwargs
   ) -> ConnectionType:
@@ -291,6 +294,7 @@ async def connect(
     :param ssl: use SSL for connection. Should be used with addition kwargs.
     :param ssl_options: A dict of values for the SSL connection.
     :param timeout: connection timeout in seconds
+    :param operation_timeout: execution timeout in seconds
     :param loop:
         Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
     :param connection_class: Factory of a new connection
@@ -318,7 +322,11 @@ async def connect(
             query=kw
         )
 
-    connection = connection_class(url, loop=loop)
+    connection = connection_class(
+        url, 
+        operation_timeout=operation_timeout, 
+        loop=loop
+    )
 
     await connection.connect(
         timeout=timeout, client_properties=client_properties, loop=loop

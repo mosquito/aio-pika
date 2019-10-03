@@ -36,6 +36,7 @@ class Exchange:
         if not arguments:
             arguments = {}
 
+        self._connection = connection
         self._channel = channel
         self.__type = type.value if isinstance(type, ExchangeType) else type
         self.name = name
@@ -51,6 +52,11 @@ class Exchange:
             raise RuntimeError("Channel not opened")
 
         return self._channel
+
+    def _get_operation_timeout(self, timeout: TimeoutType = None):
+        if timeout is not None:
+            return timeout
+        return self._connection.operation_timeout
 
     def __str__(self):
         return self.name
@@ -71,7 +77,7 @@ class Exchange:
             internal=self.internal,
             passive=self.passive,
             arguments=self.arguments,
-        ), timeout=timeout)
+        ), timeout=self._get_operation_timeout(timeout))
 
     @staticmethod
     def _get_exchange_name(exchange: ExchangeType_):
@@ -133,7 +139,7 @@ class Exchange:
                 destination=self.name,
                 routing_key=routing_key,
                 source=self._get_exchange_name(exchange),
-            ), timeout=timeout
+            ), timeout=self._get_operation_timeout(timeout)
         )
 
     async def unbind(
@@ -163,7 +169,7 @@ class Exchange:
                 destination=self.name,
                 routing_key=routing_key,
                 source=self._get_exchange_name(exchange),
-            ), timeout=timeout
+            ), timeout=self._get_operation_timeout(timeout)
         )
 
     async def publish(
@@ -197,7 +203,7 @@ class Exchange:
                 properties=message.properties,
                 mandatory=mandatory,
                 immediate=immediate
-            ), timeout=timeout
+            ), timeout=self._get_operation_timeout(timeout)
         )
 
     async def delete(
@@ -213,7 +219,7 @@ class Exchange:
         log.info("Deleting %r", self)
         return await asyncio.wait_for(
             self.channel.exchange_delete(self.name, if_unused=if_unused),
-            timeout=timeout
+            timeout=self._get_operation_timeout(timeout)
         )
 
 

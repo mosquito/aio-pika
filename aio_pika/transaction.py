@@ -3,6 +3,8 @@ from enum import Enum
 
 import aiormq
 
+from .types import TimeoutType
+
 
 class TransactionStates(Enum):
     created = 'created'
@@ -15,8 +17,9 @@ class Transaction:
     def __str__(self):
         return self.state.value
 
-    def __init__(self, channel):
-        self.loop = channel.loop
+    def __init__(self, connection, channel):
+        self.loop = connection.loop
+        self._connection = connection
         self._channel = channel
         self.state = TransactionStates.created      # type: TransactionStates
 
@@ -30,24 +33,33 @@ class Transaction:
 
         return self._channel
 
-    async def select(self, timeout=None) -> aiormq.spec.Tx.SelectOk:
+    def _get_operation_timeout(self, timeout: TimeoutType = None):
+        if timeout is not None:
+            return timeout
+        return self._connection.operation_timeout
+
+    async def select(self,
+                     timeout: TimeoutType = None) -> aiormq.spec.Tx.SelectOk:
         result = await asyncio.wait_for(
-            self.channel.tx_select(), timeout=timeout
+            self.channel.tx_select(),
+            timeout=self._get_operation_timeout(timeout)
         )
 
         self.state = TransactionStates.started
         return result
 
-    async def rollback(self, timeout=None):
+    async def rollback(self, timeout: TimeoutType = None):
         result = await asyncio.wait_for(
-            self.channel.tx_rollback(), timeout=timeout
+            self.channel.tx_rollback(),
+            timeout=self._get_operation_timeout(timeout)
         )
         self.state = TransactionStates.rolled_back
         return result
 
-    async def commit(self, timeout=None):
+    async def commit(self, timeout: TimeoutType = None):
         result = await asyncio.wait_for(
-            self.channel.tx_commit(), timeout=timeout
+            self.channel.tx_commit(),
+            timeout=self._get_operation_timeout(timeout)
         )
 
         self.state = TransactionStates.commited
