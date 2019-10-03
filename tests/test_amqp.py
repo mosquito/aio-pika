@@ -1071,7 +1071,7 @@ class TestCase(BaseTestCase):
 
         await queue.bind(exchange, routing_key)
 
-        body = bytes(shortuuid.uuid(), 'utf-8') * 9999999
+        body = bytes(shortuuid.uuid(), 'utf-8') * 6000000
 
         await exchange.publish(
             Message(
