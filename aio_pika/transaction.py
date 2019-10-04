@@ -3,6 +3,7 @@ from enum import Enum
 
 import aiormq
 
+from .tools import OPERATION_TIMEOUT
 from .types import TimeoutType
 
 
@@ -33,13 +34,15 @@ class Transaction:
 
         return self._channel
 
-    def _get_operation_timeout(self, timeout: TimeoutType = None):
-        if timeout is not None:
-            return timeout
-        return self._connection.operation_timeout
+    def _get_operation_timeout(self, timeout: TimeoutType):
+        return (
+            self._connection.operation_timeout if timeout is OPERATION_TIMEOUT
+            else timeout
+        )
 
-    async def select(self,
-                     timeout: TimeoutType = None) -> aiormq.spec.Tx.SelectOk:
+    async def select(
+        self, timeout: TimeoutType = OPERATION_TIMEOUT
+    ) -> aiormq.spec.Tx.SelectOk:
         result = await asyncio.wait_for(
             self.channel.tx_select(),
             timeout=self._get_operation_timeout(timeout)
@@ -48,7 +51,7 @@ class Transaction:
         self.state = TransactionStates.started
         return result
 
-    async def rollback(self, timeout: TimeoutType = None):
+    async def rollback(self, timeout: TimeoutType = OPERATION_TIMEOUT):
         result = await asyncio.wait_for(
             self.channel.tx_rollback(),
             timeout=self._get_operation_timeout(timeout)
@@ -56,7 +59,7 @@ class Transaction:
         self.state = TransactionStates.rolled_back
         return result
 
-    async def commit(self, timeout: TimeoutType = None):
+    async def commit(self, timeout: TimeoutType = OPERATION_TIMEOUT):
         result = await asyncio.wait_for(
             self.channel.tx_commit(),
             timeout=self._get_operation_timeout(timeout)

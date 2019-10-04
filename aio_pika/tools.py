@@ -10,6 +10,8 @@ __all__ = 'create_task', 'iscoroutinepartial', 'shield', 'CallbackCollection'
 
 log = logging.getLogger(__name__)
 
+OPERATION_TIMEOUT = object()
+
 
 def iscoroutinepartial(fn):
     """

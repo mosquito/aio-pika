@@ -7,6 +7,7 @@ from types import FunctionType
 import aiormq
 
 from .channel import Channel
+from .tools import OPERATION_TIMEOUT
 from .types import ExchangeType as ExchangeType_, TimeoutType
 from .queue import Queue, ConsumerTag
 
@@ -56,7 +57,7 @@ class RobustQueue(Queue):
             await self.consume(consumer_tag=consumer_tag, **kwargs)
 
     async def bind(self, exchange: ExchangeType_, routing_key: str=None, *,
-                   arguments=None, timeout: TimeoutType = None, 
+                   arguments=None, timeout: TimeoutType = OPERATION_TIMEOUT,
                    robust: bool = True):
 
         if routing_key is None:
@@ -76,7 +77,8 @@ class RobustQueue(Queue):
         return result
 
     async def unbind(self, exchange: ExchangeType_, routing_key: str=None,
-                     arguments: dict=None, timeout: TimeoutType = None):
+                     arguments: dict=None,
+                     timeout: TimeoutType = OPERATION_TIMEOUT):
 
         if routing_key is None:
             routing_key = self.name
@@ -90,7 +92,8 @@ class RobustQueue(Queue):
 
     async def consume(self, callback: FunctionType, no_ack: bool=False,
                       exclusive: bool=False, arguments: dict=None,
-                      consumer_tag=None, timeout: TimeoutType = None,
+                      consumer_tag=None,
+                      timeout: TimeoutType = OPERATION_TIMEOUT,
                       robust: bool = True) -> ConsumerTag:
 
         kwargs = dict(
@@ -110,7 +113,8 @@ class RobustQueue(Queue):
         return consumer_tag
 
     async def cancel(self, consumer_tag: ConsumerTag,
-                     timeout: TimeoutType = None, nowait: bool = False):
+                     timeout: TimeoutType = OPERATION_TIMEOUT,
+                     nowait: bool = False):
 
         result = await super().cancel(consumer_tag, timeout, nowait)
         self._consumers.pop(consumer_tag, None)

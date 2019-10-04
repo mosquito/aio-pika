@@ -11,7 +11,7 @@ from .exceptions import QueueEmpty
 from .exchange import Exchange
 from .types import ExchangeType as ExchangeType_, TimeoutType
 from .message import IncomingMessage
-from .tools import create_task, shield
+from .tools import OPERATION_TIMEOUT, create_task, shield
 
 log = getLogger(__name__)
 
@@ -53,10 +53,11 @@ class Queue:
             raise RuntimeError("Channel not opened")
         return self._channel
 
-    def _get_operation_timeout(self, timeout: TimeoutType = None):
-        if timeout is not None:
-            return timeout
-        return self._connection.operation_timeout
+    def _get_operation_timeout(self, timeout: TimeoutType):
+        return (
+            self._connection.operation_timeout if timeout is OPERATION_TIMEOUT
+            else timeout
+        )
 
     def __str__(self):
         return "%s" % self.name
@@ -77,7 +78,7 @@ class Queue:
         )
 
     async def declare(
-            self, timeout: TimeoutType = None
+            self, timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> aiormq.spec.Queue.DeclareOk:
         """ Declare queue.
 
@@ -100,7 +101,7 @@ class Queue:
 
     async def bind(
         self, exchange: ExchangeType_, routing_key: str=None, *,
-        arguments=None, timeout: TimeoutType = None
+        arguments=None, timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> aiormq.spec.Queue.BindOk:
 
         """ A binding is a relationship between an exchange and a queue.
@@ -139,7 +140,7 @@ class Queue:
 
     async def unbind(
         self, exchange: ExchangeType_, routing_key: str=None,
-        arguments: dict=None, timeout: TimeoutType = None
+        arguments: dict=None, timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> aiormq.spec.Queue.UnbindOk:
 
         """ Remove binding from exchange for this :class:`Queue` instance
@@ -173,7 +174,7 @@ class Queue:
     async def consume(
         self, callback: Callable[[IncomingMessage], Any], no_ack: bool = False,
         exclusive: bool = False, arguments: dict = None,
-        consumer_tag=None, timeout: TimeoutType = None
+        consumer_tag=None, timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> ConsumerTag:
 
         """ Start to consuming the :class:`Queue`.
@@ -215,8 +216,8 @@ class Queue:
         )).consumer_tag
 
     async def cancel(
-        self, consumer_tag: ConsumerTag, timeout: TimeoutType = None,
-        nowait: bool=False
+        self, consumer_tag: ConsumerTag,
+        timeout: TimeoutType = OPERATION_TIMEOUT, nowait: bool=False
     ) -> aiormq.spec.Basic.CancelOk:
         """ This method cancels a consumer. This does not affect already
         delivered messages, but it does mean the server will not send any more
@@ -244,7 +245,8 @@ class Queue:
         )
 
     async def get(
-        self, *, no_ack=False, fail=True, timeout=5
+        self, *, no_ack=False, fail=True,
+        timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> Optional[IncomingMessage]:
 
         """ Get message from the queue.
@@ -270,7 +272,7 @@ class Queue:
         return IncomingMessage(msg, no_ack=no_ack)
 
     async def purge(
-        self, no_wait=False, timeout: TimeoutType = None
+        self, no_wait=False, timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> aiormq.spec.Queue.PurgeOk:
         """ Purge all messages from the queue.
 
@@ -289,7 +291,8 @@ class Queue:
         )
 
     async def delete(
-        self, *, if_unused=True, if_empty=True, timeout: TimeoutType = None
+        self, *, if_unused=True, if_empty=True,
+        timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> aiormq.spec.Queue.DeclareOk:
 
         """ Delete the queue.

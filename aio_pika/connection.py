@@ -323,8 +323,8 @@ async def connect(
         )
 
     connection = connection_class(
-        url, 
-        operation_timeout=operation_timeout, 
+        url,
+        operation_timeout=operation_timeout,
         loop=loop
     )
 

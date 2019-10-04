@@ -16,6 +16,7 @@ import aiormq.types
 from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage
 from .queue import Queue
+from .tools import OPERATION_TIMEOUT
 from .transaction import Transaction
 from .types import ReturnCallbackType, CloseCallbackType, TimeoutType
 
@@ -107,10 +108,11 @@ class Channel:
     def number(self):
         return self.channel.number if self._channel else None
 
-    def _get_operation_timeout(self, timeout: TimeoutType = None):
-        if timeout is not None:
-            return timeout
-        return self._connection.operation_timeout
+    def _get_operation_timeout(self, timeout: TimeoutType):
+        return (
+            self._connection.operation_timeout if timeout is OPERATION_TIMEOUT
+            else timeout
+        )
 
     def __str__(self):
         return "{0}".format(
@@ -164,7 +166,8 @@ class Channel:
             channel_number=self._channel_number,
         )
 
-    async def initialize(self, timeout: TimeoutType = None) -> None:
+    async def initialize(self,
+                         timeout: TimeoutType = OPERATION_TIMEOUT) -> None:
         if self._channel is not None:
             raise RuntimeError("Can't initialize channel")
 
@@ -196,7 +199,7 @@ class Channel:
         self, name: str, type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         durable: bool = None, auto_delete: bool = False,
         internal: bool = False, passive: bool = False, arguments: dict = None,
-        timeout: TimeoutType = None
+        timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> Exchange:
         """
         Declare an exchange.
@@ -234,7 +237,7 @@ class Channel:
         self, name: str = None, *, durable: bool = None,
         exclusive: bool = False, passive: bool = False,
         auto_delete: bool = False, arguments: dict = None,
-        timeout: TimeoutType = None
+        timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> Queue:
 
         """
@@ -270,7 +273,7 @@ class Channel:
 
     async def set_qos(
         self, prefetch_count: int = 0, prefetch_size: int = 0,
-        global_: bool = False, timeout: TimeoutType = None,
+        global_: bool = False, timeout: TimeoutType = OPERATION_TIMEOUT,
         all_channels: bool = None
     ) -> aiormq.spec.Basic.QosOk:
         if all_channels is not None:
@@ -287,7 +290,7 @@ class Channel:
         )
 
     async def queue_delete(
-        self, queue_name: str, timeout: TimeoutType = None,
+        self, queue_name: str, timeout: TimeoutType = OPERATION_TIMEOUT,
         if_unused: bool = False, if_empty: bool = False, nowait: bool = False
     ) -> aiormq.spec.Queue.DeleteOk:
 
@@ -302,7 +305,7 @@ class Channel:
         )
 
     async def exchange_delete(
-        self, exchange_name: str, timeout: TimeoutType = None,
+        self, exchange_name: str, timeout: TimeoutType = OPERATION_TIMEOUT,
         if_unused: bool = False, nowait: bool = False
     ) -> aiormq.spec.Exchange.DeleteOk:
 
