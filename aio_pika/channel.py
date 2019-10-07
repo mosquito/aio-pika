@@ -210,8 +210,9 @@ class Channel:
 
         if auto_delete and durable is None:
             durable = False
-        
-        type = ExchangeType(type)
+
+        if isinstance(type, str):
+            type = ExchangeType(type)
 
         exchange = self.EXCHANGE_CLASS(
             connection=self._connection, channel=self.channel,
