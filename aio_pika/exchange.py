@@ -1,7 +1,7 @@
 import asyncio
 from enum import Enum, unique
 from logging import getLogger
-from typing import Optional
+from typing import Optional, Union
 
 import aiormq
 from .message import Message
@@ -26,7 +26,7 @@ class Exchange:
     """ Exchange abstraction """
 
     def __init__(self, connection, channel: aiormq.Channel, name: str,
-                 type: ExchangeType = ExchangeType.DIRECT, *,
+                 type: Union[ExchangeType, str] = ExchangeType.DIRECT, *,
                  auto_delete: Optional[bool], durable: Optional[bool],
                  internal: Optional[bool], passive: Optional[bool],
                  arguments: dict = None):
@@ -37,7 +37,7 @@ class Exchange:
             arguments = {}
 
         self._channel = channel
-        self.__type = type.value
+        self.__type = type.value if isinstance(type, ExchangeType) else type
         self.name = name
         self.auto_delete = auto_delete
         self.durable = durable
