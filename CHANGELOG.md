@@ -1,3 +1,7 @@
+6.2.0
+-----
+* Allow str as an exchange type #260
+
 6.1.2
 -----
 * Added typing on process method #252
