@@ -186,6 +186,10 @@ class Channel:
     def _on_return(self, message: aiormq.types.DeliveredMessage):
         self._return_callbacks(IncomingMessage(message, no_ack=True))
 
+    async def reopen(self):
+        self._channel = None
+        await self.initialize()
+
     async def declare_exchange(
         self, name: str, type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         durable: bool = None, auto_delete: bool = False,

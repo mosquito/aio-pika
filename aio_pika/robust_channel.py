@@ -49,20 +49,26 @@ class RobustChannel(Channel):
 
         self._exchanges = dict()
         self._queues = dict()
-        self._qos = 0, 0, False
+        self._prefetch_count = 0
+        self._prefetch_size = 0
+        self._global_ = False
 
-    async def on_reconnect(self, connection, channel_number):
-        self._connection = connection
-        self._channel_number = channel_number
+    async def reopen(self):
+        await super().reopen()
+        await self.restore()
 
-        self._channel = None
-        await self.initialize()
+    async def restore(self):
+        await self.set_qos(
+            prefetch_count=self._prefetch_count,
+            prefetch_size=self._prefetch_size,
+            global_=self._global_
+        )
 
         for exchange in self._exchanges.values():
-            await exchange.on_reconnect(self)
+            await exchange.restore(self)
 
         for queue in self._queues.values():
-            await queue.on_reconnect(self)
+            await queue.restore(self)
 
     def _on_channel_close(self, exc: Exception):
         if exc:
@@ -72,19 +78,9 @@ class RobustChannel(Channel):
         else:
             log.debug("Robust channel %r has been closed.", self)
 
-    async def initialize(self, timeout: TimeoutType = None):
-        result = await super().initialize()
+    async def initialize(self, timeout: TimeoutType = None) -> None:
+        await super().initialize(timeout)
         self.add_close_callback(self._on_channel_close)
-
-        prefetch_count, prefetch_size, global_ = self._qos
-
-        await self.set_qos(
-            prefetch_count=prefetch_count,
-            prefetch_size=prefetch_size,
-            global_=global_
-        )
-
-        return result
 
     async def set_qos(self, prefetch_count: int = 0, prefetch_size: int = 0,
                       global_: bool = False, timeout: TimeoutType = None,
@@ -93,7 +89,9 @@ class RobustChannel(Channel):
             warn('Use "global_" instead of "all_channels"', DeprecationWarning)
             global_ = all_channels
 
-        self._qos = prefetch_count, prefetch_size, global_
+        self._prefetch_count = prefetch_count
+        self._prefetch_size = prefetch_size
+        self._global_ = global_
 
         return await super().set_qos(
             prefetch_count=prefetch_count,

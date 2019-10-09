@@ -33,7 +33,7 @@ class RobustExchange(Exchange):
 
         self._bindings = dict()
 
-    async def on_reconnect(self, channel: Channel):
+    async def restore(self, channel: Channel):
         self._channel = channel._channel
 
         await self.declare()
