@@ -38,6 +38,7 @@ class RobustConnection(Connection):
             loop=loop or asyncio.get_event_loop(), url=url, **kwargs
         )
 
+        self.connect_kwargs = {}
         self.reconnect_interval = self.kwargs['reconnect_interval']
         self.fail_fast = self.kwargs['fail_fast']
 
@@ -76,10 +77,16 @@ class RobustConnection(Connection):
 
         self._reconnect_callbacks.add(callback)
 
-    async def connect(self, timeout: TimeoutType = None):
+    async def connect(self, timeout: TimeoutType = None, **kwargs):
+        if kwargs:
+            # Store connect kwargs for reconnects
+            self.connect_kwargs = kwargs
+
         while True:
             try:
-                return await super().connect(timeout=timeout)
+                return await super().connect(
+                    timeout=timeout, **self.connect_kwargs
+                )
             except CONNECTION_EXCEPTIONS:
                 if self.fail_fast:
                     raise

@@ -104,7 +104,7 @@ class Connection:
         self.close_callbacks(exc)
         log.debug("Closing AMQP connection %r", connection)
 
-    async def connect(self, timeout: TimeoutType = None):
+    async def connect(self, timeout: TimeoutType = None, **kwargs):
         """ Connect to AMQP server. This method should be called after
         :func:`aio_pika.connection.Connection.__init__`
 
@@ -115,8 +115,7 @@ class Connection:
         """
 
         self.connection = await asyncio.wait_for(
-            aiormq.connect(self.url),
-            timeout=timeout
+            aiormq.connect(self.url, **kwargs), timeout=timeout
         )   # type: aiormq.Connection
 
         self.connection.closing.add_done_callback(
@@ -217,7 +216,8 @@ async def connect(
     login: str = 'guest', password: str = 'guest', virtualhost: str = '/',
     ssl: bool = False, loop: asyncio.AbstractEventLoop = None,
     ssl_options: dict = None, timeout: TimeoutType = None,
-    connection_class: Type[ConnectionType] = Connection, **kwargs
+    connection_class: Type[ConnectionType] = Connection,
+    client_capabilities: dict = None, **kwargs,
   ) -> ConnectionType:
 
     """ Make connection to the broker.
@@ -295,7 +295,12 @@ async def connect(
         )
 
     connection = connection_class(url, loop=loop)
-    await connection.connect(timeout=timeout)
+    connect_kwargs = {}
+
+    if client_capabilities:
+        connect_kwargs['client_capabilities'] = client_capabilities
+
+    await connection.connect(timeout=timeout, **connect_kwargs)
     return connection
 
 
