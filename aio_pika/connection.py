@@ -253,7 +253,7 @@ async def connect(
         For an information on what the ssl_options can be set to reference the
         `official Python documentation`_ .
 
-    Set connection name for rabbitmq admin panel:
+    Set connection name for RabbitMQ admin panel:
 
     .. code-block:: python
 
@@ -268,6 +268,10 @@ async def connect(
                 'connection_name': 'Write connection'
             }
         )
+
+    .. note:
+
+        ``client_properties`` argument requires ``aiormq>=2.8.0``
 
     URL string might be contain ssl parameters e.g.
     `amqps://user:pass@host//?ca_certs=ca.pem&certfile=crt.pem&keyfile=key.pem`
