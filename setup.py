@@ -38,7 +38,7 @@ setup(
     packages=find_packages(exclude=['tests']),
     package_data={'aio_pika': ['py.typed']},
     install_requires=[
-        'aiormq~=2.9',
+        'aiormq>=2.9,<3',
         'yarl',
         'typing_extensions>=3.6.5; python_version<"3.7"',
     ],
