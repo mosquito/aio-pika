@@ -217,7 +217,7 @@ async def connect(
     ssl: bool = False, loop: asyncio.AbstractEventLoop = None,
     ssl_options: dict = None, timeout: TimeoutType = None,
     connection_class: Type[ConnectionType] = Connection,
-    client_capabilities: dict = None, **kwargs,
+    client_properties: dict = None, **kwargs
   ) -> ConnectionType:
 
     """ Make connection to the broker.
@@ -256,6 +256,13 @@ async def connect(
     URL string might be contain ssl parameters e.g.
     `amqps://user:pass@host//?ca_certs=ca.pem&certfile=crt.pem&keyfile=key.pem`
 
+    :param client_properties: add custom client capability.
+        Useful for set custom connection name:
+
+        .. code-block:: python
+            connection = await connect(
+                client_properties={'connection_name': 'Write connection'}
+            )
     :param url:
         RFC3986_ formatted broker address. When :class:`None`
         will be used keyword arguments.
@@ -297,8 +304,8 @@ async def connect(
     connection = connection_class(url, loop=loop)
     connect_kwargs = {}
 
-    if client_capabilities:
-        connect_kwargs['client_capabilities'] = client_capabilities
+    if client_properties:
+        connect_kwargs['client_properties'] = client_properties
 
     await connection.connect(timeout=timeout, **connect_kwargs)
     return connection
