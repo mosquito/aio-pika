@@ -271,7 +271,7 @@ async def connect(
 
     .. note:
 
-        ``client_properties`` argument requires ``aiormq>=2.8.0``
+        ``client_properties`` argument requires ``aiormq>=2.9``
 
     URL string might be contain ssl parameters e.g.
     `amqps://user:pass@host//?ca_certs=ca.pem&certfile=crt.pem&keyfile=key.pem`
@@ -316,12 +316,10 @@ async def connect(
         )
 
     connection = connection_class(url, loop=loop)
-    connect_kwargs = {}
 
-    if client_properties:
-        connect_kwargs['client_properties'] = client_properties
-
-    await connection.connect(timeout=timeout, **connect_kwargs)
+    await connection.connect(
+        timeout=timeout, client_properties=client_properties
+    )
     return connection
 
 

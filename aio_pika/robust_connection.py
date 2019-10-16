@@ -162,7 +162,8 @@ async def connect_robust(
     login: str = 'guest', password: str = 'guest', virtualhost: str = '/',
     ssl: bool = False, loop: asyncio.AbstractEventLoop = None,
     ssl_options: dict = None, timeout: TimeoutType = None,
-    connection_class: Type[ConnectionType] = RobustConnection, **kwargs
+    connection_class: Type[ConnectionType] = RobustConnection,
+    client_properties: dict = None, **kwargs
 ) -> ConnectionType:
 
     """ Make robust connection to the broker.
@@ -231,7 +232,8 @@ async def connect_robust(
             url=url, host=host, port=port, login=login,
             password=password, virtualhost=virtualhost, ssl=ssl,
             loop=loop, connection_class=connection_class,
-            ssl_options=ssl_options, timeout=timeout, **kwargs
+            ssl_options=ssl_options, timeout=timeout,
+            client_properties=client_properties, **kwargs
         )
     )
 
