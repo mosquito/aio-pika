@@ -253,16 +253,26 @@ async def connect(
         For an information on what the ssl_options can be set to reference the
         `official Python documentation`_ .
 
+    Set connection name for rabbitmq admin panel:
+
+    .. code-block:: python
+
+        read_connection = await connect(
+            client_properties={
+                'connection_name': 'Read connection'
+            }
+        )
+
+        write_connection = await connect(
+            client_properties={
+                'connection_name': 'Write connection'
+            }
+        )
+
     URL string might be contain ssl parameters e.g.
     `amqps://user:pass@host//?ca_certs=ca.pem&certfile=crt.pem&keyfile=key.pem`
 
     :param client_properties: add custom client capability.
-        Useful for set custom connection name:
-
-        .. code-block:: python
-            connection = await connect(
-                client_properties={'connection_name': 'Write connection'}
-            )
     :param url:
         RFC3986_ formatted broker address. When :class:`None`
         will be used keyword arguments.
