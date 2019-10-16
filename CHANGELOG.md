@@ -1,3 +1,8 @@
+6.3.0
+-----
+
+* passing `client_properties`
+
 6.2.0
 -----
 * Allow str as an exchange type #260
