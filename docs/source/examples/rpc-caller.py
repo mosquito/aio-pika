@@ -5,7 +5,8 @@ from aio_pika.patterns import RPC
 
 async def main():
     connection = await connect_robust(
-        "amqp://guest:guest@127.0.0.1/"
+        "amqp://guest:guest@127.0.0.1/",
+        client_properties={'connection_name': 'caller'}
     )
 
     async with connection:
