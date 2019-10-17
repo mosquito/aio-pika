@@ -40,7 +40,6 @@ setup(
     install_requires=[
         'aiormq>=2.9,<3',
         'yarl',
-        'typing_extensions>=3.6.5; python_version<"3.7"',
     ],
     python_requires=">3.5.*, <4",
     extras_require={

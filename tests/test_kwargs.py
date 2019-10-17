@@ -8,12 +8,12 @@ from . import BaseTestCase
 
 
 class MockConnection(Connection):
-    async def connect(self, timeout=None):
+    async def connect(self, timeout=None, **kwargs):
         return self
 
 
 class MockConnectionRobust(RobustConnection):
-    async def connect(self, timeout=None):
+    async def connect(self, timeout=None, **kwargs):
         return self
 
 
