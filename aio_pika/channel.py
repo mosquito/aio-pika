@@ -263,13 +263,14 @@ class Channel:
 
     async def set_qos(
         self, prefetch_count: int = 0, prefetch_size: int = 0,
-        all_channels: bool = False, timeout: TimeoutType = None
+        global_: bool = False, timeout: TimeoutType = None
     ) -> aiormq.spec.Basic.QosOk:
 
         return await asyncio.wait_for(
             self.channel.basic_qos(
                 prefetch_count=prefetch_count,
-                prefetch_size=prefetch_size
+                prefetch_size=prefetch_size,
+                global_=global_
             ),
             timeout=timeout
         )

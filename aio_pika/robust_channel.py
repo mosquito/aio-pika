@@ -46,7 +46,7 @@ class RobustChannel(Channel):
         self._closed = False
         self._exchanges = dict()
         self._queues = dict()
-        self._qos = 0, 0
+        self._qos = 0, 0, False
 
     async def on_reconnect(self, connection, channel_number):
         self._connection = connection
@@ -64,26 +64,25 @@ class RobustChannel(Channel):
     async def initialize(self, timeout: TimeoutType = None):
         result = await super().initialize()
 
-        prefetch_count, prefetch_size = self._qos
+        prefetch_count, prefetch_size, global_ = self._qos
 
         await self.set_qos(
             prefetch_count=prefetch_count,
-            prefetch_size=prefetch_size
+            prefetch_size=prefetch_size,
+            global_=global_
         )
 
         return result
 
     async def set_qos(self, prefetch_count: int = 0, prefetch_size: int = 0,
-                      all_channels=False, timeout: TimeoutType = None):
+                      global_: bool = False, timeout: TimeoutType = None):
 
-        if all_channels:
-            raise NotImplementedError("Not available to RobustConnection")
-
-        self._qos = prefetch_count, prefetch_size
+        self._qos = prefetch_count, prefetch_size, global_
 
         return await super().set_qos(
             prefetch_count=prefetch_count,
             prefetch_size=prefetch_size,
+            global_=global_,
             timeout=timeout,
         )
 

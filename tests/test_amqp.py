@@ -845,7 +845,7 @@ class TestCase(BaseTestCase):
 
     async def test_set_qos(self):
         channel = await self.create_channel()
-        await channel.set_qos(prefetch_count=1, all_channels=True)
+        await channel.set_qos(prefetch_count=1, global_=True)
 
     async def test_exchange_delete(self):
         channel = await self.create_channel()
