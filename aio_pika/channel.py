@@ -1,6 +1,7 @@
 import asyncio
 from enum import unique, Enum
 from logging import getLogger
+from warnings import warn
 
 from aio_pika.tools import CallbackCollection
 
@@ -263,8 +264,12 @@ class Channel:
 
     async def set_qos(
         self, prefetch_count: int = 0, prefetch_size: int = 0,
-        global_: bool = False, timeout: TimeoutType = None
+        global_: bool = False, timeout: TimeoutType = None,
+        all_channels: bool = None
     ) -> aiormq.spec.Basic.QosOk:
+        if all_channels is not None:
+            warn('Use "global_" instead of "all_channels"', DeprecationWarning)
+            global_ = all_channels
 
         return await asyncio.wait_for(
             self.channel.basic_qos(

@@ -6,6 +6,7 @@ except ImportError:
     from typing_extensions import Awaitable  # noqa
 
 from logging import getLogger
+from warnings import warn
 
 from .exchange import Exchange, ExchangeType
 from .queue import Queue
@@ -75,7 +76,11 @@ class RobustChannel(Channel):
         return result
 
     async def set_qos(self, prefetch_count: int = 0, prefetch_size: int = 0,
-                      global_: bool = False, timeout: TimeoutType = None):
+                      global_: bool = False, timeout: TimeoutType = None,
+                      all_channels: bool = None):
+        if all_channels is not None:
+            warn('Use "global_" instead of "all_channels"', DeprecationWarning)
+            global_ = all_channels
 
         self._qos = prefetch_count, prefetch_size, global_
 
