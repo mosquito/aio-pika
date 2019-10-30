@@ -1231,7 +1231,7 @@ class TestCase(BaseTestCase):
         )
 
         for _ in range(100):
-            with pytest.raises(aio_pika.exceptions.DeliveryError):
+            with pytest.raises(aio_pika.exceptions.DeliveryError) as e:
                 await channel.default_exchange.publish(
                     Message(body=body), routing_key=queue_name,
                 )
