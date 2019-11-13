@@ -134,9 +134,18 @@ class RobustConnection(Connection):
         for number, channel in self._channels.items():
             try:
                 await channel.on_reconnect(self, number)
-            except CONNECTION_EXCEPTIONS:
+            except CONNECTION_EXCEPTIONS as e:
                 log.exception('Open channel failure')
-                await self.close()
+
+                if self.connection is not None:
+                    await asyncio.gather(
+                        self.connection.close(e), return_exceptions=True
+                    )
+                    self.connection = None
+
+                # The channel has not been opened successfully.
+                # Staying positive and just retry later.
+                await asyncio.sleep(self.reconnect_interval)
                 return
 
         self._reconnect_callbacks(self)
