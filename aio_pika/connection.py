@@ -315,7 +315,7 @@ async def connect(
             query=kw
         )
 
-    connection = connection_class(url, loop=loop)
+    connection = connection_class(url, loop=loop, **kwargs)
 
     await connection.connect(
         timeout=timeout, client_properties=client_properties
