@@ -8,6 +8,7 @@ from contextlib import suppress
 from aiormq import ChannelLockedResource
 
 from aio_pika import connect_robust, Message
+from aio_pika.exceptions import MaxReconnectAttemptsReached
 from aio_pika.robust_channel import RobustChannel
 from aio_pika.robust_connection import RobustConnection
 from aio_pika.robust_queue import RobustQueue
@@ -27,6 +28,7 @@ class Proxy:
         self.src_port = sport
         self.dst_host = dhost
         self.dst_port = dport
+        self._run_task = None
         self.connections = set()
 
     async def _pipe(self, reader: asyncio.StreamReader,
@@ -54,12 +56,19 @@ class Proxy:
         ])
 
     async def start(self):
-        return await asyncio.start_server(
+        self._run_task = await asyncio.start_server(
             self.handle_client,
             host=self.src_host,
             port=self.src_port,
             loop=self.loop,
         )
+        return self._run_task
+
+    async def stop(self):
+        assert self._run_task is not None
+        self._run_task.close()
+        await self.disconnect()
+        self._run_task = None
 
     async def disconnect(self):
         tasks = list()
@@ -72,7 +81,8 @@ class Proxy:
             writer = self.connections.pop()     # type: asyncio.StreamWriter
             tasks.append(self.loop.create_task(close(writer)))
 
-        await asyncio.wait(tasks)
+        if tasks:
+            await asyncio.wait(tasks)
 
 
 class TestCase(AMQPTestCase):
@@ -84,7 +94,7 @@ class TestCase(AMQPTestCase):
         sock.close()
         return port
 
-    async def create_connection(self, cleanup=True):
+    async def create_connection(self, cleanup=True, max_reconnect_attempts=0):
         self.proxy = Proxy(
             dhost=AMQP_URL.host,
             dport=AMQP_URL.port,
@@ -98,7 +108,11 @@ class TestCase(AMQPTestCase):
             self.proxy.src_host
         ).with_port(
             self.proxy.src_port
-        ).update_query(reconnect_interval=1)
+        ).update_query(
+            reconnect_interval=1
+        ).update_query(
+            max_reconnect_attempts=max_reconnect_attempts
+        )
 
         client = await connect_robust(str(url), loop=self.loop)
 
@@ -209,6 +223,28 @@ class TestCase(AMQPTestCase):
             await asyncio.sleep(0.1)
 
         assert len(shared) == 10
+
+    async def test_robust_reconnect_max_attempts(self):
+        client = await self.create_connection(max_reconnect_attempts=2)
+        self.assertIsInstance(client, RobustConnection)
+
+        first_close = asyncio.Future()
+        stopped = asyncio.Future()
+
+        def stop_callback(exc):
+            assert isinstance(exc, MaxReconnectAttemptsReached)
+            stopped.set_result(True)
+
+        def close_callback(f):
+            first_close.set_result(True)
+
+        client.add_stop_callback(stop_callback)
+        client.connection.closing.add_done_callback(close_callback)
+        await self.proxy.stop()
+        await first_close
+        # 1 interval before first try and 2 after attempts
+        await asyncio.wait_for(stopped,
+                               timeout=client.reconnect_interval * 3 + 0.1)
 
     async def test_channel_locked_resource2(self):
         ch1 = await self.create_channel()

@@ -40,6 +40,10 @@ class QueueEmpty(AMQPError, asyncio.QueueEmpty):
     pass
 
 
+class MaxReconnectAttemptsReached(Exception):
+    pass
+
+
 __all__ = (
     'AMQPChannelError',
     'AMQPConnectionError',
@@ -53,6 +57,7 @@ __all__ = (
     'DuplicateConsumerTag',
     'IncompatibleProtocolError',
     'InvalidFrameError',
+    'MaxReconnectAttemptsReached',
     'MessageProcessError',
     'MethodNotImplemented',
     'ProbableAuthenticationError',

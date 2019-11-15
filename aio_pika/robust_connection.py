@@ -4,7 +4,7 @@ from logging import getLogger
 from typing import Callable, Type
 
 from aiormq.connection import parse_bool, parse_int
-from .exceptions import CONNECTION_EXCEPTIONS
+from .exceptions import CONNECTION_EXCEPTIONS, MaxReconnectAttemptsReached
 from .connection import Connection, connect, ConnectionType
 from .tools import CallbackCollection
 from .types import TimeoutType
@@ -29,6 +29,7 @@ class RobustConnection(Connection):
 
     CHANNEL_CLASS = RobustChannel
     KWARGS_TYPES = (
+        ('max_reconnect_attempts', parse_int, '0'),
         ('reconnect_interval', parse_int, '5'),
         ('fail_fast', parse_bool, '1'),
     )
@@ -43,7 +44,9 @@ class RobustConnection(Connection):
         self.fail_fast = self.kwargs['fail_fast']
 
         self.__channels = set()
+        self._reconnect_attempt = None
         self._reconnect_callbacks = CallbackCollection()
+        self._stop_callbacks = CallbackCollection()
         self._closed = False
 
     @property
@@ -77,6 +80,9 @@ class RobustConnection(Connection):
 
         self._reconnect_callbacks.add(callback)
 
+    def add_stop_callback(self, callback: Callable[[Exception], None]):
+        self._stop_callbacks.add(callback)
+
     async def connect(self, timeout: TimeoutType = None, **kwargs):
         if kwargs:
             # Store connect kwargs for reconnects
@@ -103,6 +109,16 @@ class RobustConnection(Connection):
     async def reconnect(self):
         if self.is_closed:
             return
+
+        if self.kwargs['max_reconnect_attempts'] > 0:
+            if self._reconnect_attempt is None:
+                self._reconnect_attempt = 1
+            else:
+                self._reconnect_attempt += 1
+
+            if self._reconnect_attempt > self.kwargs['max_reconnect_attempts']:
+                await self.close(MaxReconnectAttemptsReached())
+                return
 
         try:
             await super().connect()
@@ -131,6 +147,7 @@ class RobustConnection(Connection):
         return channel
 
     async def _on_reconnect(self):
+        self._reconnect_attempt = None
         for number, channel in self._channels.items():
             try:
                 await channel.on_reconnect(self, number)
@@ -151,6 +168,7 @@ class RobustConnection(Connection):
             return
 
         self._closed = True
+        self._stop_callbacks(exc)
 
         if self.connection is None:
             return
