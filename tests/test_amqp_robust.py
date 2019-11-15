@@ -41,7 +41,6 @@ class Proxy:
         sreader, swriter = await asyncio.open_connection(
             host=self.dst_host,
             port=self.dst_port,
-            loop=self.loop,
         )
 
         self.connections.add(swriter)

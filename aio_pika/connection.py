@@ -196,7 +196,7 @@ class Connection:
         if any((self.is_closed, self.loop.is_closed(), not self.connection)):
             return
 
-        asyncio.shield(self.close(), loop=self.loop)
+        asyncio.shield(self.close())
 
     async def __aenter__(self) -> 'Connection':
         return self
