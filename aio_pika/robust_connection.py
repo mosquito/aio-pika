@@ -6,7 +6,7 @@ from typing import Callable, Type
 from aiormq.connection import parse_bool, parse_int
 from .exceptions import CONNECTION_EXCEPTIONS
 from .connection import Connection, connect, ConnectionType
-from .tools import CallbackCollection
+from .tools import CallbackCollection, parse_connection_name
 from .types import TimeoutType
 from .robust_channel import RobustChannel
 
@@ -29,6 +29,7 @@ class RobustConnection(Connection):
 
     CHANNEL_CLASS = RobustChannel
     KWARGS_TYPES = (
+        ('name', parse_connection_name, None),
         ('reconnect_interval', parse_int, '5'),
         ('fail_fast', parse_bool, '1'),
     )
@@ -180,7 +181,7 @@ async def connect_robust(
 
         async def main():
             connection = await aio_pika.connect_robust(
-                "amqp://guest:guest@127.0.0.1/"
+                "amqp://guest:guest@127.0.0.1/?name=my+first+connection"
             )
 
     Connect to localhost with default credentials:
@@ -203,6 +204,22 @@ async def connect_robust(
         For an information on what the ssl_options can be set to reference the
         `official Python documentation`_ .
 
+    Set connection name for RabbitMQ admin panel:
+
+    .. code-block:: python
+
+        read_connection = await connect(
+            client_properties={
+                'connection_name': 'Read connection'
+            }
+        )
+
+        write_connection = await connect(
+            client_properties={
+                'connection_name': 'Write connection'
+            }
+        )
+
     URL string might be contain ssl parameters e.g.
     `amqps://user:pass@host//?ca_certs=ca.pem&certfile=crt.pem&keyfile=key.pem`
 
@@ -220,6 +237,7 @@ async def connect_robust(
     :param loop:
         Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
     :param connection_class: Factory of a new connection
+    :param client_properties: add custom client capability.
     :param kwargs: addition parameters which will be passed to the connection.
     :return: :class:`aio_pika.connection.Connection`
 

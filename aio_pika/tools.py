@@ -149,3 +149,10 @@ class CallbackCollection(Set):
                     cb(*args, **kwargs)
                 except Exception:
                     log.exception('Callback error')
+
+
+def parse_connection_name(conn_name: str):
+    if not conn_name or not isinstance(conn_name, str):
+        return None
+
+    return {'client_properties': {'connection_name': conn_name}}

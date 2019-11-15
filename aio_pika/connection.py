@@ -8,7 +8,7 @@ from yarl import URL
 import aiormq
 from aiormq.tools import censor_url
 from .channel import Channel
-from .tools import CallbackCollection
+from .tools import CallbackCollection, parse_connection_name
 from .types import TimeoutType
 
 try:
@@ -27,7 +27,9 @@ class Connection:
     """ Connection abstraction """
 
     CHANNEL_CLASS = Channel
-    KWARGS_TYPES = ()
+    KWARGS_TYPES = (
+        ('name', parse_connection_name, None),
+    )
 
     @property
     def is_closed(self):
@@ -230,7 +232,7 @@ async def connect(
 
         async def main():
             connection = await aio_pika.connect(
-                "amqp://guest:guest@127.0.0.1/"
+                "amqp://guest:guest@127.0.0.1/?name=my+first+connection"
             )
 
     Connect to localhost with default credentials:
@@ -276,7 +278,6 @@ async def connect(
     URL string might be contain ssl parameters e.g.
     `amqps://user:pass@host//?ca_certs=ca.pem&certfile=crt.pem&keyfile=key.pem`
 
-    :param client_properties: add custom client capability.
     :param url:
         RFC3986_ formatted broker address. When :class:`None`
         will be used keyword arguments.
@@ -291,6 +292,7 @@ async def connect(
     :param loop:
         Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
     :param connection_class: Factory of a new connection
+    :param client_properties: add custom client capability.
     :param kwargs: addition parameters which will be passed to the connection.
     :return: :class:`aio_pika.connection.Connection`
 
