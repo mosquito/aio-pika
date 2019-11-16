@@ -64,7 +64,7 @@ class Proxy:
 
         async def close(writer):
             writer.close()
-            await writer.wait_closed()
+            await writer.drain()
 
         while self.connections:
             writer = self.connections.pop()     # type: asyncio.StreamWriter
