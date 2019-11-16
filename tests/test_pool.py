@@ -60,6 +60,49 @@ class TestCase(BaseTestCase):
         self.assertEqual(self.counter, self.max_size)
 
 
+class TestCaseClose(BaseTestCase):
+    max_size = 10
+
+    class Instance:
+        def __init__(self):
+            self.closed = False
+
+        async def close(self):
+            if self.closed:
+                raise RuntimeError
+
+            self.closed = True
+
+    def setUp(self):
+        self.instances = set()
+        super().setUp()
+
+    async def create_instance(self):
+        obj = TestCaseClose.Instanse()
+        self.instances.add(obj)
+        return obj
+
+    async def test_close(self):
+        async def getter():
+            async with self.pool.acquire() as instance:
+                assert instance > 0
+                await asyncio.sleep(0.01)
+                return self.counter
+
+        await asyncio.gather(
+            *[getter() for _ in range(200)],
+            loop=self.loop, return_exceptions=True
+        )
+
+        for instance in self.instances:
+            self.assertFalse(instance.closed)
+
+        await self.pool.close()
+
+        for instance in self.instances:
+            self.assertTrue(instance.closed)
+
+
 class TestCaseNoMaxSize(BaseTestCase):
     max_size = None
 
