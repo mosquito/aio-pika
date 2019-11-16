@@ -109,7 +109,9 @@ class RobustConnection(Connection):
             while True:
                 if self.connection is not None:
                     await asyncio.gather(
-                        self.connection.close(e), return_exceptions=True
+                        self.connection.close(
+                            RuntimeError("Reconnecting")
+                        ), return_exceptions=True
                     )
                     self.connection = None
 
