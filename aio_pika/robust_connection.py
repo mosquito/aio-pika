@@ -44,6 +44,7 @@ class RobustConnection(Connection):
 
         self.__channels = set()
         self._reconnect_callbacks = CallbackCollection()
+        self._reconnect_lock = asyncio.Lock()
         self._closed = False
 
     @property
@@ -102,29 +103,34 @@ class RobustConnection(Connection):
 
     async def reconnect(self):
         if self.is_closed:
-            return
+            raise RuntimeError("{!r} connection closed".format(self))
 
-        try:
-            await super().connect()
+        async with self._reconnect_lock:
+            while True:
+                if self.connection is not None:
+                    await asyncio.gather(
+                        self.connection.close(e), return_exceptions=True
+                    )
+                    self.connection = None
 
-            for number, channel in self._channels.items():
-                await channel.on_reconnect(self, number)
+                try:
+                    await super().connect()
 
-            self._reconnect_callbacks(self)
+                    for number, channel in self._channels.items():
+                        await channel.on_reconnect(self, number)
 
-        except CONNECTION_EXCEPTIONS as e:
-            log.exception('Connection attempt error')
+                    self._reconnect_callbacks(self)
+                    return
+                except CONNECTION_EXCEPTIONS as e:
+                    log.exception('Connection attempt error')
 
-            if self.connection is not None:
-                await asyncio.gather(
-                    self.connection.close(e), return_exceptions=True
-                )
-                self.connection = None
+                    if self.connection is not None:
+                        await asyncio.gather(
+                            self.connection.close(e), return_exceptions=True
+                        )
+                        self.connection = None
 
-            self.loop.call_later(
-                self.reconnect_interval,
-                lambda: self.loop.create_task(self.reconnect())
-            )
+                await asyncio.sleep(self.reconnect_interval)
 
     def channel(self, channel_number: int = None,
                 publisher_confirms: bool = True,
