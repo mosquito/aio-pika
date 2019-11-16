@@ -37,7 +37,7 @@ except ImportError:
 
 class AsyncTestCase(asynctest.TestCase):
     use_default_loop = False
-    forbid_get_event_loop = True
+    forbid_get_event_loop = False
 
     TEST_TIMEOUT = int(os.getenv('ASYNCIO_TEST_TIMEOUT', '30'))
 
