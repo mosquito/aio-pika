@@ -64,7 +64,7 @@ class Proxy:
 
         async def close(writer):
             writer.close()
-            await writer.drain()
+            await asyncio.gather(writer.drain(), return_exceptions=True)
 
         while self.connections:
             writer = self.connections.pop()     # type: asyncio.StreamWriter
@@ -84,7 +84,10 @@ class TestCase(AMQPTestCase):
         return port
 
     async def create_direct_connection(self, cleanup=True) -> Connection:
-        client = await connect(str(AMQP_URL), loop=self.loop)
+        client = await connect(
+            str(AMQP_URL), loop=self.loop,
+            client_properties={'connection_name': 'direct connection'},
+        )
 
         if cleanup:
             self.addCleanup(client.close)
@@ -107,7 +110,10 @@ class TestCase(AMQPTestCase):
             self.proxy.src_port
         ).update_query(reconnect_interval=1)
 
-        client = await connect_robust(str(url), loop=self.loop)
+        client = await connect_robust(
+            str(url), loop=self.loop,
+            client_properties={'connection_name': 'proxy connection'},
+        )
 
         if cleanup:
             self.addCleanup(client.close)
@@ -250,25 +256,33 @@ class TestCase(AMQPTestCase):
 
         qname = self.get_random_name("robust", "exclusive", "queue")
 
-        proxy_queue = await proxy_channel.declare_queue(qname, exclusive=True)
+        proxy_queue = await proxy_channel.declare_queue(
+            qname, exclusive=True, durable=True
+        )
 
+        logging.info("Disconnecting all proxy connections")
         await self.proxy.disconnect(wait=True)
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)
 
-        await direct_channel.declare_queue(qname, exclusive=True)
+        logging.info("Declaring exclusive queue through direct channel")
+        await direct_channel.declare_queue(
+            qname, exclusive=True, durable=True
+        )
 
         async def close_after(delay, closer):
             await asyncio.sleep(delay)
             await closer()
+            logging.info("Closed")
 
-        closer = self.loop.create_task(close_after(5, direct_conn.close))
+        await self.loop.create_task(close_after(5, direct_conn.close))
 
-        for _ in range(10):
-            await closer
-
-            if proxy_conn.connection:
+        for _ in range(30):
+            if proxy_conn.connection is not None:
                 break
 
+            logging.info("CONNECTION: %r", proxy_conn.connection)
             await asyncio.sleep(1)
+        else:
+            raise RuntimeError("NOT CONENCTED")
 
         await proxy_queue.delete()
