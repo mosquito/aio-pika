@@ -32,7 +32,6 @@ class Pool:
         self.__constructor_args = args or ()
         self.__created = 0
         self.__lock = asyncio.Lock()
-        self.__close_lock = asyncio.Lock()
 
     def acquire(self) -> 'PoolItemContextManager':
         return PoolItemContextManager(self)
