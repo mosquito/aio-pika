@@ -140,6 +140,7 @@ class RobustConnection(Connection):
                     )
                 except asyncio.CancelledError as e:
                     await self.__cleanup_connection(e)
+                    raise
 
                 await asyncio.sleep(self.reconnect_interval)
 
