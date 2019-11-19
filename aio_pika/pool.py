@@ -20,7 +20,7 @@ class Pool:
     __slots__ = (
         'loop', '__max_size', '__items',
         '__constructor', '__created', '__lock',
-        '__constructor_args', '__close_lock'
+        '__constructor_args'
     )
 
     def __init__(self, constructor: ConstructorType, *args,
