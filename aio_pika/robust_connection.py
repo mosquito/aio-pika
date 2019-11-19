@@ -74,7 +74,10 @@ class RobustConnection(Connection):
 
         super()._on_connection_close(connection, closing)
 
-        log.info("Connection to %s closed reconnecting...", self)
+        log.info(
+            "Connection to %s closed. Reconnecting after %r seconds.",
+            self, self.reconnect_interval
+        )
         self.loop.call_later(
             self.reconnect_interval,
             lambda: self.loop.create_task(self.reconnect())
@@ -105,7 +108,8 @@ class RobustConnection(Connection):
 
         if self.reconnecting:
             log.warning(
-                "Connect method called but connection %r is reconnecting now",
+                "Connect method called but connection %r is "
+                "reconnecting right now.",
                 self
             )
 
@@ -130,10 +134,9 @@ class RobustConnection(Connection):
                     await self.__cleanup_connection(e)
 
                     log.warning(
-                        "Connection attempt to \"%s\" failed "
-                        "and will be retried after %d seconds",
-                        self, self.reconnect_interval,
-                        exc_info=True,
+                        "Connection attempt to \"%s\" failed. "
+                        "Reconnecting after %r seconds.",
+                        self, self.reconnect_interval, exc_info=True,
                     )
                 except asyncio.CancelledError as e:
                     await self.__cleanup_connection(e)
