@@ -35,6 +35,10 @@ class Pool:
         self.__lock = asyncio.Lock()
         self.__max_size = max_size
 
+    @property
+    def is_closed(self) -> bool:
+        return self.__closed
+
     def acquire(self) -> 'PoolItemContextManager':
         if self.__closed:
             raise PoolInvalidStateError('acquire operation on closed pool')
@@ -90,6 +94,15 @@ class Pool:
 
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def __aenter__(self) -> "Pool":
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.__closed:
+            return
+
+        await asyncio.shield(self.close())
 
 
 class PoolItemContextManager(AsyncContextManager):

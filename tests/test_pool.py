@@ -102,6 +102,27 @@ class TestCaseClose(BaseTestCase):
         for instance in self.instances:
             self.assertTrue(instance.closed)
 
+    async def test_close_context_manager(self):
+        async def getter():
+            async with self.pool.acquire() as instance:
+                assert instance > 0
+                await asyncio.sleep(0.01)
+                return self.counter
+
+        async with self.pool:
+            await asyncio.gather(
+                *[getter() for _ in range(200)],
+                loop=self.loop, return_exceptions=True
+            )
+
+            for instance in self.instances:
+                self.assertFalse(instance.closed)
+
+        for instance in self.instances:
+            self.assertTrue(instance.closed)
+
+        self.assertTrue(self.pool.is_closed)
+
 
 class TestCaseNoMaxSize(BaseTestCase):
     max_size = None
