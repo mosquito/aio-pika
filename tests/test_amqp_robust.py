@@ -275,14 +275,5 @@ class TestCase(AMQPTestCase):
             logging.info("Closed")
 
         await self.loop.create_task(close_after(5, direct_conn.close))
-
-        for _ in range(30):
-            if proxy_conn.connection is not None:
-                break
-
-            logging.info("CONNECTION: %r", proxy_conn.connection)
-            await asyncio.sleep(1)
-        else:
-            raise RuntimeError("NOT CONENCTED")
-
+        await proxy_conn.connected.wait()
         await proxy_queue.delete()

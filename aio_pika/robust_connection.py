@@ -46,6 +46,7 @@ class RobustConnection(Connection):
         self._reconnect_callbacks = CallbackCollection()
         self._connect_lock = asyncio.Lock()
         self._closed = False
+        self.connected = asyncio.Event()
 
     @property
     def reconnecting(self) -> bool:
@@ -63,6 +64,7 @@ class RobustConnection(Connection):
         if self.reconnecting:
             return
 
+        self.connected.clear()
         self.connection = None
 
         # Have to remove non initialized channels
@@ -101,6 +103,12 @@ class RobustConnection(Connection):
             # Store connect kwargs for reconnects
             self.connect_kwargs = kwargs
 
+        if self.reconnecting:
+            log.warning(
+                "Connect method called but connection %r is reconnecting now",
+                self
+            )
+
         async with self._connect_lock:
             while True:
                 try:
@@ -113,6 +121,7 @@ class RobustConnection(Connection):
                         await channel.on_reconnect(self, number)
 
                     self.fail_fast = False
+                    self.connected.set()
                     return result
                 except CONNECTION_EXCEPTIONS as e:
                     if self.fail_fast:
