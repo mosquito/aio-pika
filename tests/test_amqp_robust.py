@@ -5,7 +5,9 @@ from socket import socket
 
 import aiormq
 from aio_pika.connection import Connection, connect
+from aio_pika.exchange import Exchange
 from aio_pika.message import Message
+from aio_pika.queue import Queue
 from aio_pika.robust_channel import RobustChannel
 from aio_pika.robust_connection import RobustConnection, connect_robust
 from aio_pika.robust_queue import RobustQueue
@@ -277,3 +279,21 @@ class TestCase(AMQPTestCase):
         await self.loop.create_task(close_after(5, direct_conn.close))
         await proxy_conn.connected.wait()
         await proxy_queue.delete()
+
+
+class TestCaseNoRobust(AMQPTestCase):
+    async def create_connection(self, cleanup=True) -> Connection:
+        client = await connect_robust(str(AMQP_URL), loop=self.loop)
+        if cleanup:
+            self.addCleanup(client.close)
+        return client
+
+    async def declare_queue(self, *args, **kwargs) -> Queue:
+        kwargs = kwargs.copy()
+        kwargs['robust'] = False
+        return await super().declare_queue(*args, **kwargs)
+
+    async def declare_exchange(self, *args, **kwargs) -> Exchange:
+        kwargs = kwargs.copy()
+        kwargs['robust'] = False
+        return await super().declare_exchange(*args, **kwargs)
