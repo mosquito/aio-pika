@@ -14,7 +14,7 @@ from aio_pika.exceptions import DeliveryError
 from aio_pika.message import (
     Message, IncomingMessage, DeliveryMode, ReturnedMessage
 )
-from aio_pika.tools import shield
+from aio_pika.tools import shield, awaitable
 from .base import Proxy, Base
 
 log = logging.getLogger(__name__)
@@ -372,7 +372,7 @@ class RPC(Base):
             partial(self.on_call_message, method_name)
         )
 
-        self.routes[method_name] = asyncio.coroutine(func)
+        self.routes[method_name] = awaitable(func)
         self.queues[func] = queue
 
     async def unregister(self, func):

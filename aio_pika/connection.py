@@ -104,6 +104,13 @@ class Connection:
         self.close_callbacks(exc)
         log.debug("Closing AMQP connection %r", connection)
 
+    async def _make_connection(self, **kwargs) -> aiormq.Connection:
+        connection = await aiormq.connect(self.url, **kwargs)
+        connection.closing.add_done_callback(
+            partial(self._on_connection_close, self.connection)
+        )
+        return connection
+
     async def connect(self, timeout: TimeoutType = None, **kwargs):
         """ Connect to AMQP server. This method should be called after
         :func:`aio_pika.connection.Connection.__init__`
@@ -113,13 +120,9 @@ class Connection:
             You shouldn't call it explicitly.
 
         """
-
         self.connection = await asyncio.wait_for(
-            aiormq.connect(self.url, **kwargs), timeout=timeout
-        )   # type: aiormq.Connection
-
-        self.connection.closing.add_done_callback(
-            partial(self._on_connection_close, self.connection)
+            self._make_connection(**kwargs),
+            timeout=timeout
         )
 
     def channel(self, channel_number: int = None,
@@ -196,7 +199,7 @@ class Connection:
         if any((self.is_closed, self.loop.is_closed(), not self.connection)):
             return
 
-        asyncio.shield(self.close(), loop=self.loop)
+        asyncio.shield(self.close())
 
     async def __aenter__(self) -> 'Connection':
         return self

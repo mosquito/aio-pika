@@ -1,16 +1,15 @@
 import asyncio
 import logging
+from contextlib import suppress
 from socket import socket
 
 import aiormq
-from contextlib import suppress
-
-from aiormq import ChannelLockedResource
-
-from aio_pika import connect_robust, Message
+from aio_pika.connection import Connection, connect
+from aio_pika.message import Message
 from aio_pika.robust_channel import RobustChannel
-from aio_pika.robust_connection import RobustConnection
+from aio_pika.robust_connection import RobustConnection, connect_robust
 from aio_pika.robust_queue import RobustQueue
+from aiormq import ChannelLockedResource
 from tests import AMQP_URL
 from tests.test_amqp import TestCase as AMQPTestCase
 
@@ -42,16 +41,15 @@ class Proxy:
         sreader, swriter = await asyncio.open_connection(
             host=self.dst_host,
             port=self.dst_port,
-            loop=self.loop,
         )
 
         self.connections.add(swriter)
         self.connections.add(cwriter)
 
-        await asyncio.wait([
+        await asyncio.gather(
             self._pipe(sreader, cwriter),
             self._pipe(creader, swriter),
-        ])
+        )
 
     async def start(self):
         return await asyncio.start_server(
@@ -61,18 +59,19 @@ class Proxy:
             loop=self.loop,
         )
 
-    async def disconnect(self):
+    async def disconnect(self, wait=True):
         tasks = list()
 
         async def close(writer):
             writer.close()
-            await writer.wait_closed()
+            await asyncio.gather(writer.drain(), return_exceptions=True)
 
         while self.connections:
             writer = self.connections.pop()     # type: asyncio.StreamWriter
             tasks.append(self.loop.create_task(close(writer)))
 
-        await asyncio.wait(tasks)
+        if wait and tasks:
+            await asyncio.wait(tasks)
 
 
 class TestCase(AMQPTestCase):
@@ -84,7 +83,18 @@ class TestCase(AMQPTestCase):
         sock.close()
         return port
 
-    async def create_connection(self, cleanup=True):
+    async def create_direct_connection(self, cleanup=True) -> Connection:
+        client = await connect(
+            str(AMQP_URL), loop=self.loop,
+            client_properties={'connection_name': 'direct connection'},
+        )
+
+        if cleanup:
+            self.addCleanup(client.close)
+
+        return client
+
+    async def create_connection(self, cleanup=True) -> RobustConnection:
         self.proxy = Proxy(
             dhost=AMQP_URL.host,
             dport=AMQP_URL.port,
@@ -100,13 +110,23 @@ class TestCase(AMQPTestCase):
             self.proxy.src_port
         ).update_query(reconnect_interval=1)
 
-        client = await connect_robust(str(url), loop=self.loop)
+        client = await connect_robust(
+            str(url), loop=self.loop,
+            client_properties={'connection_name': 'proxy connection'},
+        )
 
         if cleanup:
             self.addCleanup(client.close)
             self.addCleanup(self.proxy.disconnect)
 
         return client
+
+    async def create_channel(self, connection=None,
+                             cleanup=True, **kwargs) -> RobustChannel:
+        # noinspection PyTypeChecker
+        return await super().create_channel(
+            connection=connection, cleanup=cleanup, **kwargs
+        )
 
     async def test_set_qos(self):
         channel = await self.create_channel()
@@ -222,3 +242,38 @@ class TestCase(AMQPTestCase):
         with self.assertRaises(ChannelLockedResource):
             q2 = await ch2.declare_queue(qname, exclusive=True, robust=False)
             await q2.consume(print, exclusive=True)
+
+    async def test_channel_close_when_exclusive_queue(self):
+        direct_conn, proxy_conn = await asyncio.gather(
+            self.create_direct_connection(),
+            self.create_connection()
+        )
+
+        direct_channel, proxy_channel = await asyncio.gather(
+            direct_conn.channel(),
+            proxy_conn.channel()
+        )
+
+        qname = self.get_random_name("robust", "exclusive", "queue")
+
+        proxy_queue = await proxy_channel.declare_queue(
+            qname, exclusive=True, durable=True
+        )
+
+        logging.info("Disconnecting all proxy connections")
+        await self.proxy.disconnect(wait=True)
+        await asyncio.sleep(0.5)
+
+        logging.info("Declaring exclusive queue through direct channel")
+        await direct_channel.declare_queue(
+            qname, exclusive=True, durable=True
+        )
+
+        async def close_after(delay, closer):
+            await asyncio.sleep(delay)
+            await closer()
+            logging.info("Closed")
+
+        await self.loop.create_task(close_after(5, direct_conn.close))
+        await proxy_conn.connected.wait()
+        await proxy_queue.delete()

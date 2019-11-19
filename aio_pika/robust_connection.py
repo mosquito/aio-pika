@@ -44,7 +44,13 @@ class RobustConnection(Connection):
 
         self.__channels = set()
         self._reconnect_callbacks = CallbackCollection()
+        self._connect_lock = asyncio.Lock()
         self._closed = False
+        self.connected = asyncio.Event()
+
+    @property
+    def reconnecting(self) -> bool:
+        return self._connect_lock.locked()
 
     @property
     def reconnect_callbacks(self) -> CallbackCollection:
@@ -55,6 +61,10 @@ class RobustConnection(Connection):
         return {ch.number: ch for ch in self.__channels}
 
     def _on_connection_close(self, connection, closing, *args, **kwargs):
+        if self.reconnecting:
+            return
+
+        self.connected.clear()
         self.connection = None
 
         # Have to remove non initialized channels
@@ -64,6 +74,10 @@ class RobustConnection(Connection):
 
         super()._on_connection_close(connection, closing)
 
+        log.info(
+            "Connection to %s closed. Reconnecting after %r seconds.",
+            self, self.reconnect_interval
+        )
         self.loop.call_later(
             self.reconnect_interval,
             lambda: self.loop.create_task(self.reconnect())
@@ -77,44 +91,62 @@ class RobustConnection(Connection):
 
         self._reconnect_callbacks.add(callback)
 
+    async def __cleanup_connection(self, exc):
+        await asyncio.gather(
+            self.connection.close(exc),
+            return_exceptions=True,
+        )
+        self.connection = None
+
     async def connect(self, timeout: TimeoutType = None, **kwargs):
+        if self.is_closed:
+            raise RuntimeError("{!r} connection closed".format(self))
+
         if kwargs:
             # Store connect kwargs for reconnects
             self.connect_kwargs = kwargs
 
-        while True:
-            try:
-                return await super().connect(
-                    timeout=timeout, **self.connect_kwargs
-                )
-            except CONNECTION_EXCEPTIONS:
-                if self.fail_fast:
-                    raise
+        if self.reconnecting:
+            log.warning(
+                "Connect method called but connection %r is "
+                "reconnecting right now.",
+                self
+            )
 
-                log.warning(
-                    "First connection attempt failed "
-                    "and will be retried after %d seconds",
-                    self.reconnect_interval,
-                    exc_info=True,
-                )
+        async with self._connect_lock:
+            while True:
+                try:
+                    result = await super().connect(
+                        timeout=timeout,
+                        **self.connect_kwargs
+                    )
+
+                    for number, channel in self._channels.items():
+                        await channel.on_reconnect(self, number)
+
+                    self.fail_fast = False
+                    self.connected.set()
+                    return result
+                except CONNECTION_EXCEPTIONS as e:
+                    if self.fail_fast:
+                        raise
+
+                    await self.__cleanup_connection(e)
+
+                    log.warning(
+                        "Connection attempt to \"%s\" failed. "
+                        "Reconnecting after %r seconds.",
+                        self, self.reconnect_interval, exc_info=True,
+                    )
+                except asyncio.CancelledError as e:
+                    await self.__cleanup_connection(e)
+                    raise
 
                 await asyncio.sleep(self.reconnect_interval)
 
     async def reconnect(self):
-        if self.is_closed:
-            return
-
-        try:
-            await super().connect()
-        except CONNECTION_EXCEPTIONS:
-            log.exception('Connection attempt error')
-
-            self.loop.call_later(
-                self.reconnect_interval,
-                lambda: self.loop.create_task(self.reconnect())
-            )
-        else:
-            await self._on_reconnect()
+        await self.connect()
+        self._reconnect_callbacks(self)
 
     def channel(self, channel_number: int = None,
                 publisher_confirms: bool = True,
@@ -129,17 +161,6 @@ class RobustConnection(Connection):
         self.__channels.add(channel)
 
         return channel
-
-    async def _on_reconnect(self):
-        for number, channel in self._channels.items():
-            try:
-                await channel.on_reconnect(self, number)
-            except CONNECTION_EXCEPTIONS:
-                log.exception('Open channel failure')
-                await self.close()
-                return
-
-        self._reconnect_callbacks(self)
 
     @property
     def is_closed(self):

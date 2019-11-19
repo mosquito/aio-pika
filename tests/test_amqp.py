@@ -675,7 +675,7 @@ class TestCase(BaseTestCase):
 
         body = bytes(shortuuid.uuid(), 'utf-8')
 
-        f = asyncio.Future(loop=self.loop)
+        f = self.loop.create_future()
 
         async def handle(message):
             message.ack()
@@ -714,7 +714,7 @@ class TestCase(BaseTestCase):
 
         body = bytes(shortuuid.uuid(), 'utf-8')
 
-        f = asyncio.Future(loop=self.loop)
+        f = self.loop.create_future()
 
         def handle(message):
             message.ack()
@@ -859,7 +859,7 @@ class TestCase(BaseTestCase):
 
         channel = await self.create_channel()
 
-        f = asyncio.Future(loop=self.loop)
+        f = self.loop.create_future()
 
         async def dlx_handle(message):
             message.ack()
@@ -946,7 +946,7 @@ class TestCase(BaseTestCase):
 
         channel = await client.channel()   # type: aio_pika.Channel
 
-        f = asyncio.Future(loop=self.loop)
+        f = self.loop.create_future()
 
         channel.add_on_return_callback(f.set_result)
 
@@ -966,7 +966,7 @@ class TestCase(BaseTestCase):
         self.assertEqual(returned.body, body)
 
         # handler with exception
-        f = asyncio.Future(loop=self.loop)
+        f = self.loop.create_future()
 
         await channel.close()
 
@@ -1033,7 +1033,7 @@ class TestCase(BaseTestCase):
             queue.name
         )
 
-        f = asyncio.Future(loop=self.loop)
+        f = self.loop.create_future()
 
         await dlx_queue.consume(f.set_result, no_ack=True)
 
@@ -1231,7 +1231,7 @@ class TestCase(BaseTestCase):
         )
 
         for _ in range(100):
-            with pytest.raises(aio_pika.exceptions.DeliveryError) as e:
+            with pytest.raises(aio_pika.exceptions.DeliveryError):
                 await channel.default_exchange.publish(
                     Message(body=body), routing_key=queue_name,
                 )
@@ -1420,7 +1420,7 @@ class TestCase(BaseTestCase):
             q2 = await ch2.declare_queue(qname, exclusive=True)
             await q2.consume(print, exclusive=True)
 
-    async def test_queue_iterator_close_is_called_twice(self):
+    async def test_queue_iterator_close_was_called_twice(self):
         logger = logging.getLogger().getChild(self.get_random_name("logger"))
         event = asyncio.Event()
 

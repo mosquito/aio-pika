@@ -10,6 +10,7 @@ from aio_pika.queue import Queue
 from aio_pika.message import (
     IncomingMessage, Message, DeliveryMode, ReturnedMessage
 )
+from aio_pika.tools import awaitable
 
 from .base import Proxy, Base
 
@@ -154,7 +155,7 @@ class Master(Base):
         if hasattr(func, "_is_coroutine"):
             fn = func
         else:
-            fn = asyncio.coroutine(func)
+            fn = awaitable(func)
         consumer_tag = await queue.consume(partial(self.on_message, fn))
 
         return Worker(queue, consumer_tag, self.loop)

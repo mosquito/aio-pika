@@ -44,7 +44,7 @@ class Queue:
         self.arguments = arguments
         self.passive = passive
         self.declaration_result = None  # type: aiormq.spec.Queue.DeclareOk
-        self._get_lock = asyncio.Lock(loop=self.loop)
+        self._get_lock = asyncio.Lock()
 
     @property
     def channel(self) -> aiormq.Channel:
@@ -374,7 +374,7 @@ class QueueIterator:
     def __init__(self, queue: Queue, **kwargs):
         self.loop = queue.loop
         self._amqp_queue = queue
-        self._queue = asyncio.Queue(loop=self.loop)
+        self._queue = asyncio.Queue()
         self._consumer_tag = None
         self._consume_kwargs = kwargs
 
