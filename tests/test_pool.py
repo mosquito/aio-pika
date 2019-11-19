@@ -78,21 +78,24 @@ class TestCaseClose(BaseTestCase):
         super().setUp()
 
     async def create_instance(self):
-        obj = TestCaseClose.Instanse()
+        obj = TestCaseClose.Instance()
         self.instances.add(obj)
         return obj
 
     async def test_close(self):
         async def getter():
-            async with self.pool.acquire() as instance:
-                assert instance > 0
-                await asyncio.sleep(0.01)
-                return self.counter
+            async with self.pool.acquire():
+                await asyncio.sleep(0.05)
+
+        self.assertFalse(self.pool.is_closed)
+        self.assertTrue(len(self.instances) == 0)
 
         await asyncio.gather(
             *[getter() for _ in range(200)],
             loop=self.loop, return_exceptions=True
         )
+
+        self.assertTrue(len(self.instances) > 1)
 
         for instance in self.instances:
             self.assertFalse(instance.closed)
@@ -102,26 +105,34 @@ class TestCaseClose(BaseTestCase):
         for instance in self.instances:
             self.assertTrue(instance.closed)
 
+        self.assertTrue(self.pool.is_closed)
+
     async def test_close_context_manager(self):
         async def getter():
-            async with self.pool.acquire() as instance:
-                assert instance > 0
-                await asyncio.sleep(0.01)
-                return self.counter
+            async with self.pool.acquire():
+                await asyncio.sleep(0.05)
 
         async with self.pool:
+            self.assertFalse(self.pool.is_closed)
+
+            self.assertTrue(len(self.instances) == 0)
+
             await asyncio.gather(
                 *[getter() for _ in range(200)],
                 loop=self.loop, return_exceptions=True
             )
 
+            self.assertTrue(len(self.instances) > 1)
+
             for instance in self.instances:
                 self.assertFalse(instance.closed)
 
-        for instance in self.instances:
-            self.assertTrue(instance.closed)
+            self.assertFalse(self.pool.is_closed)
 
         self.assertTrue(self.pool.is_closed)
+
+        for instance in self.instances:
+            self.assertTrue(instance.closed)
 
 
 class TestCaseNoMaxSize(BaseTestCase):
