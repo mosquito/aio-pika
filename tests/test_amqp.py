@@ -1443,7 +1443,7 @@ class TestCase(BaseTestCase):
                         async for message in q:
                             with message.process():
                                 break
-            except Exception:
+            except asyncio.CancelledError:
                 logger.exception("Error")
                 raise
 

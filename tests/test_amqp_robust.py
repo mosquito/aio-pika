@@ -58,7 +58,6 @@ class Proxy:
             self.handle_client,
             host=self.src_host,
             port=self.src_port,
-            loop=self.loop,
         )
 
     async def disconnect(self, wait=True):
