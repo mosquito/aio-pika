@@ -56,7 +56,7 @@ class RobustQueue(Queue):
             await self.consume(consumer_tag=consumer_tag, **kwargs)
 
     async def bind(self, exchange: ExchangeType_, routing_key: str=None, *,
-                   arguments=None, timeout: int=None):
+                   arguments=None, timeout: int=None, robust: bool = True):
 
         if routing_key is None:
             routing_key = self.name
@@ -69,7 +69,8 @@ class RobustQueue(Queue):
             **kwargs
         )
 
-        self._bindings[(exchange, routing_key)] = kwargs
+        if robust:
+            self._bindings[(exchange, routing_key)] = kwargs
 
         return result
 
@@ -88,7 +89,8 @@ class RobustQueue(Queue):
 
     async def consume(self, callback: FunctionType, no_ack: bool=False,
                       exclusive: bool=False, arguments: dict=None,
-                      consumer_tag=None, timeout=None) -> ConsumerTag:
+                      consumer_tag=None, timeout=None,
+                      robust: bool = True) -> ConsumerTag:
 
         kwargs = dict(
             callback=callback,
@@ -101,7 +103,8 @@ class RobustQueue(Queue):
             consumer_tag=consumer_tag, **kwargs
         )
 
-        self._consumers[consumer_tag] = kwargs
+        if robust:
+            self._consumers[consumer_tag] = kwargs
 
         return consumer_tag
 
