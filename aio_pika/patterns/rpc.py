@@ -14,7 +14,8 @@ from aio_pika.exceptions import DeliveryError
 from aio_pika.message import (
     Message, IncomingMessage, DeliveryMode, ReturnedMessage
 )
-from aio_pika.tools import shield, awaitable
+from aio_pika.tools import shield
+from aiormq.tools import awaitable
 from .base import Proxy, Base
 
 log = logging.getLogger(__name__)

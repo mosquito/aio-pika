@@ -10,7 +10,7 @@ from aio_pika.queue import Queue
 from aio_pika.message import (
     IncomingMessage, Message, DeliveryMode, ReturnedMessage
 )
-from aio_pika.tools import awaitable
+from aiormq.tools import awaitable
 
 from .base import Proxy, Base
 

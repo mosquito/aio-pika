@@ -5,7 +5,8 @@ from collections.abc import Set
 from threading import Lock
 from typing import Callable, Iterable
 
-__all__ = 'create_task', 'iscoroutinepartial', 'shield', 'CallbackCollection',
+
+__all__ = 'create_task', 'iscoroutinepartial', 'shield', 'CallbackCollection'
 
 log = logging.getLogger(__name__)
 
@@ -31,24 +32,6 @@ def iscoroutinepartial(fn):
             break
 
     return asyncio.iscoroutinefunction(parent)
-
-
-def awaitable(func):
-    # Avoid python 3.8+ warning
-    if asyncio.iscoroutinefunction(func):
-        return func
-
-    @wraps(func)
-    async def wrap(*args, **kwargs):
-        result = func(*args, **kwargs)
-
-        if hasattr(result, '__await__'):
-            return await result
-        if asyncio.iscoroutine(result) or asyncio.isfuture(result):
-            return await result
-        return result
-
-    return wrap
 
 
 def create_task(func, *args, loop=None, **kwargs):
