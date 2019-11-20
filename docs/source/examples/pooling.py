@@ -40,9 +40,10 @@ async def main():
                 queue_name,
             )
 
-    task = loop.create_task(consume())
-    await asyncio.wait([publish() for _ in range(10000)])
-    await task
+    async with connection_pool, channel_pool:
+        task = loop.create_task(consume())
+        await asyncio.wait([publish() for _ in range(10000)])
+        await task
 
 
 if __name__ == "__main__":
