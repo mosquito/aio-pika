@@ -1,3 +1,26 @@
+6.4.0
+-----
+
+* aiormq updates:
+    * Fixes for python 3.8 
+    [#69](https://github.com/mosquito/aiormq/pull/69) 
+    [#67](https://github.com/mosquito/aiormq/pull/67)
+    * [passing ``name=`` query parameter](https://github.com/mosquito/aiormq/pull/69/commits/a967502e6dbdf5de422cfb183932bcec134250ad)
+    from URL to user defined connection name (Rabbitmq 3.8+) 
+    * Fix connection drain [#68](https://github.com/mosquito/aiormq/pull/68)
+    * Remove ``loop=`` argument from asyncio entities [#67](https://github.com/mosquito/aiormq/pull/67)
+    * ChannelInvalidStateError exceptions instead of RuntimeError 
+    [#65](https://github.com/mosquito/aiormq/pull/65)
+* Update tests for python 3.8
+* ``Pool.close()`` method and allow to use ``Pool`` as a context manager 
+[#269](https://github.com/mosquito/aio-pika/pull/269)
+* Fix stuck of ``RobustConnection`` when exclusive queues still locked 
+on server-side [#267](https://github.com/mosquito/aio-pika/pull/267)
+* Add ``global_`` parameter to ``Channel.set_qos`` method 
+[#266](https://github.com/mosquito/aio-pika/pull/266)
+* Fix ``Connection.drain()`` is ``None`` 
+[Fix connection drain](https://github.com/mosquito/aiormq/pull/68)
+
 6.3.0
 -----
 
