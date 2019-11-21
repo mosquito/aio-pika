@@ -92,6 +92,8 @@ class RobustConnection(Connection):
         self._reconnect_callbacks.add(callback)
 
     async def __cleanup_connection(self, exc):
+        if self.connection is None:
+            return
         await asyncio.gather(
             self.connection.close(exc),
             return_exceptions=True,
