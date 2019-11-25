@@ -63,7 +63,7 @@ class Connection:
     @property
     def heartbeat_last(self) -> float:
         """ returns loop.time() value since last received heartbeat """
-        return self.connection.heartbeat_last
+        return self.connection.heartbeat_last_received
 
     @property
     def _channels(self) -> dict:
