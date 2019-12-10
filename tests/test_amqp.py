@@ -36,9 +36,6 @@ class TestCase(BaseTestCase):
         client = await self.create_connection()
         event = asyncio.Event()
 
-        self.get_random_name("test_connection")
-        self.get_random_name()
-
         self.__closed = False
 
         def on_close(ch):
@@ -59,6 +56,15 @@ class TestCase(BaseTestCase):
             await channel.initialize()
 
         await self.create_channel(connection=client)
+
+    async def test_channel_reopen(self):
+        channel = await self.create_channel()
+
+        await channel.close()
+        self.assertTrue(channel.is_closed)
+
+        await channel.reopen()
+        self.assertFalse(channel.is_closed)
 
     async def test_delete_queue_and_exchange(self):
         queue_name = self.get_random_name("test_connection")
