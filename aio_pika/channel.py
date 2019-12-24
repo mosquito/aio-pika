@@ -225,6 +225,7 @@ class Channel:
 
     async def get_exchange(self, name: str) -> Queue:
         """
+        It's a shortcut for ``.declare_exchange(..., passive=True)``.
 
         :param name: queue name
         :return: :class:`aio_pika.queue.Queue` instance
@@ -271,6 +272,7 @@ class Channel:
 
     async def get_queue(self, name: str) -> Queue:
         """
+        It's a shortcut for ``.declare_queue(..., passive=True)``.
 
         :param name: queue name
         :return: :class:`aio_pika.queue.Queue` instance
