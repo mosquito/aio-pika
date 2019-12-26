@@ -227,8 +227,8 @@ class Channel:
         """
         It's a shortcut for ``.declare_exchange(..., passive=True)``.
 
-        :param name: queue name
-        :return: :class:`aio_pika.queue.Queue` instance
+        :param name: exchange name
+        :return: :class:`aio_pika.exchange.Exchange` instance
         """
 
         return await self.declare_exchange(name=name, passive=True)
