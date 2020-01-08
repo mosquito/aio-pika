@@ -53,13 +53,11 @@ class RobustConnection(Connection):
     def _channels(self) -> dict:
         return {ch.number: ch for ch in self.__channels}
 
+    def remove_channel(self, chanel):
+        self.__channels.remove(chanel)
+
     def _on_connection_close(self, connection, closing, *args, **kwargs):
         self.connection = None
-
-        # Have to remove non initialized channels
-        self.__channels = {
-            ch for ch in self.__channels if ch.number is not None
-        }
 
         super()._on_connection_close(connection, closing)
 
