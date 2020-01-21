@@ -1,3 +1,5 @@
+from typing import Union
+
 import aiormq
 
 try:  # pragma: no cover
@@ -91,14 +93,12 @@ class RobustChannel(Channel):
             timeout=timeout,
         )
 
-    async def declare_exchange(self, name: str,
-                               type: ExchangeType = ExchangeType.DIRECT,
-                               durable: bool = None, auto_delete: bool = False,
-                               internal: bool = False, passive: bool = False,
-                               arguments: dict = None,
-                               timeout: TimeoutType = None,
-                               robust: bool = True) -> Exchange:
-
+    async def declare_exchange(
+        self, name: str, type: Union[ExchangeType, str] = ExchangeType.DIRECT,
+        durable: bool = None, auto_delete: bool = False,
+        internal: bool = False, passive: bool = False, arguments: dict = None,
+        timeout: TimeoutType = None, robust: bool = True
+    ) -> Exchange:
         exchange = await super().declare_exchange(
             name=name, type=type, durable=durable, auto_delete=auto_delete,
             internal=internal, passive=passive, arguments=arguments,
