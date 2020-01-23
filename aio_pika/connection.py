@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from functools import partial
-from typing import Callable, Type, TypeVar
+from typing import Callable, Type, TypeVar, Optional
 
 from yarl import URL
 
@@ -75,10 +75,12 @@ class Connection:
     def __repr__(self):
         return '<{0}: "{1}">'.format(self.__class__.__name__, str(self))
 
-    def add_close_callback(self, callback: Callable[[], None]):
+    def add_close_callback(
+        self, callback: Callable[[Optional[BaseException]], None]
+    ):
         """ Add callback which will be called after connection will be closed.
 
-        :class:`asyncio.Future` will be passed as a first argument.
+        :class:`BaseException` or None will be passed as a first argument.
 
         Example:
 
@@ -92,7 +94,7 @@ class Connection:
                 )
                 connection.add_close_callback(print)
                 await connection.close()
-                # <Future finished result='Normal shutdown'>
+                # None
 
 
         :return: None
