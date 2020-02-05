@@ -26,6 +26,13 @@ log = logging.getLogger(__name__)
 
 
 class TestCase(BaseTestCase):
+    async def test_properties(self):
+        client = await self.create_connection()
+
+        self.assertFalse(client.is_closed)
+        self.assertTrue(client.heartbeat_last < self.loop.time())
+        self.assertTrue(bool(client.close_callbacks))
+
     async def test_channel_close(self):
         client = await self.create_connection()
         event = asyncio.Event()

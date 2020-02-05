@@ -37,6 +37,7 @@ class RobustChannel(Channel):
             False if you don't need delivery confirmations
             (in pursuit of performance)
         """
+
         super().__init__(
             connection=connection,
             channel_number=channel_number,
@@ -62,8 +63,12 @@ class RobustChannel(Channel):
         for queue in self._queues.values():
             await queue.on_reconnect(self)
 
+    async def _on_channel_close(self, exc: Exception):
+        log.exception("Robust channel %r has been closed.", self, exc_info=exc)
+
     async def initialize(self, timeout: TimeoutType = None):
         result = await super().initialize()
+        self.add_close_callback(self._on_channel_close)
 
         prefetch_count, prefetch_size, global_ = self._qos
 

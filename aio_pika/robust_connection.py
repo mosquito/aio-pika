@@ -60,6 +60,11 @@ class RobustConnection(Connection):
     def _channels(self) -> dict:
         return {ch.number: ch for ch in self.__channels}
 
+    def __repr__(self):
+        return '<{0}: "{1}" {2} channels>'.format(
+            self.__class__.__name__, str(self), len(self.__channels)
+        )
+
     def _on_connection_close(self, connection, closing, *args, **kwargs):
         if self.reconnecting:
             return
