@@ -321,7 +321,7 @@ async def connect(
     connection = connection_class(url, loop=loop)
 
     await connection.connect(
-        timeout=timeout, client_properties=client_properties
+        timeout=timeout, client_properties=client_properties, loop=loop
     )
     return connection
 
