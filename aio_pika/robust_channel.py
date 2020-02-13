@@ -46,7 +46,6 @@ class RobustChannel(Channel):
             on_return_raises=on_return_raises,
         )
 
-        self._closed = False
         self._exchanges = dict()
         self._queues = dict()
         self._qos = 0, 0, False
