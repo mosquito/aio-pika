@@ -4,147 +4,179 @@ name: default
 
 
 steps:
+  - name: prepare toxenv
+    image: snakepacker/python:all
+    group: tests
+    pull: always
+    commands:
+      - tox --notest
+    volumes:
+      - name: cache
+        path: /drone/src/.tox
+
   - name: linter
     image: snakepacker/python:all
-    depends_on:
-      - rabbitmq
     commands:
-      - wait-for-port rabbitmq:5672
       - tox
     environment:
       TOXENV: lint
+    volumes:
+      - name: cache
+        path: /drone/src/.tox
 
   - name: mypy
     image: snakepacker/python:all
-    depends_on:
-      - linter
+    group: tests
     pull: always
     commands:
-      - wait-for-port rabbitmq:5672
       - tox
     environment:
       TOXENV: mypy
+    volumes:
+      - name: cache
+        path: /drone/src/.tox
 
   - name: checkdoc
     image: snakepacker/python:all
-    depends_on:
-      - linter
+    group: tests
     pull: always
     commands:
-      - wait-for-port rabbitmq:5672
       - tox
     environment:
       TOXENV: checkdoc
+    volumes:
+      - name: cache
+        path: /drone/src/.tox
 
   - name: python 3.8
     image: snakepacker/python:all
-    depends_on:
-      - linter
     commands:
-      - wait-for-port rabbitmq:5672
       - tox
     environment:
       AMQP_URL: amqp://guest:guest@rabbitmq
       TOXENV: py38
       COVERALLS_REPO_TOKEN:
         from_secret: COVERALLS_TOKEN
+    volumes:
+      - name: cache
+        path: /drone/src/.tox
 
   - name: python 3.8 uvloop
     image: snakepacker/python:all
-    depends_on:
-      - linter
     commands:
-      - wait-for-port rabbitmq:5672
       - tox
     environment:
       AMQP_URL: amqp://guest:guest@rabbitmq
       TOXENV: py38-uvloop
       COVERALLS_REPO_TOKEN:
         from_secret: COVERALLS_TOKEN
+    volumes:
+      - name: cache
+        path: /drone/src/.tox
 
   - name: python 3.7
     image: snakepacker/python:all
-    depends_on:
-      - linter
     commands:
-      - wait-for-port rabbitmq:5672
       - tox
     environment:
       AMQP_URL: amqp://guest:guest@rabbitmq
       TOXENV: py37
       COVERALLS_REPO_TOKEN:
         from_secret: COVERALLS_TOKEN
+    volumes:
+      - name: cache
+        path: /drone/src/.tox
 
   - name: python 3.7 uvloop
     image: snakepacker/python:all
-    depends_on:
-      - linter
     commands:
-      - wait-for-port rabbitmq:5672
       - tox
     environment:
       AMQP_URL: amqp://guest:guest@rabbitmq
       TOXENV: py37-uvloop
       COVERALLS_REPO_TOKEN:
         from_secret: COVERALLS_TOKEN
+    volumes:
+      - name: cache
+        path: /drone/src/.tox
 
   - name: python 3.6
     image: snakepacker/python:all
-    depends_on:
-      - linter
     commands:
-      - wait-for-port rabbitmq:5672
       - tox
     environment:
       AMQP_URL: amqp://guest:guest@rabbitmq
       TOXENV: py36
       COVERALLS_REPO_TOKEN:
         from_secret: COVERALLS_TOKEN
+    volumes:
+      - name: cache
+        path: /drone/src/.tox
 
   - name: python 3.6 uvloop
     image: snakepacker/python:all
-    depends_on:
-      - linter
     commands:
-      - wait-for-port rabbitmq:5672
       - tox
     environment:
       AMQP_URL: amqp://guest:guest@rabbitmq
       TOXENV: py36-uvloop
       COVERALLS_REPO_TOKEN:
         from_secret: COVERALLS_TOKEN
+    volumes:
+      - name: cache
+        path: /drone/src/.tox
 
   - name: python 3.5
     image: snakepacker/python:all
-    depends_on:
-      - linter
     commands:
-      - wait-for-port rabbitmq:5672
       - tox
     environment:
       AMQP_URL: amqp://guest:guest@rabbitmq
       TOXENV: py35
       COVERALLS_REPO_TOKEN:
         from_secret: COVERALLS_TOKEN
+    volumes:
+      - name: cache
+        path: /drone/src/.tox
 
   - name: python 3.5 uvloop
     image: snakepacker/python:all
-    depends_on:
-      - linter
     commands:
-      - wait-for-port rabbitmq:5672
       - tox
     environment:
       AMQP_URL: amqp://guest:guest@rabbitmq
       TOXENV: py35-uvloop
       COVERALLS_REPO_TOKEN:
         from_secret: COVERALLS_TOKEN
+    volumes:
+      - name: cache
+        path: /drone/src/.tox
+
+  - name: notify
+    image: drillster/drone-email
+    settings:
+      host:
+        from_secret: SMTP_HOST
+      username:
+        from_secret: SMTP_USERNAME
+      password:
+        from_secret: SMTP_PASSWORD
+      from:
+        from_secret: SMTP_USERNAME
+      when:
+        status:
+          - changed
+          - failure
+
+volumes:
+  - name: cache
+    temp: {}
 
 services:
   - name: rabbitmq
     image: rabbitmq:3-alpine
 ---
 kind: signature
-hmac: f3afa41c65101d4c07c3ce60f26fba2086d5b9a316f140a77d3bdf2ac7afa1ba
+hmac: 32a7f019710b16f795a6531ef6fab89d2ab24f50aaee729c3a7379a0dda472b0
 
 ...
