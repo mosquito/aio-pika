@@ -72,11 +72,6 @@ class RobustChannel(Channel):
 
         return result
 
-    async def close(self, exc=None):
-        await super().close(exc)
-
-        self._connection.remove_channel(self)
-
     async def set_qos(self, prefetch_count: int = 0, prefetch_size: int = 0,
                       all_channels=False, timeout: TimeoutType = None):
 

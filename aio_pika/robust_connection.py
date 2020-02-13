@@ -2,6 +2,7 @@ import asyncio
 from functools import wraps
 from logging import getLogger
 from typing import Callable, Type
+from weakref import WeakSet
 
 from aiormq.connection import parse_bool, parse_int
 from .exceptions import CONNECTION_EXCEPTIONS
@@ -41,7 +42,7 @@ class RobustConnection(Connection):
         self.reconnect_interval = self.kwargs['reconnect_interval']
         self.fail_fast = self.kwargs['fail_fast']
 
-        self.__channels = set()
+        self.__channels = WeakSet()
         self._reconnect_callbacks = CallbackCollection()
         self._closed = False
 
@@ -52,9 +53,6 @@ class RobustConnection(Connection):
     @property
     def _channels(self) -> dict:
         return {ch.number: ch for ch in self.__channels}
-
-    def remove_channel(self, chanel):
-        self.__channels.remove(chanel)
 
     def _on_connection_close(self, connection, closing, *args, **kwargs):
         self.connection = None
