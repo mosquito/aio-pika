@@ -6,6 +6,8 @@ name: default
 steps:
   - name: linter
     image: snakepacker/python:all
+    depends_on:
+      - rabbitmq
     commands:
       - wait-for-port rabbitmq:5672
       - tox
@@ -143,6 +145,6 @@ services:
     image: rabbitmq:3-alpine
 ---
 kind: signature
-hmac: b08a61b3eb2e1b32a313778123cc46e0982b264acf09f3717b43b9d2ed0663b0
+hmac: f3afa41c65101d4c07c3ce60f26fba2086d5b9a316f140a77d3bdf2ac7afa1ba
 
 ...
