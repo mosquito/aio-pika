@@ -31,7 +31,6 @@ class TestCase(BaseTestCase):
 
         self.assertFalse(client.is_closed)
         self.assertTrue(client.heartbeat_last < self.loop.time())
-        self.assertTrue(bool(client.close_callbacks))
 
     async def test_channel_close(self):
         client = await self.create_connection()
