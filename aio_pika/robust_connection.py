@@ -2,6 +2,7 @@ import asyncio
 from functools import wraps
 from logging import getLogger
 from typing import Callable, Type
+from weakref import WeakSet
 
 from aiormq.connection import parse_bool, parse_int
 from .exceptions import CONNECTION_EXCEPTIONS
@@ -42,7 +43,7 @@ class RobustConnection(Connection):
         self.reconnect_interval = self.kwargs['reconnect_interval']
         self.fail_fast = self.kwargs['fail_fast']
 
-        self.__channels = set()
+        self.__channels = WeakSet()
         self._reconnect_callbacks = CallbackCollection()
         self._connect_lock = asyncio.Lock()
         self._closed = False
@@ -71,11 +72,6 @@ class RobustConnection(Connection):
 
         self.connected.clear()
         self.connection = None
-
-        # Have to remove non initialized channels
-        self.__channels = {
-            ch for ch in self.__channels if ch.number is not None
-        }
 
         super()._on_connection_close(connection, closing)
 
