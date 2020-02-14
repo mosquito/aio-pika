@@ -16,6 +16,7 @@ import aiormq.types
 from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage
 from .queue import Queue
+from .tools import OPERATION_TIMEOUT
 from .transaction import Transaction
 from .types import ReturnCallbackType, CloseCallbackType, TimeoutType
 
@@ -107,6 +108,12 @@ class Channel:
     def number(self):
         return self.channel.number if self._channel else None
 
+    def _get_operation_timeout(self, timeout: TimeoutType):
+        return (
+            self._connection.operation_timeout if timeout is OPERATION_TIMEOUT
+            else timeout
+        )
+
     def __str__(self):
         return "{0}".format(
             self.number or "Not initialized channel"
@@ -159,12 +166,14 @@ class Channel:
             channel_number=self._channel_number,
         )
 
-    async def initialize(self, timeout: TimeoutType = None) -> None:
+    async def initialize(self,
+                         timeout: TimeoutType = OPERATION_TIMEOUT) -> None:
         if self._channel is not None:
             raise RuntimeError("Can't initialize channel")
 
         self._channel = await asyncio.wait_for(
-            self._create_channel(), timeout=timeout
+            self._create_channel(),
+            timeout=self._get_operation_timeout(timeout)
         )
 
         self._delivery_tag = 0
@@ -190,7 +199,7 @@ class Channel:
         self, name: str, type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         durable: bool = None, auto_delete: bool = False,
         internal: bool = False, passive: bool = False, arguments: dict = None,
-        timeout: TimeoutType = None
+        timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> Exchange:
         """
         Declare an exchange.
@@ -228,7 +237,7 @@ class Channel:
         self, name: str = None, *, durable: bool = None,
         exclusive: bool = False, passive: bool = False,
         auto_delete: bool = False, arguments: dict = None,
-        timeout: TimeoutType = None
+        timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> Queue:
 
         """
@@ -248,7 +257,7 @@ class Channel:
         """
 
         queue = self.QUEUE_CLASS(
-            connection=self,
+            connection=self._connection,
             channel=self.channel,
             name=name,
             durable=durable,
@@ -264,7 +273,7 @@ class Channel:
 
     async def set_qos(
         self, prefetch_count: int = 0, prefetch_size: int = 0,
-        global_: bool = False, timeout: TimeoutType = None,
+        global_: bool = False, timeout: TimeoutType = OPERATION_TIMEOUT,
         all_channels: bool = None
     ) -> aiormq.spec.Basic.QosOk:
         if all_channels is not None:
@@ -277,11 +286,11 @@ class Channel:
                 prefetch_size=prefetch_size,
                 global_=global_
             ),
-            timeout=timeout
+            timeout=self._get_operation_timeout(timeout)
         )
 
     async def queue_delete(
-        self, queue_name: str, timeout: TimeoutType = None,
+        self, queue_name: str, timeout: TimeoutType = OPERATION_TIMEOUT,
         if_unused: bool = False, if_empty: bool = False, nowait: bool = False
     ) -> aiormq.spec.Queue.DeleteOk:
 
@@ -292,11 +301,11 @@ class Channel:
                 if_empty=if_empty,
                 nowait=nowait,
             ),
-            timeout=timeout
+            timeout=self._get_operation_timeout(timeout)
         )
 
     async def exchange_delete(
-        self, exchange_name: str, timeout: TimeoutType = None,
+        self, exchange_name: str, timeout: TimeoutType = OPERATION_TIMEOUT,
         if_unused: bool = False, nowait: bool = False
     ) -> aiormq.spec.Exchange.DeleteOk:
 
@@ -306,7 +315,7 @@ class Channel:
                 if_unused=if_unused,
                 nowait=nowait,
             ),
-            timeout=timeout
+            timeout=self._get_operation_timeout(timeout)
         )
 
     def transaction(self) -> Transaction:
@@ -314,7 +323,7 @@ class Channel:
             raise RuntimeError("Cannot create transaction when publisher "
                                "confirms are enabled")
 
-        return Transaction(self._channel)
+        return Transaction(connection=self._connection, channel=self._channel)
 
     async def flow(self, active: bool = True) -> aiormq.spec.Channel.FlowOk:
         return await self.channel.flow(active=active)

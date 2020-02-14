@@ -9,9 +9,9 @@ from aiormq.types import DeliveredMessage
 
 from .exceptions import QueueEmpty
 from .exchange import Exchange
-from aio_pika.types import ExchangeType as ExchangeType_
+from .types import ExchangeType as ExchangeType_, TimeoutType
 from .message import IncomingMessage
-from .tools import create_task, shield
+from .tools import OPERATION_TIMEOUT, create_task, shield
 
 log = getLogger(__name__)
 
@@ -36,6 +36,7 @@ class Queue:
 
         self.loop = connection.loop
 
+        self._connection = connection
         self._channel = channel
         self.name = name or ''
         self.durable = durable
@@ -51,6 +52,12 @@ class Queue:
         if self._channel is None:
             raise RuntimeError("Channel not opened")
         return self._channel
+
+    def _get_operation_timeout(self, timeout: TimeoutType):
+        return (
+            self._connection.operation_timeout if timeout is OPERATION_TIMEOUT
+            else timeout
+        )
 
     def __str__(self):
         return "%s" % self.name
@@ -70,7 +77,9 @@ class Queue:
             self.arguments,
         )
 
-    async def declare(self, timeout: int=None) -> aiormq.spec.Queue.DeclareOk:
+    async def declare(
+            self, timeout: TimeoutType = OPERATION_TIMEOUT
+    ) -> aiormq.spec.Queue.DeclareOk:
         """ Declare queue.
 
         :param timeout: execution timeout
@@ -84,7 +93,7 @@ class Queue:
                 queue=self.name, durable=self.durable,
                 exclusive=self.exclusive, auto_delete=self.auto_delete,
                 arguments=self.arguments, passive=self.passive,
-            ), timeout=timeout
+            ), timeout=self._get_operation_timeout(timeout)
         )  # type: aiormq.spec.Queue.DeclareOk
 
         self.name = self.declaration_result.queue
@@ -92,7 +101,7 @@ class Queue:
 
     async def bind(
         self, exchange: ExchangeType_, routing_key: str=None, *,
-        arguments=None, timeout: int=None
+        arguments=None, timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> aiormq.spec.Queue.BindOk:
 
         """ A binding is a relationship between an exchange and a queue.
@@ -126,12 +135,12 @@ class Queue:
                 exchange=Exchange._get_exchange_name(exchange),
                 routing_key=routing_key,
                 arguments=arguments
-            ), timeout=timeout
+            ), timeout=self._get_operation_timeout(timeout)
         )
 
     async def unbind(
         self, exchange: ExchangeType_, routing_key: str=None,
-        arguments: dict=None, timeout: int=None
+        arguments: dict=None, timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> aiormq.spec.Queue.UnbindOk:
 
         """ Remove binding from exchange for this :class:`Queue` instance
@@ -159,13 +168,13 @@ class Queue:
                 exchange=Exchange._get_exchange_name(exchange),
                 routing_key=routing_key,
                 arguments=arguments
-            ), timeout=timeout
+            ), timeout=self._get_operation_timeout(timeout)
         )
 
     async def consume(
         self, callback: Callable[[IncomingMessage], Any], no_ack: bool = False,
         exclusive: bool = False, arguments: dict = None,
-        consumer_tag=None, timeout=None
+        consumer_tag=None, timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> ConsumerTag:
 
         """ Start to consuming the :class:`Queue`.
@@ -203,11 +212,13 @@ class Queue:
                 arguments=arguments,
                 consumer_tag=consumer_tag,
             ),
-            timeout=timeout
+            timeout=self._get_operation_timeout(timeout)
         )).consumer_tag
 
-    async def cancel(self, consumer_tag: ConsumerTag, timeout=None,
-                     nowait: bool=False) -> aiormq.spec.Basic.CancelOk:
+    async def cancel(
+        self, consumer_tag: ConsumerTag,
+        timeout: TimeoutType = OPERATION_TIMEOUT, nowait: bool=False
+    ) -> aiormq.spec.Basic.CancelOk:
         """ This method cancels a consumer. This does not affect already
         delivered messages, but it does mean the server will not send any more
         messages for that consumer. The client may receive an arbitrary number
@@ -230,11 +241,12 @@ class Queue:
                 consumer_tag=consumer_tag,
                 nowait=nowait
             ),
-            timeout=timeout
+            timeout=self._get_operation_timeout(timeout)
         )
 
     async def get(
-        self, *, no_ack=False, fail=True, timeout=5
+        self, *, no_ack=False, fail=True,
+        timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> Optional[IncomingMessage]:
 
         """ Get message from the queue.
@@ -249,7 +261,7 @@ class Queue:
 
         msg = await asyncio.wait_for(self.channel.basic_get(
                 self.name, no_ack=no_ack
-            ), timeout=timeout
+            ), timeout=self._get_operation_timeout(timeout)
         )   # type: Optional[DeliveredMessage]
 
         if msg is None:
@@ -260,7 +272,7 @@ class Queue:
         return IncomingMessage(msg, no_ack=no_ack)
 
     async def purge(
-        self, no_wait=False, timeout=None
+        self, no_wait=False, timeout: TimeoutType = OPERATION_TIMEOUT
     ) -> aiormq.spec.Queue.PurgeOk:
         """ Purge all messages from the queue.
 
@@ -275,11 +287,13 @@ class Queue:
             self.channel.queue_purge(
                 self.name,
                 nowait=no_wait,
-            ), timeout=timeout
+            ), timeout=self._get_operation_timeout(timeout)
         )
 
-    async def delete(self, *, if_unused=True, if_empty=True,
-                     timeout=None) -> aiormq.spec.Queue.DeclareOk:
+    async def delete(
+        self, *, if_unused=True, if_empty=True,
+        timeout: TimeoutType = OPERATION_TIMEOUT
+    ) -> aiormq.spec.Queue.DeclareOk:
 
         """ Delete the queue.
 
@@ -294,7 +308,7 @@ class Queue:
         return await asyncio.wait_for(
             self.channel.queue_delete(
                 self.name, if_unused=if_unused, if_empty=if_empty
-            ), timeout=timeout
+            ), timeout=self._get_operation_timeout(timeout)
         )
 
     def __aiter__(self) -> 'QueueIterator':

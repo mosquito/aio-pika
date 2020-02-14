@@ -5,6 +5,8 @@ import aiormq
 
 from .exchange import Exchange, ExchangeType
 from .channel import Channel
+from .tools import OPERATION_TIMEOUT
+from .types import TimeoutType
 
 
 log = getLogger(__name__)
@@ -42,7 +44,8 @@ class RobustExchange(Exchange):
             await self.bind(exchange, **kwargs)
 
     async def bind(self, exchange, routing_key: str='', *,
-                   arguments=None, timeout: int=None, robust: bool = True):
+                   arguments=None, timeout: TimeoutType = OPERATION_TIMEOUT,
+                   robust: bool = True):
         result = await super().bind(
             exchange, routing_key=routing_key,
             arguments=arguments, timeout=timeout
@@ -56,7 +59,8 @@ class RobustExchange(Exchange):
         return result
 
     async def unbind(self, exchange, routing_key: str = '',
-                     arguments: dict=None, timeout: int=None):
+                     arguments: dict=None,
+                     timeout: TimeoutType = OPERATION_TIMEOUT):
 
         result = await super().unbind(exchange, routing_key,
                                       arguments=arguments, timeout=timeout)
