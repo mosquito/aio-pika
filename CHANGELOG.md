@@ -1,3 +1,10 @@
+6.4.3
+-----
+
+* log channel close status
+* add OSError to `CONNECTION_EXCEPTIONS`
+
+
 6.4.2
 -----
 
