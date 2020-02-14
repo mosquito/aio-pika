@@ -1,3 +1,16 @@
+6.4.2
+-----
+
+* [fix] heartbeat_last to heartbeat_last_received #274
+* Fix memory leak #285
+* Fix type hint #287
+* Pass loop when connecting to aiormq #294
+
+6.4.1
+-----
+
+* RobustConnection cleanup fixes #273
+
 6.4.0
 -----
 
