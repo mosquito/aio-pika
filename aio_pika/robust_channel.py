@@ -64,8 +64,13 @@ class RobustChannel(Channel):
         for queue in self._queues.values():
             await queue.on_reconnect(self)
 
-    async def _on_channel_close(self, exc: Exception):
-        log.exception("Robust channel %r has been closed.", self, exc_info=exc)
+    def _on_channel_close(self, exc: Exception):
+        if exc:
+            log.exception(
+                "Robust channel %r has been closed.", self, exc_info=exc
+            )
+        else:
+            log.debug("Robust channel %r has been closed.", self)
 
     async def initialize(self, timeout: TimeoutType = None):
         result = await super().initialize()

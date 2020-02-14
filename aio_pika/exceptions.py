@@ -28,6 +28,7 @@ PAMQP_EXCEPTIONS = (
 CONNECTION_EXCEPTIONS = (
     RuntimeError,
     ConnectionError,
+    OSError,
     AMQPError,
 ) + PAMQP_EXCEPTIONS
 
