@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from functools import partial
-from typing import Callable, Type, TypeVar, Optional
+from typing import Type, TypeVar
 
 from yarl import URL
 
@@ -9,7 +9,7 @@ import aiormq
 from aiormq.tools import censor_url
 from .channel import Channel
 from .tools import CallbackCollection
-from .types import TimeoutType
+from .types import TimeoutType, CloseCallbackType
 
 try:
     from yarl import DEFAULT_PORTS
@@ -75,9 +75,7 @@ class Connection:
     def __repr__(self):
         return '<{0}: "{1}">'.format(self.__class__.__name__, str(self))
 
-    def add_close_callback(
-        self, callback: Callable[[Optional[BaseException]], None]
-    ):
+    def add_close_callback(self, callback: CloseCallbackType):
         """ Add callback which will be called after connection will be closed.
 
         :class:`BaseException` or None will be passed as a first argument.
