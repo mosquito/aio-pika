@@ -2,13 +2,7 @@ import asyncio
 from enum import unique, Enum
 from logging import getLogger
 from warnings import warn
-
-from aio_pika.tools import CallbackCollection
-
-try:  # pragma: no cover
-    from typing import Awaitable, Union  # noqa
-except ImportError:
-    from typing_extensions import Awaitable  # noqa
+from typing import Union
 
 import aiormq
 import aiormq.types
@@ -17,6 +11,7 @@ from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage
 from .queue import Queue
 from .transaction import Transaction
+from .tools import CallbackCollection
 from .types import ReturnCallbackType, CloseCallbackType, TimeoutType
 
 log = getLogger(__name__)

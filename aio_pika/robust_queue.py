@@ -7,7 +7,7 @@ from types import FunctionType
 import aiormq
 
 from .channel import Channel
-from aio_pika.types import ExchangeType as ExchangeType_
+from .types import ExchangeType as ExchangeType_
 from .queue import Queue, ConsumerTag
 
 log = getLogger(__name__)

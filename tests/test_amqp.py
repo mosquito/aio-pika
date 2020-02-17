@@ -1533,24 +1533,28 @@ class TestCase(BaseTestCase):
         self.assertEqual(queue.name, queue_passive.name)
 
     async def test_get_exchange(self):
+        channel = await self.create_channel()
         name = self.get_random_name("passive", "exchange")
 
         with self.assertRaises(aio_pika.exceptions.ChannelNotFoundEntity):
-            await self.get_exchange(name)
+            await channel.get_exchange(name)
 
-        exchange = await self.declare_exchange(name, auto_delete=True)
-        exchange_passive = await self.get_exchange(name)
+        channel = await self.create_channel()
+        exchange = await channel.declare_exchange(name, auto_delete=True)
+        exchange_passive = await channel.get_exchange(name)
 
         self.assertEqual(exchange.name, exchange_passive.name)
 
     async def test_get_queue(self):
+        channel = await self.create_channel()
         name = self.get_random_name("passive", "queue")
 
         with self.assertRaises(aio_pika.exceptions.ChannelNotFoundEntity):
-            await self.get_queue(name)
+            await channel.get_queue(name)
 
-        queue = await self.declare_queue(name, auto_delete=True)
-        queue_passive = await self.get_queue(name)
+        channel = await self.create_channel()
+        queue = await channel.declare_queue(name, auto_delete=True)
+        queue_passive = await channel.get_queue(name)
 
         self.assertEqual(queue.name, queue_passive.name)
 

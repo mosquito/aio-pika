@@ -2,11 +2,6 @@ from typing import Union
 
 import aiormq
 
-try:  # pragma: no cover
-    from typing import Awaitable  # noqa
-except ImportError:
-    from typing_extensions import Awaitable  # noqa
-
 from logging import getLogger
 from warnings import warn
 

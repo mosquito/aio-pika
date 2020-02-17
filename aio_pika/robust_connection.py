@@ -5,6 +5,7 @@ from typing import Callable, Type
 from weakref import WeakSet
 
 from aiormq.connection import parse_bool, parse_int
+
 from .exceptions import CONNECTION_EXCEPTIONS
 from .connection import Connection, connect, ConnectionType
 from .tools import CallbackCollection

@@ -9,7 +9,7 @@ from aiormq.types import DeliveredMessage
 
 from .exceptions import QueueEmpty
 from .exchange import Exchange
-from aio_pika.types import ExchangeType as ExchangeType_
+from .types import ExchangeType as ExchangeType_
 from .message import IncomingMessage
 from .tools import create_task, shield
 
