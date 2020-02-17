@@ -10,6 +10,8 @@ from unittest import mock
 
 import pytest
 import shortuuid
+
+import aiormq.exceptions
 from aiormq import ChannelLockedResource
 
 import aio_pika
@@ -1103,6 +1105,9 @@ class TestCase(BaseTestCase):
         with pytest.raises(aio_pika.exceptions.ChannelClosed):
             await channel.declare_queue("amq.restricted_queue_name",
                                         auto_delete=True)
+
+        with pytest.raises(aiormq.exceptions.ChannelInvalidStateError):
+            await channel.set_qos(100)
 
         await asyncio.wait((client.close(), client.closing))
 
