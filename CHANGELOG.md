@@ -1,3 +1,9 @@
+6.5.1
+-----
+
+* Test fixes
+* Add reopen method for channel #263
+
 6.5.0
 -----
 
