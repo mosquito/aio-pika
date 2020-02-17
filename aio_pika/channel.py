@@ -202,7 +202,10 @@ class Channel:
         :param durable: Durability (exchange survive broker restart)
         :param auto_delete: Delete queue when channel will be closed.
         :param internal: Do not send it to broker just create an object
-        :param passive: Only check to see if the queue exists.
+        :param passive: Do not fail when entity was declared
+            previously but has another params. Raises
+            :class:`aio_pika.exceptions.ChannelClosed` when exchange
+            doesn't exist.
         :param arguments: additional arguments
         :param timeout: execution timeout
         :return: :class:`aio_pika.exchange.Exchange` instance
@@ -223,12 +226,19 @@ class Channel:
 
         return exchange
 
-    async def get_exchange(self, name: str) -> Queue:
+    async def get_exchange(self, name: str) -> Exchange:
         """
         It's a shortcut for ``.declare_exchange(..., passive=True)``.
 
+        When the exchange does not exist will raise
+        :class:`aio_pika.exceptions.ChannelClosed`.
+
+        Use this method in a separate channel (or as soon as channel created).
+        This is only a way to get an exchange without declaring a new one.
+
         :param name: exchange name
         :return: :class:`aio_pika.exchange.Exchange` instance
+        :raises: :class:`aio_pika.exceptions.ChannelClosed` instance
         """
 
         return await self.declare_exchange(name=name, passive=True)
@@ -248,11 +258,14 @@ class Channel:
             connection closes. Passive declaration of an exclusive queue by
             other connections are not allowed.
         :param passive: Do not fail when entity was declared
-            previously but has another params.
+            previously but has another params. Raises
+            :class:`aio_pika.exceptions.ChannelClosed` when queue
+            doesn't exist.
         :param auto_delete: Delete queue when channel will be closed.
         :param arguments: additional arguments
         :param timeout: execution timeout
         :return: :class:`aio_pika.queue.Queue` instance
+        :raises: :class:`aio_pika.exceptions.ChannelClosed` instance
         """
 
         queue = self.QUEUE_CLASS(
@@ -274,8 +287,15 @@ class Channel:
         """
         It's a shortcut for ``.declare_queue(..., passive=True)``.
 
+        When the queue does not exist will raise
+        :class:`aio_pika.exceptions.ChannelClosed`.
+
+        Use this method in a separate channel (or as soon as channel created).
+        This is only a way to get a queue without declaring a new one.
+
         :param name: queue name
         :return: :class:`aio_pika.queue.Queue` instance
+        :raises: :class:`aio_pika.exceptions.ChannelClosed` instance
         """
 
         return await self.declare_queue(name=name, passive=True)

@@ -1,3 +1,9 @@
+6.5.2
+-----
+
+* Type annotation fixes
+* Add documentation
+
 6.5.1
 -----
 
