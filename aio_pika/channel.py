@@ -18,6 +18,7 @@ from .message import IncomingMessage
 from .queue import Queue
 from .transaction import Transaction
 from .types import ReturnCallbackType, CloseCallbackType, TimeoutType
+from .exceptions import ChannelClosed
 
 log = getLogger(__name__)
 
@@ -66,6 +67,7 @@ class Channel:
 
         # noinspection PyTypeChecker
         self.default_exchange = None       # type: Exchange
+        self._close_exc = None
 
     @property
     def done_callbacks(self) -> CallbackCollection:
@@ -89,10 +91,7 @@ class Channel:
         if self.channel.is_closed:
             return
 
-        # noinspection PyTypeChecker
-        channel = self._channel     # type: aiormq.Channel
-        self._channel = ()
-        await channel.close()
+        await self._channel.close()
 
         self._done_callbacks(exc)
 
@@ -182,6 +181,19 @@ class Channel:
         )
 
         self.channel.on_return_callbacks.add(self._on_return)
+        self.channel.closing.add_done_callback(self.__on_channel_close)
+
+    def __on_channel_close(self, closing):
+        self._channel = ()
+        self._close_exc = closing.exception()
+
+    def __ensure_channel_open(self):
+        if not self.is_closed:
+            return
+
+        raise ChannelClosed(
+            "Trying to write to already closed channel"
+        ) from self._close_exc
 
     def _on_return(self, message: aiormq.types.DeliveredMessage):
         self._return_callbacks(IncomingMessage(message, no_ack=True))
@@ -208,6 +220,8 @@ class Channel:
         :param timeout: execution timeout
         :return: :class:`aio_pika.exchange.Exchange` instance
         """
+
+        self.__ensure_channel_open()
 
         if auto_delete and durable is None:
             durable = False
@@ -246,6 +260,7 @@ class Channel:
         :param timeout: execution timeout
         :return: :class:`aio_pika.queue.Queue` instance
         """
+        self.__ensure_channel_open()
 
         queue = self.QUEUE_CLASS(
             connection=self,
@@ -267,6 +282,8 @@ class Channel:
         global_: bool = False, timeout: TimeoutType = None,
         all_channels: bool = None
     ) -> aiormq.spec.Basic.QosOk:
+        self.__ensure_channel_open()
+
         if all_channels is not None:
             warn('Use "global_" instead of "all_channels"', DeprecationWarning)
             global_ = all_channels
@@ -285,6 +302,8 @@ class Channel:
         if_unused: bool = False, if_empty: bool = False, nowait: bool = False
     ) -> aiormq.spec.Queue.DeleteOk:
 
+        self.__ensure_channel_open()
+
         return await asyncio.wait_for(
             self.channel.queue_delete(
                 queue=queue_name,
@@ -300,6 +319,8 @@ class Channel:
         if_unused: bool = False, nowait: bool = False
     ) -> aiormq.spec.Exchange.DeleteOk:
 
+        self.__ensure_channel_open()
+
         return await asyncio.wait_for(
             self.channel.exchange_delete(
                 exchange=exchange_name,
@@ -314,9 +335,13 @@ class Channel:
             raise RuntimeError("Cannot create transaction when publisher "
                                "confirms are enabled")
 
+        self.__ensure_channel_open()
+
         return Transaction(self._channel)
 
     async def flow(self, active: bool = True) -> aiormq.spec.Channel.FlowOk:
+        self.__ensure_channel_open()
+
         return await self.channel.flow(active=active)
 
 

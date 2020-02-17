@@ -1104,6 +1104,9 @@ class TestCase(BaseTestCase):
             await channel.declare_queue("amq.restricted_queue_name",
                                         auto_delete=True)
 
+        with pytest.raises(aio_pika.exceptions.ChannelClosed):
+            await channel.set_qos(100)
+
         await asyncio.wait((client.close(), client.closing))
 
     async def test_declaration_result(self):
