@@ -1,3 +1,9 @@
+6.5.0
+-----
+
+* Add get methods for exchange and queue #282
+* fix type annotation and documentation for Connection.add_close_callback #290
+
 6.4.3
 -----
 
