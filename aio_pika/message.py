@@ -7,13 +7,10 @@ from enum import IntEnum, unique
 from functools import singledispatch
 from logging import getLogger
 from pprint import pformat
-from typing import Union, Optional, Any, Callable, Dict, Iterable
+from typing import (
+    Union, Optional, Any, Callable, Dict, Iterable, AsyncContextManager
+)
 from warnings import warn
-
-try:  # pragma: no cover
-    from typing import AsyncContextManager  # noqa
-except ImportError:
-    from typing_extensions import AsyncContextManager  # noqa
 
 import aiormq
 from aiormq.types import DeliveredMessage

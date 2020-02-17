@@ -5,6 +5,7 @@ from typing import Callable, Type
 from weakref import WeakSet
 
 from aiormq.connection import parse_bool, parse_int
+
 from .exceptions import CONNECTION_EXCEPTIONS
 from .connection import Connection, connect, ConnectionType
 from .tools import CallbackCollection
@@ -35,9 +36,7 @@ class RobustConnection(Connection):
     )
 
     def __init__(self, url, loop=None, **kwargs):
-        super().__init__(
-            loop=loop or asyncio.get_event_loop(), url=url, **kwargs
-        )
+        super().__init__(url=url, loop=loop, **kwargs)
 
         self.connect_kwargs = {}
         self.reconnect_interval = self.kwargs['reconnect_interval']
@@ -124,8 +123,8 @@ class RobustConnection(Connection):
                         **self.connect_kwargs
                     )
 
-                    for number, channel in self._channels.items():
-                        await channel.on_reconnect(self, number)
+                    for channel in self._channels.values():
+                        await channel.reopen()
 
                     self.fail_fast = False
                     self.connected.set()

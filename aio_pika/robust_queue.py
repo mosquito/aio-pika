@@ -7,7 +7,7 @@ from types import FunctionType
 import aiormq
 
 from .channel import Channel
-from aio_pika.types import ExchangeType as ExchangeType_
+from .types import ExchangeType as ExchangeType_
 from .queue import Queue, ConsumerTag
 
 log = getLogger(__name__)
@@ -44,7 +44,7 @@ class RobustQueue(Queue):
         self._consumers = {}
         self._bindings = {}
 
-    async def on_reconnect(self, channel: Channel):
+    async def restore(self, channel: Channel):
         self._channel = channel._channel
 
         await self.declare()
