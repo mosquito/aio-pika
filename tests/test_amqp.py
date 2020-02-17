@@ -1499,6 +1499,50 @@ class TestCase(BaseTestCase):
         assert messages
         assert messages[0].body == body
 
+    async def test_passive_for_exchange(self):
+        name = self.get_random_name("passive", "exchange")
+
+        with self.assertRaises(aio_pika.exceptions.ChannelNotFoundEntity):
+            await self.declare_exchange(name, passive=True)
+
+        exchange = await self.declare_exchange(name, auto_delete=True)
+        exchange_passive = await self.declare_exchange(name, passive=True)
+
+        self.assertEqual(exchange.name, exchange_passive.name)
+
+    async def test_passive_queue(self):
+        name = self.get_random_name("passive", "queue")
+
+        with self.assertRaises(aio_pika.exceptions.ChannelNotFoundEntity):
+            await self.declare_queue(name, passive=True)
+
+        queue = await self.declare_queue(name, auto_delete=True)
+        queue_passive = await self.declare_queue(name, passive=True)
+
+        self.assertEqual(queue.name, queue_passive.name)
+
+    async def test_get_exchange(self):
+        name = self.get_random_name("passive", "exchange")
+
+        with self.assertRaises(aio_pika.exceptions.ChannelNotFoundEntity):
+            await self.get_exchange(name)
+
+        exchange = await self.declare_exchange(name, auto_delete=True)
+        exchange_passive = await self.get_exchange(name)
+
+        self.assertEqual(exchange.name, exchange_passive.name)
+
+    async def test_get_queue(self):
+        name = self.get_random_name("passive", "queue")
+
+        with self.assertRaises(aio_pika.exceptions.ChannelNotFoundEntity):
+            await self.get_queue(name)
+
+        queue = await self.declare_queue(name, auto_delete=True)
+        queue_passive = await self.get_queue(name)
+
+        self.assertEqual(queue.name, queue_passive.name)
+
 
 class MessageTestCase(unittest.TestCase):
     def test_message_copy(self):
