@@ -224,13 +224,22 @@ class Channel:
 
         return exchange
 
+    async def get_exchange(self, name: str) -> Queue:
+        """
+        It's a shortcut for ``.declare_exchange(..., passive=True)``.
+
+        :param name: exchange name
+        :return: :class:`aio_pika.exchange.Exchange` instance
+        """
+
+        return await self.declare_exchange(name=name, passive=True)
+
     async def declare_queue(
         self, name: str = None, *, durable: bool = None,
         exclusive: bool = False, passive: bool = False,
         auto_delete: bool = False, arguments: dict = None,
         timeout: TimeoutType = None
     ) -> Queue:
-
         """
 
         :param name: queue name
@@ -261,6 +270,16 @@ class Channel:
         await queue.declare(timeout=timeout)
 
         return queue
+
+    async def get_queue(self, name: str) -> Queue:
+        """
+        It's a shortcut for ``.declare_queue(..., passive=True)``.
+
+        :param name: queue name
+        :return: :class:`aio_pika.queue.Queue` instance
+        """
+
+        return await self.declare_queue(name=name, passive=True)
 
     async def set_qos(
         self, prefetch_count: int = 0, prefetch_size: int = 0,
