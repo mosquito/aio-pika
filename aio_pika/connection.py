@@ -205,8 +205,9 @@ class Connection:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        for channel in tuple(self._channels.values()):
-            await channel.close()
+        for channel in tuple(self._channels.values()):  # _channel can change size
+            if not channel.is_closed:
+                await channel.close()
 
         await self.close()
 
