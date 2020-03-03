@@ -58,4 +58,8 @@ setup(
             'tox>=2.4',
         ],
     },
+    project_urls={
+        'Documentation': 'https://aio-pika.readthedocs.org/',
+        'Source': 'https://github.com/mosquito/aio-pika',
+    },
 )
