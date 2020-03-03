@@ -1,3 +1,8 @@
+6.5.3
+-----
+
+* Add docs and github links to setup.py #304
+
 6.5.2
 -----
 
