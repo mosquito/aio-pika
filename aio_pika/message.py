@@ -488,6 +488,10 @@ class IncomingMessage(Message):
             self.lock()
             self.__processed = True
 
+    @property
+    def channel(self):
+        return self.__channel
+
     def process(self, requeue=False, reject_on_redelivered=False,
                 ignore_processed=False) -> AsyncContextManager:
         """ Context manager for processing the message
@@ -645,12 +649,22 @@ class ProcessContext(AsyncContextManager):
 
         if not self.ignore_processed or not self.message.processed:
             if self.reject_on_redelivered and self.message.redelivered:
-                log.info("Message %r was redelivered and will be rejected",
-                         self.message)
-
-                await self.message.reject(requeue=False)
+                if not self.message.channel.is_closed:
+                    log.info(
+                        "Message %r was redelivered and will be rejected", self.message
+                    )
+                    await self.message.reject(requeue=False)
+                else:
+                    log.info(
+                        "Message %r was redelivered and reject is not sent since "
+                        "channel is closed",
+                        self.message,
+                    )
             else:
-                await self.message.reject(requeue=self.requeue)
+                if not self.message.channel.is_closed:
+                    await self.message.reject(requeue=self.requeue)
+                else:
+                    log.info("Reject is not sent since channel is closed")
 
     def __enter__(self):
         warn('Use "async with message.process()" instead', DeprecationWarning)
@@ -665,12 +679,23 @@ class ProcessContext(AsyncContextManager):
 
         if not self.ignore_processed or not self.message.processed:
             if self.reject_on_redelivered and self.message.redelivered:
-                log.info("Message %r was redelivered and will be rejected",
-                         self.message)
+                if not self.message.channel.is_closed:
+                    log.info(
+                        "Message %r was redelivered and will be rejected", self.message
+                    )
 
-                self.message.reject(requeue=False)
+                    self.message.reject(requeue=False)
+                else:
+                    log.info(
+                        "Message %r was redelivered and reject is not sent since "
+                        "channel is closed",
+                        self.message,
+                    )
             else:
-                self.message.reject(requeue=self.requeue)
+                if not self.message.channel.is_closed:
+                    self.message.reject(requeue=self.requeue)
+                else:
+                    log.info("Reject is not sent since channel is closed")
 
 
 __all__ = 'Message', 'IncomingMessage', 'ReturnedMessage', 'DeliveryMode'
