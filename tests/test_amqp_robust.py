@@ -1,9 +1,11 @@
 import asyncio
 import logging
+import pytest
+import shortuuid
 from contextlib import suppress
 from socket import socket
 
-import aiormq
+import aiormq.exceptions
 from aio_pika.connection import Connection, connect
 from aio_pika.exchange import Exchange
 from aio_pika.message import Message
@@ -278,6 +280,46 @@ class TestCase(AMQPTestCase):
         await self.loop.create_task(close_after(5, direct_conn.close))
         await proxy_conn.connected.wait()
         await proxy_queue.delete()
+
+    async def test_context_process_abrupt_channel_close(self):
+        # https://github.com/mosquito/aio-pika/issues/302
+        queue_name = self.get_random_name("test_connection")
+        routing_key = self.get_random_name()
+
+        channel = await self.create_channel()
+        exchange = await self.declare_exchange(
+            'direct', auto_delete=True, channel=channel
+        )
+        queue = await self.declare_queue(
+            queue_name, auto_delete=True, channel=channel
+        )
+
+        await queue.bind(exchange, routing_key)
+        body = bytes(shortuuid.uuid(), 'utf-8')
+
+        await exchange.publish(
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
+        )
+
+        incoming_message = await queue.get(timeout=5)
+        # close aiormq channel to emulate abrupt connection/channel close
+        await channel.channel.close()
+        with pytest.raises(aiormq.exceptions.ChannelInvalidStateError):
+            async with incoming_message.process():
+                # emulate some activity on closed channel
+                await channel.channel.basic_publish(
+                    "dummy", exchange="", routing_key="non_existent"
+                )
+
+        # emulate connection/channel restoration of connect_robust
+        await channel.reopen()
+
+        # cleanup queue
+        incoming_message = await queue.get(timeout=5)
+        async with incoming_message.process():
+            pass
+        await queue.unbind(exchange, routing_key)
 
 
 class TestCaseNoRobust(AMQPTestCase):

@@ -479,31 +479,6 @@ class TestCase(BaseTestCase):
                 raise AssertionError
 
         self.assertEqual(incoming_message.locked, True)
-
-        await exchange.publish(
-            Message(body, content_type="text/plain", headers={"foo": "bar"}),
-            routing_key,
-        )
-
-        incoming_message = await queue.get(timeout=5)
-        # close aiormq channel to emulate abrupt connection/channel close
-        await channel.channel.close()
-        with pytest.raises(aiormq.exceptions.ChannelInvalidStateError):
-            async with incoming_message.process():
-                # emulate some activity on closed channel
-                await channel.channel.basic_publish(
-                    "dummy", exchange="", routing_key="non_existent"
-                )
-
-        # emulate connection/channel restoration of connect_robust
-        await channel.reopen()
-        queue._channel = channel.channel
-        exchange._channel = channel.channel
-
-        # cleanup queue
-        incoming_message = await queue.get(timeout=5)
-        async with incoming_message.process():
-            pass
         await queue.unbind(exchange, routing_key)
 
     async def test_context_process_redelivery(self):
