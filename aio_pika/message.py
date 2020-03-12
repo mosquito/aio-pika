@@ -655,16 +655,16 @@ class ProcessContext(AsyncContextManager):
                         self.message
                     )
                     await self.message.reject(requeue=False)
-                else:
-                    log.info(
-                        "Message %r was redelivered and reject is not sent "
-                        "since channel is closed", self.message
-                    )
+                    return
+                log.warning(
+                    "Message %r was redelivered and reject is not sent "
+                    "since channel is closed", self.message
+                )
             else:
                 if not self.message.channel.is_closed:
                     await self.message.reject(requeue=self.requeue)
-                else:
-                    log.info("Reject is not sent since channel is closed")
+                    return
+                log.warning("Reject is not sent since channel is closed")
 
     def __enter__(self):
         warn('Use "async with message.process()" instead', DeprecationWarning)
@@ -686,16 +686,16 @@ class ProcessContext(AsyncContextManager):
                     )
 
                     self.message.reject(requeue=False)
-                else:
-                    log.info(
-                        "Message %r was redelivered and reject is not sent "
-                        "since channel is closed", self.message
-                    )
+                    return
+                log.warning(
+                    "Message %r was redelivered and reject is not sent "
+                    "since channel is closed", self.message
+                )
             else:
                 if not self.message.channel.is_closed:
                     self.message.reject(requeue=self.requeue)
-                else:
-                    log.info("Reject is not sent since channel is closed")
+                    return
+                log.warning("Reject is not sent since channel is closed")
 
 
 __all__ = 'Message', 'IncomingMessage', 'ReturnedMessage', 'DeliveryMode'
