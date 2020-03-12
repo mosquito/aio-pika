@@ -146,7 +146,7 @@ class RPC(Base):
         )
 
         self.channel.add_close_callback(self.on_close)
-        self.channel.add_on_return_callback(self.on_message_returned)
+        self.channel.add_on_return_callback(self.on_message_returned, weak=False)
 
     def on_close(self, exc=None):
         log.debug("Closing RPC futures because %r", exc)
@@ -170,13 +170,12 @@ class RPC(Base):
         await rpc.initialize(**kwargs)
         return rpc
 
-    @staticmethod
-    def on_message_returned(sender: 'RPC', message: ReturnedMessage):
+    def on_message_returned(self, sender: 'RPC', message: ReturnedMessage):
         correlation_id = int(
             message.correlation_id
         ) if message.correlation_id else None
 
-        future = sender.futures.pop(correlation_id, None)
+        future = self.futures.pop(correlation_id, None)
 
         if not future or future.done():
             log.warning("Unknown message was returned: %r", message)

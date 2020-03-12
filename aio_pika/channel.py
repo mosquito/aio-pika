@@ -142,8 +142,8 @@ class Channel:
     def remove_close_callback(self, callback: CloseCallbackType) -> None:
         self._done_callbacks.remove(callback)
 
-    def add_on_return_callback(self, callback: ReturnCallbackType) -> None:
-        self._return_callbacks.add(callback)
+    def add_on_return_callback(self, callback: ReturnCallbackType, weak=True) -> None:
+        self._return_callbacks.add(callback, weak=weak)
 
     def remove_on_return_callback(self, callback: ReturnCallbackType) -> None:
         self._return_callbacks.remove(callback)
