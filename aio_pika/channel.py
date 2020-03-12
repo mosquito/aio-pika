@@ -1,9 +1,8 @@
 import asyncio
 from enum import unique, Enum
 from logging import getLogger
-from typing import Optional
+from typing import Optional, Union
 from warnings import warn
-from typing import Union
 
 import aiormq
 import aiormq.types
@@ -117,6 +116,9 @@ class Channel:
         return '<%s "%s#%s">' % (
             self.__class__.__name__, conn, self
         )
+
+    def __del__(self):
+        print('deleted')
 
     def __iter__(self):
         return (yield from self.__await__())
