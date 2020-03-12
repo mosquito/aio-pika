@@ -6,7 +6,7 @@ import pickle
 import time
 from enum import Enum
 from functools import partial
-from typing import Callable, Any, TypeVar, Dict
+from typing import Callable, Any, TypeVar, Dict, Hashable, Optional
 
 from aio_pika.exchange import ExchangeType
 from aio_pika.channel import Channel
@@ -69,7 +69,7 @@ class RPC(Base):
         self.loop = self.channel.loop
         self.proxy = Proxy(self.call)
         self.result_queue = None
-        self.futures: Dict[int, asyncio.Future] = {}
+        self.futures = {}  # type Dict[int, asyncio.Future]
         self.result_consumer_tag = None
         self.routes = {}
         self.queues = {}
@@ -298,10 +298,12 @@ class RPC(Base):
         """ Executes rpc call. Might be overlapped. """
         return await func(**payload)
 
-    async def call(self, method_name, kwargs: dict=None, *,
-                   expiration: int=None, priority: int=5,
-                   delivery_mode: DeliveryMode=DELIVERY_MODE):
-
+    async def call(
+        self, method_name,
+        kwargs: Optional[Dict[Hashable, Any]] = None, *,
+        expiration: Optional[int] = None, priority: int = 5,
+        delivery_mode: DeliveryMode = DELIVERY_MODE
+    ):
         """ Call remote method and awaiting result.
 
         :param method_name: Name of method
