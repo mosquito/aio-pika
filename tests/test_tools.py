@@ -12,12 +12,12 @@ log = logging.getLogger(__name__)
 class TestCase(BaseTestCase):
     @classmethod
     def make_collection(cls):
-        return CallbackCollection()
+        return CallbackCollection(None)
 
     def test_basic(self):
         collection = self.make_collection()
 
-        def func():
+        def func(sender, *args, **kwargs):
             pass
 
         collection.add(func)

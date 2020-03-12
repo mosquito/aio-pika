@@ -961,7 +961,10 @@ class TestCase(BaseTestCase):
 
         f = self.loop.create_future()
 
-        channel.add_on_return_callback(f.set_result)
+        def handler(sender, *args, **kwargs):
+            f.set_result(*args, **kwargs)
+
+        channel.add_on_return_callback(handler)
 
         body = bytes(shortuuid.uuid(), 'utf-8')
 
@@ -985,7 +988,7 @@ class TestCase(BaseTestCase):
 
         channel = await client.channel()  # type: aio_pika.Channel
 
-        def bad_handler(message):
+        def bad_handler(sender, message):
             try:
                 raise ValueError
             finally:

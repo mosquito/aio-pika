@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from weakref import ref, WeakSet
 from functools import wraps
 from collections.abc import Set
 from threading import Lock
@@ -74,8 +75,9 @@ def shield(func):
 class CallbackCollection(Set):
     __slots__ = '__callbacks', '__lock'
 
-    def __init__(self):
-        self.__callbacks = set()
+    def __init__(self, sender):
+        self.__sender = ref(sender)
+        self.__callbacks = WeakSet()
         self.__lock = Lock()
 
     def add(self, callback: Callable):
@@ -147,6 +149,6 @@ class CallbackCollection(Set):
         with self.__lock:
             for cb in self.__callbacks:
                 try:
-                    cb(*args, **kwargs)
+                    cb(self.__sender, *args, **kwargs)
                 except Exception:
                     log.exception('Callback error')

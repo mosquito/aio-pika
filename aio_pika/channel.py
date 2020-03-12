@@ -1,6 +1,7 @@
 import asyncio
 from enum import unique, Enum
 from logging import getLogger
+from typing import Optional
 from warnings import warn
 from typing import Union
 
@@ -50,9 +51,9 @@ class Channel:
         self.loop = connection.loop
 
         self._connection = connection
-        self._done_callbacks = CallbackCollection()
-        self._return_callbacks = CallbackCollection()
-        self._channel = None  # type: aiormq.Channel
+        self._done_callbacks = CallbackCollection(self)
+        self._return_callbacks = CallbackCollection(self)
+        self._channel = None  # type: Optional[aiormq.Channel]
         self._channel_number = channel_number
         self._on_return_raises = on_return_raises
         self._publisher_confirms = publisher_confirms
@@ -60,7 +61,7 @@ class Channel:
         self._delivery_tag = 0
 
         # noinspection PyTypeChecker
-        self.default_exchange = None       # type: Exchange
+        self.default_exchange = None       # type: Optional[Exchange]
 
     @property
     def done_callbacks(self) -> CallbackCollection:

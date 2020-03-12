@@ -93,7 +93,8 @@ class Master(Base):
     def exchange(self):
         return self.channel.default_exchange
 
-    def on_message_returned(self, message: ReturnedMessage):
+    @staticmethod
+    def on_message_returned(sender, message: ReturnedMessage):
         log.warning(
             "Message returned. Probably destination queue does not exists: %r",
             message

@@ -43,7 +43,7 @@ class RobustConnection(Connection):
         self.fail_fast = self.kwargs['fail_fast']
 
         self.__channels = WeakSet()
-        self._reconnect_callbacks = CallbackCollection()
+        self._reconnect_callbacks = CallbackCollection(self)
         self._connect_lock = asyncio.Lock()
         self._closed = False
         self.connected = asyncio.Event()
