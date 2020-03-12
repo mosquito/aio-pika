@@ -73,7 +73,7 @@ def shield(func):
 
 
 class CallbackCollection(Set):
-    __slots__ = '__callbacks', '__lock'
+    __slots__ = '__sender', '__callbacks', '__lock'
 
     def __init__(self, sender):
         self.__sender = ref(sender)
@@ -134,7 +134,7 @@ class CallbackCollection(Set):
         return bool(self.__callbacks)
 
     def __copy__(self):
-        instance = self.__class__()
+        instance = self.__class__(self.__sender)
 
         with self.__lock:
             for cb in self.__callbacks:
