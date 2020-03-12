@@ -145,7 +145,7 @@ class TestCase(AMQPTestCase):
         reconnect_event = asyncio.Event()
         reconnect_count = 0
 
-        def reconnect_callback(conn):
+        def reconnect_callback(sender, conn):
             nonlocal reconnect_count
             reconnect_count += 1
             reconnect_event.set()
