@@ -1,6 +1,5 @@
 import asyncio
-from enum import Enum
-from enum import unique
+from enum import Enum, unique
 from logging import getLogger
 from typing import Union, Optional
 from warnings import warn
@@ -8,15 +7,12 @@ from warnings import warn
 import aiormq
 import aiormq.types
 
-from .exchange import Exchange
-from .exchange import ExchangeType
+from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage
 from .queue import Queue
 from .tools import CallbackCollection
 from .transaction import Transaction
-from .types import CloseCallbackType
-from .types import ReturnCallbackType
-from .types import TimeoutType
+from .types import CloseCallbackType, ReturnCallbackType, TimeoutType
 
 log = getLogger(__name__)
 
