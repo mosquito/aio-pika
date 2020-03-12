@@ -146,7 +146,9 @@ class RPC(Base):
         )
 
         self.channel.add_close_callback(self.on_close)
-        self.channel.add_on_return_callback(self.on_message_returned, weak=False)
+        self.channel.add_on_return_callback(
+            self.on_message_returned, weak=False
+        )
 
     def on_close(self, exc=None):
         log.debug("Closing RPC futures because %r", exc)
