@@ -2,7 +2,6 @@ import logging
 from copy import copy
 from unittest import mock
 from unittest import TestCase as BaseTestCase
-from unittest.mock import MagicMock
 
 from aio_pika.tools import CallbackCollection
 
@@ -79,11 +78,8 @@ class TestCase(BaseTestCase):
 
         cbs = self.make_collection()
 
-        handler_1 = lambda sender, x: l1.append(x)
-        handler_2 = lambda sender, x: l2.append(x)
-
-        cbs.add(handler_1)
-        cbs.add(handler_2)
+        cbs.add(lambda sender, x: l1.append(x), weak=False)
+        cbs.add(lambda sender, x: l2.append(x), weak=False)
 
         cbs(1)
         cbs(2)
