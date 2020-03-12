@@ -2,8 +2,7 @@ import asyncio
 from enum import Enum
 from enum import unique
 from logging import getLogger
-from typing import Optional
-from typing import Union
+from typing import Union, Optional
 from warnings import warn
 
 import aiormq
@@ -34,7 +33,7 @@ class Channel:
     QUEUE_CLASS = Queue
     EXCHANGE_CLASS = Exchange
 
-    def __init__(self, connection, channel_number: int = None,
+    def __init__(self, connection, channel_number: Optional[int] = None,
                  publisher_confirms: bool = True,
                  on_return_raises: bool = False):
         """
@@ -57,7 +56,7 @@ class Channel:
         self._connection = connection
         self._done_callbacks = CallbackCollection(self)
         self._return_callbacks = CallbackCollection(self)
-        self._channel: Optional[aiormq.Channel] = None
+        self._channel = None  # type: Optional[aiormq.Channel]
         self._channel_number = channel_number
         self._on_return_raises = on_return_raises
         self._publisher_confirms = publisher_confirms
@@ -65,7 +64,7 @@ class Channel:
         self._delivery_tag = 0
 
         # noinspection PyTypeChecker
-        self.default_exchange: Optional[aiormq.Channel] = None
+        self.default_exchange = None       # type: Optional[Exchange]
 
     @property
     def done_callbacks(self) -> CallbackCollection:
