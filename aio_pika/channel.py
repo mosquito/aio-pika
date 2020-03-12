@@ -1,18 +1,23 @@
 import asyncio
-from enum import unique, Enum
+from enum import Enum
+from enum import unique
 from logging import getLogger
-from typing import Optional, Union
+from typing import Optional
+from typing import Union
 from warnings import warn
 
 import aiormq
 import aiormq.types
 
-from .exchange import Exchange, ExchangeType
+from .exchange import Exchange
+from .exchange import ExchangeType
 from .message import IncomingMessage
 from .queue import Queue
-from .transaction import Transaction
 from .tools import CallbackCollection
-from .types import ReturnCallbackType, CloseCallbackType, TimeoutType
+from .transaction import Transaction
+from .types import CloseCallbackType
+from .types import ReturnCallbackType
+from .types import TimeoutType
 
 log = getLogger(__name__)
 
@@ -85,7 +90,7 @@ class Channel:
             return
 
         # noinspection PyTypeChecker
-        channel = self._channel     # type: aiormq.Channel
+        channel = self._channel  # type: aiormq.Channel
         self._channel = ()
         await channel.close()
 
@@ -142,7 +147,11 @@ class Channel:
     def remove_close_callback(self, callback: CloseCallbackType) -> None:
         self._done_callbacks.remove(callback)
 
-    def add_on_return_callback(self, callback: ReturnCallbackType, weak=True) -> None:
+    def add_on_return_callback(
+        self,
+        callback: ReturnCallbackType,
+        weak: bool = True
+    ) -> None:
         self._return_callbacks.add(callback, weak=weak)
 
     def remove_on_return_callback(self, callback: ReturnCallbackType) -> None:
@@ -325,7 +334,6 @@ class Channel:
         self, queue_name: str, timeout: TimeoutType = None,
         if_unused: bool = False, if_empty: bool = False, nowait: bool = False
     ) -> aiormq.spec.Queue.DeleteOk:
-
         return await asyncio.wait_for(
             self.channel.queue_delete(
                 queue=queue_name,
@@ -340,7 +348,6 @@ class Channel:
         self, exchange_name: str, timeout: TimeoutType = None,
         if_unused: bool = False, nowait: bool = False
     ) -> aiormq.spec.Exchange.DeleteOk:
-
         return await asyncio.wait_for(
             self.channel.exchange_delete(
                 exchange=exchange_name,
