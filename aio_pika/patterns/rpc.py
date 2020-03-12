@@ -170,12 +170,13 @@ class RPC(Base):
         await rpc.initialize(**kwargs)
         return rpc
 
-    def on_message_returned(self, message: ReturnedMessage):
+    @staticmethod
+    def on_message_returned(sender, message: ReturnedMessage):
         correlation_id = int(
             message.correlation_id
         ) if message.correlation_id else None
 
-        future = self.futures.pop(correlation_id, None)   # type: asyncio.Future
+        future = sender.futures.pop(correlation_id, None)   # type: asyncio.Future
 
         if not future or future.done():
             log.warning("Unknown message was returned: %r", message)

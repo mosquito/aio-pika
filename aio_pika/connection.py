@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from functools import partial
+from typing import Optional
 from typing import Type, TypeVar
 
 from yarl import URL
@@ -52,8 +53,8 @@ class Connection:
 
         self.kwargs = self._parse_kwargs(kwargs or self.url.query)
 
-        self._close_callbacks = CallbackCollection()
-        self.connection = None     # type: aiormq.Connection
+        self._close_callbacks = CallbackCollection(self)
+        self.connection = None     # type: Optional[aiormq.Connection]
         self.closing = self.loop.create_future()
 
     @property

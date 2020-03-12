@@ -65,13 +65,14 @@ class RobustChannel(Channel):
         for queue in self._queues.values():
             await queue.restore(self)
 
-    def _on_channel_close(self, exc: Exception):
+    @staticmethod
+    def _on_channel_close(sender, exc: Exception):
         if exc:
             log.exception(
-                "Robust channel %r has been closed.", self, exc_info=exc
+                "Robust channel %r has been closed.", sender, exc_info=exc
             )
         else:
-            log.debug("Robust channel %r has been closed.", self)
+            log.debug("Robust channel %r has been closed.", sender)
 
     async def initialize(self, timeout: TimeoutType = None) -> None:
         await super().initialize(timeout)
@@ -115,7 +116,6 @@ class RobustChannel(Channel):
     async def exchange_delete(self, exchange_name: str,
                               timeout: TimeoutType = None, if_unused=False,
                               nowait=False) -> aiormq.spec.Exchange.DeleteOk:
-
         result = await super().exchange_delete(
             exchange_name=exchange_name, timeout=timeout,
             if_unused=if_unused, nowait=nowait
@@ -130,7 +130,6 @@ class RobustChannel(Channel):
                             auto_delete: bool = False, arguments: dict = None,
                             timeout: TimeoutType = None,
                             robust: bool = True) -> Queue:
-
         queue = await super().declare_queue(
             name=name, durable=durable, exclusive=exclusive,
             passive=passive, auto_delete=auto_delete,
