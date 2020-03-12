@@ -52,7 +52,7 @@ class Channel:
         self._connection = connection
         self._done_callbacks = CallbackCollection(self)
         self._return_callbacks = CallbackCollection(self)
-        self._channel = None  # type: Optional[aiormq.Channel]
+        self._channel: Optional[aiormq.Channel] = None
         self._channel_number = channel_number
         self._on_return_raises = on_return_raises
         self._publisher_confirms = publisher_confirms
@@ -60,7 +60,7 @@ class Channel:
         self._delivery_tag = 0
 
         # noinspection PyTypeChecker
-        self.default_exchange = None       # type: Optional[Exchange]
+        self.default_exchange: Optional[aiormq.Channel] = None
 
     @property
     def done_callbacks(self) -> CallbackCollection:
