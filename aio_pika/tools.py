@@ -73,21 +73,25 @@ def shield(func):
 
 
 class CallbackCollection(Set):
-    __slots__ = '__sender', '__callbacks', '__lock'
+    __slots__ = '__sender', '__callbacks', '__weak_callbacks', '__lock'
 
     def __init__(self, sender):
         self.__sender = ref(sender)
-        self.__callbacks = WeakSet()
+        self.__callbacks = set()
+        self.__weak_callbacks = WeakSet()
         self.__lock = Lock()
 
-    def add(self, callback: Callable):
+    def add(self, callback: Callable, weak=True):
         if self.is_frozen:
             raise RuntimeError('Collection frozen')
         if not callable(callback):
             raise ValueError("Callback is not callable")
 
         with self.__lock:
-            self.__callbacks.add(callback)
+            if weak:
+                self.__weak_callbacks.add(callback)
+            else:
+                self.__callbacks.add(callback)
 
     def remove(self, callback: Callable):
         if self.is_frozen:
