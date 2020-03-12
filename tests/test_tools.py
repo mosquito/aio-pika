@@ -1,6 +1,8 @@
 import logging
 from copy import copy
+from unittest import mock
 from unittest import TestCase as BaseTestCase
+from unittest.mock import MagicMock
 
 from aio_pika.tools import CallbackCollection
 
@@ -10,9 +12,11 @@ log = logging.getLogger(__name__)
 
 # noinspection PyTypeChecker
 class TestCase(BaseTestCase):
-    @classmethod
-    def make_collection(cls):
-        return CallbackCollection(None)
+    def setUp(self) -> None:
+        self.some_instance = mock.MagicMock()
+
+    def make_collection(self):
+        return CallbackCollection(self.some_instance)
 
     def test_basic(self):
         collection = self.make_collection()
@@ -75,8 +79,11 @@ class TestCase(BaseTestCase):
 
         cbs = self.make_collection()
 
-        cbs.add(lambda x: l1.append(x))
-        cbs.add(lambda x: l2.append(x))
+        handler_1 = lambda sender, x: l1.append(x)
+        handler_2 = lambda sender, x: l2.append(x)
+
+        cbs.add(handler_1)
+        cbs.add(handler_2)
 
         cbs(1)
         cbs(2)

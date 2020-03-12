@@ -134,7 +134,7 @@ class CallbackCollection(Set):
         return bool(self.__callbacks)
 
     def __copy__(self):
-        instance = self.__class__(self.__sender)
+        instance = self.__class__(self.__sender())
 
         with self.__lock:
             for cb in self.__callbacks:
@@ -149,6 +149,6 @@ class CallbackCollection(Set):
         with self.__lock:
             for cb in self.__callbacks:
                 try:
-                    cb(self.__sender, *args, **kwargs)
+                    cb(self.__sender(), *args, **kwargs)
                 except Exception:
                     log.exception('Callback error')

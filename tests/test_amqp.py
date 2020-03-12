@@ -40,7 +40,7 @@ class TestCase(BaseTestCase):
 
         self.__closed = False
 
-        def on_close(ch):
+        def on_close(sender, ch):
             nonlocal event
             log.info("Close called")
             self.__closed = True
