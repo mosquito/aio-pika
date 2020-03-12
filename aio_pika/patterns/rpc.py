@@ -6,7 +6,7 @@ import pickle
 import time
 from enum import Enum
 from functools import partial
-from typing import Callable, Any, TypeVar
+from typing import Callable, Any, TypeVar, Dict
 
 from aio_pika.exchange import ExchangeType
 from aio_pika.channel import Channel
@@ -69,7 +69,7 @@ class RPC(Base):
         self.loop = self.channel.loop
         self.proxy = Proxy(self.call)
         self.result_queue = None
-        self.futures = dict()
+        self.futures: Dict[int, asyncio.Future] = {}
         self.result_consumer_tag = None
         self.routes = {}
         self.queues = {}
@@ -171,12 +171,12 @@ class RPC(Base):
         return rpc
 
     @staticmethod
-    def on_message_returned(sender, message: ReturnedMessage):
+    def on_message_returned(sender: 'RPC', message: ReturnedMessage):
         correlation_id = int(
             message.correlation_id
         ) if message.correlation_id else None
 
-        future = sender.futures.pop(correlation_id, None)   # type: asyncio.Future
+        future = sender.futures.pop(correlation_id, None)
 
         if not future or future.done():
             log.warning("Unknown message was returned: %r", message)
@@ -189,7 +189,7 @@ class RPC(Base):
             message.correlation_id
         ) if message.correlation_id else None
 
-        future = self.futures.pop(correlation_id, None)  # type: asyncio.Future
+        future = self.futures.pop(correlation_id, None)
 
         if future is None:
             log.warning("Unknown message: %r", message)
