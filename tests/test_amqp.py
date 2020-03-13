@@ -479,7 +479,6 @@ class TestCase(BaseTestCase):
                 raise AssertionError
 
         self.assertEqual(incoming_message.locked, True)
-
         await queue.unbind(exchange, routing_key)
 
     async def test_context_process_redelivery(self):
