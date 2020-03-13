@@ -1,3 +1,8 @@
+6.6.0
+-----
+
+* message.reject called inside ProcessContext.__exit__ fails when channel is closed #302
+
 6.5.3
 -----
 
