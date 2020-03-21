@@ -74,14 +74,15 @@ class RobustConnection(Connection):
 
         super()._on_connection_close(connection, closing)
 
-        log.info(
-            "Connection to %s closed. Reconnecting after %r seconds.",
-            self, self.reconnect_interval
-        )
-        self.loop.call_later(
-            self.reconnect_interval,
-            lambda: self.loop.create_task(self.reconnect())
-        )
+        if not self._closed:
+            log.info(
+                "Connection to %s closed. Reconnecting after %r seconds.",
+                self, self.reconnect_interval
+            )
+            self.loop.call_later(
+                self.reconnect_interval,
+                lambda: self.loop.create_task(self.reconnect())
+            )
 
     def add_reconnect_callback(self, callback: Callable[[], None]):
         """ Add callback which will be called after reconnect.
