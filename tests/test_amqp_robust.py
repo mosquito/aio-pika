@@ -40,6 +40,54 @@ class TestCaseNoRobust(TestCaseAmqp):
 
         return fabric
 
+    async def test_robust_duplicate_queue(self):
+        queue_name = "test"
+        channel1 = await self.create_channel()
+        channel2 = await self.create_channel()
+
+        shared = []
+        queue1 = await channel1.declare_queue(queue_name)
+        queue2 = await channel1.declare_queue(queue_name)
+
+        async def reader(queue):
+            nonlocal shared
+            async with queue.iterator() as q:
+                async for message in q:
+                    shared.append(message)
+                    await message.ack()
+
+        reader_task1 = self.loop.create_task(reader(queue1))
+        reader_task2 = self.loop.create_task(reader(queue2))
+        self.addCleanup(reader_task1.cancel)
+        self.addCleanup(reader_task2.cancel)
+
+        for _ in range(5):
+            await channel2.default_exchange.publish(
+                Message(b''), queue_name,
+            )
+
+        logging.info("Disconnect all clients")
+        await self.proxy.disconnect()
+
+        logging.info("Waiting for reconnect")
+        await asyncio.sleep(5)
+
+        logging.info("Waiting connections")
+        await asyncio.wait([
+            channel1._connection.ready(),
+            channel2._connection.ready()
+        ])
+
+        for _ in range(5):
+            await channel2.default_exchange.publish(
+                Message(b''), queue_name,
+            )
+
+        while len(shared) < 10:
+            await asyncio.sleep(0.1)
+
+        self.assertEqual(len(shared), 10)
+
 
 class TestCaseAmqpNoConfirmsRobust(TestCaseAmqpNoConfirms):
     pass
