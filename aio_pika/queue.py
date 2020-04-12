@@ -8,8 +8,7 @@ import aiormq
 from aiormq.types import DeliveredMessage
 
 from .exceptions import QueueEmpty
-from .exchange import Exchange
-from .types import ExchangeType as ExchangeType_
+from .exchange import Exchange, ExchangeParamType
 from .message import IncomingMessage
 from .tools import create_task, shield
 
@@ -91,7 +90,7 @@ class Queue:
         return self.declaration_result
 
     async def bind(
-        self, exchange: ExchangeType_, routing_key: str=None, *,
+        self, exchange: ExchangeParamType, routing_key: str=None, *,
         arguments=None, timeout: int=None
     ) -> aiormq.spec.Queue.BindOk:
 
@@ -130,7 +129,7 @@ class Queue:
         )
 
     async def unbind(
-        self, exchange: ExchangeType_, routing_key: str=None,
+        self, exchange: ExchangeParamType, routing_key: str=None,
         arguments: dict=None, timeout: int=None
     ) -> aiormq.spec.Queue.UnbindOk:
 

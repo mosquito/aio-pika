@@ -45,11 +45,12 @@ setup(
     python_requires=">3.5.*, <4",
     extras_require={
         'develop': [
-            'asynctest~=0.12.2',
+            'async_generator',
             'coverage!=4.3',
             'coveralls',
             'pylava',
             'pytest',
+            'aiomisc~=9.7',
             'pytest-cov',
             'shortuuid',
             'sphinx',

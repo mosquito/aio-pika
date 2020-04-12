@@ -6,375 +6,363 @@ import unittest
 import uuid
 from copy import copy
 from datetime import datetime
+from typing import Callable
 from unittest import mock
 
 import pytest
 import shortuuid
 
 import aiormq.exceptions
-from aiormq import ChannelLockedResource
 
 import aio_pika
 import aio_pika.exceptions
 from aio_pika import connect, Message, DeliveryMode, Channel
 from aio_pika.exceptions import (
-    MessageProcessError, ProbableAuthenticationError, DeliveryError
+    MessageProcessError,
+    ProbableAuthenticationError,
+    DeliveryError,
 )
 from aio_pika.exchange import ExchangeType
-from . import BaseTestCase, AMQP_URL
 
 
 log = logging.getLogger(__name__)
 
 
-class TestCase(BaseTestCase):
-    async def test_properties(self):
-        client = await self.create_connection()
+class TestCase:
+    def get_random_name(self, *args):
+        prefix = ["test"]
+        for item in args:
+            prefix.append(item)
+        prefix.append(shortuuid.uuid())
 
-        self.assertFalse(client.is_closed)
-        self.assertTrue(client.heartbeat_last < self.loop.time())
+        return ".".join(prefix)
 
-    async def test_channel_close(self):
-        client = await self.create_connection()
+    async def test_properties(self, loop, connection: aio_pika.Connection):
+        assert not connection.is_closed
+        assert connection.heartbeat_last < loop.time()
+
+    async def test_channel_close(self, connection: aio_pika.Connection):
         event = asyncio.Event()
 
-        self.__closed = False
+        closed = False
 
         def on_close(sender, ch):
-            nonlocal event
+            nonlocal event, closed
             log.info("Close called")
-            self.__closed = True
+            closed = True
             event.set()
 
-        channel = await client.channel()
+        channel = await connection.channel()
         channel.add_close_callback(on_close)
         await channel.close()
 
         await event.wait()
 
-        self.assertTrue(self.__closed)
+        assert closed
 
         with pytest.raises(RuntimeError):
             await channel.initialize()
 
-        await self.create_channel(connection=client)
+        async with connection.channel() as ch:
+            assert not ch.is_closed
 
-    async def test_channel_reopen(self):
-        channel = await self.create_channel()
+    async def test_channel_reopen(self, connection: aio_pika.Connection):
+        channel = await connection.channel()
 
         await channel.close()
-        self.assertTrue(channel.is_closed)
+        assert channel.is_closed
 
         await channel.reopen()
-        self.assertFalse(channel.is_closed)
+        assert not channel.is_closed
 
-    async def test_delete_queue_and_exchange(self):
+    async def test_delete_queue_and_exchange(
+        self, connection: aio_pika.Connection
+    ):
         queue_name = self.get_random_name("test_connection")
         exchange = self.get_random_name()
 
-        channel = await self.create_channel()
+        channel = await connection.channel()
         await channel.declare_exchange(exchange, auto_delete=True)
         await channel.declare_queue(queue_name, auto_delete=True)
 
         await channel.queue_delete(queue_name)
         await channel.exchange_delete(exchange)
 
-    async def test_temporary_queue(self):
-        channel = await self.create_channel()
+    async def test_temporary_queue(self, connection: aio_pika.Connection):
+        channel = await connection.channel()
         queue = await channel.declare_queue(auto_delete=True)
 
-        self.assertNotEqual(queue.name, '')
+        assert queue.name != ""
 
         body = os.urandom(32)
 
         await channel.default_exchange.publish(
-            Message(body=body),
-            routing_key=queue.name
+            Message(body=body), routing_key=queue.name
         )
 
         message = await queue.get()
 
-        self.assertEqual(message.body, body)
+        assert message.body == body
 
         await channel.queue_delete(queue.name)
 
-    async def test_internal_exchange(self):
-        client = await self.create_connection()
-
+    async def test_internal_exchange(self, channel: aio_pika.Channel):
         routing_key = self.get_random_name()
         exchange_name = self.get_random_name("internal", "exchange")
 
-        channel = await client.channel()
-        exchange = await self.declare_exchange(
-            exchange_name,
-            auto_delete=True,
-            internal=True,
-            channel=channel
+        exchange = await channel.declare_exchange(
+            exchange_name, auto_delete=True, internal=True,
         )
-        queue = await self.declare_queue(auto_delete=True, channel=channel)
+
+        queue = await channel.declare_queue(auto_delete=True)
 
         await queue.bind(exchange, routing_key)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
         with pytest.raises(ValueError):
             f = exchange.publish(
                 Message(
-                    body, content_type='text/plain',
-                    headers={'foo': 'bar'}
+                    body, content_type="text/plain", headers={"foo": "bar"}
                 ),
-                routing_key
+                routing_key,
             )
             await f
 
         await queue.unbind(exchange, routing_key)
 
-    async def test_declare_exchange_with_passive_flag(self):
-        client = await self.create_connection()
-
+    async def test_declare_exchange_with_passive_flag(
+        self, connection: aio_pika.Connection, declare_exchange: Callable
+    ):
         exchange_name = self.get_random_name()
-        channel = await client.channel()
+        channel = await connection.channel()
 
         with pytest.raises(aio_pika.exceptions.ChannelNotFoundEntity):
-            await self.declare_exchange(
-                exchange_name,
-                auto_delete=True,
-                passive=True,
-                channel=channel
+            await declare_exchange(
+                exchange_name, auto_delete=True, passive=True, channel=channel
             )
 
-        channel1 = await client.channel()
-        channel2 = await client.channel()
+        channel1 = await connection.channel()
+        channel2 = await connection.channel()
 
-        await self.declare_exchange(
-            exchange_name,
-            auto_delete=True,
-            passive=False,
-            channel=channel1
+        await declare_exchange(
+            exchange_name, auto_delete=True, passive=False, channel=channel1
         )
 
         # Check ignoring different exchange options
-        await self.declare_exchange(
-            exchange_name,
-            auto_delete=False,
-            passive=True,
-            channel=channel2
+        await declare_exchange(
+            exchange_name, auto_delete=False, passive=True, channel=channel2
         )
 
-    async def test_declare_queue_with_passive_flag(self):
-        client = await self.create_connection()
-
+    async def test_declare_queue_with_passive_flag(
+        self,
+        connection,
+        channel,
+        declare_exchange: Callable,
+        declare_queue: Callable,
+    ):
         queue_name = self.get_random_name()
-        channel = await client.channel()
 
         with pytest.raises(aio_pika.exceptions.ChannelNotFoundEntity):
-            await self.declare_queue(
-                queue_name,
-                auto_delete=True,
-                passive=True,
-                channel=channel
+            await declare_queue(
+                queue_name, auto_delete=True, passive=True, channel=channel
             )
 
-        channel1 = await client.channel()
-        channel2 = await client.channel()
+        channel1 = await connection.channel()
+        channel2 = await connection.channel()
 
-        await self.declare_queue(
-            queue_name,
-            auto_delete=True,
-            passive=False,
-            channel=channel1
+        await declare_queue(
+            queue_name, auto_delete=True, passive=False, channel=channel1
         )
 
         # Check ignoring different queue options
-        await self.declare_queue(
-            queue_name,
-            auto_delete=False,
-            passive=True,
-            channel=channel2
+        await declare_queue(
+            queue_name, auto_delete=False, passive=True, channel=channel2
         )
 
-    async def test_simple_publish_and_receive(self):
+    async def test_simple_publish_and_receive(
+        self, channel, declare_queue: Callable, declare_exchange: Callable
+    ):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = await self.create_channel()
-        exchange = await self.declare_exchange(
-            'direct', auto_delete=True, channel=channel
+        exchange = await declare_exchange(
+            "direct", auto_delete=True, channel=channel
         )
-        queue = await self.declare_queue(
+
+        queue = await declare_queue(
             queue_name, auto_delete=True, channel=channel
         )
 
         await queue.bind(exchange, routing_key)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
         result = await exchange.publish(
-            Message(
-                body, content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            routing_key
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
         )
-        self.assertTrue(result)
+        assert result
 
         incoming_message = await queue.get(timeout=5)
         incoming_message.ack()
 
-        self.assertEqual(incoming_message.body, body)
+        assert incoming_message.body == body
 
         await queue.unbind(exchange, routing_key)
 
-    async def test_simple_publish_without_confirm(self):
+    async def test_simple_publish_without_confirm(
+        self, connection, declare_exchange: Callable, declare_queue: Callable
+    ):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = await self.create_channel(publisher_confirms=False)
-        exchange = await self.declare_exchange(
-            'direct', auto_delete=True, channel=channel
+        channel = await connection.channel(publisher_confirms=False)
+
+        exchange = await declare_exchange(
+            "direct", auto_delete=True, channel=channel
         )
-        queue = await self.declare_queue(
+        queue = await declare_queue(
             queue_name, auto_delete=True, channel=channel
         )
 
         await queue.bind(exchange, routing_key)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
         result = await exchange.publish(
-            Message(
-                body, content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            routing_key
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
         )
-        self.assertIsNone(result)
+        assert result is None
 
         incoming_message = await queue.get(timeout=5)
         incoming_message.ack()
 
-        self.assertEqual(incoming_message.body, body)
+        assert incoming_message.body == body
 
         await queue.unbind(exchange, routing_key)
 
-    async def test_simple_publish_and_receive_delivery_mode_explicitly(self):
+    async def test_simple_publish_and_receive_delivery_mode_explicitly(
+        self, channel, declare_queue: Callable, declare_exchange: Callable
+    ):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = await self.create_channel()
-        exchange = await self.declare_exchange(
-            'direct', auto_delete=True, channel=channel
+        exchange = await declare_exchange(
+            "direct", auto_delete=True, channel=channel
         )
-        queue = await self.declare_queue(
+        queue = await declare_queue(
             queue_name, auto_delete=True, channel=channel
         )
 
         await queue.bind(exchange, routing_key)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
         await exchange.publish(
             Message(
-                body, content_type='text/plain',
-                headers={'foo': 'bar'},
-                delivery_mode=None
+                body,
+                content_type="text/plain",
+                headers={"foo": "bar"},
+                delivery_mode=None,
             ),
-            routing_key
+            routing_key,
         )
 
         incoming_message = await queue.get(timeout=5)
         incoming_message.ack()
 
-        self.assertEqual(incoming_message.body, body)
+        assert incoming_message.body == body
 
         await queue.unbind(exchange, routing_key)
 
-    async def test_simple_publish_and_receive_to_bound_exchange(self):
+    async def test_simple_publish_and_receive_to_bound_exchange(
+        self,
+        channel,
+        declare_exchange: Callable,
+        declare_queue: Callable,
+        add_cleanup: Callable,
+    ):
         routing_key = self.get_random_name()
         src_name = self.get_random_name("source", "exchange")
         dest_name = self.get_random_name("destination", "exchange")
 
-        channel = await self.create_channel()
-        src_exchange = await self.declare_exchange(
-            src_name, auto_delete=True, channel=channel
-        )
-        dest_exchange = await self.declare_exchange(
-            dest_name, auto_delete=True, channel=channel
-        )
-        queue = await self.declare_queue(auto_delete=True, channel=channel)
+        src_exchange = await declare_exchange(src_name, auto_delete=True)
+        dest_exchange = await declare_exchange(dest_name, auto_delete=True)
+        queue = await declare_queue(auto_delete=True)
 
         await queue.bind(dest_exchange, routing_key)
 
         await dest_exchange.bind(src_exchange, routing_key)
-        self.addCleanup(dest_exchange.unbind, src_exchange, routing_key)
+        add_cleanup(dest_exchange.unbind, src_exchange, routing_key)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
         await src_exchange.publish(
-            Message(
-                body, content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            routing_key
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
         )
 
         incoming_message = await queue.get(timeout=5)
         incoming_message.ack()
 
-        self.assertEqual(incoming_message.body, body)
+        assert incoming_message.body == body
 
         await queue.unbind(dest_exchange, routing_key)
 
-    async def test_incoming_message_info(self):
+    async def test_incoming_message_info(
+        self,
+        channel,
+        declare_queue: Callable,
+        declare_exchange: Callable,
+        add_cleanup: Callable,
+    ):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = await self.create_channel()
-        exchange = await self.declare_exchange(
-            'direct', auto_delete=True, channel=channel
-        )
-        queue = await self.declare_queue(
-            queue_name, auto_delete=True, channel=channel
-        )
+        exchange = await declare_exchange("direct", auto_delete=True)
+        queue = await declare_queue(queue_name, auto_delete=True)
 
         await queue.bind(exchange, routing_key)
+        add_cleanup(queue.unbind, exchange, routing_key)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
         self.maxDiff = None
 
         info = {
-            'headers': {"foo": b"bar"},
-            'content_type': "application/json",
-            'content_encoding': "text",
-            'delivery_mode': DeliveryMode.PERSISTENT.value,
-            'priority': 0,
-            'correlation_id': '1',
-            'reply_to': 'test',
-            'expiration': 1.5,
-            'message_id': shortuuid.uuid(),
-            'timestamp': datetime.utcfromtimestamp(int(time.time())),
-            'type': '0',
-            'user_id': 'guest',
-            'app_id': 'test',
-            'body_size': len(body)
+            "headers": {"foo": b"bar"},
+            "content_type": "application/json",
+            "content_encoding": "text",
+            "delivery_mode": DeliveryMode.PERSISTENT.value,
+            "priority": 0,
+            "correlation_id": "1",
+            "reply_to": "test",
+            "expiration": 1.5,
+            "message_id": shortuuid.uuid(),
+            "timestamp": datetime.utcfromtimestamp(int(time.time())),
+            "type": "0",
+            "user_id": "guest",
+            "app_id": "test",
+            "body_size": len(body),
         }
 
         msg = Message(
             body=body,
-            headers={'foo': b'bar'},
-            content_type='application/json',
-            content_encoding='text',
+            headers={"foo": b"bar"},
+            content_type="application/json",
+            content_encoding="text",
             delivery_mode=DeliveryMode.PERSISTENT,
             priority=0,
             correlation_id=1,
-            reply_to='test',
+            reply_to="test",
             expiration=1.5,
-            message_id=info['message_id'],
-            timestamp=info['timestamp'],
-            type='0',
-            user_id='guest',
-            app_id='test'
+            message_id=info["message_id"],
+            timestamp=info["timestamp"],
+            type="0",
+            user_id="guest",
+            app_id="test",
         )
 
         await exchange.publish(msg, routing_key)
@@ -382,40 +370,37 @@ class TestCase(BaseTestCase):
         incoming_message = await queue.get(timeout=5)
         incoming_message.ack()
 
-        info['routing_key'] = incoming_message.routing_key
-        info['redelivered'] = incoming_message.redelivered
-        info['exchange'] = incoming_message.exchange
-        info['delivery_tag'] = incoming_message.delivery_tag
-        info['consumer_tag'] = incoming_message.consumer_tag
-        info['cluster_id'] = incoming_message.cluster_id
+        info["routing_key"] = incoming_message.routing_key
+        info["redelivered"] = incoming_message.redelivered
+        info["exchange"] = incoming_message.exchange
+        info["delivery_tag"] = incoming_message.delivery_tag
+        info["consumer_tag"] = incoming_message.consumer_tag
+        info["cluster_id"] = incoming_message.cluster_id
 
-        self.assertEqual(incoming_message.body, body)
-        self.assertDictEqual(incoming_message.info(), info)
+        assert incoming_message.body == body
+        assert incoming_message.info() == info
 
-        await queue.unbind(exchange, routing_key)
-
-    async def test_context_process(self):
+    async def test_context_process(
+        self,
+        channel: aio_pika.Channel,
+        declare_queue: Callable,
+        declare_exchange: Callable,
+        add_cleanup: Callable,
+    ):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = await self.create_channel()
-        exchange = await self.declare_exchange(
-            'direct', auto_delete=True, channel=channel
-        )
-        queue = await self.declare_queue(
-            queue_name, auto_delete=True, channel=channel
-        )
+        exchange = await declare_exchange("direct", auto_delete=True)
+        queue = await declare_queue(queue_name, auto_delete=True)
 
         await queue.bind(exchange, routing_key)
+        add_cleanup(queue.unbind, exchange, routing_key)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
         await exchange.publish(
-            Message(
-                body, content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            routing_key
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
         )
 
         incoming_message = await queue.get(timeout=5)
@@ -424,21 +409,18 @@ class TestCase(BaseTestCase):
             async with incoming_message.process(requeue=True):
                 raise AssertionError
 
-        self.assertEqual(incoming_message.locked, True)
+        assert incoming_message.locked
 
         incoming_message = await queue.get(timeout=5)
 
         async with incoming_message.process():
             pass
 
-        self.assertEqual(incoming_message.body, body)
+        assert incoming_message.body == body
 
         await exchange.publish(
-            Message(
-                body, content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            routing_key
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
         )
 
         incoming_message = await queue.get(timeout=5)
@@ -447,21 +429,18 @@ class TestCase(BaseTestCase):
             async with incoming_message.process():
                 incoming_message.reject(requeue=True)
 
-        self.assertEqual(incoming_message.locked, True)
+        assert incoming_message.locked
 
         incoming_message = await queue.get(timeout=5)
 
         async with incoming_message.process(ignore_processed=True):
             incoming_message.reject(requeue=False)
 
-        self.assertEqual(incoming_message.body, body)
+        assert incoming_message.body == body
 
         await exchange.publish(
-            Message(
-                body, content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            routing_key
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
         )
 
         incoming_message = await queue.get(timeout=5)
@@ -478,31 +457,29 @@ class TestCase(BaseTestCase):
             ):
                 raise AssertionError
 
-        self.assertEqual(incoming_message.locked, True)
-        await queue.unbind(exchange, routing_key)
+        assert incoming_message.locked
 
-    async def test_context_process_redelivery(self):
+    async def test_context_process_redelivery(
+        self,
+        channel: aio_pika.Channel,
+        declare_exchange: Callable,
+        declare_queue: Callable,
+        add_cleanup: Callable,
+    ):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = await self.create_channel()
-        exchange = await self.declare_exchange(
-            'direct', auto_delete=True, channel=channel
-        )
-        queue = await self.declare_queue(
-            queue_name, auto_delete=True, channel=channel
-        )
+        exchange = await declare_exchange("direct", auto_delete=True)
+        queue = await declare_queue(queue_name, auto_delete=True)
 
         await queue.bind(exchange, routing_key)
+        add_cleanup(queue.unbind, exchange, routing_key)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
         await exchange.publish(
-            Message(
-                body, content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            routing_key
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
         )
 
         incoming_message = await queue.get(timeout=5)
@@ -515,38 +492,36 @@ class TestCase(BaseTestCase):
 
         incoming_message = await queue.get(timeout=5)
 
-        with mock.patch('aio_pika.message.log') as message_logger:
+        with mock.patch("aio_pika.message.log") as message_logger:
             with pytest.raises(Exception):
                 async with incoming_message.process(
                     requeue=True, reject_on_redelivered=True
                 ):
                     raise Exception
 
-            self.assertTrue(message_logger.info.called)
-            self.assertEqual(
-                message_logger.info.mock_calls[0][1][1].body,
-                incoming_message.body
+            assert message_logger.info.called
+            assert (
+                message_logger.info.mock_calls[0][1][1].body
+                == incoming_message.body
             )
 
-        self.assertEqual(incoming_message.body, body)
+        assert incoming_message.body == body
 
-        await queue.unbind(exchange, routing_key)
-
-    async def test_no_ack_redelivery(self):
-        client = await self.create_connection()
-
+    async def test_no_ack_redelivery(
+        self, connection: aio_pika.Connection, add_cleanup: Callable
+    ):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = await client.channel()
-        exchange = await channel.declare_exchange('direct', auto_delete=True)
+        channel = await connection.channel()
+        exchange = await channel.declare_exchange("direct", auto_delete=True)
         queue = await channel.declare_queue(queue_name, auto_delete=False)
 
         await queue.bind(exchange, routing_key)
 
         # publish 2 messages
         for _ in range(2):
-            body = bytes(shortuuid.uuid(), 'utf-8')
+            body = bytes(shortuuid.uuid(), "utf-8")
             msg = Message(body)
             await exchange.publish(msg, routing_key)
 
@@ -559,32 +534,30 @@ class TestCase(BaseTestCase):
         # close channel, not acked message should be redelivered
         await channel.close()
 
-        channel = await client.channel()
-        exchange = await channel.declare_exchange('direct', auto_delete=True)
+        channel = await connection.channel()
+        exchange = await channel.declare_exchange("direct", auto_delete=True)
         queue = await channel.declare_queue(queue_name, auto_delete=False)
 
         # receive not acked message
         message = await queue.get(timeout=5)
-        self.assertEqual(message.body, first_message.body)
+        assert message.body == first_message.body
         message.ack()
 
         await queue.unbind(exchange, routing_key)
 
-    async def test_ack_multiple(self):
-        client = await self.create_connection()
-
+    async def test_ack_multiple(self, connection: aio_pika.Connection):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = await client.channel()
-        exchange = await channel.declare_exchange('direct', auto_delete=True)
+        channel = await connection.channel()
+        exchange = await channel.declare_exchange("direct", auto_delete=True)
         queue = await channel.declare_queue(queue_name, auto_delete=False)
 
         await queue.bind(exchange, routing_key)
 
         # publish 2 messages
         for _ in range(2):
-            body = bytes(shortuuid.uuid(), 'utf-8')
+            body = bytes(shortuuid.uuid(), "utf-8")
             msg = Message(body)
             await exchange.publish(msg, routing_key)
 
@@ -597,8 +570,8 @@ class TestCase(BaseTestCase):
         # close channel, no messages should be redelivered
         await channel.close()
 
-        channel = await client.channel()
-        exchange = await channel.declare_exchange('direct', auto_delete=True)
+        channel = await connection.channel()
+        exchange = await channel.declare_exchange("direct", auto_delete=True)
         queue = await channel.declare_queue(queue_name, auto_delete=False)
 
         with pytest.raises(aio_pika.exceptions.QueueEmpty):
@@ -606,28 +579,23 @@ class TestCase(BaseTestCase):
 
         await queue.unbind(exchange, routing_key)
         await queue.delete()
-        await asyncio.wait((client.close(), client.closing))
+        await asyncio.wait((connection.close(), connection.closing))
 
-    async def test_ack_twice(self):
-        client = await self.create_connection()
-
+    async def test_ack_twice(self, connection):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = await client.channel()
-        exchange = await channel.declare_exchange('direct', auto_delete=True)
+        channel = await connection.channel()
+        exchange = await channel.declare_exchange("direct", auto_delete=True)
         queue = await channel.declare_queue(queue_name, auto_delete=True)
 
         await queue.bind(exchange, routing_key)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
         await exchange.publish(
-            Message(
-                body, content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            routing_key
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
         )
 
         incoming_message = await queue.get(timeout=5)
@@ -636,31 +604,32 @@ class TestCase(BaseTestCase):
         with pytest.raises(MessageProcessError):
             incoming_message.ack()
 
-        self.assertEqual(incoming_message.body, body)
+        assert incoming_message.body == body
+
         await queue.unbind(exchange, routing_key)
         await queue.delete()
-        await asyncio.wait((client.close(), client.closing))
 
-    async def test_reject_twice(self):
-        client = await self.create_connection()
-
+    async def test_reject_twice(
+        self,
+        channel: aio_pika.Channel,
+        add_cleanup: Callable,
+        declare_queue: Callable,
+        declare_exchange: Callable,
+    ):
         queue_name = self.get_random_name("test_connection")
         routing_key = self.get_random_name()
 
-        channel = await client.channel()
-        exchange = await channel.declare_exchange('direct', auto_delete=True)
-        queue = await channel.declare_queue(queue_name, auto_delete=True)
+        exchange = await declare_exchange("direct", auto_delete=True)
+        queue = await declare_queue(queue_name, auto_delete=True)
 
         await queue.bind(exchange, routing_key)
+        add_cleanup(queue.unbind, exchange, routing_key)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
         await exchange.publish(
-            Message(
-                body, content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            routing_key
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
         )
 
         incoming_message = await queue.get(timeout=5)
@@ -669,110 +638,104 @@ class TestCase(BaseTestCase):
         with pytest.raises(MessageProcessError):
             incoming_message.reject(requeue=False)
 
-        self.assertEqual(incoming_message.body, body)
-        await queue.unbind(exchange, routing_key)
-        await queue.delete()
-        await asyncio.wait((client.close(), client.closing))
+        assert incoming_message.body == body
 
-    async def test_consuming(self):
-        client = await self.create_connection()
-
+    async def test_consuming(
+        self,
+        loop,
+        channel: aio_pika.Channel,
+        declare_exchange: Callable,
+        declare_queue: Callable,
+        add_cleanup: Callable,
+    ):
         queue_name = self.get_random_name("tc2")
         routing_key = self.get_random_name()
 
-        channel = await client.channel()
-        exchange = await channel.declare_exchange('direct', auto_delete=True)
-        queue = await channel.declare_queue(queue_name, auto_delete=True)
+        exchange = await declare_exchange("direct", auto_delete=True)
+        queue = await declare_queue(queue_name, auto_delete=True)
 
         await queue.bind(exchange, routing_key)
+        add_cleanup(queue.unbind, exchange, routing_key)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
-        f = self.loop.create_future()
+        f = loop.create_future()
 
         async def handle(message):
             message.ack()
-            self.assertEqual(message.body, body)
-            self.assertEqual(message.routing_key, routing_key)
+            assert message.body == body
+            assert message.routing_key == routing_key
             f.set_result(True)
 
         await queue.consume(handle)
 
         await exchange.publish(
-            Message(
-                body, content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            routing_key
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
         )
 
         if not f.done():
             await f
 
-        await queue.unbind(exchange, routing_key)
-        await exchange.delete()
-        await asyncio.wait((client.close(), client.closing))
-
-    async def test_consuming_not_coroutine(self):
-        client = await self.create_connection()
+    async def test_consuming_not_coroutine(
+        self,
+        channel: aio_pika.Channel,
+        loop,
+        declare_exchange,
+        declare_queue,
+        add_cleanup,
+    ):
 
         queue_name = self.get_random_name("tc2")
         routing_key = self.get_random_name()
 
-        channel = await client.channel()
-        exchange = await channel.declare_exchange('direct', auto_delete=True)
-        queue = await channel.declare_queue(queue_name, auto_delete=True)
+        exchange = await declare_exchange("direct", auto_delete=True)
+        queue = await declare_queue(queue_name, auto_delete=True)
+        add_cleanup(queue.unbind, exchange, routing_key)
 
         await queue.bind(exchange, routing_key)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
-        f = self.loop.create_future()
+        f = loop.create_future()
 
         def handle(message):
             message.ack()
-            self.assertEqual(message.body, body)
-            self.assertEqual(message.routing_key, routing_key)
+            assert message.body == body
+            assert message.routing_key == routing_key
             f.set_result(True)
 
         await queue.consume(handle)
 
         await exchange.publish(
-            Message(
-                body, content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            routing_key
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
         )
 
         if not f.done():
             await f
 
-        await queue.unbind(exchange, routing_key)
-        await exchange.delete()
-        await asyncio.wait((client.close(), client.closing))
-
-    async def test_ack_reject(self):
-        client = await self.create_connection()
-
+    async def test_ack_reject(
+        self,
+        channel: aio_pika.Channel,
+        declare_exchange,
+        declare_queue,
+        add_cleanup,
+    ):
         queue_name = self.get_random_name("test_connection3")
         routing_key = self.get_random_name()
 
-        channel = await client.channel()
-        exchange = await channel.declare_exchange('direct', auto_delete=True)
-        queue = await channel.declare_queue(queue_name, auto_delete=True)
+        exchange = await declare_exchange("direct", auto_delete=True)
+        queue = await declare_queue(queue_name, auto_delete=True)
 
         await queue.bind(exchange, routing_key)
+        add_cleanup(queue.unbind, exchange, routing_key)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
         await exchange.publish(
-            Message(
-                body,
-                content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            routing_key
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
         )
 
         incoming_message = await queue.get(timeout=5, no_ack=True)
@@ -781,12 +744,8 @@ class TestCase(BaseTestCase):
             incoming_message.ack()
 
         await exchange.publish(
-            Message(
-                body,
-                content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            routing_key
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
         )
 
         incoming_message = await queue.get(timeout=5)
@@ -794,12 +753,8 @@ class TestCase(BaseTestCase):
         incoming_message.reject()
 
         await exchange.publish(
-            Message(
-                body,
-                content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            routing_key
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
         )
 
         incoming_message = await queue.get(timeout=5, no_ack=True)
@@ -807,31 +762,25 @@ class TestCase(BaseTestCase):
         with pytest.raises(TypeError):
             await incoming_message.reject()
 
-        self.assertEqual(incoming_message.body, body)
+        assert incoming_message.body == body
 
-        await queue.unbind(exchange, routing_key)
-        await queue.delete()
-        await asyncio.wait((client.close(), client.closing))
-
-    async def test_purge_queue(self):
+    async def test_purge_queue(self, declare_queue, declare_exchange, channel):
         queue_name = self.get_random_name("test_connection4")
         routing_key = self.get_random_name()
 
-        channel = await self.create_channel()
-        exchange = await channel.declare_exchange('direct', auto_delete=True)
-        queue = await channel.declare_queue(queue_name, auto_delete=True)
+        exchange = await declare_exchange("direct", auto_delete=True)
+        queue = await declare_queue(queue_name, auto_delete=True)
 
         await queue.bind(exchange, routing_key)
 
         try:
-            body = bytes(shortuuid.uuid(), 'utf-8')
+            body = bytes(shortuuid.uuid(), "utf-8")
 
             await exchange.publish(
                 Message(
-                    body, content_type='text/plain',
-                    headers={'foo': 'bar'}
+                    body, content_type="text/plain", headers={"foo": "bar"}
                 ),
-                routing_key
+                routing_key,
             )
 
             await queue.purge()
@@ -844,149 +793,138 @@ class TestCase(BaseTestCase):
 
     async def test_connection_refused(self):
         with pytest.raises(ConnectionError):
-            await connect('amqp://guest:guest@localhost:9999')
+            await connect("amqp://guest:guest@localhost:9999")
 
-    async def test_wrong_credentials(self):
-        amqp_url = AMQP_URL.with_user(
-            uuid.uuid4().hex
-        ).with_password(
+    async def test_wrong_credentials(self, amqp_url):
+        amqp_url = amqp_url.with_user(uuid.uuid4().hex).with_password(
             uuid.uuid4().hex
         )
 
         with pytest.raises(ProbableAuthenticationError):
             await connect(str(amqp_url))
 
-    async def test_set_qos(self):
-        channel = await self.create_channel()
+    async def test_set_qos(self, channel: aio_pika.Channel):
         await channel.set_qos(prefetch_count=1, global_=True)
 
-    async def test_exchange_delete(self):
-        channel = await self.create_channel()
+    async def test_exchange_delete(self, channel: aio_pika.Channel):
         exchange = await channel.declare_exchange("test", auto_delete=True)
         await exchange.delete()
 
-    async def test_dlx(self):
+    async def test_dlx(
+        self,
+        channel: aio_pika.Channel,
+        declare_exchange,
+        declare_queue,
+        add_cleanup,
+        loop,
+    ):
         suffix = self.get_random_name()
         routing_key = "%s_routing_key" % suffix
         dlx_routing_key = "%s_dlx_routing_key" % suffix
 
-        channel = await self.create_channel()
-
-        f = self.loop.create_future()
+        f = loop.create_future()
 
         async def dlx_handle(message):
             message.ack()
-            self.assertEqual(message.body, body)
-            self.assertEqual(message.routing_key, dlx_routing_key)
+            assert message.body == body
+            assert message.routing_key == dlx_routing_key
             f.set_result(True)
 
-        direct_exchange = await self.declare_exchange(
-            'direct', channel=channel, auto_delete=True
+        direct_exchange = await declare_exchange(
+            "direct", channel=channel, auto_delete=True
         )  # type: aio_pika.Exchange
 
-        dlx_exchange = await channel.declare_exchange(
-            'dlx', ExchangeType.DIRECT, auto_delete=True
+        dlx_exchange = await declare_exchange(
+            "dlx", ExchangeType.DIRECT, auto_delete=True
         )
 
-        direct_queue = await channel.declare_queue(
+        direct_queue = await declare_queue(
             "%s_direct_queue" % suffix,
             auto_delete=True,
             arguments={
-                'x-message-ttl': 300,
-                'x-dead-letter-exchange': 'dlx',
-                'x-dead-letter-routing-key': dlx_routing_key
-            }
+                "x-message-ttl": 300,
+                "x-dead-letter-exchange": "dlx",
+                "x-dead-letter-routing-key": dlx_routing_key,
+            },
         )
 
-        dlx_queue = await channel.declare_queue(
-            "%s_dlx_queue" % suffix,
-            auto_delete=True
+        dlx_queue = await declare_queue(
+            "%s_dlx_queue" % suffix, auto_delete=True
         )
 
         await dlx_queue.consume(dlx_handle)
         await dlx_queue.bind(dlx_exchange, dlx_routing_key)
         await direct_queue.bind(direct_exchange, routing_key)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        add_cleanup(dlx_queue.unbind, dlx_exchange, routing_key)
+        add_cleanup(direct_queue.unbind, direct_exchange, routing_key)
 
-        try:
-            await direct_exchange.publish(
-                Message(
-                    body,
-                    content_type='text/plain',
-                    headers={
-                        'x-message-ttl': 100,
-                        'x-dead-letter-exchange': 'dlx',
-                    }
-                ),
-                routing_key
-            )
+        body = bytes(shortuuid.uuid(), "utf-8")
 
-            if not f.done():
-                await f
-        finally:
-            await dlx_queue.unbind(dlx_exchange, routing_key)
-            await direct_queue.unbind(direct_exchange, routing_key)
-            await direct_queue.delete()
-            await direct_exchange.delete()
-            await dlx_exchange.delete()
+        await direct_exchange.publish(
+            Message(
+                body,
+                content_type="text/plain",
+                headers={
+                    "x-message-ttl": 100,
+                    "x-dead-letter-exchange": "dlx",
+                },
+            ),
+            routing_key,
+        )
 
-    async def test_connection_close(self):
-        client = await self.create_connection()
+        if not f.done():
+            await f
 
+    async def test_connection_close(self, connection, declare_exchange):
         routing_key = self.get_random_name()
 
-        channel = await client.channel()    # type: aio_pika.Channel
-        exchange = await channel.declare_exchange('direct', auto_delete=True)
+        channel = await connection.channel()  # type: aio_pika.Channel
+        exchange = await declare_exchange(
+            "direct", auto_delete=True, channel=channel
+        )
 
         try:
             with pytest.raises(aio_pika.exceptions.ChannelPreconditionFailed):
-                msg = Message(bytes(shortuuid.uuid(), 'utf-8'))
+                msg = Message(bytes(shortuuid.uuid(), "utf-8"))
                 msg.delivery_mode = 8
 
                 await exchange.publish(msg, routing_key)
 
-            channel = await client.channel()
+            channel = await connection.channel()
             exchange = await channel.declare_exchange(
-                'direct', auto_delete=True
+                "direct", auto_delete=True
             )
         finally:
             await exchange.delete()
-            await asyncio.wait((client.close(), client.closing))
 
-    async def test_basic_return(self):
-        client = await self.create_connection()
+    async def test_basic_return(self, connection, loop):
+        channel = await connection.channel()  # type: aio_pika.Channel
 
-        channel = await client.channel()   # type: aio_pika.Channel
-
-        f = self.loop.create_future()
+        f = loop.create_future()
 
         def handler(sender, *args, **kwargs):
             f.set_result(*args, **kwargs)
 
         channel.add_on_return_callback(handler)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
         await channel.default_exchange.publish(
-            Message(
-                body,
-                content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            self.get_random_name("test_basic_return")
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            self.get_random_name("test_basic_return"),
         )
 
         returned = await f
 
-        self.assertEqual(returned.body, body)
+        assert returned.body == body
 
         # handler with exception
-        f = self.loop.create_future()
+        f = loop.create_future()
 
         await channel.close()
 
-        channel = await client.channel()  # type: aio_pika.Channel
+        channel = await connection.channel()  # type: aio_pika.Channel
 
         def bad_handler(sender, message):
             try:
@@ -996,35 +934,27 @@ class TestCase(BaseTestCase):
 
         channel.add_on_return_callback(bad_handler)
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
         await channel.default_exchange.publish(
-            Message(
-                body,
-                content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            self.get_random_name("test_basic_return")
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            self.get_random_name("test_basic_return"),
         )
 
         returned = await f
 
-        self.assertEqual(returned.body, body)
+        assert returned.body == body
 
-        await asyncio.wait((client.close(), client.closing))
-
-    async def test_expiration(self):
-        client = await self.create_connection()
-
-        channel = await client.channel()  # type: aio_pika.Channel
+    async def test_expiration(self, connection, loop):
+        channel = await connection.channel()  # type: aio_pika.Channel
 
         dlx_queue = await channel.declare_queue(
             self.get_random_name("test_dlx")
-        )   # type: aio_pika.Queue
+        )  # type: aio_pika.Queue
 
         dlx_exchange = await channel.declare_exchange(
             self.get_random_name("dlx"),
-        )   # type: aio_pika.Exchange
+        )  # type: aio_pika.Exchange
 
         await dlx_queue.bind(dlx_exchange, routing_key=dlx_queue.name)
 
@@ -1034,218 +964,176 @@ class TestCase(BaseTestCase):
                 "x-message-ttl": 10000,
                 "x-dead-letter-exchange": dlx_exchange.name,
                 "x-dead-letter-routing-key": dlx_queue.name,
-            }
+            },
         )  # type: aio_pika.Queue
 
-        body = bytes(shortuuid.uuid(), 'utf-8')
+        body = bytes(shortuuid.uuid(), "utf-8")
 
         await channel.default_exchange.publish(
             Message(
                 body,
-                content_type='text/plain',
-                headers={'foo': 'bar'},
-                expiration=0.5
+                content_type="text/plain",
+                headers={"foo": "bar"},
+                expiration=0.5,
             ),
-            queue.name
+            queue.name,
         )
 
-        f = self.loop.create_future()
+        f = loop.create_future()
 
         await dlx_queue.consume(f.set_result, no_ack=True)
 
         message = await f
 
-        self.assertEqual(message.body, body)
-        self.assertEqual(
-            message.headers['x-death'][0]['original-expiration'], b'500'
-        )
+        assert message.body == body
+        assert message.headers["x-death"][0]["original-expiration"] == b"500"
 
-        await asyncio.wait((client.close(), client.closing))
-
-    async def test_add_close_callback(self):
-        client = await self.create_connection()
+    async def test_add_close_callback(self, create_connection):
+        connection = await create_connection()
 
         shared_list = []
 
         def share(*a, **kw):
             shared_list.append((a, kw))
 
-        client.add_close_callback(share)
-        await client.close()
+        connection.add_close_callback(share)
+        await connection.close()
 
-        self.assertEqual(len(shared_list), 1)
+        assert len(shared_list) == 1
 
-    async def test_big_message(self):
-        client = await self.create_connection()
-
+    async def test_big_message(self, connection, add_cleanup):
         queue_name = self.get_random_name("test_big")
         routing_key = self.get_random_name()
 
-        channel = await client.channel()
-        exchange = await channel.declare_exchange('direct', auto_delete=True)
+        channel = await connection.channel()
+        exchange = await channel.declare_exchange("direct", auto_delete=True)
         queue = await channel.declare_queue(queue_name, auto_delete=True)
 
         await queue.bind(exchange, routing_key)
+        add_cleanup(queue.unbind, exchange, routing_key)
+        add_cleanup(queue.delete)
 
-        body = bytes(shortuuid.uuid(), 'utf-8') * 6000000
+        body = bytes(shortuuid.uuid(), "utf-8") * 1000000
 
         await exchange.publish(
-            Message(
-                body, content_type='text/plain',
-                headers={'foo': 'bar'}
-            ),
-            routing_key
+            Message(body, content_type="text/plain", headers={"foo": "bar"}),
+            routing_key,
         )
 
         incoming_message = await queue.get(timeout=5)
         incoming_message.ack()
 
-        self.assertEqual(incoming_message.body, body)
-        await queue.unbind(exchange, routing_key)
-        await queue.delete()
-        await asyncio.wait((client.close(), client.closing))
+        assert incoming_message.body == body
 
-    async def test_unexpected_channel_close(self):
-        client = await self.create_connection()
-
-        channel = await client.channel()
+    async def test_unexpected_channel_close(self, connection):
+        channel = await connection.channel()
 
         with pytest.raises(aio_pika.exceptions.ChannelClosed):
-            await channel.declare_queue("amq.restricted_queue_name",
-                                        auto_delete=True)
+            await channel.declare_queue(
+                "amq.restricted_queue_name", auto_delete=True
+            )
 
         with pytest.raises(aiormq.exceptions.ChannelInvalidStateError):
             await channel.set_qos(100)
 
-        await asyncio.wait((client.close(), client.closing))
-
-    async def test_declaration_result(self):
-        client = await self.create_connection()
-
-        channel = await client.channel()
-
+    async def test_declaration_result(self, channel):
         queue = await channel.declare_queue(auto_delete=True)
+        assert queue.declaration_result.message_count == 0
+        assert queue.declaration_result.consumer_count == 0
 
-        self.assertEqual(queue.declaration_result.message_count, 0)
-        self.assertEqual(queue.declaration_result.consumer_count, 0)
-
-        await asyncio.wait((client.close(), client.closing))
-
-    async def test_declaration_result_with_consumers(self):
-        client = await self.create_connection()
-
-        channel1 = await client.channel()
+    async def test_declaration_result_with_consumers(self, connection):
+        channel1 = await connection.channel()
 
         queue_name = self.get_random_name("queue", "declaration-result")
         queue1 = await channel1.declare_queue(queue_name, auto_delete=True)
         await queue1.consume(print)
 
-        channel2 = await client.channel()
+        channel2 = await connection.channel()
 
         queue2 = await channel2.declare_queue(queue_name, passive=True)
 
-        self.assertEqual(queue2.declaration_result.consumer_count, 1)
+        assert queue2.declaration_result.consumer_count == 1
 
-        await asyncio.wait((client.close(), client.closing))
-
-    async def test_declaration_result_with_messages(self):
-        client = await self.create_connection()
-
-        channel1 = await client.channel()
-        channel2 = await client.channel()
+    async def test_declaration_result_with_messages(self, connection):
+        channel1 = await connection.channel()
+        channel2 = await connection.channel()
 
         queue_name = self.get_random_name("queue", "declaration-result")
         queue1 = await channel1.declare_queue(queue_name, auto_delete=True)
 
         await channel1.default_exchange.publish(
-            Message(body=b'test'),
-            routing_key=queue1.name
+            Message(body=b"test"), routing_key=queue1.name
         )
 
         queue2 = await channel2.declare_queue(queue_name, passive=True)
         await queue2.get()
         await queue2.delete()
 
-        self.assertEqual(queue2.declaration_result.consumer_count, 0)
-        self.assertEqual(queue2.declaration_result.message_count, 1)
+        assert queue2.declaration_result.consumer_count == 0
+        assert queue2.declaration_result.message_count == 1
 
-        await asyncio.wait((client.close(), client.closing))
-
-    async def test_queue_empty_exception(self):
-
-        client = await self.create_connection()
+    async def test_queue_empty_exception(self, connection, add_cleanup):
         queue_name = self.get_random_name("test_get_on_empty_queue")
-        channel = await client.channel()
+
+        channel = await connection.channel()
         queue = await channel.declare_queue(queue_name, auto_delete=True)
+        add_cleanup(queue.delete)
 
         with pytest.raises(aio_pika.exceptions.QueueEmpty):
             await queue.get(timeout=5)
 
         await channel.default_exchange.publish(
-            Message(b'test'),
-            queue_name,
+            Message(b"test"), queue_name,
         )
 
         message = await queue.get(timeout=5)
-        self.assertEqual(message.body, b'test')
+        assert message.body == b"test"
 
         # test again for #110
         with pytest.raises(aio_pika.exceptions.QueueEmpty):
             await queue.get(timeout=5)
 
-        await queue.delete()
-        await asyncio.wait((client.close(), client.closing))
-
-    async def test_queue_empty_fail_false(self):
-
-        client = await self.create_connection()
+    async def test_queue_empty_fail_false(self, connection, add_cleanup):
         queue_name = self.get_random_name("test_get_on_empty_queue")
-        channel = await client.channel()
+        channel = await connection.channel()
         queue = await channel.declare_queue(queue_name, auto_delete=True)
+        add_cleanup(queue.delete)
 
         result = await queue.get(fail=False)
-        self.assertIsNone(result)
+        assert result is None
 
-        await queue.delete()
-        await asyncio.wait((client.close(), client.closing))
-
-    async def test_message_nack(self):
-
-        client = await self.create_connection()
+    async def test_message_nack(self, connection, add_cleanup):
         queue_name = self.get_random_name("test_nack_queue")
         body = uuid.uuid4().bytes
-        channel = await client.channel()
+        channel = await connection.channel()
         queue = await channel.declare_queue(queue_name, auto_delete=True)
+        add_cleanup(queue.delete)
 
         await channel.default_exchange.publish(
             Message(body=body), routing_key=queue_name
         )
 
-        message = await queue.get()    # type: aio_pika.IncomingMessage
+        message = await queue.get()  # type: aio_pika.IncomingMessage
 
-        self.assertEqual(message.body, body)
+        assert message.body == body
         message.nack(requeue=True)
 
         message = await queue.get()
 
-        self.assertTrue(message.redelivered)
-        self.assertEqual(message.body, body)
-        message.ack()
+        assert message.redelivered
+        assert message.body == body
+        await message.ack()
 
-        await queue.delete()
-        await asyncio.wait((client.close(), client.closing))
-
-    async def test_on_return_raises(self):
-        client = await self.create_connection()
+    async def test_on_return_raises(self, connection):
         queue_name = self.get_random_name("test_on_return_raises")
         body = uuid.uuid4().bytes
 
         with pytest.raises(RuntimeError):
-            await client.channel(
+            await connection.channel(
                 publisher_confirms=False, on_return_raises=True
             )
 
-        channel = await client.channel(
+        channel = await connection.channel(
             publisher_confirms=True, on_return_raises=True
         )
 
@@ -1255,57 +1143,58 @@ class TestCase(BaseTestCase):
                     Message(body=body), routing_key=queue_name,
                 )
 
-        await client.close()
+    async def test_transaction_when_publisher_confirms_error(
+        self, connection: aio_pika.Connection
+    ):
+        async with connection.channel(publisher_confirms=True) as channel:
+            with pytest.raises(RuntimeError):
+                channel.transaction()
 
-    async def test_transaction_when_publisher_confirms_error(self):
-        channel = await self.create_channel(publisher_confirms=True)
-        with pytest.raises(RuntimeError):
-            channel.transaction()
+    async def test_transaction_simple_commit(
+        self, connection: aio_pika.Connection
+    ):
+        async with connection.channel(publisher_confirms=False) as channel:
+            tx = channel.transaction()
+            await tx.select()
+            await tx.commit()
 
-    async def test_transaction_simple_commit(self):
-        channel = await self.create_channel(publisher_confirms=False)
-        tx = channel.transaction()
-        await tx.select()
-        await tx.commit()
+    async def test_transaction_simple_rollback(self, connection):
+        async with connection.channel(publisher_confirms=False) as channel:
+            tx = channel.transaction()
+            await tx.select()
+            await tx.rollback()
 
-    async def test_transaction_simple_rollback(self):
-        channel = await self.create_channel(publisher_confirms=False)
-        tx = channel.transaction()
-        await tx.select()
-        await tx.rollback()
-
-    async def test_transaction_simple_async_commit(self):
-        channel = await self.create_channel(publisher_confirms=False)
-
-        async with channel.transaction():
-            pass
-
-    async def test_transaction_simple_async_rollback(self):
-        channel = await self.create_channel(publisher_confirms=False)
-
-        with pytest.raises(ValueError):
+    async def test_transaction_simple_async_commit(self, connection):
+        async with connection.channel(publisher_confirms=False) as channel:
             async with channel.transaction():
-                raise ValueError
+                pass
 
-    async def test_async_for_queue(self):
-        conn = await self.create_connection()
+    async def test_transaction_simple_async_rollback(self, connection):
+        async with connection.channel(publisher_confirms=False) as channel:
+            with pytest.raises(ValueError):
+                async with channel.transaction():
+                    raise ValueError
 
-        channel2 = await self.create_channel(connection=conn)
+    async def test_async_for_queue(
+        self, loop, connection: aio_pika.Connection
+    ):
+        channel2 = await connection.channel()
 
         queue = await channel2.declare_queue(
-            self.get_random_name("queue", "is_async", "for"), auto_delete=True)
+            self.get_random_name("queue", "is_async", "for"), auto_delete=True
+        )
 
         messages = 100
 
         async def publisher():
-            channel1 = await self.create_channel(connection=conn)
+            channel1 = await connection.channel()
 
             for i in range(messages):
                 await channel1.default_exchange.publish(
                     Message(body=str(i).encode()), routing_key=queue.name
                 )
 
-        self.loop.create_task(publisher())
+        loop.create_task(publisher())
 
         count = 0
         data = list()
@@ -1318,27 +1207,26 @@ class TestCase(BaseTestCase):
             if count >= messages:
                 break
 
-        self.assertSequenceEqual(data, list(
-            map(lambda x: str(x).encode(), range(messages))))
+        assert data == list(map(lambda x: str(x).encode(), range(messages)))
 
-    async def test_async_for_queue_context(self):
-        conn = await self.create_connection()
-
-        channel2 = await self.create_channel(connection=conn)
+    async def test_async_for_queue_context(self, loop, connection):
+        channel2 = await connection.channel()
 
         queue = await channel2.declare_queue(
-            self.get_random_name("queue", "is_async", "for"), auto_delete=True)
+            self.get_random_name("queue", "is_async", "for"), auto_delete=True
+        )
 
         messages = 100
 
         async def publisher():
-            channel1 = await self.create_channel(connection=conn)
+            channel1 = await connection.channel()
 
             for i in range(messages):
                 await channel1.default_exchange.publish(
-                    Message(body=str(i).encode()), routing_key=queue.name)
+                    Message(body=str(i).encode()), routing_key=queue.name
+                )
 
-        self.loop.create_task(publisher())
+        loop.create_task(publisher())
 
         count = 0
         data = list()
@@ -1352,35 +1240,29 @@ class TestCase(BaseTestCase):
                 if count >= messages:
                     break
 
-        self.assertSequenceEqual(data, list(
-            map(lambda x: str(x).encode(), range(messages))))
+        assert data == list(map(lambda x: str(x).encode(), range(messages)))
 
-    async def test_async_with_connection(self):
-        conn = await self.create_connection(cleanup=False)
+    async def test_async_with_connection(self, create_connection, loop):
+        async with await create_connection() as connection:
 
-        async with conn:
-
-            channel2 = await self.create_channel(
-                connection=conn, cleanup=False
-            )
+            channel2 = await connection.channel()
 
             queue = await channel2.declare_queue(
                 self.get_random_name("queue", "is_async", "for"),
-                auto_delete=True)
+                auto_delete=True,
+            )
 
             messages = 100
 
             async def publisher():
-                channel1 = await self.create_channel(connection=conn,
-                                                     cleanup=False)
+                channel1 = await connection.channel()
 
                 for i in range(messages):
                     await channel1.default_exchange.publish(
-                        Message(body=str(i).encode()),
-                        routing_key=queue.name
+                        Message(body=str(i).encode()), routing_key=queue.name
                     )
 
-            self.loop.create_task(publisher())
+            loop.create_task(publisher())
 
             count = 0
             data = list()
@@ -1394,21 +1276,19 @@ class TestCase(BaseTestCase):
                     if count >= messages:
                         break
 
-            self.assertSequenceEqual(data, list(
-                map(lambda x: str(x).encode(), range(messages))))
-        self.assertTrue(channel2.is_closed)
+            assert data == list(
+                map(lambda x: str(x).encode(), range(messages))
+            )
 
-    async def test_async_with_channel(self):
-        conn = await self.create_connection()
+        assert channel2.is_closed
 
-        async with conn.channel() as channel:
-            self.assertTrue(isinstance(channel, Channel))
+    async def test_async_with_channel(self, connection: aio_pika.Connection):
+        async with connection.channel() as channel:
+            assert isinstance(channel, Channel)
 
-        self.assertTrue(channel.is_closed)
+        assert channel.is_closed
 
-    async def test_delivery_fail(self):
-        channel = await self.create_channel(publisher_confirms=True)
-
+    async def test_delivery_fail(self, channel: aio_pika.Channel):
         queue = await channel.declare_queue(exclusive=True, arguments={
             'x-max-length': 1,
             'x-overflow': 'reject-publish',
@@ -1426,30 +1306,32 @@ class TestCase(BaseTestCase):
                     routing_key=queue.name
                 )
 
-    async def test_channel_locked_resource(self):
-        ch1 = await self.create_channel()
-        ch2 = await self.create_channel()
+    async def test_channel_locked_resource(self, connection: aio_pika.Connection):
+        ch1 = await connection.channel()
+        ch2 = await connection.channel()
 
         qname = self.get_random_name("channel", "locked", "resource")
 
         q1 = await ch1.declare_queue(qname, exclusive=True)
         await q1.consume(print, exclusive=True)
 
-        with self.assertRaises(ChannelLockedResource):
+        with pytest.raises(aiormq.exceptions.ChannelAccessRefused):
             q2 = await ch2.declare_queue(qname, exclusive=True)
             await q2.consume(print, exclusive=True)
 
-    async def test_queue_iterator_close_was_called_twice(self):
-        logger = logging.getLogger().getChild(self.get_random_name("logger"))
+    async def test_queue_iterator_close_was_called_twice(self, create_connection, loop):
+        future = loop.create_future()
         event = asyncio.Event()
 
         queue_name = self.get_random_name()
 
         async def task_inner():
-            nonlocal logger
+            nonlocal future
             nonlocal event
+            nonlocal create_connection
+
             try:
-                connection = await self.create_connection()
+                connection = await create_connection()
 
                 async with connection:
                     channel = await connection.channel()
@@ -1462,28 +1344,34 @@ class TestCase(BaseTestCase):
                         async for message in q:
                             with message.process():
                                 break
-            except asyncio.CancelledError:
-                logger.exception("Error")
+
+            except asyncio.CancelledError as e:
+                future.set_exception(e)
                 raise
 
-        task = self.loop.create_task(task_inner())
+        task = loop.create_task(task_inner())
 
         await event.wait()
-        self.loop.call_soon(task.cancel)
+        loop.call_soon(task.cancel)
 
-        with self.assertLogs(logger):
-            with self.assertRaises(asyncio.CancelledError):
-                await task
+        with pytest.raises(asyncio.CancelledError):
+            await task
 
-    async def test_queue_iterator_close_with_noack(self):
+        with pytest.raises(asyncio.CancelledError):
+            await future
+
+    async def test_queue_iterator_close_with_noack(self, create_connection, loop, add_cleanup):
         messages = []
         queue_name = self.get_random_name("test_queue")
         body = self.get_random_name("test_body").encode()
 
         async def task_inner():
             nonlocal messages
+            nonlocal create_connection
+            nonlocal add_cleanup
 
-            connection = await self.create_connection()
+            connection = await create_connection()
+            add_cleanup(connection.close)
 
             async with connection:
                 channel = await connection.channel()
@@ -1495,73 +1383,81 @@ class TestCase(BaseTestCase):
                         messages.append(message)
                         return
 
-        connection = await self.create_connection()
-        channel = await connection.channel()
+        async with await create_connection() as connection:
+            channel = await connection.channel()
 
-        await channel.declare_queue(queue_name)
+            await channel.declare_queue(queue_name)
 
-        await channel.default_exchange.publish(
-            Message(body),
-            routing_key=queue_name,
-        )
+            await channel.default_exchange.publish(
+                Message(body),
+                routing_key=queue_name,
+            )
 
-        task = self.loop.create_task(task_inner())
+            task = loop.create_task(task_inner())
 
-        await task
+            await task
 
-        assert messages
-        assert messages[0].body == body
+            assert messages
+            assert messages[0].body == body
 
-    async def test_passive_for_exchange(self):
+    async def test_passive_for_exchange(self, declare_exchange, connection, add_cleanup):
         name = self.get_random_name("passive", "exchange")
 
-        with self.assertRaises(aio_pika.exceptions.ChannelNotFoundEntity):
-            await self.declare_exchange(name, passive=True)
+        ch1 = await connection.channel()
+        ch2 = await connection.channel()
+        ch3 = await connection.channel()
 
-        exchange = await self.declare_exchange(name, auto_delete=True)
-        exchange_passive = await self.declare_exchange(name, passive=True)
+        with pytest.raises(aio_pika.exceptions.ChannelNotFoundEntity):
+            await declare_exchange(name, passive=True, channel=ch1)
 
-        self.assertEqual(exchange.name, exchange_passive.name)
+        exchange = await declare_exchange(name, auto_delete=True, channel=ch2)
+        exchange_passive = await declare_exchange(name, passive=True, channel=ch3)
 
-    async def test_passive_queue(self):
+        assert exchange.name == exchange_passive.name
+
+    async def test_passive_queue(self, declare_queue, connection):
         name = self.get_random_name("passive", "queue")
 
-        with self.assertRaises(aio_pika.exceptions.ChannelNotFoundEntity):
-            await self.declare_queue(name, passive=True)
+        ch1 = await connection.channel()
+        ch2 = await connection.channel()
+        ch3 = await connection.channel()
 
-        queue = await self.declare_queue(name, auto_delete=True)
-        queue_passive = await self.declare_queue(name, passive=True)
+        with pytest.raises(aio_pika.exceptions.ChannelNotFoundEntity):
+            await declare_queue(name, passive=True, channel=ch1)
 
-        self.assertEqual(queue.name, queue_passive.name)
+        queue = await declare_queue(name, auto_delete=True, channel=ch2)
+        queue_passive = await declare_queue(name, passive=True, channel=ch3)
 
-    async def test_get_exchange(self):
-        channel = await self.create_channel()
+        assert queue.name == queue_passive.name
+
+    async def test_get_exchange(self, connection):
+        channel = await connection.channel()
         name = self.get_random_name("passive", "exchange")
 
-        with self.assertRaises(aio_pika.exceptions.ChannelNotFoundEntity):
+        with pytest.raises(aio_pika.exceptions.ChannelNotFoundEntity):
             await channel.get_exchange(name)
 
-        channel = await self.create_channel()
+        channel = await connection.channel()
         exchange = await channel.declare_exchange(name, auto_delete=True)
         exchange_passive = await channel.get_exchange(name)
 
-        self.assertEqual(exchange.name, exchange_passive.name)
+        assert exchange.name == exchange_passive.name
 
-    async def test_get_queue(self):
-        channel = await self.create_channel()
+    async def test_get_queue(self, connection):
+        channel = await connection.channel()
         name = self.get_random_name("passive", "queue")
 
-        with self.assertRaises(aio_pika.exceptions.ChannelNotFoundEntity):
+        with pytest.raises(aio_pika.exceptions.ChannelNotFoundEntity):
             await channel.get_queue(name)
 
-        channel = await self.create_channel()
+        channel = await connection.channel()
         queue = await channel.declare_queue(name, auto_delete=True)
         queue_passive = await channel.get_queue(name)
 
-        self.assertEqual(queue.name, queue_passive.name)
+        assert queue.name, queue_passive.name
 
 
-class MessageTestCase(unittest.TestCase):
+class MessageTestCase:
     def test_message_copy(self):
         msg1 = Message(
             bytes(shortuuid.uuid(), 'utf-8'),
@@ -1574,7 +1470,7 @@ class MessageTestCase(unittest.TestCase):
 
         msg1.lock()
 
-        self.assertFalse(msg2.locked)
+        assert not msg2.locked
 
     def test_message_info(self):
         body = bytes(shortuuid.uuid(), 'utf-8')
@@ -1613,7 +1509,7 @@ class MessageTestCase(unittest.TestCase):
             app_id='test'
         )
 
-        self.assertDictEqual(info, msg.info())
+        assert info == msg.info()
 
     def test_headers_setter(self):
         data = {'foo': 'bar'}
@@ -1622,10 +1518,7 @@ class MessageTestCase(unittest.TestCase):
         msg = Message(b'', headers={'bar': 'baz'})
         msg.headers = data
 
-        self.assertEqual(
-            msg.headers_raw, data_expected,
-            "%r != %r" % (msg.headers_raw, data_expected)
-        )
+        assert msg.headers_raw == data_expected
 
     def test_headers_content(self):
         data = (
@@ -1636,13 +1529,8 @@ class MessageTestCase(unittest.TestCase):
 
         for src, raw, value in data:
             msg = Message(b'', headers={'value': src})
-            self.assertEqual(
-                msg.headers_raw['value'], raw, "%r != %r" % (src, raw)
-            )
-
-            self.assertEqual(
-                msg.headers['value'], value, "%r != %r" % (src, value)
-            )
+            assert msg.headers_raw['value'] == raw
+            assert msg.headers['value'] == value
 
     def test_headers_set(self):
         msg = Message(b'', headers={'header': 'value'})
@@ -1655,11 +1543,7 @@ class MessageTestCase(unittest.TestCase):
 
         for name, src, raw, value in data:
             msg.headers[name] = value
-            self.assertEqual(
-                msg.headers_raw[name], raw, "%r != %r" % (src, raw)
-            )
-            self.assertEqual(
-                msg.headers[name], value, "%r != %r" % (src, value)
-            )
+            assert msg.headers_raw[name] == raw
+            assert msg.headers[name] == value
 
-        self.assertEqual(msg.headers['header'], 'value')
+        assert msg.headers['header'] == 'value'

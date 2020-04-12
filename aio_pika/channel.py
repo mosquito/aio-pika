@@ -117,9 +117,6 @@ class Channel:
             self.__class__.__name__, conn, self
         )
 
-    def __del__(self):
-        print('deleted')
-
     def __iter__(self):
         return (yield from self.__await__())
 

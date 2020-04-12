@@ -7,7 +7,7 @@ from types import FunctionType
 import aiormq
 
 from .channel import Channel
-from .types import ExchangeType as ExchangeType_
+from .exchange import ExchangeParamType
 from .queue import Queue, ConsumerTag
 
 log = getLogger(__name__)
@@ -55,7 +55,7 @@ class RobustQueue(Queue):
         for consumer_tag, kwargs in tuple(self._consumers.items()):
             await self.consume(consumer_tag=consumer_tag, **kwargs)
 
-    async def bind(self, exchange: ExchangeType_, routing_key: str=None, *,
+    async def bind(self, exchange: ExchangeParamType, routing_key: str=None, *,
                    arguments=None, timeout: int=None, robust: bool = True):
 
         if routing_key is None:
@@ -74,7 +74,7 @@ class RobustQueue(Queue):
 
         return result
 
-    async def unbind(self, exchange: ExchangeType_, routing_key: str=None,
+    async def unbind(self, exchange: ExchangeParamType, routing_key: str=None,
                      arguments: dict=None, timeout: int=None):
 
         if routing_key is None:

@@ -5,7 +5,7 @@ from typing import Optional, Union
 
 import aiormq
 from .message import Message
-from .types import ExchangeType as ExchangeType_, TimeoutType
+from .types import TimeoutType
 
 
 log = getLogger(__name__)
@@ -20,6 +20,9 @@ class ExchangeType(Enum):
     X_DELAYED_MESSAGE = 'x-delayed-message'
     X_CONSISTENT_HASH = 'x-consistent-hash'
     X_MODULUS_HASH = 'x-modulus-hash'
+
+
+ExchangeParamType = Union['Exchange', str]
 
 
 class Exchange:
@@ -74,7 +77,7 @@ class Exchange:
         ), timeout=timeout)
 
     @staticmethod
-    def _get_exchange_name(exchange: ExchangeType_):
+    def _get_exchange_name(exchange: ExchangeParamType):
         if isinstance(exchange, Exchange):
             return exchange.name
         elif isinstance(exchange, str):
@@ -84,7 +87,7 @@ class Exchange:
                 'exchange argument must be an exchange instance or str')
 
     async def bind(
-        self, exchange: ExchangeType_, routing_key: str = '', *,
+        self, exchange: ExchangeParamType, routing_key: str = '', *,
         arguments: dict = None, timeout: TimeoutType = None
     ) -> aiormq.spec.Exchange.BindOk:
 
@@ -137,7 +140,7 @@ class Exchange:
         )
 
     async def unbind(
-        self, exchange: ExchangeType_, routing_key: str = '',
+        self, exchange: ExchangeParamType, routing_key: str = '',
         arguments: dict = None, timeout: TimeoutType = None
     ) -> aiormq.spec.Exchange.UnbindOk:
 
@@ -217,4 +220,4 @@ class Exchange:
         )
 
 
-__all__ = ('Exchange', 'ExchangeType')
+__all__ = ('Exchange', 'ExchangeType', 'ExchangeParamType')
