@@ -1,15 +1,28 @@
 import asyncio
 import logging
+import abc
 
-from typing import Any, Callable, TypeVar, AsyncContextManager, Coroutine
+from typing import Any, Callable, TypeVar, AsyncContextManager, Coroutine, \
+    Awaitable, Union
+
+from aiormq.tools import awaitable
+
+log = logging.getLogger(__name__)
+
+
+class PoolInstance(abc.ABC):
+    @abc.abstractclassmethod
+    async def close(cls):
+        raise NotImplementedError
 
 
 T = TypeVar("T")
 ItemType = Coroutine[Any, None, T]
-ConstructorType = Callable[..., ItemType]
-
-
-log = logging.getLogger(__name__)
+ConstructorType = Union[
+    Awaitable[PoolInstance],
+    Callable[..., PoolInstance],
+    Callable[..., Coroutine[Any, Any, PoolInstance]],
+]
 
 
 class PoolInvalidStateError(RuntimeError):
@@ -27,7 +40,7 @@ class Pool:
                  max_size: int = None, loop: asyncio.AbstractEventLoop = None):
         self.loop = loop or asyncio.get_event_loop()
         self.__closed = False
-        self.__constructor = constructor
+        self.__constructor = awaitable(constructor)
         self.__constructor_args = args or ()
         self.__created = 0
         self.__item_set = set()

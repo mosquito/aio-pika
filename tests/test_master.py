@@ -1,13 +1,12 @@
 import asyncio
 
+import aio_pika
 from aio_pika.patterns.master import Master, RejectMessage, NackMessage
-from tests.test_amqp import BaseTestCase
 
 
-class TestCase(BaseTestCase):
+class TestCase:
 
-    async def test_simple(self):
-        channel = await self.create_channel()
+    async def test_simple(self, channel: aio_pika.Channel):
         master = Master(channel)
         event = asyncio.Event()
 
@@ -26,12 +25,11 @@ class TestCase(BaseTestCase):
 
         await event.wait()
 
-        self.assertSequenceEqual(self.state, [(1, 2)])
+        assert self.state == [(1, 2)]
 
         await worker.close()
 
-    async def test_simple_coro(self):
-        channel = await self.create_channel()
+    async def test_simple_coro(self, channel: aio_pika.Channel):
         master = Master(channel)
         event = asyncio.Event()
 
@@ -50,21 +48,20 @@ class TestCase(BaseTestCase):
 
         await event.wait()
 
-        self.assertSequenceEqual(self.state, [(1, 2)])
+        assert self.state == [(1, 2)]
 
         await worker.close()
 
-    async def test_simple_many(self):
-        channel = await self.create_channel()
+    async def test_simple_many(self, channel: aio_pika.Channel):
         master = Master(channel)
         tasks = 100
 
-        self.state = []
+        state = []
 
         def worker_func(*, foo):
-            nonlocal tasks
+            nonlocal tasks, state
 
-            self.state.append(foo)
+            state.append(foo)
             tasks -= 1
 
         worker = await master.create_worker(
@@ -77,12 +74,11 @@ class TestCase(BaseTestCase):
         while tasks > 0:
             await asyncio.sleep(0)
 
-        self.assertSequenceEqual(self.state, range(100))
+        assert state == list(range(100))
 
         await worker.close()
 
-    async def test_exception_classes(self):
-        channel = await self.create_channel()
+    async def test_exception_classes(self, channel: aio_pika.Channel):
         master = Master(channel)
         counter = 200
 
@@ -109,6 +105,6 @@ class TestCase(BaseTestCase):
         while counter > 0:
             await asyncio.sleep(0)
 
-        self.assertSequenceEqual(self.state, range(50, 101))
+        assert self.state == list(range(50, 101))
 
         await worker.close()

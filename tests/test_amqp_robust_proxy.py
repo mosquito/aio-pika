@@ -183,7 +183,6 @@ async def test_revive_passive_queue_on_reconnect(create_connection):
     assert reconnect_count == 1
 
 
-@pytest.mark.skip
 async def test_robust_reconnect(
     create_connection, proxy: Proxy, loop, add_cleanup: Callable
 ):
@@ -207,14 +206,17 @@ async def test_robust_reconnect(
             # Declaring temporary queue
             queue = await channel1.declare_queue()
 
-            async def reader():
+            async def reader(queue_name):
                 nonlocal shared
+                queue = await channel1.declare_queue(
+                    name=queue_name, passive=True
+                )
                 async with queue.iterator() as q:
                     async for message in q:
                         shared.append(message)
                         await message.ack()
 
-            reader_task = loop.create_task(reader())
+            reader_task = loop.create_task(reader(queue.name))
 
             for i in range(5):
                 await channel2.default_exchange.publish(
@@ -224,8 +226,14 @@ async def test_robust_reconnect(
             logging.info("Disconnect all clients")
             await proxy.disconnect()
 
-            logging.info("Waiting for reconnect")
-            await asyncio.sleep(5)
+            with pytest.raises(ConnectionResetError):
+                await asyncio.gather(
+                    conn1.channel(),
+                    conn2.channel()
+                )
+
+            logging.info("Waiting reconnect")
+            await asyncio.sleep(conn1.reconnect_interval * 2)
 
             logging.info("Waiting connections")
             await asyncio.wait_for(

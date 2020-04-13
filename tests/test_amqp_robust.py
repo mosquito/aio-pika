@@ -1,7 +1,8 @@
 from functools import partial
 import aio_pika
 import pytest
-from tests.test_amqp import TestCaseAmqp
+from tests.test_amqp import TestCaseAmqp, TestCaseAmqpWithConfirms, \
+    TestCaseAmqpNoConfirms
 
 
 @pytest.fixture
@@ -34,3 +35,11 @@ class TestCaseNoRobust(TestCaseAmqp):
             kwargs.update(request.param)
             return await declare_exchange(*args, **kwargs)
         return fabric
+
+
+class TestCaseAmqpNoConfirmsRobust(TestCaseAmqpNoConfirms):
+    pass
+
+
+class TestCaseAmqpWithConfirmsRobust(TestCaseAmqpWithConfirms):
+    pass

@@ -9,6 +9,7 @@ import aiormq.types
 
 from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage
+from .pool import PoolInstance
 from .queue import Queue
 from .tools import CallbackCollection
 from .transaction import Transaction
@@ -23,7 +24,7 @@ class ConfirmationTypes(Enum):
     NACK = 'nack'
 
 
-class Channel:
+class Channel(PoolInstance):
     """ Channel abstraction """
 
     QUEUE_CLASS = Queue

@@ -1,12 +1,10 @@
+import gc
 import weakref
 
-from tests import BaseTestCase
 
-
-class TestCase(BaseTestCase):
-
-    async def test_on_successful_cleanup_message(self):
-        rabbitmq_connection = await self.create_connection()
+class TestCase:
+    async def test_on_successful_cleanup_message(self, create_connection):
+        rabbitmq_connection = await create_connection()
 
         weakset = weakref.WeakSet()
 
@@ -18,4 +16,5 @@ class TestCase(BaseTestCase):
             for i in range(5):
                 await f(rabbitmq_connection, weakset)
 
-        self.assertEqual(len(weakset), 0)
+        gc.collect()
+        assert len(weakset) == 0

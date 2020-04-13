@@ -9,6 +9,7 @@ from yarl import URL
 import aiormq
 from aiormq.tools import censor_url
 from .channel import Channel
+from .pool import PoolInstance
 from .tools import CallbackCollection
 from .types import TimeoutType, CloseCallbackType
 
@@ -24,7 +25,7 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 
-class Connection:
+class Connection(PoolInstance):
     """ Connection abstraction """
 
     CHANNEL_CLASS = Channel
@@ -196,7 +197,7 @@ class Connection:
         return channel
 
     async def ready(self):
-        while not self.connection:
+        while self.connection is None:
             await asyncio.sleep(0)
 
     def __del__(self):
