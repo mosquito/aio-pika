@@ -217,4 +217,4 @@ epub_exclude_files = ["search.html"]
 html_logo = "logo2x.png"
 html_favicon = "icon.png"
 
-html_sidebars = {"**": ["about.html", "navigation.html", "searchbox.html",]}
+html_sidebars = {"**": ["about.html", "navigation.html", "searchbox.html"]}

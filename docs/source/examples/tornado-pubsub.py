@@ -41,7 +41,7 @@ async def make_app():
     await queue.consume(QUEUE.put, no_ack=True)
 
     return tornado.web.Application(
-        [(r"/publish", PublisherHandler), (r"/subscribe", SubscriberHandler),],
+        [(r"/publish", PublisherHandler), (r"/subscribe", SubscriberHandler)],
         amqp_connection=amqp_connection,
     )
 

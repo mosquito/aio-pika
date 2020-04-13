@@ -363,9 +363,7 @@ class RPC(Base):
             or method_name already used.
         """
         arguments = kwargs.pop("arguments", {})
-        arguments.update(
-            {"x-dead-letter-exchange": self.DLX_NAME}
-        )
+        arguments.update({"x-dead-letter-exchange": self.DLX_NAME})
 
         kwargs["arguments"] = arguments
 
