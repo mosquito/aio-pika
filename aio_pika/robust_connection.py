@@ -23,6 +23,7 @@ def _ensure_connection(func):
             raise RuntimeError("Connection closed")
 
         return func(self, *args, **kwargs)
+
     return wrap
 
 
@@ -31,16 +32,16 @@ class RobustConnection(Connection):
 
     CHANNEL_CLASS = RobustChannel
     KWARGS_TYPES = (
-        ('reconnect_interval', parse_int, '5'),
-        ('fail_fast', parse_bool, '1'),
+        ("reconnect_interval", parse_int, "5"),
+        ("fail_fast", parse_bool, "1"),
     )
 
     def __init__(self, url, loop=None, **kwargs):
         super().__init__(url=url, loop=loop, **kwargs)
 
         self.connect_kwargs = {}
-        self.reconnect_interval = self.kwargs['reconnect_interval']
-        self.fail_fast = self.kwargs['fail_fast']
+        self.reconnect_interval = self.kwargs["reconnect_interval"]
+        self.fail_fast = self.kwargs["fail_fast"]
 
         self.__channels = WeakSet()
         self._reconnect_callbacks = CallbackCollection(self)
@@ -74,15 +75,15 @@ class RobustConnection(Connection):
 
         super()._on_connection_close(connection, closing)
 
-        if not self._closed:
-            log.info(
-                "Connection to %s closed. Reconnecting after %r seconds.",
-                self, self.reconnect_interval
-            )
-            self.loop.call_later(
-                self.reconnect_interval,
-                lambda: self.loop.create_task(self.reconnect())
-            )
+        log.info(
+            "Connection to %s closed. Reconnecting after %r seconds.",
+            self,
+            self.reconnect_interval,
+        )
+        self.loop.call_later(
+            self.reconnect_interval,
+            lambda: self.loop.create_task(self.reconnect()),
+        )
 
     def add_reconnect_callback(self, callback: Callable[[], None]):
         """ Add callback which will be called after reconnect.
@@ -96,8 +97,7 @@ class RobustConnection(Connection):
         if self.connection is None:
             return
         await asyncio.gather(
-            self.connection.close(exc),
-            return_exceptions=True,
+            self.connection.close(exc), return_exceptions=True,
         )
         self.connection = None
 
@@ -113,15 +113,14 @@ class RobustConnection(Connection):
             log.warning(
                 "Connect method called but connection %r is "
                 "reconnecting right now.",
-                self
+                self,
             )
 
         async with self._connect_lock:
             while True:
                 try:
                     result = await super().connect(
-                        timeout=timeout,
-                        **self.connect_kwargs
+                        timeout=timeout, **self.connect_kwargs
                     )
 
                     for channel in self._channels.values():
@@ -137,9 +136,11 @@ class RobustConnection(Connection):
                     await self.__cleanup_connection(e)
 
                     log.warning(
-                        "Connection attempt to \"%s\" failed. "
+                        'Connection attempt to "%s" failed. '
                         "Reconnecting after %r seconds.",
-                        self, self.reconnect_interval, exc_info=True,
+                        self,
+                        self.reconnect_interval,
+                        exc_info=True,
                     )
                 except asyncio.CancelledError as e:
                     await self.__cleanup_connection(e)
@@ -151,9 +152,12 @@ class RobustConnection(Connection):
         await self.connect()
         self._reconnect_callbacks(self)
 
-    def channel(self, channel_number: int = None,
-                publisher_confirms: bool = True,
-                on_return_raises=False):
+    def channel(
+        self,
+        channel_number: int = None,
+        publisher_confirms: bool = True,
+        on_return_raises=False,
+    ):
 
         channel = super().channel(
             channel_number=channel_number,
@@ -182,12 +186,20 @@ class RobustConnection(Connection):
 
 
 async def connect_robust(
-    url: str = None, *, host: str = 'localhost', port: int = 5672,
-    login: str = 'guest', password: str = 'guest', virtualhost: str = '/',
-    ssl: bool = False, loop: asyncio.AbstractEventLoop = None,
-    ssl_options: dict = None, timeout: TimeoutType = None,
+    url: str = None,
+    *,
+    host: str = "localhost",
+    port: int = 5672,
+    login: str = "guest",
+    password: str = "guest",
+    virtualhost: str = "/",
+    ssl: bool = False,
+    loop: asyncio.AbstractEventLoop = None,
+    ssl_options: dict = None,
+    timeout: TimeoutType = None,
     connection_class: Type[ConnectionType] = RobustConnection,
-    client_properties: dict = None, **kwargs
+    client_properties: dict = None,
+    **kwargs
 ) -> ConnectionType:
 
     """ Make robust connection to the broker.
@@ -251,15 +263,24 @@ async def connect_robust(
     .. _official Python documentation: https://goo.gl/pty9xA
 
     """
-    return (
-        await connect(
-            url=url, host=host, port=port, login=login,
-            password=password, virtualhost=virtualhost, ssl=ssl,
-            loop=loop, connection_class=connection_class,
-            ssl_options=ssl_options, timeout=timeout,
-            client_properties=client_properties, **kwargs
-        )
+    return await connect(
+        url=url,
+        host=host,
+        port=port,
+        login=login,
+        password=password,
+        virtualhost=virtualhost,
+        ssl=ssl,
+        loop=loop,
+        connection_class=connection_class,
+        ssl_options=ssl_options,
+        timeout=timeout,
+        client_properties=client_properties,
+        **kwargs
     )
 
 
-__all__ = 'RobustConnection', 'connect_robust',
+__all__ = (
+    "RobustConnection",
+    "connect_robust",
+)

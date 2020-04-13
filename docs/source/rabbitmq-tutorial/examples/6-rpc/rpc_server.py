@@ -9,7 +9,7 @@ def fib(n):
     elif n == 1:
         return 1
     else:
-        return fib(n-1) + fib(n-2)
+        return fib(n - 1) + fib(n - 2)
 
 
 async def on_message(exchange: Exchange, message: IncomingMessage):
@@ -20,34 +20,24 @@ async def on_message(exchange: Exchange, message: IncomingMessage):
         response = str(fib(n)).encode()
 
         await exchange.publish(
-            Message(
-                body=response,
-                correlation_id=message.correlation_id
-            ),
-            routing_key=message.reply_to
+            Message(body=response, correlation_id=message.correlation_id),
+            routing_key=message.reply_to,
         )
-        print('Request complete')
+        print("Request complete")
 
 
 async def main(loop):
     # Perform connection
-    connection = await connect(
-        "amqp://guest:guest@localhost/", loop=loop
-    )
+    connection = await connect("amqp://guest:guest@localhost/", loop=loop)
 
     # Creating a channel
     channel = await connection.channel()
 
     # Declaring queue
-    queue = await channel.declare_queue('rpc_queue')
+    queue = await channel.declare_queue("rpc_queue")
 
     # Start listening the queue with name 'hello'
-    await queue.consume(
-        partial(
-            on_message,
-            channel.default_exchange
-        )
-    )
+    await queue.consume(partial(on_message, channel.default_exchange))
 
 
 if __name__ == "__main__":

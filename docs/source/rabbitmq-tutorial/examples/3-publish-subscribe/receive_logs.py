@@ -11,18 +11,13 @@ def on_message(message: IncomingMessage):
 
 async def main():
     # Perform connection
-    connection = await connect(
-        "amqp://guest:guest@localhost/", loop=loop
-    )
+    connection = await connect("amqp://guest:guest@localhost/", loop=loop)
 
     # Creating a channel
     channel = await connection.channel()
     await channel.set_qos(prefetch_count=1)
 
-    logs_exchange = await channel.declare_exchange(
-        'logs',
-        ExchangeType.FANOUT
-    )
+    logs_exchange = await channel.declare_exchange("logs", ExchangeType.FANOUT)
 
     # Declaring queue
     queue = await channel.declare_queue(exclusive=True)
@@ -40,5 +35,5 @@ if __name__ == "__main__":
 
     # we enter a never-ending loop that waits for data
     # and runs callbacks whenever necessary.
-    print(' [*] Waiting for logs. To exit press CTRL+C')
+    print(" [*] Waiting for logs. To exit press CTRL+C")
     loop.run_forever()

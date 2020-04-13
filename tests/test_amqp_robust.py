@@ -1,8 +1,11 @@
 from functools import partial
 import aio_pika
 import pytest
-from tests.test_amqp import TestCaseAmqp, TestCaseAmqpWithConfirms, \
-    TestCaseAmqpNoConfirms
+from tests.test_amqp import (
+    TestCaseAmqp,
+    TestCaseAmqpWithConfirms,
+    TestCaseAmqpNoConfirms,
+)
 
 
 @pytest.fixture
@@ -16,8 +19,8 @@ def create_connection(connection_fabric, loop, amqp_url):
 
 
 class TestCaseNoRobust(TestCaseAmqp):
-    PARAMS = [{'robust': True}, {'robust': False}]
-    IDS = ['robust=1', 'robust=0']
+    PARAMS = [{"robust": True}, {"robust": False}]
+    IDS = ["robust=1", "robust=0"]
 
     @staticmethod
     @pytest.fixture(name="declare_queue", params=PARAMS, ids=IDS)
@@ -34,6 +37,7 @@ class TestCaseNoRobust(TestCaseAmqp):
         async def fabric(*args, **kwargs) -> aio_pika.Queue:
             kwargs.update(request.param)
             return await declare_exchange(*args, **kwargs)
+
         return fabric
 
 

@@ -28,7 +28,9 @@ log = logging.getLogger(__name__)
 
 class TestCaseAmqpBase:
     @staticmethod
-    def create_channel(connection: aio_pika.Connection) -> Awaitable[aio_pika.Channel]:
+    def create_channel(
+        connection: aio_pika.Connection,
+    ) -> Awaitable[aio_pika.Channel]:
         return connection.channel()
 
     @staticmethod
@@ -94,9 +96,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         await channel.queue_delete(queue_name)
         await channel.exchange_delete(exchange)
 
-    async def test_temporary_queue(
-        self, connection, declare_queue
-    ):
+    async def test_temporary_queue(self, connection, declare_queue):
         channel = await self.create_channel(connection)
         queue = await declare_queue(auto_delete=True)
 
@@ -167,10 +167,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         )
 
     async def test_declare_queue_with_passive_flag(
-        self,
-        connection,
-        declare_exchange: Callable,
-        declare_queue: Callable,
+        self, connection, declare_exchange: Callable, declare_queue: Callable,
     ):
         queue_name = get_random_name()
         ch1 = await self.create_channel(connection)
@@ -587,7 +584,11 @@ class TestCaseAmqp(TestCaseAmqpBase):
         await queue.unbind(exchange, routing_key)
 
     async def test_ack_multiple(
-        self, connection, declare_exchange, declare_queue, add_cleanup: Callable
+        self,
+        connection,
+        declare_exchange,
+        declare_queue,
+        add_cleanup: Callable,
     ):
         queue_name = get_random_name("test_connection")
         routing_key = get_random_name()
@@ -1195,9 +1196,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
                 async with channel.transaction():
                     raise ValueError
 
-    async def test_async_for_queue(
-        self, loop, connection, declare_queue
-    ):
+    async def test_async_for_queue(self, loop, connection, declare_queue):
         channel2 = await self.create_channel(connection)
 
         queue = await declare_queue(
@@ -1337,10 +1336,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
                 )
 
     async def test_channel_locked_resource(
-        self,
-        connection,
-        declare_queue,
-        add_cleanup: Callable,
+        self, connection, declare_queue, add_cleanup: Callable,
     ):
         ch1 = await self.create_channel(connection)
         ch2 = await self.create_channel(connection)
@@ -1460,10 +1456,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
                 await queue.delete()
 
     async def test_passive_for_exchange(
-        self,
-        declare_exchange: Callable,
-        connection,
-        add_cleanup: Callable,
+        self, declare_exchange: Callable, connection, add_cleanup: Callable,
     ):
         name = get_random_name("passive", "exchange")
 
@@ -1498,9 +1491,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         assert queue.name == queue_passive.name
 
-    async def test_get_exchange(
-        self, connection, declare_exchange
-    ):
+    async def test_get_exchange(self, connection, declare_exchange):
         channel = await self.create_channel(connection)
         name = get_random_name("passive", "exchange")
 
@@ -1515,9 +1506,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         assert exchange.name == exchange_passive.name
 
-    async def test_get_queue(
-        self, connection, declare_queue
-    ):
+    async def test_get_queue(self, connection, declare_queue):
         channel = await self.create_channel(connection)
         name = get_random_name("passive", "queue")
 
@@ -1567,7 +1556,9 @@ class TestCaseAmqpWithConfirms(TestCaseAmqpBase):
             await exchange.delete()
 
     async def test_basic_return(self, connection: aio_pika.connection, loop):
-        channel = await self.create_channel(connection)  # type: aio_pika.Channel
+        channel = await self.create_channel(
+            connection
+        )  # type: aio_pika.Channel
 
         f = loop.create_future()
 
@@ -1592,7 +1583,9 @@ class TestCaseAmqpWithConfirms(TestCaseAmqpBase):
 
         await channel.close()
 
-        channel = await self.create_channel(connection)  # type: aio_pika.Channel
+        channel = await self.create_channel(
+            connection
+        )  # type: aio_pika.Channel
 
         def bad_handler(sender, message):
             try:

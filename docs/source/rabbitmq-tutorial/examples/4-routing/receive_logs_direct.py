@@ -5,17 +5,12 @@ from aio_pika import connect, IncomingMessage, ExchangeType
 
 def on_message(message: IncomingMessage):
     with message.process():
-        print(" [x] %r:%r" % (
-            message.routing_key,
-            message.body
-        ))
+        print(" [x] %r:%r" % (message.routing_key, message.body))
 
 
 async def main(loop):
     # Perform connection
-    connection = await connect(
-        "amqp://guest:guest@localhost/", loop=loop
-    )
+    connection = await connect("amqp://guest:guest@localhost/", loop=loop)
 
     # Creating a channel
     channel = await connection.channel()
@@ -24,14 +19,12 @@ async def main(loop):
     severities = sys.argv[1:]
 
     if not severities:
-        sys.stderr.write(
-            "Usage: %s [info] [warning] [error]\n" % sys.argv[0]
-        )
+        sys.stderr.write("Usage: %s [info] [warning] [error]\n" % sys.argv[0])
         sys.exit(1)
 
     # Declare an exchange
     direct_logs_exchange = await channel.declare_exchange(
-        'logs', ExchangeType.DIRECT
+        "logs", ExchangeType.DIRECT
     )
 
     # Declaring random queue

@@ -16,11 +16,7 @@ async def test_simple(max_size, loop):
         counter += 1
         return counter
 
-    pool = Pool(
-        create_instance,
-        max_size=max_size,
-        loop=loop
-    )
+    pool = Pool(create_instance, max_size=max_size, loop=loop)
 
     async def getter():
         nonlocal counter, pool
@@ -66,11 +62,7 @@ class TestInstanceBase:
             instances.add(obj)
             return obj
 
-        return Pool(
-            create_instance,
-            max_size=max_size,
-            loop=loop
-        )
+        return Pool(create_instance, max_size=max_size, loop=loop)
 
 
 class TestInstance(TestInstanceBase):
@@ -144,7 +136,6 @@ class TestCaseNoMaxSize(TestInstance):
 
 
 class TestCaseItemReuse(TestInstanceBase):
-
     @pytest.fixture
     def call_count(self, max_size):
         return max_size * 5

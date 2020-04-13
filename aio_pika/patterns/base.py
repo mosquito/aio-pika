@@ -3,7 +3,10 @@ from typing import Any
 
 
 class Method:
-    __slots__ = 'name', 'func',
+    __slots__ = (
+        "name",
+        "func",
+    )
 
     def __init__(self, name, func):
         self.name = name
@@ -17,7 +20,7 @@ class Method:
 
 
 class Proxy:
-    __slots__ = 'func',
+    __slots__ = ("func",)
 
     def __init__(self, func):
         self.func = func
@@ -28,7 +31,7 @@ class Proxy:
 
 class Base:
     SERIALIZER = pickle
-    CONTENT_TYPE = 'application/python-pickle'
+    CONTENT_TYPE = "application/python-pickle"
 
     def serialize(self, data: Any) -> bytes:
         return self.SERIALIZER.dumps(data)

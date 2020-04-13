@@ -23,8 +23,13 @@ class RobustChannel(Channel):
     QUEUE_CLASS = RobustQueue
     EXCHANGE_CLASS = RobustExchange
 
-    def __init__(self, connection, channel_number: int = None,
-                 publisher_confirms: bool = True, on_return_raises=False):
+    def __init__(
+        self,
+        connection,
+        channel_number: int = None,
+        publisher_confirms: bool = True,
+        on_return_raises=False,
+    ):
         """
 
         :param connection: :class:`aio_pika.adapter.AsyncioConnection` instance
@@ -57,7 +62,7 @@ class RobustChannel(Channel):
         await self.set_qos(
             prefetch_count=self._prefetch_count,
             prefetch_size=self._prefetch_size,
-            global_=self._global_
+            global_=self._global_,
         )
 
         for exchanges in self._exchanges.values():
@@ -81,9 +86,14 @@ class RobustChannel(Channel):
         await super().initialize(timeout)
         self.add_close_callback(self._on_channel_close)
 
-    async def set_qos(self, prefetch_count: int = 0, prefetch_size: int = 0,
-                      global_: bool = False, timeout: TimeoutType = None,
-                      all_channels: bool = None):
+    async def set_qos(
+        self,
+        prefetch_count: int = 0,
+        prefetch_size: int = 0,
+        global_: bool = False,
+        timeout: TimeoutType = None,
+        all_channels: bool = None,
+    ):
         if all_channels is not None:
             warn('Use "global_" instead of "all_channels"', DeprecationWarning)
             global_ = all_channels
@@ -100,14 +110,25 @@ class RobustChannel(Channel):
         )
 
     async def declare_exchange(
-        self, name: str, type: Union[ExchangeType, str] = ExchangeType.DIRECT,
-        durable: bool = None, auto_delete: bool = False,
-        internal: bool = False, passive: bool = False, arguments: dict = None,
-        timeout: TimeoutType = None, robust: bool = True
+        self,
+        name: str,
+        type: Union[ExchangeType, str] = ExchangeType.DIRECT,
+        durable: bool = None,
+        auto_delete: bool = False,
+        internal: bool = False,
+        passive: bool = False,
+        arguments: dict = None,
+        timeout: TimeoutType = None,
+        robust: bool = True,
     ) -> Exchange:
         exchange = await super().declare_exchange(
-            name=name, type=type, durable=durable, auto_delete=auto_delete,
-            internal=internal, passive=passive, arguments=arguments,
+            name=name,
+            type=type,
+            durable=durable,
+            auto_delete=auto_delete,
+            internal=internal,
+            passive=passive,
+            arguments=arguments,
             timeout=timeout,
         )
 
@@ -116,27 +137,44 @@ class RobustChannel(Channel):
 
         return exchange
 
-    async def exchange_delete(self, exchange_name: str,
-                              timeout: TimeoutType = None, if_unused=False,
-                              nowait=False) -> aiormq.spec.Exchange.DeleteOk:
+    async def exchange_delete(
+        self,
+        exchange_name: str,
+        timeout: TimeoutType = None,
+        if_unused=False,
+        nowait=False,
+    ) -> aiormq.spec.Exchange.DeleteOk:
         result = await super().exchange_delete(
-            exchange_name=exchange_name, timeout=timeout,
-            if_unused=if_unused, nowait=nowait
+            exchange_name=exchange_name,
+            timeout=timeout,
+            if_unused=if_unused,
+            nowait=nowait,
         )
 
         self._exchanges.pop(exchange_name, None)
 
         return result
 
-    async def declare_queue(self, name: str = None, *, durable: bool = None,
-                            exclusive: bool = False, passive: bool = False,
-                            auto_delete: bool = False, arguments: dict = None,
-                            timeout: TimeoutType = None,
-                            robust: bool = True) -> Queue:
+    async def declare_queue(
+        self,
+        name: str = None,
+        *,
+        durable: bool = None,
+        exclusive: bool = False,
+        passive: bool = False,
+        auto_delete: bool = False,
+        arguments: dict = None,
+        timeout: TimeoutType = None,
+        robust: bool = True
+    ) -> Queue:
         queue = await super().declare_queue(
-            name=name, durable=durable, exclusive=exclusive,
-            passive=passive, auto_delete=auto_delete,
-            arguments=arguments, timeout=timeout,
+            name=name,
+            durable=durable,
+            exclusive=exclusive,
+            passive=passive,
+            auto_delete=auto_delete,
+            arguments=arguments,
+            timeout=timeout,
         )
 
         if robust:
@@ -144,12 +182,20 @@ class RobustChannel(Channel):
 
         return queue
 
-    async def queue_delete(self, queue_name: str, timeout: TimeoutType = None,
-                           if_unused: bool = False, if_empty: bool = False,
-                           nowait: bool = False):
+    async def queue_delete(
+        self,
+        queue_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        if_empty: bool = False,
+        nowait: bool = False,
+    ):
         result = await super().queue_delete(
-            queue_name=queue_name, timeout=timeout,
-            if_unused=if_unused, if_empty=if_empty, nowait=nowait
+            queue_name=queue_name,
+            timeout=timeout,
+            if_unused=if_unused,
+            if_empty=if_empty,
+            nowait=nowait,
         )
 
         self._queues.pop(queue_name, None)
@@ -157,4 +203,4 @@ class RobustChannel(Channel):
         return result
 
 
-__all__ = ('RobustChannel',)
+__all__ = ("RobustChannel",)

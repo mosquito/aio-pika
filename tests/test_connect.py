@@ -12,17 +12,14 @@ VARIANTS = (
     (dict(url="amqp://localhost:5674"), "amqp://localhost:5674/"),
     (dict(url="amqp://localhost:5674//"), "amqp://localhost:5674//"),
     (dict(url="amqp://localhost:5674/"), "amqp://localhost:5674/"),
-    (
-        dict(host="localhost", port=8888),
-        "amqp://guest:guest@localhost:8888//"
-    ),
+    (dict(host="localhost", port=8888), "amqp://guest:guest@localhost:8888//"),
     (
         dict(host="localhost", port=8888, virtualhost="foo"),
-        "amqp://guest:guest@localhost:8888/foo"
+        "amqp://guest:guest@localhost:8888/foo",
     ),
     (
         dict(host="localhost", port=8888, virtualhost="/foo"),
-        "amqp://guest:guest@localhost:8888//foo"
+        "amqp://guest:guest@localhost:8888//foo",
     ),
 )
 
@@ -40,9 +37,8 @@ class FakeConnection:
 def test_simple(kwargs, expected):
     loop = asyncio.get_event_loop()
     # noinspection PyTypeChecker
-    conn = loop.run_until_complete(connect(
-        connection_class=FakeConnection,
-        **kwargs
-    ))
+    conn = loop.run_until_complete(
+        connect(connection_class=FakeConnection, **kwargs)
+    )
 
     assert conn.url == URL(expected)

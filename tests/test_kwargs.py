@@ -16,18 +16,18 @@ class MockConnectionRobust(RobustConnection):
 
 VALUE_GENERATORS = {
     parse_int: {
-        '-1': -1,
-        '0': 0,
-        '43': 43,
-        '9999999999999999': 9999999999999999,
-        'hello': 0,
+        "-1": -1,
+        "0": 0,
+        "43": 43,
+        "9999999999999999": 9999999999999999,
+        "hello": 0,
     },
     parse_bool: {
-        'disabled': False,
-        'enable': True,
-        'yes': True,
-        'no': False,
-        '': False,
+        "disabled": False,
+        "enable": True,
+        "yes": True,
+        "no": False,
+        "": False,
         None: False,
     },
 }

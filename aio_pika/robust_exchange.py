@@ -13,11 +13,19 @@ log = getLogger(__name__)
 class RobustExchange(Exchange):
     """ Exchange abstraction """
 
-    def __init__(self, connection, channel: aiormq.Channel, name: str,
-                 type: ExchangeType = ExchangeType.DIRECT, *,
-                 auto_delete: Optional[bool], durable: Optional[bool],
-                 internal: Optional[bool], passive: Optional[bool],
-                 arguments: dict = None):
+    def __init__(
+        self,
+        connection,
+        channel: aiormq.Channel,
+        name: str,
+        type: ExchangeType = ExchangeType.DIRECT,
+        *,
+        auto_delete: Optional[bool],
+        durable: Optional[bool],
+        internal: Optional[bool],
+        passive: Optional[bool],
+        arguments: dict = None
+    ):
 
         super().__init__(
             connection=connection,
@@ -41,11 +49,20 @@ class RobustExchange(Exchange):
         for exchange, kwargs in self._bindings.items():
             await self.bind(exchange, **kwargs)
 
-    async def bind(self, exchange, routing_key: str='', *,
-                   arguments=None, timeout: int=None, robust: bool = True):
+    async def bind(
+        self,
+        exchange,
+        routing_key: str = "",
+        *,
+        arguments=None,
+        timeout: int = None,
+        robust: bool = True
+    ):
         result = await super().bind(
-            exchange, routing_key=routing_key,
-            arguments=arguments, timeout=timeout
+            exchange,
+            routing_key=routing_key,
+            arguments=arguments,
+            timeout=timeout,
         )
 
         if robust:
@@ -55,13 +72,19 @@ class RobustExchange(Exchange):
 
         return result
 
-    async def unbind(self, exchange, routing_key: str = '',
-                     arguments: dict=None, timeout: int=None):
+    async def unbind(
+        self,
+        exchange,
+        routing_key: str = "",
+        arguments: dict = None,
+        timeout: int = None,
+    ):
 
-        result = await super().unbind(exchange, routing_key,
-                                      arguments=arguments, timeout=timeout)
+        result = await super().unbind(
+            exchange, routing_key, arguments=arguments, timeout=timeout
+        )
         self._bindings.pop(exchange, None)
         return result
 
 
-__all__ = ('RobustExchange',)
+__all__ = ("RobustExchange",)

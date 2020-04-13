@@ -14,18 +14,17 @@ def rpc_func(*, foo, bar):
     assert not foo
     assert not bar
 
-    return {'foo': 'bar'}
+    return {"foo": "bar"}
 
 
 class TestCase:
-
     async def test_simple(self, channel: aio_pika.Channel):
         rpc = await RPC.create(channel, auto_delete=True)
 
-        await rpc.register('test.rpc', rpc_func, auto_delete=True)
+        await rpc.register("test.rpc", rpc_func, auto_delete=True)
 
         result = await rpc.proxy.test.rpc(foo=None, bar=None)
-        assert result == {'foo': 'bar'}
+        assert result == {"foo": "bar"}
 
         await rpc.unregister(rpc_func)
         await rpc.close()
@@ -36,7 +35,7 @@ class TestCase:
     async def test_error(self, channel: aio_pika.Channel):
         rpc = await RPC.create(channel, auto_delete=True)
 
-        await rpc.register('test.rpc', rpc_func, auto_delete=True)
+        await rpc.register("test.rpc", rpc_func, auto_delete=True)
 
         with pytest.raises(AssertionError):
             await rpc.proxy.test.rpc(foo=True, bar=None)
@@ -47,7 +46,7 @@ class TestCase:
     async def test_unroutable(self, channel: aio_pika.Channel):
         rpc = await RPC.create(channel, auto_delete=True)
 
-        await rpc.register('test.rpc', rpc_func, auto_delete=True)
+        await rpc.register("test.rpc", rpc_func, auto_delete=True)
 
         with pytest.raises(DeliveryError):
             await rpc.proxy.unroutable()
@@ -58,16 +57,16 @@ class TestCase:
     async def test_timed_out(self, channel: aio_pika.Channel):
         rpc = await RPC.create(channel, auto_delete=True)
 
-        await rpc.register('test.rpc', rpc_func, auto_delete=True)
+        await rpc.register("test.rpc", rpc_func, auto_delete=True)
 
         await channel.declare_queue(
-            'test.timed_out', auto_delete=True, arguments={
-                'x-dead-letter-exchange': RPC.DLX_NAME,
-            }
+            "test.timed_out",
+            auto_delete=True,
+            arguments={"x-dead-letter-exchange": RPC.DLX_NAME,},
         )
 
         with pytest.raises(asyncio.TimeoutError):
-            await rpc.call('test.timed_out', expiration=1)
+            await rpc.call("test.timed_out", expiration=1)
 
         await rpc.unregister(rpc_func)
         await rpc.close()
@@ -85,7 +84,9 @@ class TestCase:
 
         await rpc.close()
 
-    async def test_send_unknown_message(self, channel: aio_pika.Channel, caplog):
+    async def test_send_unknown_message(
+        self, channel: aio_pika.Channel, caplog
+    ):
         rpc = await RPC.create(channel, auto_delete=True)
 
         body = b"test body"
@@ -104,7 +105,7 @@ class TestCase:
 
         with caplog.at_level(logging.WARNING, logger=rpc_logger.name):
             await channel.default_exchange.publish(
-                Message(body), routing_key='should-returned'
+                Message(body), routing_key="should-returned"
             )
 
             await asyncio.sleep(0.5)
@@ -122,7 +123,7 @@ class TestCase:
         async def sleeper():
             await asyncio.sleep(60)
 
-        method_name = get_random_name('test', 'sleeper')
+        method_name = get_random_name("test", "sleeper")
 
         await rpc.register(method_name, sleeper, auto_delete=True)
 
@@ -141,21 +142,17 @@ class TestCase:
     async def test_register_twice(self, channel: aio_pika.Channel):
         rpc = await RPC.create(channel, auto_delete=True)
 
-        await rpc.register('test.sleeper', lambda x: None, auto_delete=True)
+        await rpc.register("test.sleeper", lambda x: None, auto_delete=True)
 
         with pytest.raises(RuntimeError):
             await rpc.register(
-                'test.sleeper', lambda x: None, auto_delete=True
+                "test.sleeper", lambda x: None, auto_delete=True
             )
 
-        await rpc.register(
-            'test.one', rpc_func, auto_delete=True
-        )
+        await rpc.register("test.one", rpc_func, auto_delete=True)
 
         with pytest.raises(RuntimeError):
-            await rpc.register(
-                'test.two', rpc_func, auto_delete=True
-            )
+            await rpc.register("test.two", rpc_func, auto_delete=True)
 
         await rpc.unregister(rpc_func)
         await rpc.unregister(rpc_func)

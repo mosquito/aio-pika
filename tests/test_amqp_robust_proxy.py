@@ -20,7 +20,9 @@ from tests import get_random_name
 class Proxy:
     CHUNK_SIZE = 1500
 
-    def __init__(self, *, loop, shost="127.0.0.1", sport, dhost="127.0.0.1", dport):
+    def __init__(
+        self, *, loop, shost="127.0.0.1", sport, dhost="127.0.0.1", dport
+    ):
 
         self.loop = loop
 
@@ -227,10 +229,7 @@ async def test_robust_reconnect(
             await proxy.disconnect()
 
             with pytest.raises(ConnectionResetError):
-                await asyncio.gather(
-                    conn1.channel(),
-                    conn2.channel()
-                )
+                await asyncio.gather(conn1.channel(), conn2.channel())
 
             logging.info("Waiting reconnect")
             await asyncio.sleep(conn1.reconnect_interval * 2)

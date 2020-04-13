@@ -16,9 +16,7 @@ class FibonacciRpcClient:
             "amqp://guest:guest@localhost/", loop=loop
         )
         self.channel = await self.connection.channel()
-        self.callback_queue = await self.channel.declare_queue(
-            exclusive=True
-        )
+        self.callback_queue = await self.channel.declare_queue(exclusive=True)
         await self.callback_queue.consume(self.on_response)
 
         return self
@@ -36,11 +34,11 @@ class FibonacciRpcClient:
         await self.channel.default_exchange.publish(
             Message(
                 str(n).encode(),
-                content_type='text/plain',
+                content_type="text/plain",
                 correlation_id=correlation_id,
                 reply_to=self.callback_queue.name,
             ),
-            routing_key='rpc_queue',
+            routing_key="rpc_queue",
         )
 
         return int(await future)

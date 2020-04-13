@@ -8,7 +8,13 @@ from functools import singledispatch
 from logging import getLogger
 from pprint import pformat
 from typing import (
-    Union, Optional, Any, Callable, Dict, Iterable, AsyncContextManager
+    Union,
+    Optional,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    AsyncContextManager,
 )
 from warnings import warn
 
@@ -38,7 +44,7 @@ def to_milliseconds(seconds):
 
 @singledispatch
 def encode_expiration(value) -> Optional[str]:
-    raise ValueError('Invalid timestamp type: %r' % type(value), value)
+    raise ValueError("Invalid timestamp type: %r" % type(value), value)
 
 
 @encode_expiration.register(datetime)
@@ -68,7 +74,7 @@ ZERO_TIME = datetime.utcfromtimestamp(0)
 
 @singledispatch
 def decode_expiration(t) -> Optional[float]:
-    raise ValueError('Invalid expiration type: %r' % type(t), t)
+    raise ValueError("Invalid expiration type: %r" % type(t), t)
 
 
 @decode_expiration.register(time.struct_time)
@@ -83,7 +89,7 @@ def _(t: str) -> float:
 
 @singledispatch
 def encode_timestamp(value) -> Optional[time.struct_time]:
-    raise ValueError('Invalid timestamp type: %r' % type(value), value)
+    raise ValueError("Invalid timestamp type: %r" % type(value), value)
 
 
 @encode_timestamp.register(time.struct_time)
@@ -114,7 +120,7 @@ def _(_):
 
 @singledispatch
 def decode_timestamp(value) -> Optional[datetime]:
-    raise ValueError('Invalid timestamp type: %r' % type(value), value)
+    raise ValueError("Invalid timestamp type: %r" % type(value), value)
 
 
 @decode_timestamp.register(datetime)
@@ -138,14 +144,14 @@ def _(_):
     return None
 
 
-def optional(value, func: Callable[[Any], Any]=str, default=None):
+def optional(value, func: Callable[[Any], Any] = str, default=None):
     return func(value) if value else default
 
 
 class HeaderProxy(Mapping):
     def __init__(self, headers: Dict[str, bytes]):
-        self._headers = headers   # type: Dict[str, bytes]
-        self._cache = {}          # type: Dict[str, Any]
+        self._headers = headers  # type: Dict[str, bytes]
+        self._cache = {}  # type: Dict[str, Any]
 
     def __getitem__(self, k):
         if k not in self._headers:
@@ -175,8 +181,7 @@ class HeaderProxy(Mapping):
 @singledispatch
 def header_converter(value: Any) -> bytes:
     return json.dumps(
-        value, separators=(',', ":"),
-        ensure_ascii=False, default=repr
+        value, separators=(",", ":"), ensure_ascii=False, default=repr
     ).encode()
 
 
@@ -221,21 +226,43 @@ class Message:
     """ AMQP message abstraction """
 
     __slots__ = (
-        "app_id", "body", "body_size", "content_encoding", "content_type",
-        "correlation_id", "delivery_mode", "expiration", "_headers",
-        "headers_raw", "message_id", "priority", "reply_to", "timestamp",
-        "type", "user_id", "__lock",
+        "app_id",
+        "body",
+        "body_size",
+        "content_encoding",
+        "content_type",
+        "correlation_id",
+        "delivery_mode",
+        "expiration",
+        "_headers",
+        "headers_raw",
+        "message_id",
+        "priority",
+        "reply_to",
+        "timestamp",
+        "type",
+        "user_id",
+        "__lock",
     )
 
-    def __init__(self, body: bytes, *, headers: dict=None,
-                 content_type: str=None, content_encoding: str=None,
-                 delivery_mode: DeliveryMode=None,
-                 priority: int=None, correlation_id=None,
-                 reply_to: str=None, expiration: DateType=None,
-                 message_id: str=None,
-                 timestamp: DateType=None,
-                 type: str=None, user_id: str=None,
-                 app_id: str=None):
+    def __init__(
+        self,
+        body: bytes,
+        *,
+        headers: dict = None,
+        content_type: str = None,
+        content_encoding: str = None,
+        delivery_mode: DeliveryMode = None,
+        priority: int = None,
+        correlation_id=None,
+        reply_to: str = None,
+        expiration: DateType = None,
+        message_id: str = None,
+        timestamp: DateType = None,
+        type: str = None,
+        user_id: str = None,
+        app_id: str = None
+    ):
 
         """ Creates a new instance of Message
 
@@ -265,9 +292,8 @@ class Message:
         self.content_encoding = content_encoding
         self.delivery_mode = DeliveryMode(
             optional(
-                delivery_mode,
-                func=int,
-                default=DeliveryMode.NOT_PERSISTENT)
+                delivery_mode, func=int, default=DeliveryMode.NOT_PERSISTENT
+            )
         ).value
         self.priority = optional(priority, int, 0)
         self.correlation_id = optional(correlation_id)
@@ -294,7 +320,7 @@ class Message:
         elif isinstance(value, str):
             return value.encode()
         elif isinstance(value, NoneType):
-            return b''
+            return b""
         else:
             return str(value).encode()
 
@@ -363,13 +389,12 @@ class Message:
             timestamp=self.timestamp,
             message_type=self.type,
             user_id=self.user_id,
-            app_id=self.app_id
+            app_id=self.app_id,
         )
 
     def __repr__(self):
         return "{name}:{repr}".format(
-            name=self.__class__.__name__,
-            repr=pformat(self.info())
+            name=self.__class__.__name__, repr=pformat(self.info())
         )
 
     def __setattr__(self, key, value):
@@ -400,7 +425,7 @@ class Message:
             timestamp=self.timestamp,
             type=self.type,
             user_id=self.user_id,
-            app_id=self.app_id
+            app_id=self.app_id,
         )
 
 
@@ -428,10 +453,19 @@ class IncomingMessage(Message):
     be deleted.
 
     """
+
     __slots__ = (
-        '_loop', '__channel', 'cluster_id', 'consumer_tag',
-        'delivery_tag', 'exchange', 'routing_key', 'redelivered',
-        '__no_ack', '__processed', 'message_count'
+        "_loop",
+        "__channel",
+        "cluster_id",
+        "consumer_tag",
+        "delivery_tag",
+        "exchange",
+        "routing_key",
+        "redelivered",
+        "__no_ack",
+        "__processed",
+        "message_count",
     )
 
     def __init__(self, message: DeliveredMessage, no_ack: bool = False):
@@ -456,7 +490,7 @@ class IncomingMessage(Message):
             priority=message.header.properties.priority,
             correlation_id=message.header.properties.correlation_id,
             reply_to=message.header.properties.reply_to,
-            expiration=expiration / 1000. if expiration else None,
+            expiration=expiration / 1000.0 if expiration else None,
             message_id=message.header.properties.message_id,
             timestamp=decode_timestamp(message.header.properties.timestamp),
             type=message.header.properties.message_type,
@@ -490,8 +524,12 @@ class IncomingMessage(Message):
     def channel(self):
         return self.__channel
 
-    def process(self, requeue=False, reject_on_redelivered=False,
-                ignore_processed=False) -> AsyncContextManager:
+    def process(
+        self,
+        requeue=False,
+        reject_on_redelivered=False,
+        ignore_processed=False,
+    ) -> AsyncContextManager:
         """ Context manager for processing the message
 
             >>> async def on_message_received(message: IncomingMessage):
@@ -518,7 +556,8 @@ class IncomingMessage(Message):
 
         """
         return ProcessContext(
-            self, requeue=requeue,
+            self,
+            requeue=requeue,
             reject_on_redelivered=reject_on_redelivered,
             ignore_processed=ignore_processed,
         )
@@ -538,7 +577,7 @@ class IncomingMessage(Message):
         :return: None
         """
         if self.__no_ack:
-            raise TypeError("Can't ack message with \"no_ack\" flag")
+            raise TypeError('Can\'t ack message with "no_ack" flag')
 
         if self.__processed:
             raise MessageProcessError("Message already processed")
@@ -572,32 +611,37 @@ class IncomingMessage(Message):
         if self.__processed:
             raise MessageProcessError("Message already processed")
 
-        task = asyncio.ensure_future(self.__channel.basic_reject(
-            delivery_tag=self.delivery_tag, requeue=requeue
-        ))
+        task = asyncio.ensure_future(
+            self.__channel.basic_reject(
+                delivery_tag=self.delivery_tag, requeue=requeue
+            )
+        )
         self.__processed = True
         if not self.locked:
             self.lock()
 
         return task
 
-    def nack(self, multiple: bool = False,
-             requeue: bool = True) -> asyncio.Task:
+    def nack(
+        self, multiple: bool = False, requeue: bool = True
+    ) -> asyncio.Task:
 
         if not self.__channel.connection.basic_nack:
             raise RuntimeError("Method not supported on server")
 
         if self.__no_ack:
-            raise TypeError("Can't nack message with \"no_ack\" flag")
+            raise TypeError('Can\'t nack message with "no_ack" flag')
 
         if self.__processed:
             raise MessageProcessError("Message already processed")
 
-        task = asyncio.ensure_future(self.__channel.basic_nack(
-            delivery_tag=self.delivery_tag,
-            multiple=multiple,
-            requeue=requeue
-        ))
+        task = asyncio.ensure_future(
+            self.__channel.basic_nack(
+                delivery_tag=self.delivery_tag,
+                multiple=multiple,
+                requeue=requeue,
+            )
+        )
 
         self.__processed = True
 
@@ -610,12 +654,12 @@ class IncomingMessage(Message):
         """ Method returns dict representation of the message """
 
         info = super(IncomingMessage, self).info()
-        info['cluster_id'] = self.cluster_id
-        info['consumer_tag'] = self.consumer_tag
-        info['delivery_tag'] = self.delivery_tag
-        info['exchange'] = self.exchange
-        info['redelivered'] = self.redelivered
-        info['routing_key'] = self.routing_key
+        info["cluster_id"] = self.cluster_id
+        info["consumer_tag"] = self.consumer_tag
+        info["delivery_tag"] = self.delivery_tag
+        info["exchange"] = self.exchange
+        info["redelivered"] = self.redelivered
+        info["routing_key"] = self.routing_key
         return info
 
     @property
@@ -628,8 +672,14 @@ class ReturnedMessage(IncomingMessage):
 
 
 class ProcessContext(AsyncContextManager):
-    def __init__(self, message: IncomingMessage, *,
-                 requeue, reject_on_redelivered, ignore_processed):
+    def __init__(
+        self,
+        message: IncomingMessage,
+        *,
+        requeue,
+        reject_on_redelivered,
+        ignore_processed
+    ):
         self.message = message
         self.requeue = requeue
         self.reject_on_redelivered = reject_on_redelivered
@@ -650,13 +700,14 @@ class ProcessContext(AsyncContextManager):
                 if not self.message.channel.is_closed:
                     log.info(
                         "Message %r was redelivered and will be rejected",
-                        self.message
+                        self.message,
                     )
                     await self.message.reject(requeue=False)
                     return
                 log.warning(
                     "Message %r was redelivered and reject is not sent "
-                    "since channel is closed", self.message
+                    "since channel is closed",
+                    self.message,
                 )
             else:
                 if not self.message.channel.is_closed:
@@ -680,14 +731,15 @@ class ProcessContext(AsyncContextManager):
                 if not self.message.channel.is_closed:
                     log.info(
                         "Message %r was redelivered and will be rejected",
-                        self.message
+                        self.message,
                     )
 
                     self.message.reject(requeue=False)
                     return
                 log.warning(
                     "Message %r was redelivered and reject is not sent "
-                    "since channel is closed", self.message
+                    "since channel is closed",
+                    self.message,
                 )
             else:
                 if not self.message.channel.is_closed:
@@ -696,4 +748,4 @@ class ProcessContext(AsyncContextManager):
                 log.warning("Reject is not sent since channel is closed")
 
 
-__all__ = 'Message', 'IncomingMessage', 'ReturnedMessage', 'DeliveryMode'
+__all__ = "Message", "IncomingMessage", "ReturnedMessage", "DeliveryMode"

@@ -8,7 +8,7 @@ from threading import Lock
 from typing import Callable, Iterable
 
 
-__all__ = 'create_task', 'iscoroutinepartial', 'shield', 'CallbackCollection'
+__all__ = "create_task", "iscoroutinepartial", "shield", "CallbackCollection"
 
 log = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ def iscoroutinepartial(fn):
     while True:
         parent = fn
 
-        fn = getattr(parent, 'func', None)
+        fn = getattr(parent, "func", None)
 
         if fn is None:
             break
@@ -74,7 +74,7 @@ def shield(func):
 
 
 class CallbackCollection(Set):
-    __slots__ = '__sender', '__callbacks', '__weak_callbacks', '__lock'
+    __slots__ = "__sender", "__callbacks", "__weak_callbacks", "__lock"
 
     def __init__(self, sender):
         self.__sender = ref(sender)
@@ -84,7 +84,7 @@ class CallbackCollection(Set):
 
     def add(self, callback: Callable, weak=True):
         if self.is_frozen:
-            raise RuntimeError('Collection frozen')
+            raise RuntimeError("Collection frozen")
         if not callable(callback):
             raise ValueError("Callback is not callable")
 
@@ -96,7 +96,7 @@ class CallbackCollection(Set):
 
     def remove(self, callback: Callable):
         if self.is_frozen:
-            raise RuntimeError('Collection frozen')
+            raise RuntimeError("Collection frozen")
 
         with self.__lock:
             try:
@@ -106,7 +106,7 @@ class CallbackCollection(Set):
 
     def clear(self):
         if self.is_frozen:
-            raise RuntimeError('Collection frozen')
+            raise RuntimeError("Collection frozen")
 
         with self.__lock:
             self.__callbacks.clear()
@@ -165,4 +165,4 @@ class CallbackCollection(Set):
                 try:
                     cb(self.__sender(), *args, **kwargs)
                 except Exception:
-                    log.exception('Callback error')
+                    log.exception("Callback error")

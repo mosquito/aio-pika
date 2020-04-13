@@ -14,21 +14,29 @@ log = getLogger(__name__)
 
 
 DeclarationResult = namedtuple(
-    'DeclarationResult', ('message_count', 'consumer_count')
+    "DeclarationResult", ("message_count", "consumer_count")
 )
 
 
 class RobustQueue(Queue):
-    __slots__ = ('_consumers', '_bindings')
+    __slots__ = ("_consumers", "_bindings")
 
     @staticmethod
     def _get_random_queue_name():
         rb = os.urandom(16)
         return "amq_%s" % b32encode(rb).decode().replace("=", "").lower()
 
-    def __init__(self, connection, channel: aiormq.Channel, name,
-                 durable, exclusive, auto_delete, arguments,
-                 passive: bool = False):
+    def __init__(
+        self,
+        connection,
+        channel: aiormq.Channel,
+        name,
+        durable,
+        exclusive,
+        auto_delete,
+        arguments,
+        passive: bool = False,
+    ):
 
         super().__init__(
             connection=connection,
@@ -38,7 +46,7 @@ class RobustQueue(Queue):
             exclusive=exclusive,
             auto_delete=auto_delete,
             arguments=arguments,
-            passive=passive
+            passive=passive,
         )
 
         self._consumers = {}
@@ -55,8 +63,15 @@ class RobustQueue(Queue):
         for consumer_tag, kwargs in tuple(self._consumers.items()):
             await self.consume(consumer_tag=consumer_tag, **kwargs)
 
-    async def bind(self, exchange: ExchangeParamType, routing_key: str=None, *,
-                   arguments=None, timeout: int=None, robust: bool = True):
+    async def bind(
+        self,
+        exchange: ExchangeParamType,
+        routing_key: str = None,
+        *,
+        arguments=None,
+        timeout: int = None,
+        robust: bool = True
+    ):
 
         if routing_key is None:
             routing_key = self.name
@@ -64,9 +79,7 @@ class RobustQueue(Queue):
         kwargs = dict(arguments=arguments, timeout=timeout)
 
         result = await super().bind(
-            exchange=exchange,
-            routing_key=routing_key,
-            **kwargs
+            exchange=exchange, routing_key=routing_key, **kwargs
         )
 
         if robust:
@@ -74,8 +87,13 @@ class RobustQueue(Queue):
 
         return result
 
-    async def unbind(self, exchange: ExchangeParamType, routing_key: str=None,
-                     arguments: dict=None, timeout: int=None):
+    async def unbind(
+        self,
+        exchange: ExchangeParamType,
+        routing_key: str = None,
+        arguments: dict = None,
+        timeout: int = None,
+    ):
 
         if routing_key is None:
             routing_key = self.name
@@ -87,10 +105,16 @@ class RobustQueue(Queue):
 
         return result
 
-    async def consume(self, callback: FunctionType, no_ack: bool=False,
-                      exclusive: bool=False, arguments: dict=None,
-                      consumer_tag=None, timeout=None,
-                      robust: bool = True) -> ConsumerTag:
+    async def consume(
+        self,
+        callback: FunctionType,
+        no_ack: bool = False,
+        exclusive: bool = False,
+        arguments: dict = None,
+        consumer_tag=None,
+        timeout=None,
+        robust: bool = True,
+    ) -> ConsumerTag:
 
         kwargs = dict(
             callback=callback,
@@ -108,12 +132,13 @@ class RobustQueue(Queue):
 
         return consumer_tag
 
-    async def cancel(self, consumer_tag: ConsumerTag, timeout=None,
-                     nowait: bool = False):
+    async def cancel(
+        self, consumer_tag: ConsumerTag, timeout=None, nowait: bool = False
+    ):
 
         result = await super().cancel(consumer_tag, timeout, nowait)
         self._consumers.pop(consumer_tag, None)
         return result
 
 
-__all__ = 'RobustQueue',
+__all__ = ("RobustQueue",)

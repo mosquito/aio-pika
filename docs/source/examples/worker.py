@@ -23,7 +23,7 @@ async def main():
     channel = await connection.channel()
 
     master = Master(channel)
-    await master.create_worker('my_task_name', worker, auto_delete=True)
+    await master.create_worker("my_task_name", worker, auto_delete=True)
 
     return connection
 

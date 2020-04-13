@@ -5,10 +5,10 @@ import aiormq
 
 
 class TransactionStates(Enum):
-    created = 'created'
-    commited = 'commited'
-    rolled_back = 'rolled back'
-    started = 'started'
+    created = "created"
+    commited = "commited"
+    rolled_back = "rolled back"
+    started = "started"
 
 
 class Transaction:
@@ -18,7 +18,7 @@ class Transaction:
     def __init__(self, channel):
         self.loop = channel.loop
         self._channel = channel
-        self.state = TransactionStates.created      # type: TransactionStates
+        self.state = TransactionStates.created  # type: TransactionStates
 
     @property
     def channel(self) -> aiormq.Channel:
@@ -26,7 +26,7 @@ class Transaction:
             raise RuntimeError("Channel not opened")
 
         if self._channel.is_closed:
-            raise RuntimeError('Closed channel')
+            raise RuntimeError("Closed channel")
 
         return self._channel
 
