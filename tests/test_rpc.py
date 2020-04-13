@@ -62,7 +62,7 @@ class TestCase:
         await channel.declare_queue(
             "test.timed_out",
             auto_delete=True,
-            arguments={"x-dead-letter-exchange": RPC.DLX_NAME,},
+            arguments={"x-dead-letter-exchange": RPC.DLX_NAME},
         )
 
         with pytest.raises(asyncio.TimeoutError):

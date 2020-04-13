@@ -112,7 +112,7 @@ class RPC(Base):
         await self.result_queue.unbind(
             self.dlx_exchange,
             "",
-            arguments={"From": self.result_queue.name, "x-match": "any",},
+            arguments={"From": self.result_queue.name, "x-match": "any"},
         )
 
         log.debug("Cancelling undone futures %r", self.futures)
@@ -142,7 +142,7 @@ class RPC(Base):
         await self.result_queue.bind(
             self.dlx_exchange,
             "",
-            arguments={"From": self.result_queue.name, "x-match": "any",},
+            arguments={"From": self.result_queue.name, "x-match": "any"},
         )
 
         self.result_consumer_tag = await self.result_queue.consume(
@@ -364,7 +364,7 @@ class RPC(Base):
         """
         arguments = kwargs.pop("arguments", {})
         arguments.update(
-            {"x-dead-letter-exchange": self.DLX_NAME,}
+            {"x-dead-letter-exchange": self.DLX_NAME}
         )
 
         kwargs["arguments"] = arguments

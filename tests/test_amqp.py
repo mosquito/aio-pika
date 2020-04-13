@@ -1321,7 +1321,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
     ):
         queue = await declare_queue(
             exclusive=True,
-            arguments={"x-max-length": 1, "x-overflow": "reject-publish",},
+            arguments={"x-max-length": 1, "x-overflow": "reject-publish"},
             auto_delete=True,
         )
 
