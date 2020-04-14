@@ -228,7 +228,7 @@ async def test_robust_reconnect(
             logging.info("Disconnect all clients")
             await proxy.disconnect()
 
-            with pytest.raises(ConnectionResetError):
+            with pytest.raises((ConnectionResetError, ConnectionError)):
                 await asyncio.gather(conn1.channel(), conn2.channel())
 
             logging.info("Waiting reconnect")
