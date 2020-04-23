@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Union
 
 import aiormq
@@ -42,8 +43,8 @@ class RobustChannel(Channel):
             on_return_raises=on_return_raises,
         )
 
-        self._exchanges = dict()
-        self._queues = dict()
+        self._exchanges = defaultdict(set)
+        self._queues = defaultdict(set)
         self._prefetch_count = 0
         self._prefetch_size = 0
         self._global_ = False
@@ -59,11 +60,13 @@ class RobustChannel(Channel):
             global_=self._global_
         )
 
-        for exchange in self._exchanges.values():
-            await exchange.restore(self)
+        for exchanges in self._exchanges.values():
+            for exchange in exchanges:
+                await exchange.restore(self)
 
-        for queue in self._queues.values():
-            await queue.restore(self)
+        for queues in self._queues.values():
+            for queue in queues:
+                await queue.restore(self)
 
     def _on_channel_close(self, exc: Exception):
         if exc:
@@ -108,7 +111,7 @@ class RobustChannel(Channel):
         )
 
         if not internal and robust:
-            self._exchanges[name] = exchange
+            self._exchanges[name].add(exchange)
 
         return exchange
 
@@ -138,7 +141,7 @@ class RobustChannel(Channel):
         )
 
         if robust:
-            self._queues[name] = queue
+            self._queues[name].add(queue)
 
         return queue
 
@@ -151,6 +154,7 @@ class RobustChannel(Channel):
         )
 
         self._queues.pop(queue_name, None)
+
         return result
 
 
