@@ -1,15 +1,29 @@
+import abc
 import asyncio
 import logging
+from typing import (
+    Any, AsyncContextManager, Awaitable, Callable, Coroutine, TypeVar, Union,
+)
 
-from typing import Any, Callable, TypeVar, AsyncContextManager, Coroutine
+from aiormq.tools import awaitable
+
+
+log = logging.getLogger(__name__)
+
+
+class PoolInstance(abc.ABC):
+    @abc.abstractclassmethod
+    async def close(cls):
+        raise NotImplementedError
 
 
 T = TypeVar("T")
 ItemType = Coroutine[Any, None, T]
-ConstructorType = Callable[..., ItemType]
-
-
-log = logging.getLogger(__name__)
+ConstructorType = Union[
+    Awaitable[PoolInstance],
+    Callable[..., PoolInstance],
+    Callable[..., Coroutine[Any, Any, PoolInstance]],
+]
 
 
 class PoolInvalidStateError(RuntimeError):
@@ -18,16 +32,27 @@ class PoolInvalidStateError(RuntimeError):
 
 class Pool:
     __slots__ = (
-        'loop', '__max_size', '__items',
-        '__constructor', '__created', '__lock',
-        '__constructor_args', '__item_set', '__closed'
+        "loop",
+        "__max_size",
+        "__items",
+        "__constructor",
+        "__created",
+        "__lock",
+        "__constructor_args",
+        "__item_set",
+        "__closed",
     )
 
-    def __init__(self, constructor: ConstructorType, *args,
-                 max_size: int = None, loop: asyncio.AbstractEventLoop = None):
+    def __init__(
+        self,
+        constructor: ConstructorType,
+        *args,
+        max_size: int = None,
+        loop: asyncio.AbstractEventLoop = None
+    ):
         self.loop = loop or asyncio.get_event_loop()
         self.__closed = False
-        self.__constructor = constructor
+        self.__constructor = awaitable(constructor)
         self.__constructor_args = args or ()
         self.__created = 0
         self.__item_set = set()
@@ -39,9 +64,9 @@ class Pool:
     def is_closed(self) -> bool:
         return self.__closed
 
-    def acquire(self) -> 'PoolItemContextManager':
+    def acquire(self) -> "PoolItemContextManager":
         if self.__closed:
-            raise PoolInvalidStateError('acquire operation on closed pool')
+            raise PoolInvalidStateError("acquire operation on closed pool")
 
         return PoolItemContextManager(self)
 
@@ -57,13 +82,13 @@ class Pool:
 
     async def _create_item(self) -> T:
         if self.__closed:
-            raise PoolInvalidStateError('create item operation on closed pool')
+            raise PoolInvalidStateError("create item operation on closed pool")
 
         async with self.__lock:
             if self._is_overflow:
                 return await self.__items.get()
 
-            log.debug('Creating a new instance of %r', self.__constructor)
+            log.debug("Creating a new instance of %r", self.__constructor)
             item = await self.__constructor(*self.__constructor_args)
             self.__created += 1
             self.__item_set.add(item)
@@ -71,7 +96,7 @@ class Pool:
 
     async def _get(self) -> T:
         if self.__closed:
-            raise PoolInvalidStateError('get operation on closed pool')
+            raise PoolInvalidStateError("get operation on closed pool")
 
         if self._is_overflow:
             return await self.__items.get()
@@ -80,7 +105,7 @@ class Pool:
 
     def put(self, item: T):
         if self.__closed:
-            raise PoolInvalidStateError('put operation on closed pool')
+            raise PoolInvalidStateError("put operation on closed pool")
 
         return self.__items.put_nowait(item)
 
@@ -106,7 +131,7 @@ class Pool:
 
 
 class PoolItemContextManager(AsyncContextManager):
-    __slots__ = 'pool', 'item'
+    __slots__ = "pool", "item"
 
     def __init__(self, pool: Pool):
         self.pool = pool

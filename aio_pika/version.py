@@ -1,11 +1,9 @@
-author_info = (
-    ('Dmitry Orlov', 'me@mosquito.su'),
-)
+author_info = (("Dmitry Orlov", "me@mosquito.su"),)
 
 package_info = "Wrapper for the aiormq for asyncio and humans."
 package_license = "Apache Software License"
 
-team_email = 'me@mosquito.su'
+team_email = "me@mosquito.su"
 
 version_info = (6, 6, 0)
 

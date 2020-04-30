@@ -1,18 +1,17 @@
 import asyncio
 import json
 import logging
-
 from functools import partial
+from typing import Any, Callable
 
-from typing import Callable, Any
 from aio_pika.channel import Channel
-from aio_pika.queue import Queue
 from aio_pika.message import (
-    IncomingMessage, Message, DeliveryMode, ReturnedMessage
+    DeliveryMode, IncomingMessage, Message, ReturnedMessage,
 )
+from aio_pika.queue import Queue
 from aiormq.tools import awaitable
 
-from .base import Proxy, Base
+from .base import Base, Proxy
 
 
 log = logging.getLogger(__name__)
@@ -33,7 +32,11 @@ class RejectMessage(MessageProcessingError):
 
 
 class Worker:
-    __slots__ = 'queue', 'consumer_tag', 'loop',
+    __slots__ = (
+        "queue",
+        "consumer_tag",
+        "loop",
+    )
 
     def __init__(self, queue: Queue, consumer_tag: str, loop):
         self.queue = queue
@@ -45,6 +48,7 @@ class Worker:
 
         :return: :class:`asyncio.Task`
         """
+
         async def closer():
             await self.queue.cancel(self.consumer_tag)
 
@@ -52,7 +56,11 @@ class Worker:
 
 
 class Master(Base):
-    __slots__ = 'channel', 'loop', 'proxy',
+    __slots__ = (
+        "channel",
+        "loop",
+        "proxy",
+    )
 
     DELIVERY_MODE = DeliveryMode.PERSISTENT
 
@@ -72,16 +80,17 @@ class Master(Base):
     """
 
     def __init__(
-            self, channel: Channel,
-            requeue: bool = True,
-            reject_on_redelivered: bool = False
+        self,
+        channel: Channel,
+        requeue: bool = True,
+        reject_on_redelivered: bool = False,
     ):
         """ Creates a new :class:`Master` instance.
 
         :param channel: Initialized instance of :class:`aio_pika.Channel`
         """
-        self.channel = channel          # type: Channel
-        self.loop = self.channel.loop   # type: asyncio.AbstractEventLoop
+        self.channel = channel  # type: Channel
+        self.loop = self.channel.loop  # type: asyncio.AbstractEventLoop
         self.proxy = Proxy(self.create_task)
 
         self.channel.add_on_return_callback(self.on_message_returned)
@@ -93,10 +102,11 @@ class Master(Base):
     def exchange(self):
         return self.channel.default_exchange
 
-    def on_message_returned(self, message: ReturnedMessage):
+    @staticmethod
+    def on_message_returned(sender, message: ReturnedMessage):
         log.warning(
             "Message returned. Probably destination queue does not exists: %r",
-            message
+            message,
         )
 
     def serialize(self, data: Any) -> bytes:
@@ -130,9 +140,9 @@ class Master(Base):
 
     async def on_message(self, func, message: IncomingMessage):
         async with message.process(
-                requeue=self._requeue,
-                reject_on_redelivered=self._reject_on_redelivered,
-                ignore_processed=True
+            requeue=self._requeue,
+            reject_on_redelivered=self._reject_on_redelivered,
+            ignore_processed=True,
         ):
             data = self.deserialize(message.body)
 
@@ -146,8 +156,9 @@ class Master(Base):
     async def create_queue(self, channel_name, **kwargs) -> Queue:
         return await self.channel.declare_queue(channel_name, **kwargs)
 
-    async def create_worker(self, channel_name: str,
-                            func: Callable, **kwargs) -> Worker:
+    async def create_worker(
+        self, channel_name: str, func: Callable, **kwargs
+    ) -> Worker:
         """ Creates a new :class:`Worker` instance. """
 
         queue = await self.create_queue(channel_name, **kwargs)
@@ -160,8 +171,9 @@ class Master(Base):
 
         return Worker(queue, consumer_tag, self.loop)
 
-    async def create_task(self, channel_name: str,
-                          kwargs=None, **message_kwargs):
+    async def create_task(
+        self, channel_name: str, kwargs=None, **message_kwargs
+    ):
 
         """ Creates a new task for the worker """
         message = Message(
@@ -171,14 +183,12 @@ class Master(Base):
             **message_kwargs
         )
 
-        await self.exchange.publish(
-            message, channel_name, mandatory=True
-        )
+        await self.exchange.publish(message, channel_name, mandatory=True)
 
 
 class JsonMaster(Master):
     SERIALIZER = json
-    CONTENT_TYPE = 'application/json'
+    CONTENT_TYPE = "application/json"
 
     def serialize(self, data: Any) -> bytes:
         return self.SERIALIZER.dumps(data, ensure_ascii=False)

@@ -34,9 +34,7 @@ async def main():
     async def publish():
         async with channel_pool.acquire() as channel:  # type: aio_pika.Channel
             await channel.default_exchange.publish(
-                aio_pika.Message(
-                    ("Channel: %r" % channel).encode()
-                ),
+                aio_pika.Message(("Channel: %r" % channel).encode()),
                 queue_name,
             )
 

@@ -1,13 +1,11 @@
 import asyncio
 
-from aio_pika.patterns.master import Master, RejectMessage, NackMessage
-from tests.test_amqp import BaseTestCase
+import aio_pika
+from aio_pika.patterns.master import Master, NackMessage, RejectMessage
 
 
-class TestCase(BaseTestCase):
-
-    async def test_simple(self):
-        channel = await self.create_channel()
+class TestCase:
+    async def test_simple(self, channel: aio_pika.Channel):
         master = Master(channel)
         event = asyncio.Event()
 
@@ -19,19 +17,18 @@ class TestCase(BaseTestCase):
             event.set()
 
         worker = await master.create_worker(
-            'worker.foo', worker_func, auto_delete=True
+            "worker.foo", worker_func, auto_delete=True,
         )
 
         await master.proxy.worker.foo(foo=1, bar=2)
 
         await event.wait()
 
-        self.assertSequenceEqual(self.state, [(1, 2)])
+        assert self.state == [(1, 2)]
 
         await worker.close()
 
-    async def test_simple_coro(self):
-        channel = await self.create_channel()
+    async def test_simple_coro(self, channel: aio_pika.Channel):
         master = Master(channel)
         event = asyncio.Event()
 
@@ -43,32 +40,31 @@ class TestCase(BaseTestCase):
             event.set()
 
         worker = await master.create_worker(
-            'worker.foo', worker_func, auto_delete=True
+            "worker.foo", worker_func, auto_delete=True,
         )
 
         await master.proxy.worker.foo(foo=1, bar=2)
 
         await event.wait()
 
-        self.assertSequenceEqual(self.state, [(1, 2)])
+        assert self.state == [(1, 2)]
 
         await worker.close()
 
-    async def test_simple_many(self):
-        channel = await self.create_channel()
+    async def test_simple_many(self, channel: aio_pika.Channel):
         master = Master(channel)
         tasks = 100
 
-        self.state = []
+        state = []
 
         def worker_func(*, foo):
-            nonlocal tasks
+            nonlocal tasks, state
 
-            self.state.append(foo)
+            state.append(foo)
             tasks -= 1
 
         worker = await master.create_worker(
-            'worker.foo', worker_func, auto_delete=True
+            "worker.foo", worker_func, auto_delete=True,
         )
 
         for item in range(100):
@@ -77,12 +73,11 @@ class TestCase(BaseTestCase):
         while tasks > 0:
             await asyncio.sleep(0)
 
-        self.assertSequenceEqual(self.state, range(100))
+        assert state == list(range(100))
 
         await worker.close()
 
-    async def test_exception_classes(self):
-        channel = await self.create_channel()
+    async def test_exception_classes(self, channel: aio_pika.Channel):
         master = Master(channel)
         counter = 200
 
@@ -100,7 +95,7 @@ class TestCase(BaseTestCase):
             self.state.append(foo)
 
         worker = await master.create_worker(
-            'worker.foo', worker_func, auto_delete=True
+            "worker.foo", worker_func, auto_delete=True,
         )
 
         for item in range(200):
@@ -109,6 +104,6 @@ class TestCase(BaseTestCase):
         while counter > 0:
             await asyncio.sleep(0)
 
-        self.assertSequenceEqual(self.state, range(50, 101))
+        assert self.state == list(range(50, 101))
 
         await worker.close()

@@ -4,8 +4,9 @@ from logging import getLogger
 from typing import Optional, Union
 
 import aiormq
+
 from .message import Message
-from .types import ExchangeType as ExchangeType_, TimeoutType
+from .types import TimeoutType
 
 
 log = getLogger(__name__)
@@ -13,23 +14,34 @@ log = getLogger(__name__)
 
 @unique
 class ExchangeType(Enum):
-    FANOUT = 'fanout'
-    DIRECT = 'direct'
-    TOPIC = 'topic'
-    HEADERS = 'headers'
-    X_DELAYED_MESSAGE = 'x-delayed-message'
-    X_CONSISTENT_HASH = 'x-consistent-hash'
-    X_MODULUS_HASH = 'x-modulus-hash'
+    FANOUT = "fanout"
+    DIRECT = "direct"
+    TOPIC = "topic"
+    HEADERS = "headers"
+    X_DELAYED_MESSAGE = "x-delayed-message"
+    X_CONSISTENT_HASH = "x-consistent-hash"
+    X_MODULUS_HASH = "x-modulus-hash"
+
+
+ExchangeParamType = Union["Exchange", str]
 
 
 class Exchange:
     """ Exchange abstraction """
 
-    def __init__(self, connection, channel: aiormq.Channel, name: str,
-                 type: Union[ExchangeType, str] = ExchangeType.DIRECT, *,
-                 auto_delete: Optional[bool], durable: Optional[bool],
-                 internal: Optional[bool], passive: Optional[bool],
-                 arguments: dict = None):
+    def __init__(
+        self,
+        connection,
+        channel: aiormq.Channel,
+        name: str,
+        type: Union[ExchangeType, str] = ExchangeType.DIRECT,
+        *,
+        auto_delete: Optional[bool],
+        durable: Optional[bool],
+        internal: Optional[bool],
+        passive: Optional[bool],
+        arguments: dict = None
+    ):
 
         self.loop = connection.loop
 
@@ -57,35 +69,46 @@ class Exchange:
 
     def __repr__(self):
         return "<Exchange(%s): auto_delete=%s, durable=%s, arguments=%r)>" % (
-            self, self.auto_delete, self.durable, self.arguments
+            self,
+            self.auto_delete,
+            self.durable,
+            self.arguments,
         )
 
     async def declare(
         self, timeout: TimeoutType = None
     ) -> aiormq.spec.Exchange.DeclareOk:
-        return await asyncio.wait_for(self.channel.exchange_declare(
-            self.name,
-            exchange_type=self.__type,
-            durable=self.durable,
-            auto_delete=self.auto_delete,
-            internal=self.internal,
-            passive=self.passive,
-            arguments=self.arguments,
-        ), timeout=timeout)
+        return await asyncio.wait_for(
+            self.channel.exchange_declare(
+                self.name,
+                exchange_type=self.__type,
+                durable=self.durable,
+                auto_delete=self.auto_delete,
+                internal=self.internal,
+                passive=self.passive,
+                arguments=self.arguments,
+            ),
+            timeout=timeout,
+        )
 
     @staticmethod
-    def _get_exchange_name(exchange: ExchangeType_):
+    def _get_exchange_name(exchange: ExchangeParamType):
         if isinstance(exchange, Exchange):
             return exchange.name
         elif isinstance(exchange, str):
             return exchange
         else:
             raise ValueError(
-                'exchange argument must be an exchange instance or str')
+                "exchange argument must be an exchange instance or str",
+            )
 
     async def bind(
-        self, exchange: ExchangeType_, routing_key: str = '', *,
-        arguments: dict = None, timeout: TimeoutType = None
+        self,
+        exchange: ExchangeParamType,
+        routing_key: str = "",
+        *,
+        arguments: dict = None,
+        timeout: TimeoutType = None
     ) -> aiormq.spec.Exchange.BindOk:
 
         """ A binding can also be a relationship between two exchanges.
@@ -124,7 +147,10 @@ class Exchange:
 
         log.debug(
             "Binding exchange %r to exchange %r, routing_key=%r, arguments=%r",
-            self, exchange, routing_key, arguments
+            self,
+            exchange,
+            routing_key,
+            arguments,
         )
 
         return await asyncio.wait_for(
@@ -133,12 +159,16 @@ class Exchange:
                 destination=self.name,
                 routing_key=routing_key,
                 source=self._get_exchange_name(exchange),
-            ), timeout=timeout
+            ),
+            timeout=timeout,
         )
 
     async def unbind(
-        self, exchange: ExchangeType_, routing_key: str = '',
-        arguments: dict = None, timeout: TimeoutType = None
+        self,
+        exchange: ExchangeParamType,
+        routing_key: str = "",
+        arguments: dict = None,
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.UnbindOk:
 
         """ Remove exchange-to-exchange binding for this
@@ -154,7 +184,10 @@ class Exchange:
         log.debug(
             "Unbinding exchange %r from exchange %r, "
             "routing_key=%r, arguments=%r",
-            self, exchange, routing_key, arguments
+            self,
+            exchange,
+            routing_key,
+            arguments,
         )
 
         return await asyncio.wait_for(
@@ -163,12 +196,18 @@ class Exchange:
                 destination=self.name,
                 routing_key=routing_key,
                 source=self._get_exchange_name(exchange),
-            ), timeout=timeout
+            ),
+            timeout=timeout,
         )
 
     async def publish(
-        self, message: Message, routing_key, *, mandatory: bool = True,
-        immediate: bool = False, timeout: TimeoutType = None
+        self,
+        message: Message,
+        routing_key,
+        *,
+        mandatory: bool = True,
+        immediate: bool = False,
+        timeout: TimeoutType = None
     ) -> Optional[aiormq.types.ConfirmationFrameType]:
 
         """ Publish the message to the queue. `aio-pika` uses
@@ -180,13 +219,15 @@ class Exchange:
 
         log.debug(
             "Publishing message with routing key %r via exchange %r: %r",
-            routing_key, self, message
+            routing_key,
+            self,
+            message,
         )
 
         if self.internal:
             # Caught on the client side to prevent channel closure
             raise ValueError(
-                "Can not publish to internal exchange: '%s'!" % self.name
+                "Can not publish to internal exchange: '%s'!" % self.name,
             )
 
         return await asyncio.wait_for(
@@ -196,8 +237,9 @@ class Exchange:
                 body=message.body,
                 properties=message.properties,
                 mandatory=mandatory,
-                immediate=immediate
-            ), timeout=timeout
+                immediate=immediate,
+            ),
+            timeout=timeout,
         )
 
     async def delete(
@@ -213,8 +255,8 @@ class Exchange:
         log.info("Deleting %r", self)
         return await asyncio.wait_for(
             self.channel.exchange_delete(self.name, if_unused=if_unused),
-            timeout=timeout
+            timeout=timeout,
         )
 
 
-__all__ = ('Exchange', 'ExchangeType')
+__all__ = ("Exchange", "ExchangeType", "ExchangeParamType")

@@ -10,14 +10,14 @@ async def multiply(*, x, y):
 async def main():
     connection = await connect_robust(
         "amqp://guest:guest@127.0.0.1/",
-        client_properties={'connection_name': 'callee'}
+        client_properties={"connection_name": "callee"},
     )
 
     # Creating channel
     channel = await connection.channel()
 
     rpc = await RPC.create(channel)
-    await rpc.register('multiply', multiply, auto_delete=True)
+    await rpc.register("multiply", multiply, auto_delete=True)
 
     return connection
 

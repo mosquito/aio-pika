@@ -1,12 +1,14 @@
 import asyncio
 import logging
-from functools import wraps
 from collections.abc import Set
+from functools import wraps
+from itertools import chain
 from threading import Lock
 from typing import Callable, Iterable
+from weakref import WeakSet, ref
 
 
-__all__ = 'create_task', 'iscoroutinepartial', 'shield', 'CallbackCollection'
+__all__ = "create_task", "iscoroutinepartial", "shield", "CallbackCollection"
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +28,7 @@ def iscoroutinepartial(fn):
     while True:
         parent = fn
 
-        fn = getattr(parent, 'func', None)
+        fn = getattr(parent, "func", None)
 
         if fn is None:
             break
@@ -72,34 +74,43 @@ def shield(func):
 
 
 class CallbackCollection(Set):
-    __slots__ = '__callbacks', '__lock'
+    __slots__ = "__sender", "__callbacks", "__weak_callbacks", "__lock"
 
-    def __init__(self):
+    def __init__(self, sender):
+        self.__sender = ref(sender)
         self.__callbacks = set()
+        self.__weak_callbacks = WeakSet()
         self.__lock = Lock()
 
-    def add(self, callback: Callable):
+    def add(self, callback: Callable, weak=True):
         if self.is_frozen:
-            raise RuntimeError('Collection frozen')
+            raise RuntimeError("Collection frozen")
         if not callable(callback):
             raise ValueError("Callback is not callable")
 
         with self.__lock:
-            self.__callbacks.add(callback)
+            if weak:
+                self.__weak_callbacks.add(callback)
+            else:
+                self.__callbacks.add(callback)
 
     def remove(self, callback: Callable):
         if self.is_frozen:
-            raise RuntimeError('Collection frozen')
+            raise RuntimeError("Collection frozen")
 
         with self.__lock:
-            self.__callbacks.remove(callback)
+            try:
+                self.__callbacks.remove(callback)
+            except KeyError:
+                self.__weak_callbacks.remove(callback)
 
     def clear(self):
         if self.is_frozen:
-            raise RuntimeError('Collection frozen')
+            raise RuntimeError("Collection frozen")
 
         with self.__lock:
             self.__callbacks.clear()
+            self.__weak_callbacks.clear()
 
     @property
     def is_frozen(self) -> bool:
@@ -111,6 +122,7 @@ class CallbackCollection(Set):
 
         with self.__lock:
             self.__callbacks = frozenset(self.__callbacks)
+            self.__weak_callbacks = WeakSet(self.__weak_callbacks)
 
     def unfreeze(self):
         if not self.is_frozen:
@@ -118,25 +130,29 @@ class CallbackCollection(Set):
 
         with self.__lock:
             self.__callbacks = set(self.__callbacks)
+            self.__weak_callbacks = WeakSet(self.__weak_callbacks)
 
     def __contains__(self, x: object) -> bool:
-        return x in self.__callbacks
+        return x in self.__callbacks or x in self.__weak_callbacks
 
     def __len__(self) -> int:
-        return len(self.__callbacks)
+        return len(self.__callbacks) + len(self.__weak_callbacks)
 
     def __iter__(self) -> Iterable[Callable]:
-        return iter(self.__callbacks)
+        return iter(chain(self.__callbacks, self.__weak_callbacks))
 
     def __bool__(self):
-        return bool(self.__callbacks)
+        return bool(self.__callbacks) or bool(self.__weak_callbacks)
 
     def __copy__(self):
-        instance = self.__class__()
+        instance = self.__class__(self.__sender())
 
         with self.__lock:
             for cb in self.__callbacks:
-                instance.add(cb)
+                instance.add(cb, weak=False)
+
+            for cb in self.__weak_callbacks:
+                instance.add(cb, weak=True)
 
         if self.is_frozen:
             instance.freeze()
@@ -145,8 +161,8 @@ class CallbackCollection(Set):
 
     def __call__(self, *args, **kwargs):
         with self.__lock:
-            for cb in self.__callbacks:
+            for cb in self:
                 try:
-                    cb(*args, **kwargs)
+                    cb(self.__sender(), *args, **kwargs)
                 except Exception:
-                    log.exception('Callback error')
+                    log.exception("Callback error")

@@ -14,25 +14,21 @@ async def main(loop):
     channel = await connection.channel()
 
     # Declaring exchange
-    exchange = await channel.declare_exchange(
-        'direct', auto_delete=True
-    )
+    exchange = await channel.declare_exchange("direct", auto_delete=True)
 
     # Declaring queue
-    queue = await channel.declare_queue(
-        queue_name, auto_delete=True
-    )
+    queue = await channel.declare_queue(queue_name, auto_delete=True)
 
     # Binding queue
     await queue.bind(exchange, routing_key)
 
     await exchange.publish(
         Message(
-            bytes('Hello', 'utf-8'),
-            content_type='text/plain',
-            headers={'foo': 'bar'}
+            bytes("Hello", "utf-8"),
+            content_type="text/plain",
+            headers={"foo": "bar"},
         ),
-        routing_key
+        routing_key,
     )
 
     # Receiving message

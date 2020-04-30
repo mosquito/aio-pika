@@ -23,9 +23,7 @@ async def main(loop):
     await channel.set_qos(prefetch_count=100)
 
     # Declaring queue
-    queue = await channel.declare_queue(
-        queue_name, auto_delete=True
-    )
+    queue = await channel.declare_queue(queue_name, auto_delete=True)
 
     await queue.consume(process_message)
 

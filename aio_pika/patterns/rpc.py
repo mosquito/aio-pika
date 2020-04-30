@@ -2,41 +2,49 @@ import asyncio
 import json
 import logging
 import pickle
-
 import time
 from enum import Enum
 from functools import partial
-from typing import Callable, Any, TypeVar
+from typing import Any, Callable, Dict, Hashable, Optional, TypeVar
 
-from aio_pika.exchange import ExchangeType
 from aio_pika.channel import Channel
 from aio_pika.exceptions import DeliveryError
+from aio_pika.exchange import ExchangeType
 from aio_pika.message import (
-    Message, IncomingMessage, DeliveryMode, ReturnedMessage
+    DeliveryMode, IncomingMessage, Message, ReturnedMessage,
 )
 from aio_pika.tools import shield
 from aiormq.tools import awaitable
-from .base import Proxy, Base
+
+from .base import Base, Proxy
+
 
 log = logging.getLogger(__name__)
 
-R = TypeVar('R')
-P = TypeVar('P')
+R = TypeVar("R")
+P = TypeVar("P")
 CallbackType = Callable[[P], R]
 
 
 class RPCMessageTypes(Enum):
-    error = 'error'
-    result = 'result'
-    call = 'call'
+    error = "error"
+    result = "result"
+    call = "call"
 
 
 class RPC(Base):
-    __slots__ = ("channel", "loop", "proxy", "result_queue",
-                 "result_consumer_tag", "routes", "consumer_tags",
-                 "dlx_exchange",)
+    __slots__ = (
+        "channel",
+        "loop",
+        "proxy",
+        "result_queue",
+        "result_consumer_tag",
+        "routes",
+        "consumer_tags",
+        "dlx_exchange",
+    )
 
-    DLX_NAME = 'rpc.dlx'
+    DLX_NAME = "rpc.dlx"
     DELIVERY_MODE = DeliveryMode.NOT_PERSISTENT
 
     __doc__ = """
@@ -69,7 +77,7 @@ class RPC(Base):
         self.loop = self.channel.loop
         self.proxy = Proxy(self.call)
         self.result_queue = None
-        self.futures = dict()
+        self.futures = {}  # type Dict[int, asyncio.Future]
         self.result_consumer_tag = None
         self.routes = {}
         self.queues = {}
@@ -91,7 +99,7 @@ class RPC(Base):
     @shield
     async def close(self):
         if self.result_queue is None:
-            log.warning('RPC already closed')
+            log.warning("RPC already closed")
             return
 
         log.debug("Cancelling listening %r", self.result_queue)
@@ -100,11 +108,9 @@ class RPC(Base):
 
         log.debug("Unbinding %r", self.result_queue)
         await self.result_queue.unbind(
-            self.dlx_exchange, "",
-            arguments={
-                "From": self.result_queue.name,
-                'x-match': 'any',
-            }
+            self.dlx_exchange,
+            "",
+            arguments={"From": self.result_queue.name, "x-match": "any"},
         )
 
         log.debug("Cancelling undone futures %r", self.futures)
@@ -128,25 +134,23 @@ class RPC(Base):
         )
 
         self.dlx_exchange = await self.channel.declare_exchange(
-            self.DLX_NAME,
-            type=ExchangeType.HEADERS,
-            auto_delete=True,
+            self.DLX_NAME, type=ExchangeType.HEADERS, auto_delete=True,
         )
 
         await self.result_queue.bind(
-            self.dlx_exchange, "",
-            arguments={
-                "From": self.result_queue.name,
-                'x-match': 'any',
-            }
+            self.dlx_exchange,
+            "",
+            arguments={"From": self.result_queue.name, "x-match": "any"},
         )
 
         self.result_consumer_tag = await self.result_queue.consume(
-            self.on_result_message, exclusive=True, no_ack=True
+            self.on_result_message, exclusive=True, no_ack=True,
         )
 
         self.channel.add_close_callback(self.on_close)
-        self.channel.add_on_return_callback(self.on_message_returned)
+        self.channel.add_on_return_callback(
+            self.on_message_returned, weak=False,
+        )
 
     def on_close(self, exc=None):
         log.debug("Closing RPC futures because %r", exc)
@@ -170,12 +174,12 @@ class RPC(Base):
         await rpc.initialize(**kwargs)
         return rpc
 
-    def on_message_returned(self, message: ReturnedMessage):
-        correlation_id = int(
-            message.correlation_id
-        ) if message.correlation_id else None
+    def on_message_returned(self, sender: "RPC", message: ReturnedMessage):
+        correlation_id = (
+            int(message.correlation_id) if message.correlation_id else None
+        )
 
-        future = self.futures.pop(correlation_id, None)   # type: asyncio.Future
+        future = self.futures.pop(correlation_id, None)
 
         if not future or future.done():
             log.warning("Unknown message was returned: %r", message)
@@ -184,11 +188,11 @@ class RPC(Base):
         future.set_exception(DeliveryError(message, None))
 
     async def on_result_message(self, message: IncomingMessage):
-        correlation_id = int(
-            message.correlation_id
-        ) if message.correlation_id else None
+        correlation_id = (
+            int(message.correlation_id) if message.correlation_id else None
+        )
 
-        future = self.futures.pop(correlation_id, None)  # type: asyncio.Future
+        future = self.futures.pop(correlation_id, None)
 
         if future is None:
             log.warning("Unknown message: %r", message)
@@ -207,14 +211,16 @@ class RPC(Base):
             future.set_exception(payload)
         elif message.type == RPCMessageTypes.call.value:
             future.set_exception(
-                asyncio.TimeoutError("Message timed-out", message)
+                asyncio.TimeoutError("Message timed-out", message),
             )
         else:
             future.set_exception(
-                RuntimeError("Unknown message type %r" % message.type)
+                RuntimeError("Unknown message type %r" % message.type),
             )
 
-    async def on_call_message(self, method_name: str, message: IncomingMessage):
+    async def on_call_message(
+        self, method_name: str, message: IncomingMessage
+    ):
         if method_name not in self.routes:
             log.warning("Method %r not registered in %r", method_name, self)
             return
@@ -233,7 +239,8 @@ class RPC(Base):
         if not message.reply_to:
             log.info(
                 'RPC message without "reply_to" header %r call result '
-                'will be lost', message
+                "will be lost",
+                message,
             )
             await message.ack()
             return
@@ -249,9 +256,7 @@ class RPC(Base):
 
         try:
             await self.channel.default_exchange.publish(
-                result_message,
-                message.reply_to,
-                mandatory=False
+                result_message, message.reply_to, mandatory=False,
             )
         except Exception:
             log.exception("Failed to send reply %r", result_message)
@@ -296,10 +301,15 @@ class RPC(Base):
         """ Executes rpc call. Might be overlapped. """
         return await func(**payload)
 
-    async def call(self, method_name, kwargs: dict=None, *,
-                   expiration: int=None, priority: int=5,
-                   delivery_mode: DeliveryMode=DELIVERY_MODE):
-
+    async def call(
+        self,
+        method_name,
+        kwargs: Optional[Dict[Hashable, Any]] = None,
+        *,
+        expiration: Optional[int] = None,
+        priority: int = 5,
+        delivery_mode: DeliveryMode = DELIVERY_MODE
+    ):
         """ Call remote method and awaiting result.
 
         :param method_name: Name of method
@@ -324,9 +334,7 @@ class RPC(Base):
             correlation_id=id(future),
             delivery_mode=delivery_mode,
             reply_to=self.result_queue.name,
-            headers={
-                'From': self.result_queue.name
-            }
+            headers={"From": self.result_queue.name},
         )
 
         if expiration is not None:
@@ -334,7 +342,7 @@ class RPC(Base):
 
         log.debug("Publishing calls for %s(%r)", method_name, kwargs)
         await self.channel.default_exchange.publish(
-            message, routing_key=method_name, mandatory=True
+            message, routing_key=method_name, mandatory=True,
         )
 
         log.debug("Waiting RPC result for %s(%r)", method_name, kwargs)
@@ -352,25 +360,23 @@ class RPC(Base):
             Function already registered in this :class:`RPC` instance
             or method_name already used.
         """
-        arguments = kwargs.pop('arguments', {})
-        arguments.update({
-            'x-dead-letter-exchange': self.DLX_NAME,
-        })
+        arguments = kwargs.pop("arguments", {})
+        arguments.update({"x-dead-letter-exchange": self.DLX_NAME})
 
-        kwargs['arguments'] = arguments
+        kwargs["arguments"] = arguments
 
         queue = await self.channel.declare_queue(method_name, **kwargs)
 
         if func in self.consumer_tags:
-            raise RuntimeError('Function already registered')
+            raise RuntimeError("Function already registered")
 
         if method_name in self.routes:
             raise RuntimeError(
-                'Method name already used for %r' % self.routes[method_name]
+                "Method name already used for %r" % self.routes[method_name],
             )
 
         self.consumer_tags[func] = await queue.consume(
-            partial(self.on_call_message, method_name)
+            partial(self.on_call_message, method_name),
         )
 
         self.routes[method_name] = awaitable(func)
@@ -394,16 +400,18 @@ class RPC(Base):
 
 class JsonRPC(RPC):
     SERIALIZER = json
-    CONTENT_TYPE = 'application/json'
+    CONTENT_TYPE = "application/json"
 
     def serialize(self, data: Any) -> bytes:
         return self.SERIALIZER.dumps(data, ensure_ascii=False, default=repr)
 
     def serialize_exception(self, exception: Exception) -> bytes:
-        return self.serialize({
-            "error": {
-                "type": exception.__class__.__name__,
-                "message": repr(exception),
-                "args": exception.args,
-            }
-        })
+        return self.serialize(
+            {
+                "error": {
+                    "type": exception.__class__.__name__,
+                    "message": repr(exception),
+                    "args": exception.args,
+                },
+            },
+        )

@@ -1,6 +1,8 @@
 import logging
 from copy import copy
-from unittest import TestCase as BaseTestCase
+from unittest import mock
+
+import pytest
 
 from aio_pika.tools import CallbackCollection
 
@@ -9,77 +11,77 @@ log = logging.getLogger(__name__)
 
 
 # noinspection PyTypeChecker
-class TestCase(BaseTestCase):
-    @classmethod
-    def make_collection(cls):
-        return CallbackCollection()
+class TestCase:
+    @pytest.fixture
+    def instance(self):
+        return mock.MagicMock()
 
-    def test_basic(self):
-        collection = self.make_collection()
+    @pytest.fixture
+    def collection(self, instance):
+        return CallbackCollection(instance)
 
-        def func():
+    def test_basic(self, collection):
+        def func(sender, *args, **kwargs):
             pass
 
         collection.add(func)
 
-        self.assertTrue(func in collection)
+        assert func in collection
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             collection.add(None)
 
         collection.remove(func)
 
-        with self.assertRaises(LookupError):
+        with pytest.raises(LookupError):
             collection.remove(func)
 
         for _ in range(10):
             collection.add(func)
 
-        self.assertEqual(len(collection), 1)
+        assert len(collection) == 1
 
         collection.freeze()
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             collection.freeze()
 
-        self.assertEqual(len(collection), 1)
+        assert len(collection) == 1
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             collection.add(func)
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             collection.remove(func)
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             collection.clear()
 
         collection2 = copy(collection)
         collection.unfreeze()
 
-        self.assertFalse(copy(collection).is_frozen)
+        assert not copy(collection).is_frozen
 
-        self.assertNotEqual(collection.is_frozen, collection2.is_frozen)
+        assert collection.is_frozen != collection2.is_frozen
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             collection.unfreeze()
 
         collection.clear()
-        self.assertTrue(collection2)
-        self.assertFalse(collection)
+        assert collection2
+        assert not collection
 
-    def test_callback_call(self):
+    def test_callback_call(self, collection):
         l1 = list()
         l2 = list()
 
-        self.assertListEqual(l1, l2)
+        assert l1 == l2
 
-        cbs = self.make_collection()
+        collection.add(lambda sender, x: l1.append(x), weak=False)
+        collection.add(lambda sender, x: l2.append(x), weak=False)
 
-        cbs.add(lambda x: l1.append(x))
-        cbs.add(lambda x: l2.append(x))
+        collection(1)
+        collection(2)
 
-        cbs(1)
-        cbs(2)
-
-        self.assertListEqual(l1, l2)
-        self.assertListEqual(l1, [1, 2])
+        assert l1 == l2
+        assert l1 == [1, 2]

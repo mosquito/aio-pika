@@ -4,7 +4,7 @@ import tornado.web
 
 from aio_pika import connect_robust, Message
 
-tornado.ioloop.IOLoop.configure('tornado.platform.asyncio.AsyncIOLoop')
+tornado.ioloop.IOLoop.configure("tornado.platform.asyncio.AsyncIOLoop")
 io_loop = tornado.ioloop.IOLoop.current()
 asyncio.set_event_loop(io_loop.asyncio_loop)
 
@@ -20,13 +20,12 @@ class SubscriberHandler(tornado.web.RequestHandler):
 
 class PublisherHandler(tornado.web.RequestHandler):
     async def post(self):
-        connection = self.application.settings['amqp_connection']
+        connection = self.application.settings["amqp_connection"]
         channel = await connection.channel()
 
         try:
             await channel.default_exchange.publish(
-                Message(body=self.request.body),
-                routing_key="test",
+                Message(body=self.request.body), routing_key="test",
             )
         finally:
             await channel.close()
@@ -38,15 +37,12 @@ async def make_app():
     amqp_connection = await connect_robust()
 
     channel = await amqp_connection.channel()
-    queue = await channel.declare_queue('test', auto_delete=True)
+    queue = await channel.declare_queue("test", auto_delete=True)
     await queue.consume(QUEUE.put, no_ack=True)
 
     return tornado.web.Application(
-        [
-            (r"/publish", PublisherHandler),
-            (r"/subscribe", SubscriberHandler),
-        ],
-        amqp_connection=amqp_connection
+        [(r"/publish", PublisherHandler), (r"/subscribe", SubscriberHandler)],
+        amqp_connection=amqp_connection,
     )
 
 

@@ -4,7 +4,8 @@ import aio_pika
 
 async def main(loop):
     connection = await aio_pika.connect_robust(
-        "amqp://guest:guest@127.0.0.1/", loop=loop)
+        "amqp://guest:guest@127.0.0.1/", loop=loop
+    )
 
     async with connection:
         routing_key = "test_queue"
@@ -17,9 +18,7 @@ async def main(loop):
             # Publishing messages but delivery will not be done
             # before committing this transaction
             for i in range(10):
-                message = aio_pika.Message(
-                    body='Hello #{}'.format(i).encode()
-                )
+                message = aio_pika.Message(body="Hello #{}".format(i).encode())
 
                 await channel.default_exchange.publish(
                     message, routing_key=routing_key
@@ -32,8 +31,8 @@ async def main(loop):
         await tx.select()
 
         await channel.default_exchange.publish(
-            aio_pika.Message(body='Hello {}'.format(routing_key).encode()),
-            routing_key=routing_key
+            aio_pika.Message(body="Hello {}".format(routing_key).encode()),
+            routing_key=routing_key,
         )
 
         await tx.commit()
@@ -46,8 +45,8 @@ async def main(loop):
         await tx.select()
 
         await channel.default_exchange.publish(
-            aio_pika.Message(body='Should be rejected'.encode()),
-            routing_key=routing_key
+            aio_pika.Message(body="Should be rejected".encode()),
+            routing_key=routing_key,
         )
 
         await tx.rollback()

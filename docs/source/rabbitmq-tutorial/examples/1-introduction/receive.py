@@ -10,21 +10,19 @@ async def on_message(message: IncomingMessage):
     print(" [x] Received message %r" % message)
     print("Message body is: %r" % message.body)
     print("Before sleep!")
-    await asyncio.sleep(5)   # Represents async I/O operations
+    await asyncio.sleep(5)  # Represents async I/O operations
     print("After sleep!")
 
 
 async def main(loop):
     # Perform connection
-    connection = await connect(
-        "amqp://guest:guest@localhost/", loop=loop
-    )
+    connection = await connect("amqp://guest:guest@localhost/", loop=loop)
 
     # Creating a channel
     channel = await connection.channel()
 
     # Declaring queue
-    queue = await channel.declare_queue('hello')
+    queue = await channel.declare_queue("hello")
 
     # Start listening the queue with name 'hello'
     await queue.consume(on_message, no_ack=True)
