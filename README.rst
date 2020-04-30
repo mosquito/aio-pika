@@ -12,9 +12,9 @@ aio-pika
     :target: https://coveralls.io/github/mosquito/aio-pika
     :alt: Coveralls
 
-.. image:: https://cloud.drone.io/api/badges/mosquito/aio-pika/status.svg
-    :target: https://cloud.drone.io/mosquito/aio-pika
-    :alt: Drone CI
+.. image:: https://github.com/mosquito/aio-pika/workflows/tox/badge.svg
+    :target: https://github.com/mosquito/aio-pika/actions?query=workflow%3Atox
+    :alt: Github Actions
 
 .. image:: https://img.shields.io/pypi/v/aio-pika.svg
     :target: https://pypi.python.org/pypi/aio-pika/
