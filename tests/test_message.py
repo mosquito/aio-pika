@@ -1,9 +1,9 @@
 import time
 from copy import copy
 from datetime import datetime
-import shortuuid
 
-from aio_pika import Message, DeliveryMode
+import shortuuid
+from aio_pika import DeliveryMode, Message
 
 
 def test_message_copy():

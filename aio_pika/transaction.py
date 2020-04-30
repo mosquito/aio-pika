@@ -32,7 +32,7 @@ class Transaction:
 
     async def select(self, timeout=None) -> aiormq.spec.Tx.SelectOk:
         result = await asyncio.wait_for(
-            self.channel.tx_select(), timeout=timeout
+            self.channel.tx_select(), timeout=timeout,
         )
 
         self.state = TransactionStates.started
@@ -40,14 +40,14 @@ class Transaction:
 
     async def rollback(self, timeout=None):
         result = await asyncio.wait_for(
-            self.channel.tx_rollback(), timeout=timeout
+            self.channel.tx_rollback(), timeout=timeout,
         )
         self.state = TransactionStates.rolled_back
         return result
 
     async def commit(self, timeout=None):
         result = await asyncio.wait_for(
-            self.channel.tx_commit(), timeout=timeout
+            self.channel.tx_commit(), timeout=timeout,
         )
 
         self.state = TransactionStates.commited

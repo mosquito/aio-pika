@@ -1,18 +1,12 @@
+import abc
 import asyncio
 import logging
-import abc
-
 from typing import (
-    Any,
-    Callable,
-    TypeVar,
-    AsyncContextManager,
-    Coroutine,
-    Awaitable,
-    Union,
+    Any, AsyncContextManager, Awaitable, Callable, Coroutine, TypeVar, Union,
 )
 
 from aiormq.tools import awaitable
+
 
 log = logging.getLogger(__name__)
 

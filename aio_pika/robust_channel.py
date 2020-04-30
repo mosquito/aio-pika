@@ -1,17 +1,15 @@
-from collections import defaultdict
+from logging import getLogger
 from typing import Union
+from warnings import warn
 
 import aiormq
 
-from logging import getLogger
-from warnings import warn
-
+from .channel import Channel
 from .exchange import Exchange, ExchangeType
 from .queue import Queue
-from .types import TimeoutType
-from .channel import Channel
-from .robust_queue import RobustQueue
 from .robust_exchange import RobustExchange
+from .robust_queue import RobustQueue
+from .types import TimeoutType
 
 
 log = getLogger(__name__)
@@ -48,8 +46,8 @@ class RobustChannel(Channel):
             on_return_raises=on_return_raises,
         )
 
-        self._exchanges = defaultdict(set)
-        self._queues = defaultdict(set)
+        self._exchanges = dict()
+        self._queues = dict()
         self._prefetch_count = 0
         self._prefetch_size = 0
         self._global_ = False
@@ -65,19 +63,17 @@ class RobustChannel(Channel):
             global_=self._global_,
         )
 
-        for exchanges in self._exchanges.values():
-            for exchange in exchanges:
-                await exchange.restore(self)
+        for exchange in self._exchanges.values():
+            await exchange.restore(self)
 
-        for queues in self._queues.values():
-            for queue in queues:
-                await queue.restore(self)
+        for queue in self._queues.values():
+            await queue.restore(self)
 
     @staticmethod
     def _on_channel_close(sender, exc: Exception):
         if exc:
             log.exception(
-                "Robust channel %r has been closed.", sender, exc_info=exc
+                "Robust channel %r has been closed.", sender, exc_info=exc,
             )
         else:
             log.debug("Robust channel %r has been closed.", sender)
@@ -133,7 +129,7 @@ class RobustChannel(Channel):
         )
 
         if not internal and robust:
-            self._exchanges[name].add(exchange)
+            self._exchanges[name] = exchange
 
         return exchange
 
@@ -178,7 +174,7 @@ class RobustChannel(Channel):
         )
 
         if robust:
-            self._queues[name].add(queue)
+            self._queues[name] = queue
 
         return queue
 
@@ -199,7 +195,6 @@ class RobustChannel(Channel):
         )
 
         self._queues.pop(queue_name, None)
-
         return result
 
 

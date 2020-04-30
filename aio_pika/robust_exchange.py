@@ -3,8 +3,8 @@ from typing import Optional
 
 import aiormq
 
-from .exchange import Exchange, ExchangeType
 from .channel import Channel
+from .exchange import Exchange, ExchangeType
 
 
 log = getLogger(__name__)
@@ -67,7 +67,7 @@ class RobustExchange(Exchange):
 
         if robust:
             self._bindings[exchange] = dict(
-                routing_key=routing_key, arguments=arguments
+                routing_key=routing_key, arguments=arguments,
             )
 
         return result
@@ -81,7 +81,7 @@ class RobustExchange(Exchange):
     ):
 
         result = await super().unbind(
-            exchange, routing_key, arguments=arguments, timeout=timeout
+            exchange, routing_key, arguments=arguments, timeout=timeout,
         )
         self._bindings.pop(exchange, None)
         return result

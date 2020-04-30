@@ -4,6 +4,7 @@ from logging import getLogger
 from typing import Optional, Union
 
 import aiormq
+
 from .message import Message
 from .types import TimeoutType
 
@@ -98,7 +99,7 @@ class Exchange:
             return exchange
         else:
             raise ValueError(
-                "exchange argument must be an exchange instance or str"
+                "exchange argument must be an exchange instance or str",
             )
 
     async def bind(
@@ -226,7 +227,7 @@ class Exchange:
         if self.internal:
             # Caught on the client side to prevent channel closure
             raise ValueError(
-                "Can not publish to internal exchange: '%s'!" % self.name
+                "Can not publish to internal exchange: '%s'!" % self.name,
             )
 
         return await asyncio.wait_for(

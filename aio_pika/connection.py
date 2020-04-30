@@ -1,17 +1,17 @@
 import asyncio
 import logging
 from functools import partial
-from typing import Optional
-from typing import Type, TypeVar
-
-from yarl import URL
+from typing import Optional, Type, TypeVar
 
 import aiormq
 from aiormq.tools import censor_url
+from yarl import URL
+
 from .channel import Channel
 from .pool import PoolInstance
 from .tools import CallbackCollection
-from .types import TimeoutType, CloseCallbackType
+from .types import CloseCallbackType, TimeoutType
+
 
 try:
     from yarl import DEFAULT_PORTS
@@ -111,7 +111,7 @@ class Connection(PoolInstance):
     async def _make_connection(self, **kwargs) -> aiormq.Connection:
         connection = await aiormq.connect(self.url, **kwargs)
         connection.closing.add_done_callback(
-            partial(self._on_connection_close, self.connection)
+            partial(self._on_connection_close, self.connection),
         )
         return connection
 
@@ -125,7 +125,7 @@ class Connection(PoolInstance):
 
         """
         self.connection = await asyncio.wait_for(
-            self._make_connection(**kwargs), timeout=timeout
+            self._make_connection(**kwargs), timeout=timeout,
         )
 
     def channel(
@@ -337,7 +337,7 @@ async def connect(
     connection = connection_class(url, loop=loop)
 
     await connection.connect(
-        timeout=timeout, client_properties=client_properties, loop=loop
+        timeout=timeout, client_properties=client_properties, loop=loop,
     )
     return connection
 

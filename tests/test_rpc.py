@@ -6,7 +6,8 @@ import pytest
 import aio_pika
 from aio_pika import Message
 from aio_pika.exceptions import DeliveryError
-from aio_pika.patterns.rpc import RPC, log as rpc_logger
+from aio_pika.patterns.rpc import RPC
+from aio_pika.patterns.rpc import log as rpc_logger
 from tests import get_random_name
 
 
@@ -92,7 +93,7 @@ class TestCase:
         body = b"test body"
         with caplog.at_level(logging.WARNING, logger=rpc_logger.name):
             await channel.default_exchange.publish(
-                Message(body), routing_key=rpc.result_queue.name
+                Message(body), routing_key=rpc.result_queue.name,
             )
 
             await asyncio.sleep(0.5)
@@ -105,7 +106,7 @@ class TestCase:
 
         with caplog.at_level(logging.WARNING, logger=rpc_logger.name):
             await channel.default_exchange.publish(
-                Message(body), routing_key="should-returned"
+                Message(body), routing_key="should-returned",
             )
 
             await asyncio.sleep(0.5)
@@ -146,7 +147,7 @@ class TestCase:
 
         with pytest.raises(RuntimeError):
             await rpc.register(
-                "test.sleeper", lambda x: None, auto_delete=True
+                "test.sleeper", lambda x: None, auto_delete=True,
             )
 
         await rpc.register("test.one", rpc_func, auto_delete=True)

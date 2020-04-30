@@ -1,9 +1,9 @@
 import asyncio
 
-from yarl import URL
+import pytest
 
 from aio_pika import connect
-import pytest
+from yarl import URL
 
 
 VARIANTS = (
@@ -38,7 +38,7 @@ def test_simple(kwargs, expected):
     loop = asyncio.get_event_loop()
     # noinspection PyTypeChecker
     conn = loop.run_until_complete(
-        connect(connection_class=FakeConnection, **kwargs)
+        connect(connection_class=FakeConnection, **kwargs),
     )
 
     assert conn.url == URL(expected)

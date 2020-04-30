@@ -1,21 +1,17 @@
 import asyncio
 import json
 import logging
-
 from functools import partial
+from typing import Any, Callable
 
-from typing import Callable, Any
 from aio_pika.channel import Channel
-from aio_pika.queue import Queue
 from aio_pika.message import (
-    IncomingMessage,
-    Message,
-    DeliveryMode,
-    ReturnedMessage,
+    DeliveryMode, IncomingMessage, Message, ReturnedMessage,
 )
+from aio_pika.queue import Queue
 from aiormq.tools import awaitable
 
-from .base import Proxy, Base
+from .base import Base, Proxy
 
 
 log = logging.getLogger(__name__)

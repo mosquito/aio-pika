@@ -1,11 +1,11 @@
 import asyncio
 import logging
-from itertools import chain
-from weakref import ref, WeakSet
-from functools import wraps
 from collections.abc import Set
+from functools import wraps
+from itertools import chain
 from threading import Lock
 from typing import Callable, Iterable
+from weakref import WeakSet, ref
 
 
 __all__ = "create_task", "iscoroutinepartial", "shield", "CallbackCollection"

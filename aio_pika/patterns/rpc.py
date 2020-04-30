@@ -2,24 +2,22 @@ import asyncio
 import json
 import logging
 import pickle
-
 import time
 from enum import Enum
 from functools import partial
-from typing import Callable, Any, TypeVar, Dict, Hashable, Optional
+from typing import Any, Callable, Dict, Hashable, Optional, TypeVar
 
-from aio_pika.exchange import ExchangeType
 from aio_pika.channel import Channel
 from aio_pika.exceptions import DeliveryError
+from aio_pika.exchange import ExchangeType
 from aio_pika.message import (
-    Message,
-    IncomingMessage,
-    DeliveryMode,
-    ReturnedMessage,
+    DeliveryMode, IncomingMessage, Message, ReturnedMessage,
 )
 from aio_pika.tools import shield
 from aiormq.tools import awaitable
-from .base import Proxy, Base
+
+from .base import Base, Proxy
+
 
 log = logging.getLogger(__name__)
 
@@ -146,12 +144,12 @@ class RPC(Base):
         )
 
         self.result_consumer_tag = await self.result_queue.consume(
-            self.on_result_message, exclusive=True, no_ack=True
+            self.on_result_message, exclusive=True, no_ack=True,
         )
 
         self.channel.add_close_callback(self.on_close)
         self.channel.add_on_return_callback(
-            self.on_message_returned, weak=False
+            self.on_message_returned, weak=False,
         )
 
     def on_close(self, exc=None):
@@ -213,11 +211,11 @@ class RPC(Base):
             future.set_exception(payload)
         elif message.type == RPCMessageTypes.call.value:
             future.set_exception(
-                asyncio.TimeoutError("Message timed-out", message)
+                asyncio.TimeoutError("Message timed-out", message),
             )
         else:
             future.set_exception(
-                RuntimeError("Unknown message type %r" % message.type)
+                RuntimeError("Unknown message type %r" % message.type),
             )
 
     async def on_call_message(
@@ -258,7 +256,7 @@ class RPC(Base):
 
         try:
             await self.channel.default_exchange.publish(
-                result_message, message.reply_to, mandatory=False
+                result_message, message.reply_to, mandatory=False,
             )
         except Exception:
             log.exception("Failed to send reply %r", result_message)
@@ -344,7 +342,7 @@ class RPC(Base):
 
         log.debug("Publishing calls for %s(%r)", method_name, kwargs)
         await self.channel.default_exchange.publish(
-            message, routing_key=method_name, mandatory=True
+            message, routing_key=method_name, mandatory=True,
         )
 
         log.debug("Waiting RPC result for %s(%r)", method_name, kwargs)
@@ -374,11 +372,11 @@ class RPC(Base):
 
         if method_name in self.routes:
             raise RuntimeError(
-                "Method name already used for %r" % self.routes[method_name]
+                "Method name already used for %r" % self.routes[method_name],
             )
 
         self.consumer_tags[func] = await queue.consume(
-            partial(self.on_call_message, method_name)
+            partial(self.on_call_message, method_name),
         )
 
         self.routes[method_name] = awaitable(func)
@@ -414,6 +412,6 @@ class JsonRPC(RPC):
                     "type": exception.__class__.__name__,
                     "message": repr(exception),
                     "args": exception.args,
-                }
-            }
+                },
+            },
         )

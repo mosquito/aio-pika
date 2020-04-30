@@ -1,10 +1,10 @@
 from functools import partial
-import aio_pika
+
 import pytest
+
+import aio_pika
 from tests.test_amqp import (
-    TestCaseAmqp,
-    TestCaseAmqpWithConfirms,
-    TestCaseAmqpNoConfirms,
+    TestCaseAmqp, TestCaseAmqpNoConfirms, TestCaseAmqpWithConfirms,
 )
 
 

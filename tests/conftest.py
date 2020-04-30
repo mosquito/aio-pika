@@ -4,12 +4,12 @@ import tracemalloc
 from contextlib import suppress
 from functools import partial
 
-from aiomisc import awaitable
+import pytest
 
 import aio_pika
 import aiormq
 import pamqp
-import pytest
+from aiomisc import awaitable
 from async_generator import async_generator, yield_
 from yarl import URL
 
@@ -36,7 +36,7 @@ async def add_cleanup(loop):
 @pytest.fixture
 def amqp_direct_url(request) -> URL:
     return URL(
-        os.getenv("AMQP_URL", "amqp://guest:guest@localhost")
+        os.getenv("AMQP_URL", "amqp://guest:guest@localhost"),
     ).update_query(name=request.node.nodeid)
 
 
@@ -160,7 +160,7 @@ def memory_tracer():
         snapshot_after = tracemalloc.take_snapshot().filter_traces(filters)
 
         top_stats = snapshot_after.compare_to(
-            snapshot_before, "lineno", cumulative=True
+            snapshot_before, "lineno", cumulative=True,
         )
 
         assert not top_stats

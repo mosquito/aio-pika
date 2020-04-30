@@ -4,11 +4,11 @@ from contextlib import suppress
 from functools import partial
 from typing import Callable
 
-import shortuuid
+import pytest
 
 import aio_pika
 import aiormq.exceptions
-import pytest
+import shortuuid
 from aio_pika.message import Message
 from aio_pika.robust_channel import RobustChannel
 from aio_pika.robust_connection import RobustConnection
@@ -164,7 +164,7 @@ async def test_revive_passive_queue_on_reconnect(create_connection):
     assert isinstance(channel2, RobustChannel)
 
     queue1 = await channel1.declare_queue(
-        queue_name, auto_delete=False, passive=False
+        queue_name, auto_delete=False, passive=False,
     )
     assert isinstance(queue1, RobustQueue)
 
@@ -179,7 +179,7 @@ async def test_revive_passive_queue_on_reconnect(create_connection):
 
     with suppress(asyncio.TimeoutError):
         await asyncio.wait_for(
-            reconnect_event.wait(), client2.reconnect_interval * 2
+            reconnect_event.wait(), client2.reconnect_interval * 2,
         )
 
     assert reconnect_count == 1
@@ -211,7 +211,7 @@ async def test_robust_reconnect(
             async def reader(queue_name):
                 nonlocal shared
                 queue = await channel1.declare_queue(
-                    name=queue_name, passive=True
+                    name=queue_name, passive=True,
                 )
                 async with queue.iterator() as q:
                     async for message in q:
@@ -236,7 +236,7 @@ async def test_robust_reconnect(
 
             logging.info("Waiting connections")
             await asyncio.wait_for(
-                asyncio.gather(conn1.ready(), conn2.ready(),), timeout=20,
+                asyncio.gather(conn1.ready(), conn2.ready()), timeout=20,
             )
 
             for i in range(5, 10):
@@ -271,17 +271,17 @@ async def test_channel_close_when_exclusive_queue(
     create_connection, create_direct_connection, proxy: Proxy, loop
 ):
     direct_conn, proxy_conn = await asyncio.gather(
-        create_direct_connection(), create_connection()
+        create_direct_connection(), create_connection(),
     )
 
     direct_channel, proxy_channel = await asyncio.gather(
-        direct_conn.channel(), proxy_conn.channel()
+        direct_conn.channel(), proxy_conn.channel(),
     )
 
     qname = get_random_name("robust", "exclusive", "queue")
 
     proxy_queue = await proxy_channel.declare_queue(
-        qname, exclusive=True, durable=True
+        qname, exclusive=True, durable=True,
     )
 
     logging.info("Disconnecting all proxy connections")
@@ -312,7 +312,7 @@ async def test_context_process_abrupt_channel_close(
 
     channel = await connection.channel()
     exchange = await declare_exchange(
-        "direct", auto_delete=True, channel=channel
+        "direct", auto_delete=True, channel=channel,
     )
     queue = await declare_queue(queue_name, auto_delete=True, channel=channel)
 
@@ -331,7 +331,7 @@ async def test_context_process_abrupt_channel_close(
         async with incoming_message.process():
             # emulate some activity on closed channel
             await channel.channel.basic_publish(
-                "dummy", exchange="", routing_key="non_existent"
+                "dummy", exchange="", routing_key="non_existent",
             )
 
     # emulate connection/channel restoration of connect_robust

@@ -6,11 +6,11 @@ from weakref import WeakSet
 
 from aiormq.connection import parse_bool, parse_int
 
+from .connection import Connection, ConnectionType, connect
 from .exceptions import CONNECTION_EXCEPTIONS
-from .connection import Connection, connect, ConnectionType
+from .robust_channel import RobustChannel
 from .tools import CallbackCollection
 from .types import TimeoutType
-from .robust_channel import RobustChannel
 
 
 log = getLogger(__name__)
@@ -63,7 +63,7 @@ class RobustConnection(Connection):
 
     def __repr__(self):
         return '<{0}: "{1}" {2} channels>'.format(
-            self.__class__.__name__, str(self), len(self.__channels)
+            self.__class__.__name__, str(self), len(self.__channels),
         )
 
     def _on_connection_close(self, connection, closing, *args, **kwargs):

@@ -1,21 +1,16 @@
-from . import patterns
-from . import pool
-from .connection import Connection, connect
+from . import patterns, pool
 from .channel import Channel
+from .connection import Connection, connect
+from .exceptions import AMQPException, MessageProcessError
 from .exchange import Exchange, ExchangeType
-from .message import Message, IncomingMessage, DeliveryMode
+from .message import DeliveryMode, IncomingMessage, Message
 from .queue import Queue
-from .robust_connection import connect_robust, RobustConnection
 from .robust_channel import RobustChannel
+from .robust_connection import RobustConnection, connect_robust
 from .robust_exchange import RobustExchange
 from .robust_queue import RobustQueue
-from .exceptions import AMQPException, MessageProcessError
 from .version import (
-    __author__,
-    __version__,
-    author_info,
-    package_info,
-    package_license,
+    __author__, __version__, author_info, package_info, package_license,
     version_info,
 )
 

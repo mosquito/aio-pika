@@ -8,13 +8,7 @@ from functools import singledispatch
 from logging import getLogger
 from pprint import pformat
 from typing import (
-    Union,
-    Optional,
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    AsyncContextManager,
+    Any, AsyncContextManager, Callable, Dict, Iterable, Optional, Union,
 )
 from warnings import warn
 
@@ -22,6 +16,7 @@ import aiormq
 from aiormq.types import DeliveredMessage
 
 from .exceptions import MessageProcessError
+
 
 log = getLogger(__name__)
 NoneType = type(None)
@@ -181,7 +176,7 @@ class HeaderProxy(Mapping):
 @singledispatch
 def header_converter(value: Any) -> bytes:
     return json.dumps(
-        value, separators=(",", ":"), ensure_ascii=False, default=repr
+        value, separators=(",", ":"), ensure_ascii=False, default=repr,
     ).encode()
 
 
@@ -292,8 +287,8 @@ class Message:
         self.content_encoding = content_encoding
         self.delivery_mode = DeliveryMode(
             optional(
-                delivery_mode, func=int, default=DeliveryMode.NOT_PERSISTENT
-            )
+                delivery_mode, func=int, default=DeliveryMode.NOT_PERSISTENT,
+            ),
         ).value
         self.priority = optional(priority, int, 0)
         self.correlation_id = optional(correlation_id)
@@ -394,7 +389,7 @@ class Message:
 
     def __repr__(self):
         return "{name}:{repr}".format(
-            name=self.__class__.__name__, repr=pformat(self.info())
+            name=self.__class__.__name__, repr=pformat(self.info()),
         )
 
     def __setattr__(self, key, value):
@@ -478,7 +473,7 @@ class IncomingMessage(Message):
         expiration = None
         if message.header.properties.expiration:
             expiration = decode_expiration(
-                message.header.properties.expiration
+                message.header.properties.expiration,
             )
 
         super().__init__(
@@ -584,8 +579,8 @@ class IncomingMessage(Message):
 
         task = asyncio.ensure_future(
             self.__channel.basic_ack(
-                delivery_tag=self.delivery_tag, multiple=multiple
-            )
+                delivery_tag=self.delivery_tag, multiple=multiple,
+            ),
         )
         self.__processed = True
 
@@ -613,8 +608,8 @@ class IncomingMessage(Message):
 
         task = asyncio.ensure_future(
             self.__channel.basic_reject(
-                delivery_tag=self.delivery_tag, requeue=requeue
-            )
+                delivery_tag=self.delivery_tag, requeue=requeue,
+            ),
         )
         self.__processed = True
         if not self.locked:
@@ -623,7 +618,7 @@ class IncomingMessage(Message):
         return task
 
     def nack(
-        self, multiple: bool = False, requeue: bool = True
+        self, multiple: bool = False, requeue: bool = True,
     ) -> asyncio.Task:
 
         if not self.__channel.connection.basic_nack:
@@ -640,7 +635,7 @@ class IncomingMessage(Message):
                 delivery_tag=self.delivery_tag,
                 multiple=multiple,
                 requeue=requeue,
-            )
+            ),
         )
 
         self.__processed = True

@@ -51,7 +51,7 @@ class TestCase:
             positives = VALUE_GENERATORS[parser]
             for example, expected in positives.items():
                 instance = await self.get_instance(
-                    "amqp://localhost/?{}={}".format(key, example)
+                    "amqp://localhost/?{}={}".format(key, example),
                 )
 
                 assert key in instance.kwargs

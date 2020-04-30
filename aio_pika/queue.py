@@ -2,7 +2,7 @@ import asyncio
 from collections import namedtuple
 from functools import partial
 from logging import getLogger
-from typing import Optional, Callable, Any
+from typing import Any, Callable, Optional
 
 import aiormq
 from aiormq.types import DeliveredMessage
@@ -12,12 +12,13 @@ from .exchange import Exchange, ExchangeParamType
 from .message import IncomingMessage
 from .tools import create_task, shield
 
+
 log = getLogger(__name__)
 
 
 ConsumerTag = str
 DeclarationResult = namedtuple(
-    "DeclarationResult", ("message_count", "consumer_count")
+    "DeclarationResult", ("message_count", "consumer_count"),
 )
 
 
@@ -229,7 +230,7 @@ class Queue:
                 self.channel.basic_consume(
                     queue=self.name,
                     consumer_callback=partial(
-                        consumer, callback, no_ack=no_ack, loop=self.loop
+                        consumer, callback, no_ack=no_ack, loop=self.loop,
                     ),
                     exclusive=exclusive,
                     no_ack=no_ack,
@@ -262,7 +263,7 @@ class Queue:
 
         return await asyncio.wait_for(
             self.channel.basic_cancel(
-                consumer_tag=consumer_tag, nowait=nowait
+                consumer_tag=consumer_tag, nowait=nowait,
             ),
             timeout=timeout,
         )
@@ -282,7 +283,7 @@ class Queue:
         """
 
         msg = await asyncio.wait_for(
-            self.channel.basic_get(self.name, no_ack=no_ack), timeout=timeout
+            self.channel.basic_get(self.name, no_ack=no_ack), timeout=timeout,
         )  # type: Optional[DeliveredMessage]
 
         if msg is None:
@@ -305,7 +306,7 @@ class Queue:
         log.info("Purging queue: %r", self)
 
         return await asyncio.wait_for(
-            self.channel.queue_purge(self.name, nowait=no_wait,),
+            self.channel.queue_purge(self.name, nowait=no_wait),
             timeout=timeout,
         )
 
@@ -325,7 +326,7 @@ class Queue:
 
         return await asyncio.wait_for(
             self.channel.queue_delete(
-                self.name, if_unused=if_unused, if_empty=if_empty
+                self.name, if_unused=if_unused, if_empty=if_empty,
             ),
             timeout=timeout,
         )

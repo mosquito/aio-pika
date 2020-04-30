@@ -1,7 +1,7 @@
 import asyncio
 from enum import Enum, unique
 from logging import getLogger
-from typing import Union, Optional
+from typing import Optional, Union
 from warnings import warn
 
 import aiormq
@@ -14,6 +14,7 @@ from .queue import Queue
 from .tools import CallbackCollection
 from .transaction import Transaction
 from .types import CloseCallbackType, ReturnCallbackType, TimeoutType
+
 
 log = getLogger(__name__)
 
@@ -49,7 +50,7 @@ class Channel(PoolInstance):
 
         if not publisher_confirms and on_return_raises:
             raise RuntimeError(
-                '"on_return_raises" not applicable without "publisher_confirms"'
+                '"on_return_raises" not applicable without "publisher_confirms"',
             )
 
         self.loop = connection.loop
@@ -141,7 +142,7 @@ class Channel(PoolInstance):
         self._done_callbacks.remove(callback)
 
     def add_on_return_callback(
-        self, callback: ReturnCallbackType, weak: bool = True
+        self, callback: ReturnCallbackType, weak: bool = True,
     ) -> None:
         self._return_callbacks.add(callback, weak=weak)
 
@@ -162,7 +163,7 @@ class Channel(PoolInstance):
             raise RuntimeError("Can't initialize channel")
 
         self._channel = await asyncio.wait_for(
-            self._create_channel(), timeout=timeout
+            self._create_channel(), timeout=timeout,
         )
 
         self._delivery_tag = 0
@@ -376,7 +377,7 @@ class Channel(PoolInstance):
         if self._publisher_confirms:
             raise RuntimeError(
                 "Cannot create transaction when publisher "
-                "confirms are enabled"
+                "confirms are enabled",
             )
 
         return Transaction(self._channel)

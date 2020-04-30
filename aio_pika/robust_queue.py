@@ -8,13 +8,14 @@ import aiormq
 
 from .channel import Channel
 from .exchange import ExchangeParamType
-from .queue import Queue, ConsumerTag
+from .queue import ConsumerTag, Queue
+
 
 log = getLogger(__name__)
 
 
 DeclarationResult = namedtuple(
-    "DeclarationResult", ("message_count", "consumer_count")
+    "DeclarationResult", ("message_count", "consumer_count"),
 )
 
 
@@ -99,7 +100,7 @@ class RobustQueue(Queue):
             routing_key = self.name
 
         result = await super().unbind(
-            exchange, routing_key, arguments, timeout
+            exchange, routing_key, arguments, timeout,
         )
         self._bindings.pop((exchange, routing_key), None)
 

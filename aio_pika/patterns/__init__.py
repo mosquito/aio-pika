@@ -1,4 +1,4 @@
-from .master import Master, Worker, NackMessage, RejectMessage, JsonMaster
+from .master import JsonMaster, Master, NackMessage, RejectMessage, Worker
 from .rpc import RPC, JsonRPC
 
 

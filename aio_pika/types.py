@@ -1,4 +1,5 @@
-from typing import Union, Callable, Any, Optional
+from typing import Any, Callable, Optional, Union
+
 import aiormq.types
 
 
