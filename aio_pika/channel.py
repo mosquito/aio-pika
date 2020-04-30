@@ -50,7 +50,8 @@ class Channel(PoolInstance):
 
         if not publisher_confirms and on_return_raises:
             raise RuntimeError(
-                '"on_return_raises" not applicable without "publisher_confirms"',
+                '"on_return_raises" not applicable '
+                'without "publisher_confirms"',
             )
 
         self.loop = connection.loop
