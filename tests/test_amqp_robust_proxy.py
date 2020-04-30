@@ -185,6 +185,7 @@ async def test_revive_passive_queue_on_reconnect(create_connection):
     assert reconnect_count == 1
 
 
+@pytest.mark.skip("Temporary skipped flapping test")
 async def test_robust_reconnect(
     create_connection, proxy: Proxy, loop, add_cleanup: Callable
 ):
