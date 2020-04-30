@@ -388,9 +388,7 @@ class Message:
     def __copy__(self):
         return Message(
             body=self.body,
-            headers={
-                k: v for k, v in self.headers.items()
-            } if self.headers else {},
+            headers=self.headers._headers,
             content_encoding=self.content_encoding,
             content_type=self.content_type,
             delivery_mode=self.delivery_mode,
