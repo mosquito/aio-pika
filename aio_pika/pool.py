@@ -2,7 +2,8 @@ import abc
 import asyncio
 import logging
 from typing import (
-    Any, AsyncContextManager, Awaitable, Callable, Coroutine, Generic, TypeVar, Union,
+    Any, AsyncContextManager, Awaitable, Callable, Coroutine, Generic, TypeVar,
+    Union,
 )
 
 from aiormq.tools import awaitable
