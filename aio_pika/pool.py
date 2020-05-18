@@ -19,7 +19,6 @@ class PoolInstance(abc.ABC):
 
 
 T = TypeVar("T")
-ItemType = Coroutine[Any, None, T]
 ConstructorType = Union[
     Awaitable[PoolInstance],
     Callable[..., PoolInstance],
