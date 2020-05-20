@@ -183,7 +183,7 @@ class Connection(PoolInstance):
             :func:`aio_pika.Exchange.publish` method will be return
             :class:`None`
         :param on_return_raises:
-            raise an :class:`aio_pika.exceptions.UnroutableError`
+            raise an :class:`aio_pika.exceptions.DeliveryError`
             when mandatory message will be returned
         """
 
