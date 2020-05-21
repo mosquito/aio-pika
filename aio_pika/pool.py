@@ -2,7 +2,8 @@ import abc
 import asyncio
 import logging
 from typing import (
-    Any, AsyncContextManager, Awaitable, Callable, Coroutine, TypeVar, Union,
+    Any, AsyncContextManager, Awaitable, Callable, Coroutine, Generic, TypeVar,
+    Union,
 )
 
 from aiormq.tools import awaitable
@@ -18,7 +19,6 @@ class PoolInstance(abc.ABC):
 
 
 T = TypeVar("T")
-ItemType = Coroutine[Any, None, T]
 ConstructorType = Union[
     Awaitable[PoolInstance],
     Callable[..., PoolInstance],
@@ -30,7 +30,7 @@ class PoolInvalidStateError(RuntimeError):
     pass
 
 
-class Pool:
+class Pool(Generic[T]):
     __slots__ = (
         "loop",
         "__max_size",
@@ -64,11 +64,11 @@ class Pool:
     def is_closed(self) -> bool:
         return self.__closed
 
-    def acquire(self) -> "PoolItemContextManager":
+    def acquire(self) -> "PoolItemContextManager[T]":
         if self.__closed:
             raise PoolInvalidStateError("acquire operation on closed pool")
 
-        return PoolItemContextManager(self)
+        return PoolItemContextManager[T](self)
 
     @property
     def _has_released(self):
@@ -130,7 +130,7 @@ class Pool:
         await asyncio.shield(self.close())
 
 
-class PoolItemContextManager(AsyncContextManager):
+class PoolItemContextManager(Generic[T], AsyncContextManager):
     __slots__ = "pool", "item"
 
     def __init__(self, pool: Pool):
