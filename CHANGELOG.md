@@ -1,3 +1,9 @@
+6.6.1
+-----
+
+* Add generics to Pool and PoolItemContextManager #321
+* Fix Docs for ``DeliveryError`` #322
+
 6.6.0
 -----
 
