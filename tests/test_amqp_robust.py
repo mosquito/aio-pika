@@ -63,7 +63,7 @@ class TestCaseNoRobust(TestCaseAmqp):
 
         for _ in range(5):
             await channel2.default_exchange.publish(
-                Message(b''), queue_name,
+                Message(b""), queue_name,
             )
 
         logging.info("Disconnect all clients")
@@ -75,12 +75,12 @@ class TestCaseNoRobust(TestCaseAmqp):
         logging.info("Waiting connections")
         await asyncio.wait([
             channel1._connection.ready(),
-            channel2._connection.ready()
+            channel2._connection.ready(),
         ])
 
         for _ in range(5):
             await channel2.default_exchange.publish(
-                Message(b''), queue_name,
+                Message(b""), queue_name,
             )
 
         while len(shared) < 10:

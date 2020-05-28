@@ -4,16 +4,16 @@ from contextlib import suppress
 from functools import partial
 from typing import Callable
 
+import aiormq.exceptions
 import pytest
+import shortuuid
+from async_generator import async_generator, yield_
 
 import aio_pika
-import aiormq.exceptions
-import shortuuid
 from aio_pika.message import Message
 from aio_pika.robust_channel import RobustChannel
 from aio_pika.robust_connection import RobustConnection
 from aio_pika.robust_queue import RobustQueue
-from async_generator import async_generator, yield_
 from tests import get_random_name
 
 

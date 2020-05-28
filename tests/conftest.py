@@ -4,14 +4,14 @@ import tracemalloc
 from contextlib import suppress
 from functools import partial
 
-import pytest
-
-import aio_pika
 import aiormq
 import pamqp
+import pytest
 from aiomisc import awaitable
 from async_generator import async_generator, yield_
 from yarl import URL
+
+import aio_pika
 
 
 @pytest.fixture
