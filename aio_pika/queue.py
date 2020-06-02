@@ -436,7 +436,10 @@ class QueueIterator:
         if not self._consumer_tag:
             await self.consume()
         try:
-            return await self._queue.get()
+            return await asyncio.wait_for(
+                self._queue.get(),
+                timeout=self._consume_kwargs.get('timeout')
+            )
         except asyncio.CancelledError:
             await self.close()
             raise
