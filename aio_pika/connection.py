@@ -213,7 +213,7 @@ class Connection(PoolInstance):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        for channel in tuple(self._channels.values()):
+        for channel in tuple(filter(None, self._channels.values())):
             await channel.close()
 
         await self.close()

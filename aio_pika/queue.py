@@ -1,5 +1,8 @@
 import asyncio
+from _weakrefset import WeakSet
+from asyncio.tasks import Task
 from collections import namedtuple
+from contextlib import suppress
 from functools import partial
 from logging import getLogger
 from typing import Any, Callable, Optional
@@ -12,9 +15,7 @@ from .exchange import Exchange, ExchangeParamType
 from .message import IncomingMessage
 from .tools import create_task, shield
 
-
 log = getLogger(__name__)
-
 
 ConsumerTag = str
 DeclarationResult = namedtuple(
@@ -45,6 +46,8 @@ class Queue:
         self.loop = connection.loop
 
         self._channel = channel
+        self._channel.closing.add_done_callback(self.channel_done_callback)
+
         self.name = name or ""
         self.durable = durable
         self.exclusive = exclusive
@@ -53,6 +56,20 @@ class Queue:
         self.passive = passive
         self.declaration_result = None  # type: aiormq.spec.Queue.DeclareOk
         self._get_lock = asyncio.Lock()
+
+        self._iterators = WeakSet()
+
+        self._close_task = None
+
+    def channel_done_callback(self, task: Task):
+        exc = task.exception()
+        if exc is not None:
+            self._close_task = self.loop.create_task(self.__closer(exc))
+
+    async def __closer(self, exc: BaseException = asyncio.CancelledError()):
+        for iterator in list(self._iterators):
+            with suppress(Exception):
+                await iterator.close(exc)
 
     @property
     def channel(self) -> aiormq.Channel:
@@ -65,18 +82,18 @@ class Queue:
 
     def __repr__(self):
         return (
-            "<Queue(%s): "
-            "auto_delete=%s, "
-            "durable=%s, "
-            "exclusive=%s, "
-            "arguments=%r>"
-        ) % (
-            self,
-            self.auto_delete,
-            self.durable,
-            self.exclusive,
-            self.arguments,
-        )
+                   "<Queue(%s): "
+                   "auto_delete=%s, "
+                   "durable=%s, "
+                   "exclusive=%s, "
+                   "arguments=%r>"
+               ) % (
+                   self,
+                   self.auto_delete,
+                   self.durable,
+                   self.exclusive,
+                   self.arguments,
+               )
 
     async def declare(
         self, timeout: int = None
@@ -378,16 +395,18 @@ class Queue:
         :return: QueueIterator
         """
 
-        return QueueIterator(self, **kwargs)
+        iterator = QueueIterator(self, **kwargs)
+        self._iterators.add(iterator)
+        return iterator
 
 
 class QueueIterator:
     @shield
-    async def close(self):
+    async def close(self, exc=asyncio.CancelledError()):
         if not self._consumer_tag:
             return
 
-        await self._amqp_queue.cancel(self._consumer_tag)
+        # await self._amqp_queue.cancel(self._consumer_tag)
         self._consumer_tag = None
 
         def get_msg():
@@ -401,6 +420,8 @@ class QueueIterator:
         while msg and not self._amqp_queue.channel.closing.done():
             await msg.reject(requeue=True)
             msg = get_msg()  # type: IncomingMessage
+
+        await self._queue.put(exc)
 
     def __str__(self):
         return "queue[%s](...)" % self._amqp_queue.name
@@ -436,10 +457,15 @@ class QueueIterator:
         if not self._consumer_tag:
             await self.consume()
         try:
-            return await asyncio.wait_for(
+            mes = await asyncio.wait_for(
                 self._queue.get(),
                 timeout=self._consume_kwargs.get('timeout')
             )
+            if isinstance(mes, IncomingMessage):
+                return mes
+            if isinstance(mes, BaseException):
+                raise mes
+
         except asyncio.CancelledError:
             await self.close()
             raise

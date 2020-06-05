@@ -7,19 +7,18 @@ from datetime import datetime
 from typing import Awaitable, Callable
 from unittest import mock
 
+import aiormq.exceptions
 import pytest
+import shortuuid
 
 import aio_pika
 import aio_pika.exceptions
-import aiormq.exceptions
-import shortuuid
 from aio_pika import Channel, DeliveryMode, Message
 from aio_pika.exceptions import (
     DeliveryError, MessageProcessError, ProbableAuthenticationError,
 )
 from aio_pika.exchange import ExchangeType
 from tests import get_random_name
-
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +44,7 @@ class TestCaseAmqpBase:
 class TestCaseAmqp(TestCaseAmqpBase):
     async def test_properties(self, loop, connection: aio_pika.Connection):
         assert not connection.is_closed
-        assert connection.heartbeat_last < loop.time()
+        assert connection.heartbeat_last <= loop.time()
 
     async def test_channel_close(self, connection: aio_pika.Connection):
         event = asyncio.Event()
@@ -1227,6 +1226,30 @@ class TestCaseAmqp(TestCaseAmqpBase):
                 break
 
         assert data == list(map(lambda x: str(x).encode(), range(messages)))
+
+    async def test_async_for_queue_connection_closed_by_error(
+        self, loop, connection, declare_queue
+    ):
+        async def consumer():
+            channel2 = await self.create_channel(connection)
+
+            queue = await declare_queue(
+                get_random_name("queue", "is_async", "for"),
+                auto_delete=True,
+                channel=channel2,
+            )
+
+            await queue.__anext__()
+
+        task = loop.create_task(consumer())
+
+        exc = Exception()
+
+        await connection.connection.close(exc)
+
+        res = await asyncio.gather(task, return_exceptions=True)
+
+        assert res[0] is exc
 
     async def test_async_for_queue_context(
         self, loop, connection, declare_queue
