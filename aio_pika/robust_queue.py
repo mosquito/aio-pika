@@ -1,4 +1,5 @@
 import os
+from asyncio.tasks import Task
 from base64 import b32encode
 from collections import namedtuple
 from logging import getLogger
@@ -10,9 +11,7 @@ from .channel import Channel
 from .exchange import ExchangeParamType
 from .queue import ConsumerTag, Queue
 
-
 log = getLogger(__name__)
-
 
 DeclarationResult = namedtuple(
     "DeclarationResult", ("message_count", "consumer_count"),
@@ -53,7 +52,13 @@ class RobustQueue(Queue):
         self._consumers = {}
         self._bindings = {}
 
+    def channel_done_callback(self, task: Task):
+        if self.auto_delete:
+            super().channel_done_callback(task)
+
     async def restore(self, channel: Channel):
+        if self.auto_delete: return # Not need restore auto deleted queue because we send exception to consumer
+
         self._channel = channel._channel
 
         await self.declare()
