@@ -75,6 +75,9 @@ class RobustConnection(Connection):
 
         super()._on_connection_close(connection, closing)
 
+        if self._closed:
+            return
+
         log.info(
             "Connection to %s closed. Reconnecting after %r seconds.",
             self,
