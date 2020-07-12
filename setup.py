@@ -50,6 +50,7 @@ setup(
             "aiomisc~=9.7",
             "pytest-cov",
             "shortuuid",
+            "nox",
             "sphinx",
             "sphinx-autobuild",
             "timeout-decorator",
