@@ -242,7 +242,7 @@ class Message:
 
     def __init__(
         self,
-        body: bytes,
+        body: Union[bytes, str],
         *,
         headers: dict = None,
         content_type: str = None,
