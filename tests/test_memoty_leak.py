@@ -12,6 +12,8 @@ class TestCase:
             async with rabbitmq_connection.channel() as channel:
                 weakset.add(channel)
 
+                del channel
+
         async with rabbitmq_connection:
             for i in range(5):
                 await f(rabbitmq_connection, weakset)

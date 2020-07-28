@@ -13,6 +13,8 @@ from async_generator import async_generator, yield_
 from yarl import URL
 
 import aio_pika
+from aio_pika.connection import Connection
+from aiormq.connection import DEFAULT_PORTS
 
 
 @pytest.fixture
@@ -64,9 +66,16 @@ async def create_task(loop):
 
 @pytest.fixture
 def amqp_direct_url(request) -> URL:
-    return URL(
+    url = URL(
         os.getenv("AMQP_URL", "amqp://guest:guest@localhost"),
     ).update_query(name=request.node.nodeid)
+
+    default_port = DEFAULT_PORTS[url.scheme]
+
+    if not url.port:
+        url = url.with_port(default_port)
+
+    return url
 
 
 @pytest.fixture

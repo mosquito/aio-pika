@@ -34,11 +34,17 @@ async def proxy(tcp_proxy: Type[TCPProxy], amqp_direct_url: URL):
 
 @pytest.fixture
 def amqp_url(amqp_direct_url, proxy: TCPProxy):
-    return (
-        amqp_direct_url.with_host(proxy.target_host)
-        .with_port(proxy.target_port)
-        .update_query(reconnect_interval=1)
+    url = amqp_direct_url.with_host(
+        proxy.proxy_host
+    ).with_port(
+        proxy.proxy_port
+    ).update_query(
+        reconnect_interval=1
     )
+
+    print(url)
+
+    return url
 
 
 @pytest.fixture
@@ -165,10 +171,16 @@ async def test_robust_reconnect(
                 )
 
             logging.info("Disconnect all clients")
-            await proxy.disconnect_all()
+            with proxy.slowdown(1, 1):
+                task = proxy.disconnect_all()
 
-            with pytest.raises((ConnectionResetError, ConnectionError)):
-                await asyncio.gather(conn1.channel(), conn2.channel())
+                with pytest.raises((
+                    ConnectionResetError, ConnectionError,
+                    aiormq.exceptions.ChannelInvalidStateError
+                )):
+                    await asyncio.gather(conn1.channel(), conn2.channel())
+
+                await task
 
             logging.info("Waiting reconnect")
             await asyncio.sleep(conn1.reconnect_interval * 2)

@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from functools import partial
-from types import MappingProxyType
 from typing import Optional, Type, TypeVar
 
 import aiormq
@@ -22,11 +21,6 @@ class Connection(PoolInstance):
 
     CHANNEL_CLASS = Channel
     KWARGS_TYPES = ()
-
-    DEFAULT_PORTS = MappingProxyType({
-        "amqp": 5672,
-        "amqps": 5671,
-    })
 
     @property
     def is_closed(self):
@@ -50,11 +44,6 @@ class Connection(PoolInstance):
     ):
         self.loop = loop or asyncio.get_event_loop()
         self.url = URL(url)
-
-        if not self.url.port:
-            self.url = self.url.with_port(
-                self.DEFAULT_PORTS.get(self.url.scheme)
-            )
 
         self.kwargs = self._parse_kwargs(kwargs or self.url.query)
 
