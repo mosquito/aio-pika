@@ -13,7 +13,6 @@ from async_generator import async_generator, yield_
 from yarl import URL
 
 import aio_pika
-from aio_pika.connection import Connection
 from aiormq.connection import DEFAULT_PORTS
 
 

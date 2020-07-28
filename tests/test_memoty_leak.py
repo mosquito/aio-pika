@@ -10,6 +10,7 @@ class TestCase:
 
         async def f(rabbitmq_connection, weakset):
             async with rabbitmq_connection.channel() as channel:
+                assert gc.re(channel)
                 weakset.add(channel)
 
                 del channel
