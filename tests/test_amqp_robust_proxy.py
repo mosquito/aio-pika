@@ -376,8 +376,8 @@ async def test_robust_duplicate_queue(
     )
 
     shared = []
-    queue1 = await declare_queue(queue_name, channel=channel1)
-    queue2 = await declare_queue(queue_name, channel=channel2)
+    queue1 = await declare_queue(queue_name, channel=channel1, cleanup=False)
+    queue2 = await declare_queue(queue_name, channel=channel2, cleanup=False)
 
     async def reader(queue):
         nonlocal shared

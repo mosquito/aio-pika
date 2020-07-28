@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from functools import partial
+from types import MappingProxyType
 from typing import Optional, Type, TypeVar
 
 import aiormq
@@ -13,12 +14,6 @@ from .tools import CallbackCollection
 from .types import CloseCallbackType, TimeoutType
 
 
-DEFAULT_PORTS = {
-    "amqp": 5672,
-    "amqps": 5671,
-}
-
-
 log = logging.getLogger(__name__)
 
 
@@ -27,6 +22,11 @@ class Connection(PoolInstance):
 
     CHANNEL_CLASS = Channel
     KWARGS_TYPES = ()
+
+    DEFAULT_PORTS = MappingProxyType({
+        "amqp": 5672,
+        "amqps": 5671,
+    })
 
     @property
     def is_closed(self):
@@ -50,6 +50,9 @@ class Connection(PoolInstance):
     ):
         self.loop = loop or asyncio.get_event_loop()
         self.url = URL(url)
+
+        if not self.url.port:
+            self.url = self.url.with_port(DEFAULT_PORTS.get(url.scheme))
 
         self.kwargs = self._parse_kwargs(kwargs or self.url.query)
 
@@ -330,12 +333,6 @@ async def connect(
             path="/" + virtualhost,
             query=kw,
         )
-
-    if isinstance(url, str):
-        url = URL(url)
-
-        if not url.port:
-            url = url.with_port(DEFAULT_PORTS.get(url.scheme))
 
     connection = connection_class(url, loop=loop)
 

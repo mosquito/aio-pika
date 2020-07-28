@@ -17,7 +17,7 @@ import aio_pika
 
 @pytest.fixture
 @async_generator
-async def add_cleanup(loop):
+async def add_cleanup(loop, raise_finalizer_exc=True):
     entities = []
 
     def payload(func, *args, **kwargs):
@@ -29,7 +29,11 @@ async def add_cleanup(loop):
         await yield_(payload)
     finally:
         for func in entities[::-1]:
-            await func()
+            try:
+                await func()
+            except:
+                if raise_finalizer_exc:
+                    raise
 
         entities.clear()
 
