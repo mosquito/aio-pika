@@ -52,7 +52,9 @@ class Connection(PoolInstance):
         self.url = URL(url)
 
         if not self.url.port:
-            self.url = self.url.with_port(DEFAULT_PORTS.get(url.scheme))
+            self.url = self.url.with_port(
+                self.DEFAULT_PORTS.get(self.url.scheme)
+            )
 
         self.kwargs = self._parse_kwargs(kwargs or self.url.query)
 
