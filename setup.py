@@ -47,7 +47,7 @@ setup(
             "coveralls",
             "pylava",
             "pytest",
-            "aiomisc~=9.7",
+            "aiomisc~=10.1.6",
             "pytest-cov",
             "shortuuid",
             "sphinx",
