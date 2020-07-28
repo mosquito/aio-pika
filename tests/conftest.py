@@ -1,3 +1,4 @@
+import asyncio
 import gc
 import os
 import tracemalloc
@@ -31,6 +32,34 @@ async def add_cleanup(loop):
             await func()
 
         entities.clear()
+
+
+@pytest.fixture
+@async_generator
+async def create_task(loop):
+    tasks = []
+
+    def payload(coroutine):
+        nonlocal tasks
+        task = loop.create_task(coroutine)
+        tasks.append(task)
+        return task
+
+    try:
+        await yield_(payload)
+    finally:
+        cancelled = []
+        for task in tasks:
+            if task.done():
+                continue
+            task.cancel()
+            cancelled.append(task)
+
+        results = await asyncio.gather(*cancelled, return_exceptions=True)
+
+        for result in results:
+            if not isinstance(result, asyncio.CancelledError):
+                raise result
 
 
 @pytest.fixture

@@ -4,6 +4,7 @@ from contextlib import suppress
 from functools import partial
 from typing import Callable
 
+import aiomisc
 import aiormq.exceptions
 import pytest
 import shortuuid
@@ -279,6 +280,11 @@ async def test_channel_close_when_exclusive_queue(
         direct_conn.channel(), proxy_conn.channel(),
     )
 
+    reconnect_event = asyncio.Event()
+    proxy_conn.reconnect_callbacks.add(
+        lambda *_: reconnect_event.set(), weak=False
+    )
+
     qname = get_random_name("robust", "exclusive", "queue")
 
     proxy_queue = await proxy_channel.declare_queue(
@@ -298,6 +304,11 @@ async def test_channel_close_when_exclusive_queue(
         logging.info("Closed")
 
     await loop.create_task(close_after(5, direct_conn.close))
+
+    # reconnect fired
+    await reconnect_event.wait()
+
+    # Wait method ready
     await proxy_conn.connected.wait()
     await proxy_queue.delete()
 
@@ -343,3 +354,63 @@ async def test_context_process_abrupt_channel_close(
     async with incoming_message.process():
         pass
     await queue.unbind(exchange, routing_key)
+
+
+@aiomisc.timeout(10)
+async def test_robust_duplicate_queue(
+    connection: aio_pika.RobustConnection,
+    declare_exchange: Callable,
+    declare_queue: Callable,
+    loop: asyncio.AbstractEventLoop,
+    proxy: Proxy,
+    create_task: Callable,
+):
+    queue_name = "test"
+
+    channel1 = await connection.channel()
+    channel2 = await connection.channel()
+
+    reconnect_event = asyncio.Event()
+    connection.reconnect_callbacks.add(
+        lambda *_: reconnect_event.set(), weak=False
+    )
+
+    shared = []
+    queue1 = await declare_queue(queue_name, channel=channel1)
+    queue2 = await declare_queue(queue_name, channel=channel2)
+
+    async def reader(queue):
+        nonlocal shared
+        async with queue.iterator() as q:
+            async for message in q:
+                shared.append(message)
+                await message.ack()
+
+    create_task(reader(queue1))
+    create_task(reader(queue2))
+
+    for _ in range(5):
+        await channel2.default_exchange.publish(
+            aio_pika.Message(b""), queue_name,
+        )
+
+    logging.info("Disconnect all clients")
+    await proxy.disconnect()
+
+    await reconnect_event.wait()
+
+    logging.info("Waiting connections")
+    await asyncio.wait([
+        channel1._connection.ready(),
+        channel2._connection.ready(),
+    ])
+
+    for _ in range(5):
+        await channel2.default_exchange.publish(
+            Message(b""), queue_name,
+        )
+
+    while len(shared) < 10:
+        await asyncio.sleep(0.1)
+
+    assert len(shared) == 10
