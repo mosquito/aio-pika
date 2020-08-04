@@ -124,7 +124,7 @@ thing we need to do is to establish a connection with RabbitMQ server.
 
 .. literalinclude:: examples/1-introduction/send.py
    :language: python
-   :lines: 5-9
+   :lines: 6-10
 
 We're connected now, to a broker on the local machine - hence the localhost.
 If we wanted to connect to a broker on a different machine we'd simply specify
@@ -136,7 +136,7 @@ Let's create a queue to which the message will be delivered, let's name it *hell
 
 .. literalinclude:: examples/1-introduction/receive.py
    :language: python
-   :lines: 26-27
+   :lines: 24-25
 
 At that point we're ready to send a message. Our first message will just contain a
 string Hello World! and we want to send it to our hello queue.
@@ -150,14 +150,14 @@ message should go. The queue name needs to be specified in the *routing_key* par
 
 .. literalinclude:: examples/1-introduction/send.py
    :language: python
-   :lines: 11-20
+   :lines: 12-16
 
 Before exiting the program we need to make sure the network buffers were flushed and our
 message was actually delivered to RabbitMQ. We can do it by gently closing the connection.
 
 .. literalinclude:: examples/1-introduction/send.py
    :language: python
-   :lines: 22
+   :lines: 19
 
 .. note::
 
@@ -190,7 +190,7 @@ command as many times as we like, and only one will be created.
 
 .. literalinclude:: examples/1-introduction/receive.py
    :language: python
-   :lines: 18-30
+   :lines: 18-28
 
 .. note::
     This article contains adopted official examples only.
@@ -200,7 +200,7 @@ command as many times as we like, and only one will be created.
 
     .. literalinclude:: ../examples/simple_consumer.py
        :language: python
-       :lines: 12-26
+       :lines: 12-25
 
 You may ask why we declare the queue again ‒ we have already declared it in
 our previous code. We could avoid that if we were sure that the queue already exists.
