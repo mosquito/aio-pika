@@ -5,7 +5,7 @@ loop = asyncio.get_event_loop()
 
 
 def on_message(message: IncomingMessage):
-    with message.process():
+    async with message.process():
         print("[x] %r" % message.body)
 
 
