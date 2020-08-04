@@ -67,7 +67,7 @@ queue, so let's name it *new_task.py*:
 
 .. literalinclude:: examples/2-work-queues/new_task.py
    :language: python
-   :lines: 15-27
+   :lines: 10-22
 
 Our old receive.py script also requires some changes: it needs to fake a second of work
 for every dot in the message body. It will pop messages from the queue and perform the task,
@@ -75,7 +75,7 @@ so let's call it *worker.py*:
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 10-11
+   :lines: 8-11
 
 
 Round-robin dispatching
@@ -272,7 +272,7 @@ acknowledged the previous one. Instead, it will dispatch it to the next worker t
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 20-22
+   :lines: 20
 
 
 .. note::

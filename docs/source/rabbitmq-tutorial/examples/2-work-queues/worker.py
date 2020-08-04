@@ -6,7 +6,7 @@ loop = asyncio.get_event_loop()
 
 
 def on_message(message: IncomingMessage):
-    with message.process():
+    async with message.process():
         print(" [x] Received message %r" % message)
         print("     Message body is: %r" % message.body)
 
@@ -17,6 +17,7 @@ async def main():
 
     # Creating a channel
     channel = await connection.channel()
+    
     await channel.set_qos(prefetch_count=1)
 
     # Declaring queue
