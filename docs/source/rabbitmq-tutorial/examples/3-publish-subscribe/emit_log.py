@@ -12,7 +12,7 @@ async def main(loop):
 
     logs_exchange = await channel.declare_exchange("logs", ExchangeType.FANOUT)
 
-    message_body = b" ".join(sys.argv[1:]) or b"Hello World!"
+    message_body = bytes(" ".join(sys.argv[1:]), 'utf-8') or b"Hello World!"
 
     message = Message(message_body, delivery_mode=DeliveryMode.PERSISTENT)
 

@@ -17,7 +17,7 @@ async def main(loop):
     routing_key = sys.argv[1] if len(sys.argv) > 2 else "anonymous.info"
 
     message_body = (
-        b" ".join(arg.encode() for arg in sys.argv[2:]) or b"Hello World!"
+        bytes(" ".join(arg.encode() for arg in sys.argv[2:]), 'utf-8') or b"Hello World!"
     )
 
     message = Message(message_body, delivery_mode=DeliveryMode.PERSISTENT)

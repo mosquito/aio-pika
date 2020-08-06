@@ -13,7 +13,7 @@ async def main(loop):
     logs_exchange = await channel.declare_exchange("logs", ExchangeType.DIRECT)
 
     message_body = (
-        b" ".join(arg.encode() for arg in sys.argv[2:]) or b"Hello World!"
+        bytes(" ".join(arg.encode() for arg in sys.argv[2:]), 'utf-8') or b"Hello World!"
     )
 
     message = Message(message_body, delivery_mode=DeliveryMode.PERSISTENT)
