@@ -5,18 +5,24 @@ from aio_pika import connect, Message, DeliveryMode, ExchangeType
 
 async def main(loop):
     # Perform connection
-    connection = await connect("amqp://guest:guest@localhost/", loop=loop)
+    connection = await connect(
+        "amqp://guest:guest@localhost/", loop=loop
+    )
 
     # Creating a channel
     channel = await connection.channel()
 
-    logs_exchange = await channel.declare_exchange("logs", ExchangeType.DIRECT)
-
-    message_body = (
-        bytes(" ".join(arg.encode() for arg in sys.argv[2:]), 'utf-8') or b"Hello World!"
+    logs_exchange = await channel.declare_exchange(
+        "logs", ExchangeType.DIRECT
     )
 
-    message = Message(message_body, delivery_mode=DeliveryMode.PERSISTENT)
+    message_body = b" ".join(
+        arg.encode() for arg in sys.argv[2:]) or b"Hello World!"
+
+    message = Message(
+        message_body,
+        delivery_mode=DeliveryMode.PERSISTENT
+    )
 
     # Sending the message
     routing_key = sys.argv[1] if len(sys.argv) > 2 else "info"

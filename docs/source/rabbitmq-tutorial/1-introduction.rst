@@ -124,7 +124,7 @@ thing we need to do is to establish a connection with RabbitMQ server.
 
 .. literalinclude:: examples/1-introduction/send.py
    :language: python
-   :lines: 6-10
+   :lines: 5-9
 
 We're connected now, to a broker on the local machine - hence the localhost.
 If we wanted to connect to a broker on a different machine we'd simply specify
@@ -150,14 +150,14 @@ message should go. The queue name needs to be specified in the *routing_key* par
 
 .. literalinclude:: examples/1-introduction/send.py
    :language: python
-   :lines: 12-16
+   :lines: 11-20
 
 Before exiting the program we need to make sure the network buffers were flushed and our
 message was actually delivered to RabbitMQ. We can do it by gently closing the connection.
 
 .. literalinclude:: examples/1-introduction/send.py
    :language: python
-   :lines: 19
+   :lines: 22
 
 .. note::
 

@@ -10,12 +10,18 @@ async def main(loop):
     # Creating a channel
     channel = await connection.channel()
 
-    message_body = bytes(" ".join(sys.argv[1:]), 'utf-8') or b"Hello World!"
+    message_body = b" ".join(
+        arg.encode() for arg in sys.argv[1:]) or b"Hello World!"
 
-    message = Message(message_body, delivery_mode=DeliveryMode.PERSISTENT)
+    message = Message(
+        message_body,
+        delivery_mode=DeliveryMode.PERSISTENT
+    )
 
     # Sending the message
-    await channel.default_exchange.publish(message, routing_key="task_queue")
+    await channel.default_exchange.publish(
+        message, routing_key="task_queue"
+    )
 
     print(" [x] Sent %r" % message)
 

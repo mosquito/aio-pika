@@ -11,13 +11,17 @@ def on_message(message: IncomingMessage):
 
 async def main():
     # Perform connection
-    connection = await connect("amqp://guest:guest@localhost/", loop=loop)
+    connection = await connect(
+        "amqp://guest:guest@localhost/", loop=loop
+    )
 
     # Creating a channel
     channel = await connection.channel()
     await channel.set_qos(prefetch_count=1)
 
-    logs_exchange = await channel.declare_exchange("logs", ExchangeType.FANOUT)
+    logs_exchange = await channel.declare_exchange(
+        "logs", ExchangeType.FANOUT
+    )
 
     # Declaring queue
     queue = await channel.declare_queue(exclusive=True)

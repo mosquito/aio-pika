@@ -197,14 +197,14 @@ The code for :download:`rpc_client.py <examples/6-rpc/rpc_client.py>`:
 The client code is slightly more involved:
 
 * (15) We establish a connection, channel and declare an exclusive 'callback' queue for replies.
-* (18) We subscribe to the 'callback' queue, so that we can receive RPC responses.
-* (22) The 'on_response' callback executed on every response is doing a very simple job,
+* (22) We subscribe to the 'callback' queue, so that we can receive RPC responses.
+* (26) The 'on_response' callback executed on every response is doing a very simple job,
   for every response message it checks if the correlation_id is the one we're looking for.
   If so, it saves the response in self.response and breaks the consuming loop.
-* (26) Next, we define our main call method - it does the actual RPC request.
-* (27) In this method, first we generate a unique correlation_id number and save it - the 'on_response' callback
+* (30) Next, we define our main call method - it does the actual RPC request.
+* (31) In this method, first we generate a unique correlation_id number and save it - the 'on_response' callback
   function will use this value to catch the appropriate response.
-* (32) Next, we publish the request message, with two properties: reply_to and correlation_id.
+* (36) Next, we publish the request message, with two properties: reply_to and correlation_id.
   And finally we return the response back to the user.
 
 Our RPC service is now ready. We can start the server::
