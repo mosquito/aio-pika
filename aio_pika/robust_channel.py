@@ -26,7 +26,7 @@ class RobustChannel(Channel):
         connection,
         channel_number: int = None,
         publisher_confirms: bool = True,
-        on_return_raises=False,
+        on_return_raises: bool = False,
     ):
         """
 
@@ -52,16 +52,18 @@ class RobustChannel(Channel):
         self._prefetch_size = 0
         self._global_ = False
 
-    async def reopen(self):
+    async def reopen(self) -> None:
         await super().reopen()
         await self.restore()
 
-    async def restore(self):
+    async def restore(self) -> None:
         await self.set_qos(
             prefetch_count=self._prefetch_count,
             prefetch_size=self._prefetch_size,
             global_=self._global_,
         )
+
+        await self.default_exchange.restore(self)
 
         for exchange in self._exchanges.values():
             await exchange.restore(self)

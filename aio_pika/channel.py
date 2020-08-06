@@ -169,17 +169,18 @@ class Channel(PoolInstance):
 
         self._delivery_tag = 0
 
-        self.default_exchange = self.EXCHANGE_CLASS(
-            connection=self._connection,
-            channel=self.channel,
-            arguments=None,
-            auto_delete=None,
-            durable=None,
-            internal=None,
-            name="",
-            passive=None,
-            type=ExchangeType.DIRECT,
-        )
+        if self.default_exchange is None:
+            self.default_exchange = self.EXCHANGE_CLASS(
+                connection=self._connection,
+                channel=self.channel,
+                arguments=None,
+                auto_delete=None,
+                durable=None,
+                internal=None,
+                name="",
+                passive=None,
+                type=ExchangeType.DIRECT,
+            )
 
         self.channel.on_return_callbacks.add(self._on_return)
 
