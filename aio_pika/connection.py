@@ -70,7 +70,9 @@ class Connection(PoolInstance):
     def __repr__(self):
         return '<{0}: "{1}">'.format(self.__class__.__name__, str(self))
 
-    def add_close_callback(self, callback: CloseCallbackType):
+    def add_close_callback(
+        self, callback: CloseCallbackType, weak: bool = False
+    ):
         """ Add callback which will be called after connection will be closed.
 
         :class:`BaseException` or None will be passed as a first argument.
@@ -92,7 +94,7 @@ class Connection(PoolInstance):
 
         :return: None
         """
-        self.close_callbacks.add(callback)
+        self.close_callbacks.add(callback, weak=weak)
 
     def _on_connection_close(self, connection, closing, *args, **kwargs):
         exc = closing.exception()

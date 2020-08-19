@@ -88,13 +88,15 @@ class RobustConnection(Connection):
             lambda: self.loop.create_task(self.reconnect()),
         )
 
-    def add_reconnect_callback(self, callback: Callable[[], None]):
+    def add_reconnect_callback(
+        self, callback: Callable[[], None], weak: bool = False
+    ):
         """ Add callback which will be called after reconnect.
 
         :return: None
         """
 
-        self._reconnect_callbacks.add(callback)
+        self._reconnect_callbacks.add(callback, weak=weak)
 
     async def __cleanup_connection(self, exc):
         if self.connection is None:
