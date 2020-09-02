@@ -67,7 +67,7 @@ queue, so let's name it *new_task.py*:
 
 .. literalinclude:: examples/2-work-queues/new_task.py
    :language: python
-   :lines: 15-27
+   :lines: 13-26
 
 Our old receive.py script also requires some changes: it needs to fake a second of work
 for every dot in the message body. It will pop messages from the queue and perform the task,
@@ -75,7 +75,7 @@ so let's call it *worker.py*:
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 10-11
+   :lines: 9-10
 
 
 Round-robin dispatching
@@ -167,7 +167,7 @@ or using special context processor:
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 8-12
+   :lines: 7-10
 
 
 If context processor will catch an exception, the message will be returned to the queue.
@@ -207,7 +207,7 @@ we need to declare it as *durable*:
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 25,27-28
+   :lines: 22,24-25
 
 
 Although this command is correct by itself, it won't work in our setup.
@@ -218,7 +218,7 @@ But there is a quick workaround - let's declare a queue with different name, for
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 25-28
+   :lines: 22-25
 
 This queue_declare change needs to be applied to both the producer and consumer code.
 
@@ -272,7 +272,7 @@ acknowledged the previous one. Instead, it will dispatch it to the next worker t
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 20-22
+   :lines: 17-19
 
 
 .. note::

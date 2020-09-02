@@ -4,14 +4,17 @@ from aio_pika import connect, Message
 
 async def main(loop):
     # Perform connection
-    connection = await connect("amqp://guest:guest@localhost/", loop=loop)
+    connection = await connect(
+        "amqp://guest:guest@localhost/", loop=loop
+    )
 
     # Creating a channel
     channel = await connection.channel()
 
     # Sending the message
     await channel.default_exchange.publish(
-        Message(b"Hello World!"), routing_key="hello",
+        Message(b"Hello World!"),
+        routing_key="hello",
     )
 
     print(" [x] Sent 'Hello World!'")

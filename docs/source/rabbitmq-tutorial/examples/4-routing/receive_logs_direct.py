@@ -10,7 +10,9 @@ def on_message(message: IncomingMessage):
 
 async def main(loop):
     # Perform connection
-    connection = await connect("amqp://guest:guest@localhost/", loop=loop)
+    connection = await connect(
+        "amqp://guest:guest@localhost/", loop=loop
+    )
 
     # Creating a channel
     channel = await connection.channel()
@@ -19,7 +21,9 @@ async def main(loop):
     severities = sys.argv[1:]
 
     if not severities:
-        sys.stderr.write("Usage: %s [info] [warning] [error]\n" % sys.argv[0])
+        sys.stderr.write(
+            "Usage: %s [info] [warning] [error]\n" % sys.argv[0]
+        )
         sys.exit(1)
 
     # Declare an exchange

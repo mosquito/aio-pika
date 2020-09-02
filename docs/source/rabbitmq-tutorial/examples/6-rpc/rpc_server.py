@@ -20,7 +20,10 @@ async def on_message(exchange: Exchange, message: IncomingMessage):
         response = str(fib(n)).encode()
 
         await exchange.publish(
-            Message(body=response, correlation_id=message.correlation_id),
+            Message(
+                body=response,
+                correlation_id=message.correlation_id
+            ),
             routing_key=message.reply_to,
         )
         print("Request complete")
@@ -28,7 +31,9 @@ async def on_message(exchange: Exchange, message: IncomingMessage):
 
 async def main(loop):
     # Perform connection
-    connection = await connect("amqp://guest:guest@localhost/", loop=loop)
+    connection = await connect(
+        "amqp://guest:guest@localhost/", loop=loop
+    )
 
     # Creating a channel
     channel = await connection.channel()
@@ -37,7 +42,9 @@ async def main(loop):
     queue = await channel.declare_queue("rpc_queue")
 
     # Start listening the queue with name 'hello'
-    await queue.consume(partial(on_message, channel.default_exchange))
+    await queue.consume(partial(
+        on_message, channel.default_exchange)
+    )
 
 
 if __name__ == "__main__":

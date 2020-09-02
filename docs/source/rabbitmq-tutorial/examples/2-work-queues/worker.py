@@ -1,12 +1,11 @@
 import asyncio
 from aio_pika import connect, IncomingMessage
 
-
 loop = asyncio.get_event_loop()
 
 
 def on_message(message: IncomingMessage):
-    with message.process():
+    async with message.process():
         print(" [x] Received message %r" % message)
         print("     Message body is: %r" % message.body)
 
@@ -20,7 +19,10 @@ async def main():
     await channel.set_qos(prefetch_count=1)
 
     # Declaring queue
-    queue = await channel.declare_queue("task_queue", durable=True)
+    queue = await channel.declare_queue(
+        "task_queue",
+        durable=True
+    )
 
     # Start listening the queue with name 'task_queue'
     await queue.consume(on_message)
