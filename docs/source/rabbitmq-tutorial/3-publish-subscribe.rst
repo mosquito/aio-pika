@@ -123,7 +123,7 @@ Now, we can publish to our named exchange instead:
 
 .. literalinclude:: examples/3-publish-subscribe/emit_log.py
    :language: python
-   :lines: 19-27
+   :lines: 19-28
 
 
 Temporary queues
@@ -150,7 +150,7 @@ Secondly, once we disconnect the consumer the queue should be deleted. There's a
 
 .. literalinclude:: examples/3-publish-subscribe/receive_logs.py
    :language: python
-   :lines: 28
+   :lines: 27
 
 Bindings
 ++++++++
@@ -163,7 +163,7 @@ send messages to our queue. That relationship between exchange and a queue is ca
 
 .. literalinclude:: examples/3-publish-subscribe/receive_logs.py
    :language: python
-   :lines: 22-31
+   :lines: 22-30
 
 From now on the logs exchange will append messages to our queue.
 

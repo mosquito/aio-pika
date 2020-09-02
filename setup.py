@@ -50,6 +50,7 @@ setup(
             "pytest",
             "pytest-cov",
             "shortuuid",
+            "nox",
             "sphinx",
             "sphinx-autobuild",
             "timeout-decorator",
