@@ -116,6 +116,7 @@ Thanks for contributing
 * `@decaz`_
 * `@kajetanj`_
 * `@iselind`_
+* `@driverx`_
 
 .. _@mosquito: https://github.com/mosquito
 .. _@hellysmile: https://github.com/hellysmile

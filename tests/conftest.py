@@ -35,9 +35,12 @@ async def add_cleanup(loop):
 
 @pytest.fixture
 def amqp_direct_url(request) -> URL:
-    return URL(
+    amqp_url = URL(
         os.getenv("AMQP_URL", "amqp://guest:guest@localhost"),
     ).update_query(name=request.node.nodeid)
+    if amqp_url.port is None:
+        amqp_url = amqp_url.with_port(5672)
+    return amqp_url
 
 
 @pytest.fixture

@@ -15,6 +15,7 @@ from aio_pika.robust_connection import RobustConnection
 from aio_pika.robust_queue import RobustQueue
 from async_generator import async_generator, yield_
 from tests import get_random_name
+import aio_pika.exceptions
 
 
 class Proxy:
@@ -343,3 +344,35 @@ async def test_context_process_abrupt_channel_close(
     async with incoming_message.process():
         pass
     await queue.unbind(exchange, routing_key)
+
+
+async def test_channel_restore_default_exchange(
+    create_connection: Callable,
+    declare_queue: Callable,
+    proxy: Proxy,
+):
+    queue_name = get_random_name('queue')
+
+    conn = await create_connection()
+    channel = await conn.channel()
+
+    await declare_queue(
+        queue_name,
+        auto_delete=True,
+        channel=channel,
+    )
+
+    default_exchange = channel.default_exchange
+
+    await default_exchange.publish(Message(b'msg1'), queue_name)
+    await proxy.disconnect(wait=True)
+
+    with pytest.raises(ConnectionError):
+        await default_exchange.publish(Message(b'msg2'), queue_name)
+    with pytest.raises(aio_pika.exceptions.ChannelInvalidStateError):
+        await default_exchange.publish(Message(b'msg3'), queue_name)
+
+    await asyncio.sleep(0.0)
+    await conn.connected.wait()
+
+    await default_exchange.publish(Message(b'msg4'), queue_name)

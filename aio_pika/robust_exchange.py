@@ -44,6 +44,9 @@ class RobustExchange(Exchange):
     async def restore(self, channel: Channel):
         self._channel = channel._channel
 
+        if self.name == "":
+            return
+
         await self.declare()
 
         for exchange, kwargs in self._bindings.items():
