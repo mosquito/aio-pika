@@ -214,7 +214,7 @@ epub_copyright = copyright
 epub_exclude_files = ["search.html"]
 
 
-html_logo = "logo2x.png"
-html_favicon = "icon.png"
+html_logo = "_static/logo2x.png"
+html_favicon = "_static/icon.png"
 
 html_sidebars = {"**": ["about.html", "navigation.html", "searchbox.html"]}

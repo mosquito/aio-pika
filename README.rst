@@ -30,19 +30,17 @@ aio-pika
     :target: https://pypi.python.org/pypi/aio-pika/
 
 
-Wrapper for the `aiormq`_ for asyncio and humans.
+A wrapper around `aiormq`_ for asyncio and humans.
+
+Check out the examples and the tutorial in the `documentation`_.
+
+If you are a newcomer to RabbitMQ, please start with the `adopted official RabbitMQ tutorial`_.
+
+.. _aiormq: http://github.com/mosquito/aiormq/
 
 .. note::
    Since version ``5.0.0`` this library doesn't use ``pika`` as AMQP connector.
-   Versions below ``5.0.0`` contains or requires ``pika``'s source codes.
-
-
-See examples and the tutorial in `documentation`_.
-
-If you are newcomer in the RabbitMQ let's start the `adopted official RabbitMQ tutorial`_
-
-
-.. _aiormq: http://github.com/mosquito/aiormq/
+   Versions below ``5.0.0`` contains or requires ``pika``'s source code.
 
 
 Features
@@ -52,7 +50,7 @@ Features
 * Object oriented API.
 * Transparent auto-reconnects with complete state recovery with `connect_robust`
   (e.g. declared queues or exchanges, consuming state and bindings).
-* Python 3.5+ compatible (include 3.7).
+* Python 3.5+ compatible.
 * For python 3.4 users available `aio-pika<4`
 * Transparent `publisher confirms`_ support
 * `Transactions`_ support
@@ -200,7 +198,7 @@ Get single message example:
         loop.run_until_complete(main(loop))
 
 
-See another examples and the tutorial in `documentation`_.
+There are more examples and the RabbitMQ tutorial in the `documentation`_.
 
 
 Versioning
@@ -226,13 +224,14 @@ Create a new virtualenv for `aio-pika`_:
 
 .. code-block:: shell
 
-    virtualenv -p python3.5 env
+    python3 -m venv env
+    source env/bin/activate
 
 Install all requirements for `aio-pika`_:
 
 .. code-block:: shell
 
-    env/bin/pip install -e '.[develop]'
+    pip install -e '.[develop]'
 
 
 Running Tests
@@ -253,18 +252,27 @@ To test just run:
     make test
 
 
+Editing Documentation
+_____________________
+
+To iterate quickly on the documentation live in your browser, try:
+
+.. code-block:: bash
+
+    nox -s docs -- serve
+
 Creating Pull Requests
 ______________________
 
-You feel free to create pull request, but you should describe your cases and add some examples.
+Please feel free to create pull requests, but you should describe your use cases and add some examples.
 
-The changes should follow simple rules:
+Changes should follow a few simple rules:
 
-* When your changes breaks public API you must increase the major version.
-* When your changes is safe for public API (e.g. added an argument with default value)
+* When your changes break the public API, you must increase the major version.
+* When your changes are safe for public API (e.g. added an argument with default value)
 * You have to add test cases (see `tests/` folder)
 * You must add docstrings
-* You feel free to add yourself to `"thank's to" section`_
+* Feel free to add yourself to `"thank's to" section`_
 
 
 .. _"thank's to" section: https://github.com/mosquito/aio-pika/blob/master/docs/source/index.rst#thanks-for-contributing
