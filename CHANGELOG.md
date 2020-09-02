@@ -1,3 +1,12 @@
+6.7.0
+-----
+
+* Reworked tests and finally applied PR #311
+* Improve documentation examples and snippets #339
+* Restore RobustChannel.default_exchange on reconnect #340
+* Improve the docs a bit #335
+
+
 6.6.1
 -----
 
@@ -56,23 +65,23 @@
 -----
 
 * aiormq updates:
-    * Fixes for python 3.8 
-    [#69](https://github.com/mosquito/aiormq/pull/69) 
+    * Fixes for python 3.8
+    [#69](https://github.com/mosquito/aiormq/pull/69)
     [#67](https://github.com/mosquito/aiormq/pull/67)
     * [passing ``name=`` query parameter](https://github.com/mosquito/aiormq/pull/69/commits/a967502e6dbdf5de422cfb183932bcec134250ad)
-    from URL to user defined connection name (Rabbitmq 3.8+) 
+    from URL to user defined connection name (Rabbitmq 3.8+)
     * Fix connection drain [#68](https://github.com/mosquito/aiormq/pull/68)
     * Remove ``loop=`` argument from asyncio entities [#67](https://github.com/mosquito/aiormq/pull/67)
-    * ChannelInvalidStateError exceptions instead of RuntimeError 
+    * ChannelInvalidStateError exceptions instead of RuntimeError
     [#65](https://github.com/mosquito/aiormq/pull/65)
 * Update tests for python 3.8
-* ``Pool.close()`` method and allow to use ``Pool`` as a context manager 
+* ``Pool.close()`` method and allow to use ``Pool`` as a context manager
 [#269](https://github.com/mosquito/aio-pika/pull/269)
-* Fix stuck of ``RobustConnection`` when exclusive queues still locked 
+* Fix stuck of ``RobustConnection`` when exclusive queues still locked
 on server-side [#267](https://github.com/mosquito/aio-pika/pull/267)
-* Add ``global_`` parameter to ``Channel.set_qos`` method 
+* Add ``global_`` parameter to ``Channel.set_qos`` method
 [#266](https://github.com/mosquito/aio-pika/pull/266)
-* Fix ``Connection.drain()`` is ``None`` 
+* Fix ``Connection.drain()`` is ``None``
 [Fix connection drain](https://github.com/mosquito/aiormq/pull/68)
 
 6.3.0
@@ -110,8 +119,8 @@ on server-side [#267](https://github.com/mosquito/aio-pika/pull/267)
 6.0.0
 -----
 
-* `RobustConnection` logic changes (see #234). 
-  Thanks to @decaz for analysis and fixes. 
+* `RobustConnection` logic changes (see #234).
+  Thanks to @decaz for analysis and fixes.
 
 5.6.3
 -----
@@ -177,12 +186,12 @@ on server-side [#267](https://github.com/mosquito/aio-pika/pull/267)
 * use None instead of Elipsis for initial state (@chibby0ne)
 * `Pool`: enable arguments for pool constructor (@chibby0ne)
 * Create py.typed (#176 @zarybnicky)
-* 
+*
 
 5.2.4
 -----
 
-* Fix encode timestamp error on copy (#198 @tzoiker) 
+* Fix encode timestamp error on copy (#198 @tzoiker)
 * Bump `aiormq`
 
 5.2.2
@@ -221,15 +230,15 @@ on server-side [#267](https://github.com/mosquito/aio-pika/pull/267)
         * ``UnroutableError`` removed. Use ``DeliveryError`` instead.
         * ``ConnectionRefusedError`` is now standard ``ConnectionError``
         * Each error code has separate exception type.
-    * **[LOW]** ``Connection.close`` method requires exception instead 
+    * **[LOW]** ``Connection.close`` method requires exception instead
     of ``code`` ``reason`` pair or ``None``
-    * **[MEDIUM]** ``IncomingMessage.ack`` ``IncomingMessage.nack`` 
-    ``IncomingMessage.reject`` returns coroutines. Old usage compatible 
+    * **[MEDIUM]** ``IncomingMessage.ack`` ``IncomingMessage.nack``
+    ``IncomingMessage.reject`` returns coroutines. Old usage compatible
     but event loop might throw warnings.
     * **[HIGH]** ``Message.timestamp`` property is now ``datetime.datetime``
-    * **[LOW]** Tracking of ``publisher confirms`` removed, using 
+    * **[LOW]** Tracking of ``publisher confirms`` removed, using
     similar feature from ``aiormq`` instead.
-    * **[LOW]** non async context manager ``IncomingMessage.process()`` 
+    * **[LOW]** non async context manager ``IncomingMessage.process()``
     is deprecated. Use ``async with message.process():`` instead.
 
 4.9.1
@@ -264,7 +273,7 @@ on server-side [#267](https://github.com/mosquito/aio-pika/pull/267)
 4.6.4
 -----
 
-* Fix UnboundLocalError exception #163 
+* Fix UnboundLocalError exception #163
 
 4.6.3
 -----
