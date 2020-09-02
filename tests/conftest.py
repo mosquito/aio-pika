@@ -1,17 +1,19 @@
+import asyncio
 import gc
 import os
 import tracemalloc
 from contextlib import suppress
 from functools import partial
 
-import pytest
-
-import aio_pika
 import aiormq
 import pamqp
+import pytest
 from aiomisc import awaitable
 from async_generator import async_generator, yield_
 from yarl import URL
+
+import aio_pika
+from aiormq.connection import DEFAULT_PORTS
 
 
 @pytest.fixture
@@ -34,13 +36,45 @@ async def add_cleanup(loop):
 
 
 @pytest.fixture
+@async_generator
+async def create_task(loop):
+    tasks = []
+
+    def payload(coroutine):
+        nonlocal tasks
+        task = loop.create_task(coroutine)
+        tasks.append(task)
+        return task
+
+    try:
+        await yield_(payload)
+    finally:
+        cancelled = []
+        for task in tasks:
+            if task.done():
+                continue
+            task.cancel()
+            cancelled.append(task)
+
+        results = await asyncio.gather(*cancelled, return_exceptions=True)
+
+        for result in results:
+            if not isinstance(result, asyncio.CancelledError):
+                raise result
+
+
+@pytest.fixture
 def amqp_direct_url(request) -> URL:
-    amqp_url = URL(
+    url = URL(
         os.getenv("AMQP_URL", "amqp://guest:guest@localhost"),
     ).update_query(name=request.node.nodeid)
-    if amqp_url.port is None:
-        amqp_url = amqp_url.with_port(5672)
-    return amqp_url
+
+    default_port = DEFAULT_PORTS[url.scheme]
+
+    if not url.port:
+        url = url.with_port(default_port)
+
+    return url
 
 
 @pytest.fixture

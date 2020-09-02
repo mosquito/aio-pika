@@ -13,15 +13,6 @@ from .tools import CallbackCollection
 from .types import CloseCallbackType, TimeoutType
 
 
-try:
-    from yarl import DEFAULT_PORTS
-
-    DEFAULT_PORTS["amqp"] = 5672
-    DEFAULT_PORTS["amqps"] = 5671
-except ImportError:
-    pass
-
-
 log = logging.getLogger(__name__)
 
 

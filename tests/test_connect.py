@@ -1,9 +1,9 @@
 import asyncio
 
 import pytest
+from yarl import URL
 
 from aio_pika import connect
-from yarl import URL
 
 
 VARIANTS = (

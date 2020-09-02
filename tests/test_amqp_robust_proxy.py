@@ -2,110 +2,54 @@ import asyncio
 import logging
 from contextlib import suppress
 from functools import partial
-from typing import Callable
+from typing import Callable, Type
 
+import aiomisc
+import aiormq.exceptions
 import pytest
+import shortuuid
+from aiomisc_pytest.pytest_plugin import TCPProxy
+from async_generator import async_generator, yield_
+from yarl import URL
 
 import aio_pika
-import aiormq.exceptions
-import shortuuid
 from aio_pika.message import Message
 from aio_pika.robust_channel import RobustChannel
 from aio_pika.robust_connection import RobustConnection
 from aio_pika.robust_queue import RobustQueue
-from async_generator import async_generator, yield_
 from tests import get_random_name
-import aio_pika.exceptions
-
-
-class Proxy:
-    CHUNK_SIZE = 1500
-
-    def __init__(
-        self, *, loop, shost="127.0.0.1", sport, dhost="127.0.0.1", dport
-    ):
-
-        self.loop = loop
-
-        self.src_host = shost
-        self.src_port = sport
-        self.dst_host = dhost
-        self.dst_port = dport
-        self.connections = set()
-
-    async def _pipe(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ):
-        try:
-            while not reader.at_eof():
-                writer.write(await reader.read(self.CHUNK_SIZE))
-        finally:
-            writer.close()
-
-    async def handle_client(
-        self, creader: asyncio.StreamReader, cwriter: asyncio.StreamWriter
-    ):
-        sreader, swriter = await asyncio.open_connection(
-            host=self.dst_host, port=self.dst_port,
-        )
-
-        self.connections.add(swriter)
-        self.connections.add(cwriter)
-
-        await asyncio.gather(
-            self._pipe(sreader, cwriter), self._pipe(creader, swriter),
-        )
-
-    async def start(self):
-        return await asyncio.start_server(
-            self.handle_client, host=self.src_host, port=self.src_port,
-        )
-
-    async def disconnect(self, wait=True):
-        tasks = list()
-
-        async def close(writer):
-            writer.close()
-            await asyncio.gather(writer.drain(), return_exceptions=True)
-
-        while self.connections:
-            writer = self.connections.pop()  # type: asyncio.StreamWriter
-            tasks.append(self.loop.create_task(close(writer)))
-
-        if wait and tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
 
 
 @pytest.fixture
-def amqp_url(amqp_direct_url, proxy: Proxy):
-    return (
-        amqp_direct_url.with_host(proxy.src_host)
-        .with_port(proxy.src_port)
-        .update_query(reconnect_interval=1)
+@async_generator
+async def proxy(tcp_proxy: Type[TCPProxy], amqp_direct_url: URL):
+    p = tcp_proxy(amqp_direct_url.host, amqp_direct_url.port)
+
+    await p.start()
+    try:
+        await yield_(p)
+    finally:
+        await p.close()
+
+
+@pytest.fixture
+def amqp_url(amqp_direct_url, proxy: TCPProxy):
+    url = amqp_direct_url.with_host(
+        proxy.proxy_host
+    ).with_port(
+        proxy.proxy_port
+    ).update_query(
+        reconnect_interval=1
     )
+
+    print(url)
+
+    return url
 
 
 @pytest.fixture
 def proxy_port(aiomisc_unused_port_factory) -> int:
     return aiomisc_unused_port_factory()
-
-
-@pytest.fixture
-@async_generator
-async def proxy(loop, amqp_direct_url, proxy_port, add_cleanup):
-    p = Proxy(
-        dhost=amqp_direct_url.host,
-        dport=amqp_direct_url.port,
-        sport=proxy_port,
-        loop=loop,
-    )
-
-    await p.start()
-
-    try:
-        await yield_(p)
-    finally:
-        await p.disconnect()
 
 
 @pytest.fixture(scope="module")
@@ -188,7 +132,7 @@ async def test_revive_passive_queue_on_reconnect(create_connection):
 
 @pytest.mark.skip("Temporary skipped flapping test")
 async def test_robust_reconnect(
-    create_connection, proxy: Proxy, loop, add_cleanup: Callable
+    create_connection, proxy: TCPProxy, loop, add_cleanup: Callable
 ):
     conn1 = await create_connection()
     conn2 = await create_connection()
@@ -228,10 +172,16 @@ async def test_robust_reconnect(
                 )
 
             logging.info("Disconnect all clients")
-            await proxy.disconnect()
+            with proxy.slowdown(1, 1):
+                task = proxy.disconnect_all()
 
-            with pytest.raises((ConnectionResetError, ConnectionError)):
-                await asyncio.gather(conn1.channel(), conn2.channel())
+                with pytest.raises((
+                    ConnectionResetError, ConnectionError,
+                    aiormq.exceptions.ChannelInvalidStateError
+                )):
+                    await asyncio.gather(conn1.channel(), conn2.channel())
+
+                await task
 
             logging.info("Waiting reconnect")
             await asyncio.sleep(conn1.reconnect_interval * 2)
@@ -270,7 +220,7 @@ async def test_channel_locked_resource2(connection: aio_pika.RobustConnection):
 
 
 async def test_channel_close_when_exclusive_queue(
-    create_connection, create_direct_connection, proxy: Proxy, loop
+    create_connection, create_direct_connection, proxy: TCPProxy, loop
 ):
     direct_conn, proxy_conn = await asyncio.gather(
         create_direct_connection(), create_connection(),
@@ -280,6 +230,11 @@ async def test_channel_close_when_exclusive_queue(
         direct_conn.channel(), proxy_conn.channel(),
     )
 
+    reconnect_event = asyncio.Event()
+    proxy_conn.reconnect_callbacks.add(
+        lambda *_: reconnect_event.set(), weak=False
+    )
+
     qname = get_random_name("robust", "exclusive", "queue")
 
     proxy_queue = await proxy_channel.declare_queue(
@@ -287,7 +242,7 @@ async def test_channel_close_when_exclusive_queue(
     )
 
     logging.info("Disconnecting all proxy connections")
-    await proxy.disconnect(wait=True)
+    await proxy.disconnect_all()
     await asyncio.sleep(0.5)
 
     logging.info("Declaring exclusive queue through direct channel")
@@ -299,6 +254,11 @@ async def test_channel_close_when_exclusive_queue(
         logging.info("Closed")
 
     await loop.create_task(close_after(5, direct_conn.close))
+
+    # reconnect fired
+    await reconnect_event.wait()
+
+    # Wait method ready
     await proxy_conn.connected.wait()
     await proxy_queue.delete()
 
@@ -346,33 +306,61 @@ async def test_context_process_abrupt_channel_close(
     await queue.unbind(exchange, routing_key)
 
 
-async def test_channel_restore_default_exchange(
-    create_connection: Callable,
+@aiomisc.timeout(10)
+async def test_robust_duplicate_queue(
+    connection: aio_pika.RobustConnection,
+    declare_exchange: Callable,
     declare_queue: Callable,
-    proxy: Proxy,
+    loop: asyncio.AbstractEventLoop,
+    proxy: TCPProxy,
+    create_task: Callable,
 ):
-    queue_name = get_random_name('queue')
+    queue_name = "test"
 
-    conn = await create_connection()
-    channel = await conn.channel()
+    channel1 = await connection.channel()
+    channel2 = await connection.channel()
 
-    await declare_queue(
-        queue_name,
-        auto_delete=True,
-        channel=channel,
+    reconnect_event = asyncio.Event()
+    connection.reconnect_callbacks.add(
+        lambda *_: reconnect_event.set(), weak=False
     )
 
-    default_exchange = channel.default_exchange
+    shared = []
+    queue1 = await declare_queue(queue_name, channel=channel1, cleanup=False)
+    queue2 = await declare_queue(queue_name, channel=channel2, cleanup=False)
 
-    await default_exchange.publish(Message(b'msg1'), queue_name)
-    await proxy.disconnect(wait=True)
+    async def reader(queue):
+        nonlocal shared
+        async with queue.iterator() as q:
+            async for message in q:
+                shared.append(message)
+                await message.ack()
 
-    with pytest.raises(ConnectionError):
-        await default_exchange.publish(Message(b'msg2'), queue_name)
-    with pytest.raises(aio_pika.exceptions.ChannelInvalidStateError):
-        await default_exchange.publish(Message(b'msg3'), queue_name)
+    create_task(reader(queue1))
+    create_task(reader(queue2))
 
-    await asyncio.sleep(0.0)
-    await conn.connected.wait()
+    for _ in range(5):
+        await channel2.default_exchange.publish(
+            aio_pika.Message(b""), queue_name,
+        )
 
-    await default_exchange.publish(Message(b'msg4'), queue_name)
+    logging.info("Disconnect all clients")
+    await proxy.disconnect_all()
+
+    await reconnect_event.wait()
+
+    logging.info("Waiting connections")
+    await asyncio.wait([
+        channel1._connection.ready(),
+        channel2._connection.ready(),
+    ])
+
+    for _ in range(5):
+        await channel2.default_exchange.publish(
+            Message(b""), queue_name,
+        )
+
+    while len(shared) < 10:
+        await asyncio.sleep(0.1)
+
+    assert len(shared) == 10

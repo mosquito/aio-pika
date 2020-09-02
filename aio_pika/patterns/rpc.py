@@ -7,6 +7,8 @@ from enum import Enum
 from functools import partial
 from typing import Any, Callable, Dict, Hashable, Optional, TypeVar
 
+from aiormq.tools import awaitable
+
 from aio_pika.channel import Channel
 from aio_pika.exceptions import DeliveryError
 from aio_pika.exchange import ExchangeType
@@ -14,7 +16,6 @@ from aio_pika.message import (
     DeliveryMode, IncomingMessage, Message, ReturnedMessage,
 )
 from aio_pika.tools import shield
-from aiormq.tools import awaitable
 
 from .base import Base, Proxy
 

@@ -387,5 +387,8 @@ class Channel(PoolInstance):
     async def flow(self, active: bool = True) -> aiormq.spec.Channel.FlowOk:
         return await self.channel.flow(active=active)
 
+    def __del__(self):
+        log.debug("%r deleted", self)
+
 
 __all__ = ("Channel", "ConfirmationTypes")
