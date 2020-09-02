@@ -6,6 +6,7 @@ import pytest
 import aio_pika
 from aio_pika import Message
 from aio_pika.exceptions import DeliveryError
+from aio_pika.message import IncomingMessage
 from aio_pika.patterns.rpc import RPC
 from aio_pika.patterns.rpc import log as rpc_logger
 from tests import get_random_name
@@ -98,9 +99,15 @@ class TestCase:
 
             await asyncio.sleep(0.5)
 
-            log_record = caplog.records[0]
+            for log_record in caplog.records:
+                if log_record.levelno == logging.WARNING:
+                    break
+            else:
+                raise pytest.fail("Expected log message")
+
             incoming = log_record.args[0]
 
+            assert isinstance(incoming, IncomingMessage)
             assert incoming.body == body
             assert "Unknown message:" in log_record.message
 
@@ -111,8 +118,14 @@ class TestCase:
 
             await asyncio.sleep(0.5)
 
-            log_record = caplog.records[0]
+            for log_record in caplog.records:
+                if log_record.levelno == logging.WARNING:
+                    break
+            else:
+                raise pytest.fail("Expected log message")
+
             incoming = log_record.args[0]
+            assert isinstance(incoming, IncomingMessage)
             assert incoming.body == body
             assert "Unknown message:" in log_record.message
 

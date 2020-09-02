@@ -1,7 +1,8 @@
+from aiormq.connection import parse_bool, parse_int
+
 from aio_pika import connect
 from aio_pika.connection import Connection
 from aio_pika.robust_connection import RobustConnection
-from aiormq.connection import parse_bool, parse_int
 
 
 class MockConnection(Connection):

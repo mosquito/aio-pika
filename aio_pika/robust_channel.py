@@ -1,3 +1,4 @@
+from collections import defaultdict
 from logging import getLogger
 from typing import Union
 from warnings import warn
@@ -46,8 +47,8 @@ class RobustChannel(Channel):
             on_return_raises=on_return_raises,
         )
 
-        self._exchanges = dict()
-        self._queues = dict()
+        self._exchanges = defaultdict(set)
+        self._queues = defaultdict(set)
         self._prefetch_count = 0
         self._prefetch_size = 0
         self._global_ = False
@@ -65,11 +66,13 @@ class RobustChannel(Channel):
 
         await self.default_exchange.restore(self)
 
-        for exchange in self._exchanges.values():
-            await exchange.restore(self)
+        for exchanges in self._exchanges.values():
+            for exchange in exchanges:
+                await exchange.restore(self)
 
-        for queue in self._queues.values():
-            await queue.restore(self)
+        for queues in self._queues.values():
+            for queue in queues:
+                await queue.restore(self)
 
     @staticmethod
     def _on_channel_close(sender, exc: Exception):
@@ -131,7 +134,7 @@ class RobustChannel(Channel):
         )
 
         if not internal and robust:
-            self._exchanges[name] = exchange
+            self._exchanges[name].add(exchange)
 
         return exchange
 
@@ -142,6 +145,7 @@ class RobustChannel(Channel):
         if_unused=False,
         nowait=False,
     ) -> aiormq.spec.Exchange.DeleteOk:
+
         result = await super().exchange_delete(
             exchange_name=exchange_name,
             timeout=timeout,
@@ -165,6 +169,7 @@ class RobustChannel(Channel):
         timeout: TimeoutType = None,
         robust: bool = True
     ) -> Queue:
+
         queue = await super().declare_queue(
             name=name,
             durable=durable,
@@ -176,7 +181,7 @@ class RobustChannel(Channel):
         )
 
         if robust:
-            self._queues[name] = queue
+            self._queues[name].add(queue)
 
         return queue
 

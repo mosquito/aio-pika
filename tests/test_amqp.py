@@ -7,12 +7,12 @@ from datetime import datetime
 from typing import Awaitable, Callable
 from unittest import mock
 
+import aiormq.exceptions
 import pytest
+import shortuuid
 
 import aio_pika
 import aio_pika.exceptions
-import aiormq.exceptions
-import shortuuid
 from aio_pika import Channel, DeliveryMode, Message
 from aio_pika.exceptions import (
     DeliveryError, MessageProcessError, ProbableAuthenticationError,

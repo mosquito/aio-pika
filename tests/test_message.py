@@ -3,6 +3,7 @@ from copy import copy
 from datetime import datetime
 
 import shortuuid
+
 from aio_pika import DeliveryMode, Message
 
 
