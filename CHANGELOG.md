@@ -1,3 +1,8 @@
+6.7.1
+-----
+
+* Fix breaking change in callback definition #344
+
 6.7.0
 -----
 
