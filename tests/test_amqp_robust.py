@@ -40,6 +40,17 @@ class TestCaseNoRobust(TestCaseAmqp):
 
         return fabric
 
+    async def test_add_reconnect_callback(self, create_connection):
+        connection = await create_connection()
+
+        def cb(*a, **kw):
+            pass
+
+        connection.add_reconnect_callback(cb)
+
+        del cb
+        assert len(connection.reconnect_callbacks) == 1
+
 
 class TestCaseAmqpNoConfirmsRobust(TestCaseAmqpNoConfirms):
     pass

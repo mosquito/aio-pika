@@ -991,6 +991,10 @@ class TestCaseAmqp(TestCaseAmqpBase):
             shared_list.append((a, kw))
 
         connection.add_close_callback(share)
+
+        del share
+        assert len(connection.close_callbacks) == 1
+
         await connection.close()
 
         assert len(shared_list) == 1

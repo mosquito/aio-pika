@@ -136,18 +136,24 @@ class Channel(PoolInstance):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
 
-    def add_close_callback(self, callback: CloseCallbackType) -> None:
-        self._done_callbacks.add(callback)
+    def add_close_callback(
+        self, callback: CloseCallbackType, weak: bool = False
+    ) -> None:
+        self._done_callbacks.add(callback, weak=weak)
 
-    def remove_close_callback(self, callback: CloseCallbackType) -> None:
-        self._done_callbacks.remove(callback)
+    def remove_close_callback(
+        self, callback: CloseCallbackType, weak: bool = False
+    ) -> None:
+        self._done_callbacks.remove(callback, weak=weak)
 
     def add_on_return_callback(
-        self, callback: ReturnCallbackType, weak: bool = True,
+        self, callback: ReturnCallbackType, weak: bool = False,
     ) -> None:
         self._return_callbacks.add(callback, weak=weak)
 
-    def remove_on_return_callback(self, callback: ReturnCallbackType) -> None:
+    def remove_on_return_callback(
+        self, callback: ReturnCallbackType, weak: bool = False
+    ) -> None:
         self._return_callbacks.remove(callback)
 
     async def _create_channel(self) -> aiormq.Channel:
