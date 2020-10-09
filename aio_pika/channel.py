@@ -249,22 +249,37 @@ class Channel(PoolInstance):
 
         return exchange
 
-    async def get_exchange(self, name: str) -> Exchange:
+    async def get_exchange(self, name: str, *, ensure: bool = True) -> Exchange:
         """
-        It's a shortcut for ``.declare_exchange(..., passive=True)``.
+        With ``ensure=True``, it's a shortcut for
+        ``.declare_exchange(..., passive=True)``; otherwise, it returns an
+        exchange instance without checking its existence.
 
-        When the exchange does not exist will raise
+        When the exchange does not exist, if ``ensure=True``, will raise
         :class:`aio_pika.exceptions.ChannelClosed`.
 
         Use this method in a separate channel (or as soon as channel created).
         This is only a way to get an exchange without declaring a new one.
 
         :param name: exchange name
+        :param ensure: ensure that the exchange exists
         :return: :class:`aio_pika.exchange.Exchange` instance
         :raises: :class:`aio_pika.exceptions.ChannelClosed` instance
         """
 
-        return await self.declare_exchange(name=name, passive=True)
+        if ensure:
+            return await self.declare_exchange(name=name, passive=True)
+        else:
+            return self.EXCHANGE_CLASS(
+                connection=self._connection,
+                channel=self.channel,
+                name=name,
+                durable=None,
+                auto_delete=False,
+                internal=False,
+                passive=True,
+                arguments=None,
+            )
 
     async def declare_queue(
         self,
@@ -311,22 +326,37 @@ class Channel(PoolInstance):
 
         return queue
 
-    async def get_queue(self, name: str) -> Queue:
+    async def get_queue(self, name: str, *, ensure: bool = True) -> Queue:
         """
-        It's a shortcut for ``.declare_queue(..., passive=True)``.
+        With ``ensure=True``, it's a shortcut for
+        ``.declare_queue(..., passive=True)``; otherwise, it returns a
+        queue instance without checking its existence.
 
-        When the queue does not exist will raise
+        When the queue does not exist, if ``ensure=True``, will raise
         :class:`aio_pika.exceptions.ChannelClosed`.
 
         Use this method in a separate channel (or as soon as channel created).
         This is only a way to get a queue without declaring a new one.
 
         :param name: queue name
+        :param ensure: ensure that the queue exists
         :return: :class:`aio_pika.queue.Queue` instance
         :raises: :class:`aio_pika.exceptions.ChannelClosed` instance
         """
 
-        return await self.declare_queue(name=name, passive=True)
+        if ensure:
+            return await self.declare_queue(name=name, passive=True)
+        else:
+            return self.QUEUE_CLASS(
+                connection=self,
+                channel=self.channel,
+                name=name,
+                durable=None,
+                exclusive=False,
+                auto_delete=False,
+                arguments=None,
+                passive=True,
+            )
 
     async def set_qos(
         self,
