@@ -10,15 +10,13 @@ from aiormq.exceptions import (
     ProtocolSyntaxError, PublishError,
 )
 
-
-PAMQP_EXCEPTIONS = (pamqp.exceptions.PAMQPException,)
-
 CONNECTION_EXCEPTIONS = (
     RuntimeError,
     ConnectionError,
     OSError,
     AMQPError,
-) + PAMQP_EXCEPTIONS
+    pamqp.exceptions.PAMQPException
+)
 
 
 class MessageProcessError(AMQPError):
