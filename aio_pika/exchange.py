@@ -4,6 +4,7 @@ from logging import getLogger
 from typing import Optional, Union
 
 import aiormq
+import pamqp.commands
 
 from .message import Message
 from .types import TimeoutType
@@ -77,7 +78,7 @@ class Exchange:
 
     async def declare(
         self, timeout: TimeoutType = None
-    ) -> aiormq.spec.Exchange.DeclareOk:
+    ) -> pamqp.commands.Exchange.DeclareOk:
         return await asyncio.wait_for(
             self.channel.exchange_declare(
                 self.name,
@@ -109,7 +110,7 @@ class Exchange:
         *,
         arguments: dict = None,
         timeout: TimeoutType = None
-    ) -> aiormq.spec.Exchange.BindOk:
+    ) -> pamqp.commands.Exchange.BindOk:
 
         """ A binding can also be a relationship between two exchanges.
         This can be simply read as: this exchange is interested in messages
@@ -169,7 +170,7 @@ class Exchange:
         routing_key: str = "",
         arguments: dict = None,
         timeout: TimeoutType = None,
-    ) -> aiormq.spec.Exchange.UnbindOk:
+    ) -> pamqp.commands.Exchange.UnbindOk:
 
         """ Remove exchange-to-exchange binding for this
         :class:`Exchange` instance
@@ -244,7 +245,7 @@ class Exchange:
 
     async def delete(
         self, if_unused: bool = False, timeout: TimeoutType = None
-    ) -> aiormq.spec.Exchange.DeleteOk:
+    ) -> pamqp.commands.Exchange.DeleteOk:
 
         """ Delete the queue
 

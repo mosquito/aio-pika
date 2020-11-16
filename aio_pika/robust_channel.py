@@ -3,7 +3,7 @@ from logging import getLogger
 from typing import Union
 from warnings import warn
 
-import aiormq
+import pamqp.commands
 
 from .channel import Channel
 from .exchange import Exchange, ExchangeType
@@ -144,7 +144,7 @@ class RobustChannel(Channel):
         timeout: TimeoutType = None,
         if_unused=False,
         nowait=False,
-    ) -> aiormq.spec.Exchange.DeleteOk:
+    ) -> pamqp.commands.Exchange.DeleteOk:
 
         result = await super().exchange_delete(
             exchange_name=exchange_name,

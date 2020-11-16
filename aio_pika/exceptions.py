@@ -11,9 +11,7 @@ from aiormq.exceptions import (
 )
 
 
-PAMQP_EXCEPTIONS = (pamqp.exceptions.PAMQPException,) + tuple(
-    pamqp.specification.ERRORS.values(),
-)
+PAMQP_EXCEPTIONS = (pamqp.exceptions.PAMQPException,)
 
 CONNECTION_EXCEPTIONS = (
     RuntimeError,

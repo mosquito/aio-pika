@@ -6,6 +6,7 @@ from warnings import warn
 
 import aiormq
 import aiormq.types
+from pamqp import commands
 
 from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage
@@ -335,7 +336,7 @@ class Channel(PoolInstance):
         global_: bool = False,
         timeout: TimeoutType = None,
         all_channels: bool = None,
-    ) -> aiormq.spec.Basic.QosOk:
+    ) -> commands.Basic.QosOk:
         if all_channels is not None:
             warn('Use "global_" instead of "all_channels"', DeprecationWarning)
             global_ = all_channels
@@ -356,7 +357,7 @@ class Channel(PoolInstance):
         if_unused: bool = False,
         if_empty: bool = False,
         nowait: bool = False,
-    ) -> aiormq.spec.Queue.DeleteOk:
+    ) -> commands.Queue.DeleteOk:
         return await asyncio.wait_for(
             self.channel.queue_delete(
                 queue=queue_name,
@@ -373,7 +374,7 @@ class Channel(PoolInstance):
         timeout: TimeoutType = None,
         if_unused: bool = False,
         nowait: bool = False,
-    ) -> aiormq.spec.Exchange.DeleteOk:
+    ) -> commands.Exchange.DeleteOk:
         return await asyncio.wait_for(
             self.channel.exchange_delete(
                 exchange=exchange_name, if_unused=if_unused, nowait=nowait,
@@ -390,7 +391,7 @@ class Channel(PoolInstance):
 
         return Transaction(self._channel)
 
-    async def flow(self, active: bool = True) -> aiormq.spec.Channel.FlowOk:
+    async def flow(self, active: bool = True) -> commands.Channel.FlowOk:
         return await self.channel.flow(active=active)
 
     def __del__(self):

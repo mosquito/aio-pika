@@ -12,7 +12,7 @@ from typing import (
 )
 from warnings import warn
 
-import aiormq
+import pamqp.commands
 from aiormq.types import DeliveredMessage
 
 from .exceptions import MessageProcessError
@@ -369,9 +369,9 @@ class Message:
         return bool(self.__lock)
 
     @property
-    def properties(self) -> aiormq.spec.Basic.Properties:
-        """ Build :class:`aiormq.spec.Basic.Properties` object """
-        return aiormq.spec.Basic.Properties(
+    def properties(self) -> pamqp.commands.Basic.Properties:
+        """ Build :class:`pamqp.commands.Basic.Properties` object """
+        return pamqp.commands.Basic.Properties(
             content_type=self.content_type,
             content_encoding=self.content_encoding,
             headers=self.headers_raw,
@@ -499,11 +499,11 @@ class IncomingMessage(Message):
         self.redelivered = None
         self.message_count = None
 
-        if isinstance(message.delivery, aiormq.spec.Basic.GetOk):
+        if isinstance(message.delivery, pamqp.commands.Basic.GetOk):
             self.message_count = message.delivery.message_count
             self.delivery_tag = message.delivery.delivery_tag
             self.redelivered = message.delivery.redelivered
-        elif isinstance(message.delivery, aiormq.spec.Basic.Deliver):
+        elif isinstance(message.delivery, pamqp.commands.Basic.Deliver):
             self.consumer_tag = message.delivery.consumer_tag
             self.delivery_tag = message.delivery.delivery_tag
             self.redelivered = message.delivery.redelivered
