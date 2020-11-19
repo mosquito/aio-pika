@@ -51,3 +51,9 @@ Connection pooling
 
 .. literalinclude:: examples/pooling.py
    :language: python
+
+Connection pooling with recycled channels
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: examples/pooling-recycled.py
+   :language: python
