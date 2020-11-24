@@ -120,7 +120,7 @@ class Master(Base):
         """
         return super().serialize(data)
 
-    def deserialize(self, data: Any) -> bytes:
+    def deserialize(self, data: bytes) -> Any:
         """ Deserialize data from bytes.
         Uses `pickle` by default.
         You should overlap this method when you want to change serializer
