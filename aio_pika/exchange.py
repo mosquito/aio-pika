@@ -8,6 +8,7 @@ import aiormq
 from .message import Message
 from .types import TimeoutType
 
+
 log = getLogger(__name__)
 
 
