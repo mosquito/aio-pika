@@ -8,7 +8,6 @@ import aiormq
 from .message import Message
 from .types import TimeoutType
 
-
 log = getLogger(__name__)
 
 
@@ -203,7 +202,7 @@ class Exchange:
     async def publish(
         self,
         message: Message,
-        routing_key,
+        routing_key: str,
         *,
         mandatory: bool = True,
         immediate: bool = False,
