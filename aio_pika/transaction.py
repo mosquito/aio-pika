@@ -54,7 +54,8 @@ class Transaction:
         return result
 
     async def __aenter__(self):
-        return await self.select()
+        await self.select()
+        return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if exc_type:
