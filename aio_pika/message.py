@@ -587,7 +587,8 @@ class IncomingMessage(Message):
 
         transaction = current_transaction.get(None)
         if transaction is not None:
-            transaction._add_restore_operation(self, type(self).__reset_processed)
+            transaction._add_restore_operation(
+                self, type(self).__reset_processed)
 
         if not self.locked:
             self.lock()
@@ -620,7 +621,8 @@ class IncomingMessage(Message):
 
         transaction = current_transaction.get(None)
         if transaction is not None:
-            transaction._add_restore_operation(self, type(self).__reset_processed)
+            transaction._add_restore_operation(
+                self, type(self).__reset_processed)
 
         if not self.locked:
             self.lock()
@@ -652,7 +654,8 @@ class IncomingMessage(Message):
 
         transaction = current_transaction.get(None)
         if transaction is not None:
-            transaction._add_restore_operation(self, type(self).__reset_processed)
+            transaction._add_restore_operation(
+                self, type(self).__reset_processed)
 
         if not self.locked:
             self.lock()

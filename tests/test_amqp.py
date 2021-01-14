@@ -1201,14 +1201,18 @@ class TestCaseAmqp(TestCaseAmqpBase):
     async def test_transaction_async_rollback_with_ack_message(
         self, connection: aio_pika.Connection, declare_queue
     ):
-        async with connection.channel(publisher_confirms=False) as channel: # type: aio_pika.Channel
-            queue = await declare_queue('test', auto_delete=True, channel=channel)
+        async with connection.channel(publisher_confirms=False) as channel:
+            queue = await declare_queue(
+                get_random_name("queue", "is_async", "for"),
+                auto_delete=True,
+                channel=channel
+            )
 
             await channel.default_exchange.publish(
                 Message(body=b'1'), routing_key=queue.name
             )
 
-            message = await queue.get()  # type: aio_pika.IncomingMessage
+            message = await queue.get()
 
             with suppress(RuntimeError):
                 async with channel.transaction():

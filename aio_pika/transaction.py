@@ -5,7 +5,7 @@ from weakref import WeakKeyDictionary
 
 import aiormq
 
-current_transaction = ContextVar('current_transaction')  # type: ContextVar[Transaction]
+current_transaction = ContextVar('current_transaction')
 
 
 class TransactionStates(Enum):
