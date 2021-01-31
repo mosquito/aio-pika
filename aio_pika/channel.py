@@ -142,9 +142,9 @@ class Channel(PoolInstance):
         self._done_callbacks.add(callback, weak=weak)
 
     def remove_close_callback(
-        self, callback: CloseCallbackType, weak: bool = False
+        self, callback: CloseCallbackType
     ) -> None:
-        self._done_callbacks.remove(callback, weak=weak)
+        self._done_callbacks.remove(callback)
 
     def add_on_return_callback(
         self, callback: ReturnCallbackType, weak: bool = False,
