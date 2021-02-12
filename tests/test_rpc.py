@@ -21,6 +21,13 @@ async def rpc_func(*, foo, bar):
     return {"foo": "bar"}
 
 
+async def rpc_func2(*, foo, bar):
+    assert not foo
+    assert not bar
+
+    return {"foo": "bar2"}
+
+
 class TestCase:
     async def test_simple(self, channel: aio_pika.Channel):
         rpc = await RPC.create(channel, auto_delete=True)
@@ -238,3 +245,35 @@ class TestCase:
 
         with pytest.raises(TypeError):
             await rpc.call("test.not-serializable")
+
+    async def test_custom_exchange(self, channel: aio_pika.Channel):
+        rpc_ex1 = await RPC.create(channel, auto_delete=True, exchange='ex1')
+        rpc_ex2 = await RPC.create(channel, auto_delete=True, exchange='ex2')
+        rpc_default = await RPC.create(channel, auto_delete=True)
+
+        await rpc_ex1.register("test.rpc", rpc_func, auto_delete=True)
+        result = await rpc_ex1.proxy.test.rpc(foo=None, bar=None)
+        assert result == {"foo": "bar"}
+
+        with pytest.raises(MessageProcessError):
+            await rpc_ex2.proxy.test.rpc(foo=None, bar=None)
+
+        await rpc_ex2.register("test.rpc", rpc_func2, auto_delete=True)
+        result = await rpc_ex2.proxy.test.rpc(foo=None, bar=None)
+        assert result == {"foo": "bar2"}
+
+        with pytest.raises(MessageProcessError):
+            await rpc_default.proxy.test.rpc(foo=None, bar=None)
+
+        await rpc_default.register("test.rpc", rpc_func, auto_delete=True)
+        result = await rpc_default.proxy.test.rpc(foo=None, bar=None)
+        assert result == {"foo": "bar"}
+
+        await rpc_ex1.unregister(rpc_func)
+        await rpc_ex1.close()
+
+        await rpc_ex2.unregister(rpc_func2)
+        await rpc_ex2.close()
+
+        await rpc_default.unregister(rpc_func)
+        await rpc_default.close()
