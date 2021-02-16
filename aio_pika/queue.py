@@ -5,6 +5,7 @@ from logging import getLogger
 from typing import Any, Callable, Optional
 
 import aiormq
+import pamqp.commands
 from aiormq.types import DeliveredMessage
 
 from .exceptions import QueueEmpty
@@ -51,7 +52,7 @@ class Queue:
         self.auto_delete = auto_delete
         self.arguments = arguments
         self.passive = passive
-        self.declaration_result = None  # type: aiormq.spec.Queue.DeclareOk
+        self.declaration_result = None  # type: pamqp.commands.Queue.DeclareOk
         self._get_lock = asyncio.Lock()
 
     @property
@@ -80,7 +81,7 @@ class Queue:
 
     async def declare(
         self, timeout: int = None
-    ) -> aiormq.spec.Queue.DeclareOk:
+    ) -> pamqp.commands.Queue.DeclareOk:
         """ Declare queue.
 
         :param timeout: execution timeout
@@ -99,7 +100,7 @@ class Queue:
                 passive=self.passive,
             ),
             timeout=timeout,
-        )  # type: aiormq.spec.Queue.DeclareOk
+        )  # type: pamqp.commands.Queue.DeclareOk
 
         self.name = self.declaration_result.queue
         return self.declaration_result
@@ -111,7 +112,7 @@ class Queue:
         *,
         arguments=None,
         timeout: int = None
-    ) -> aiormq.spec.Queue.BindOk:
+    ) -> pamqp.commands.Queue.BindOk:
 
         """ A binding is a relationship between an exchange and a queue.
         This can be simply read as: the queue is interested in messages
@@ -157,7 +158,7 @@ class Queue:
         routing_key: str = None,
         arguments: dict = None,
         timeout: int = None,
-    ) -> aiormq.spec.Queue.UnbindOk:
+    ) -> pamqp.commands.Queue.UnbindOk:
 
         """ Remove binding from exchange for this :class:`Queue` instance
 
@@ -243,7 +244,7 @@ class Queue:
 
     async def cancel(
         self, consumer_tag: ConsumerTag, timeout=None, nowait: bool = False
-    ) -> aiormq.spec.Basic.CancelOk:
+    ) -> pamqp.commands.Basic.CancelOk:
         """ This method cancels a consumer. This does not affect already
         delivered messages, but it does mean the server will not send any more
         messages for that consumer. The client may receive an arbitrary number
@@ -295,7 +296,7 @@ class Queue:
 
     async def purge(
         self, no_wait=False, timeout=None
-    ) -> aiormq.spec.Queue.PurgeOk:
+    ) -> pamqp.commands.Queue.PurgeOk:
         """ Purge all messages from the queue.
 
         :param no_wait: no wait response
@@ -312,7 +313,7 @@ class Queue:
 
     async def delete(
         self, *, if_unused=True, if_empty=True, timeout=None
-    ) -> aiormq.spec.Queue.DeclareOk:
+    ) -> pamqp.commands.Queue.DeclareOk:
 
         """ Delete the queue.
 

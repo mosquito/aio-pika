@@ -2,6 +2,7 @@ import asyncio
 from enum import Enum
 
 import aiormq
+import pamqp.commands
 
 
 class TransactionStates(Enum):
@@ -30,7 +31,7 @@ class Transaction:
 
         return self._channel
 
-    async def select(self, timeout=None) -> aiormq.spec.Tx.SelectOk:
+    async def select(self, timeout=None) -> pamqp.commands.Tx.SelectOk:
         result = await asyncio.wait_for(
             self.channel.tx_select(), timeout=timeout,
         )
