@@ -203,7 +203,7 @@ class Exchange:
     async def publish(
         self,
         message: Message,
-        routing_key,
+        routing_key: str,
         *,
         mandatory: bool = True,
         immediate: bool = False,
