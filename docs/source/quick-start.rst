@@ -55,5 +55,12 @@ Connection pooling
 Connection pooling with recycled channels
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+When channels are re-used from a pool where queues and exchanges are not
+consistent (i.e. the first time a channel is checked out it creates and uses
+queue1 and the next time it is checked out it creates and uses queue2), it
+is necessary to clear queues and exchanges before attempting to use the
+channel. This is done with custom Connection and Channel classes and by
+calling ``reopen`` on channel checkout if it was closed.
+
 .. literalinclude:: examples/pooling-recycled.py
    :language: python

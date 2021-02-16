@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 import asyncio
 import aio_pika
 from aio_pika.pool import Pool
@@ -12,8 +10,8 @@ class NonRestoringRobustChannel(aio_pika.RobustChannel):
     """
     async def reopen(self) -> None:
         # Clear out exchanges and queues when reopened
-        self._exchanges = defaultdict(set)
-        self._queues = defaultdict(set)
+        self._exchanges.clear()
+        self._queues.clear()
         await super().reopen()
 
 
