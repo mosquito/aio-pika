@@ -1,3 +1,11 @@
+6.8.0
+-----
+
+* fix: master deserialize types #366
+* fix: add missing type hint on exchange publish method #370
+* Return self instead of select result in `__aenter__` #373
+* fix: call remove_close_callback #374
+
 6.7.1
 -----
 
