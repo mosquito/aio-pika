@@ -29,7 +29,6 @@ setup(
         "Operating System :: Microsoft",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
@@ -38,7 +37,7 @@ setup(
     ],
     packages=find_packages(exclude=["tests"]),
     package_data={"aio_pika": ["py.typed"]},
-    install_requires=["aiormq>=3.2.3,<4", "yarl"],
+    install_requires=["aiormq~=4.2.0", "yarl"],
     python_requires=">3.5.*, <4",
     extras_require={
         "develop": [

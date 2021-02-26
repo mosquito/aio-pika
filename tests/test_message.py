@@ -26,7 +26,7 @@ def test_message_info():
     body = bytes(shortuuid.uuid(), "utf-8")
 
     info = {
-        "headers": {"foo": b"bar"},
+        "headers": {"foo": "bar"},
         "content_type": "application/json",
         "content_encoding": "text",
         "delivery_mode": DeliveryMode.PERSISTENT.value,
@@ -44,7 +44,7 @@ def test_message_info():
 
     msg = Message(
         body=body,
-        headers={"foo": b"bar"},
+        headers={"foo": "bar"},
         content_type="application/json",
         content_encoding="text",
         delivery_mode=DeliveryMode.PERSISTENT,
@@ -64,7 +64,7 @@ def test_message_info():
 
 def test_headers_setter():
     data = {"foo": "bar"}
-    data_expected = {"foo": b"bar"}
+    data_expected = {"foo": "bar"}
 
     msg = Message(b"", headers={"bar": "baz"})
     msg.headers = data

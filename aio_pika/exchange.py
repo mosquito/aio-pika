@@ -38,7 +38,7 @@ class Exchange:
         *,
         auto_delete: Optional[bool],
         durable: Optional[bool],
-        internal: Optional[bool],
+        internal: Optional[bool] = False,
         passive: Optional[bool],
         arguments: dict = None
     ):

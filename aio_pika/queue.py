@@ -32,8 +32,7 @@ class Queue:
 
     def __init__(
         self,
-        connection,
-        channel: aiormq.Channel,
+        channel,
         name,
         durable,
         exclusive,
@@ -42,9 +41,8 @@ class Queue:
         passive: bool = False,
     ):
 
-        self.loop = connection.loop
-
-        self._channel = channel
+        self.loop = channel.loop
+        self.channel = channel
         self.name = name or ""
         self.durable = durable
         self.exclusive = exclusive
@@ -55,10 +53,10 @@ class Queue:
         self._get_lock = asyncio.Lock()
 
     @property
-    def channel(self) -> aiormq.Channel:
-        if self._channel is None:
+    def __channel(self) -> aiormq.Channel:
+        if self.channel is None or self.channel.channel is None:
             raise RuntimeError("Channel not opened")
-        return self._channel
+        return self.channel.channel
 
     def __str__(self):
         return "%s" % self.name
@@ -90,7 +88,7 @@ class Queue:
 
         log.debug("Declaring queue: %r", self)
         self.declaration_result = await asyncio.wait_for(
-            self._channel.queue_declare(
+            self.__channel.queue_declare(
                 queue=self.name,
                 durable=self.durable,
                 exclusive=self.exclusive,
@@ -142,7 +140,7 @@ class Queue:
         )
 
         return await asyncio.wait_for(
-            self.channel.queue_bind(
+            self.__channel.queue_bind(
                 self.name,
                 exchange=Exchange._get_exchange_name(exchange),
                 routing_key=routing_key,
@@ -182,7 +180,7 @@ class Queue:
         )
 
         return await asyncio.wait_for(
-            self.channel.queue_unbind(
+            self.__channel.queue_unbind(
                 queue=self.name,
                 exchange=Exchange._get_exchange_name(exchange),
                 routing_key=routing_key,
@@ -227,7 +225,7 @@ class Queue:
 
         return (
             await asyncio.wait_for(
-                self.channel.basic_consume(
+                self.__channel.basic_consume(
                     queue=self.name,
                     consumer_callback=partial(
                         consumer, callback, no_ack=no_ack, loop=self.loop,
@@ -262,7 +260,7 @@ class Queue:
         """
 
         return await asyncio.wait_for(
-            self.channel.basic_cancel(
+            self.__channel.basic_cancel(
                 consumer_tag=consumer_tag, nowait=nowait,
             ),
             timeout=timeout,
@@ -283,7 +281,8 @@ class Queue:
         """
 
         msg = await asyncio.wait_for(
-            self.channel.basic_get(self.name, no_ack=no_ack), timeout=timeout,
+            self.__channel.basic_get(self.name, no_ack=no_ack),
+            timeout=timeout,
         )  # type: Optional[DeliveredMessage]
 
         if msg is None:
@@ -306,7 +305,7 @@ class Queue:
         log.info("Purging queue: %r", self)
 
         return await asyncio.wait_for(
-            self.channel.queue_purge(self.name, nowait=no_wait),
+            self.__channel.queue_purge(self.name, nowait=no_wait),
             timeout=timeout,
         )
 
@@ -325,7 +324,7 @@ class Queue:
         log.info("Deleting %r", self)
 
         return await asyncio.wait_for(
-            self.channel.queue_delete(
+            self.__channel.queue_delete(
                 self.name, if_unused=if_unused, if_empty=if_empty,
             ),
             timeout=timeout,
@@ -382,13 +381,23 @@ class Queue:
 
 
 class QueueIterator:
-    @shield
+    # @shield
     async def close(self):
+        log.debug("Cancelling queue iterator %r", self)
+
         if not self._consumer_tag:
+            log.debug("Queue iterator %r already cancelled", self)
             return
+
+        if self._amqp_queue.channel.is_closed:
+            log.debug("Queue iterator %r channel closed", self)
+            return
+
+        log.debug("Basic.cancel for %r", self._consumer_tag)
 
         await self._amqp_queue.cancel(self._consumer_tag)
         self._consumer_tag = None
+        self._amqp_queue.channel.remove_close_callback(self.close)
 
         def get_msg():
             try:
@@ -405,12 +414,20 @@ class QueueIterator:
     def __str__(self):
         return "queue[%s](...)" % self._amqp_queue.name
 
+    def __repr__(self):
+        return "<{}: queue={!r} ctag={!r}>".format(
+            self.__class__.__name__, self._amqp_queue.name,
+            self._consumer_tag
+        )
+
     def __init__(self, queue: Queue, **kwargs):
         self.loop = queue.loop
         self._amqp_queue = queue
         self._queue = asyncio.Queue()
         self._consumer_tag = None
         self._consume_kwargs = kwargs
+
+        self._amqp_queue.channel.add_close_callback(self.close)
 
     async def on_message(self, message: IncomingMessage):
         await self._queue.put(message)
@@ -440,6 +457,8 @@ class QueueIterator:
                 self._queue.get(),
                 timeout=self._consume_kwargs.get('timeout')
             )
+        except KeyboardInterrupt:
+            raise
         except asyncio.CancelledError:
             await self.close()
             raise
