@@ -48,7 +48,7 @@ class Connection(PoolInstance):
         self.kwargs = self._parse_kwargs(kwargs or self.url.query)
 
         self._close_callbacks = CallbackCollection(self)
-        self.connection = None  # type: Optional[aiormq.Connection]
+        self.connection: Optional[aiormq.Connection] = None
         self.closing = self.loop.create_future()
 
     @property

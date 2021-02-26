@@ -59,12 +59,13 @@ class Channel(PoolInstance):
         self._connection = connection
         self._done_callbacks = CallbackCollection(self)
         self._return_callbacks = CallbackCollection(self)
-        self._channel = None  # type: Optional[aiormq.Channel]
+        self._channel: Optional[aiormq.Channel] = None
         self._channel_number = channel_number
         self._on_return_raises = on_return_raises
         self._publisher_confirms = publisher_confirms
 
         self._delivery_tag = 0
+        self._closed: bool = False
 
         # noinspection PyTypeChecker
         self.default_exchange = None  # type: Optional[Exchange]
@@ -91,9 +92,9 @@ class Channel(PoolInstance):
         if self.channel.is_closed:
             return
 
-        # noinspection PyTypeChecker
-        channel = self._channel  # type: aiormq.Channel
-        self._channel = ()
+        channel: aiormq.Channel = self._channel
+        self._channel = None
+        self._closed = True
         await channel.close()
 
         self._done_callbacks(exc)
@@ -151,9 +152,7 @@ class Channel(PoolInstance):
     ) -> None:
         self._return_callbacks.add(callback, weak=weak)
 
-    def remove_on_return_callback(
-        self, callback: ReturnCallbackType, weak: bool = False
-    ) -> None:
+    def remove_on_return_callback(self, callback: ReturnCallbackType) -> None:
         self._return_callbacks.remove(callback)
 
     async def _create_channel(self) -> aiormq.Channel:
@@ -167,7 +166,10 @@ class Channel(PoolInstance):
 
     async def initialize(self, timeout: TimeoutType = None) -> None:
         if self._channel is not None:
-            raise RuntimeError("Can't initialize channel")
+            raise RuntimeError("Already initialized")
+
+        if self._closed:
+            raise RuntimeError("Can't initialize closed channel")
 
         self._channel = await asyncio.wait_for(
             self._create_channel(), timeout=timeout,
@@ -195,6 +197,7 @@ class Channel(PoolInstance):
 
     async def reopen(self):
         self._channel = None
+        self._closed = False
         await self.initialize()
 
     async def declare_exchange(

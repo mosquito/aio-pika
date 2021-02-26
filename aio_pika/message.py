@@ -152,9 +152,9 @@ HeadersType = Dict[str, HeadersValueType]
 
 
 class HeaderProxy(Mapping):
-    def __init__(self, headers: Dict[str, bytes]):
-        self._headers = headers  # type: HeadersType
-        self._cache = {}  # type: Dict[str, Any]
+    def __init__(self, headers: HeadersType):
+        self._headers: HeadersType = headers
+        self._cache: Dict[str, Any] = {}
 
     def __getitem__(self, k):
         if k not in self._headers:
@@ -162,6 +162,7 @@ class HeaderProxy(Mapping):
 
         if k not in self._cache:
             value = self._headers[k]
+
             if isinstance(value, bytes):
                 self._cache[k] = value.decode()
             else:

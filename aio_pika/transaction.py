@@ -18,7 +18,7 @@ class Transaction:
     def __init__(self, channel):
         self.loop = channel.loop
         self._channel = channel
-        self.state = TransactionStates.created  # type: TransactionStates
+        self.state: TransactionStates = TransactionStates.created
 
     @property
     def channel(self) -> aiormq.Channel:

@@ -49,7 +49,7 @@ class Queue:
         self.auto_delete = auto_delete
         self.arguments = arguments
         self.passive = passive
-        self.declaration_result = None  # type: aiormq.spec.Queue.DeclareOk
+        self.declaration_result: Optional[aiormq.spec.Queue.DeclareOk] = None
         self._get_lock = asyncio.Lock()
 
     @property
@@ -406,10 +406,10 @@ class QueueIterator:
                 return
 
         # Reject all messages
-        msg = get_msg()  # type: IncomingMessage
+        msg: IncomingMessage = get_msg()
         while msg and not self._amqp_queue.channel.closing.done():
             await msg.reject(requeue=True)
-            msg = get_msg()  # type: IncomingMessage
+            msg = get_msg()
 
     def __str__(self):
         return "queue[%s](...)" % self._amqp_queue.name
