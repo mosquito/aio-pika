@@ -329,8 +329,7 @@ class Channel(PoolInstance):
         """
 
         queue = self.QUEUE_CLASS(
-            connection=self,
-            channel=self.channel,
+            channel=self,
             name=name,
             durable=durable,
             exclusive=exclusive,
@@ -365,8 +364,7 @@ class Channel(PoolInstance):
             return await self.declare_queue(name=name, passive=True)
         else:
             return self.QUEUE_CLASS(
-                connection=self,
-                channel=self.channel,
+                channel=self,
                 name=name,
                 durable=None,
                 exclusive=False,
