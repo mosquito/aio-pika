@@ -3,6 +3,7 @@ import json
 import time
 from collections.abc import Mapping
 from datetime import datetime, timedelta
+from decimal import Decimal
 from enum import IntEnum, unique
 from functools import singledispatch
 from logging import getLogger
@@ -143,9 +144,16 @@ def optional(value, func: Callable[[Any], Any] = str, default=None):
     return func(value) if value else default
 
 
+HeadersValueType = Union[
+    bool, int, Decimal, float, str, dict, list,
+    bytearray, time.struct_time, datetime,
+]
+HeadersType = Dict[str, HeadersValueType]
+
+
 class HeaderProxy(Mapping):
     def __init__(self, headers: Dict[str, bytes]):
-        self._headers = headers  # type: Dict[str, bytes]
+        self._headers = headers  # type: HeadersType
         self._cache = {}  # type: Dict[str, Any]
 
     def __getitem__(self, k):
@@ -180,8 +188,10 @@ def header_converter(value: Any) -> bytes:
     ).encode()
 
 
-@header_converter.register(bytes)
+@header_converter.register(bytearray)
+@header_converter.register(str)
 @header_converter.register(datetime)
+@header_converter.register(time.struct_time)
 @header_converter.register(NoneType)
 @header_converter.register(list)
 @header_converter.register(int)
@@ -189,14 +199,9 @@ def _(v: bytes):
     return v
 
 
-@header_converter.register(bytearray)
-def _(v: bytes):
-    return bytes(v)
-
-
-@header_converter.register(str)
-def _(v):
-    return v.encode()
+@header_converter.register(bytes)
+def _(v: bytes) -> bytearray:
+    return bytearray(v)
 
 
 @header_converter.register(set)

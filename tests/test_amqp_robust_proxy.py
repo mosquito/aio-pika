@@ -9,7 +9,6 @@ import aiormq.exceptions
 import pytest
 import shortuuid
 from aiomisc_pytest.pytest_plugin import TCPProxy
-from async_generator import async_generator, yield_
 from yarl import URL
 
 import aio_pika
@@ -21,13 +20,12 @@ from tests import get_random_name
 
 
 @pytest.fixture
-@async_generator
 async def proxy(tcp_proxy: Type[TCPProxy], amqp_direct_url: URL):
     p = tcp_proxy(amqp_direct_url.host, amqp_direct_url.port)
 
     await p.start()
     try:
-        await yield_(p)
+        yield p
     finally:
         await p.close()
 

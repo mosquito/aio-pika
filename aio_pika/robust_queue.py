@@ -29,7 +29,6 @@ class RobustQueue(Queue):
 
     def __init__(
         self,
-        connection,
         channel: aiormq.Channel,
         name,
         durable,
@@ -40,7 +39,6 @@ class RobustQueue(Queue):
     ):
 
         super().__init__(
-            connection=connection,
             channel=channel,
             name=name or self._get_random_queue_name(),
             durable=durable,
@@ -54,7 +52,7 @@ class RobustQueue(Queue):
         self._bindings = {}
 
     async def restore(self, channel: Channel):
-        self._channel = channel._channel
+        self.channel = channel
 
         await self.declare()
 
