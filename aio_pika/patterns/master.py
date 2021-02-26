@@ -90,8 +90,8 @@ class Master(Base):
 
         :param channel: Initialized instance of :class:`aio_pika.Channel`
         """
-        self.channel = channel  # type: Channel
-        self.loop = self.channel.loop  # type: asyncio.AbstractEventLoop
+        self.channel: Channel = channel
+        self.loop: asyncio.AbstractEventLoop = self.channel.loop
         self.proxy = Proxy(self.create_task)
 
         self.channel.add_on_return_callback(self.on_message_returned)
@@ -104,7 +104,7 @@ class Master(Base):
         return self.channel.default_exchange
 
     @staticmethod
-    def on_message_returned(sender, message: ReturnedMessage):
+    def on_message_returned(_, message: ReturnedMessage):
         log.warning(
             "Message returned. Probably destination queue does not exists: %r",
             message,
@@ -191,5 +191,5 @@ class JsonMaster(Master):
     SERIALIZER = json
     CONTENT_TYPE = "application/json"
 
-    def serialize(self, data: Any) -> bytes:
+    def serialize(self, data: Any) -> str:
         return self.SERIALIZER.dumps(data, ensure_ascii=False)

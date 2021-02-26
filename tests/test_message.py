@@ -75,8 +75,8 @@ def test_headers_setter():
 def test_headers_content():
     data = (
         [42, 42, 42],
-        ["foo", b"foo", "foo"],
-        [b"\00", b"\00", "\00"],
+        ["foo", "foo", "foo"],
+        [b"\00", b"\00", bytearray(b"\00")],
     )
 
     for src, raw, value in data:
@@ -90,8 +90,8 @@ def test_headers_set():
 
     data = (
         ["header-1", 42, 42, 42],
-        ["header-2", "foo", b"foo", "foo"],
-        ["header-3", b"\00", b"\00", "\00"],
+        ["header-2", "foo", "foo", "foo"],
+        ["header-3", b"\00", "\00", "\00"],
     )
 
     for name, src, raw, value in data:
