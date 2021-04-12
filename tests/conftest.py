@@ -75,8 +75,10 @@ def amqp_direct_url(request) -> URL:
 
 
 @pytest.fixture
-def amqp_url(amqp_direct_url) -> URL:
-    return amqp_direct_url
+def amqp_url(request, amqp_direct_url) -> URL:
+    query = dict(amqp_direct_url.query)
+    query['name'] = request.node.nodeid
+    return amqp_direct_url.with_query(**query)
 
 
 @pytest.fixture(
