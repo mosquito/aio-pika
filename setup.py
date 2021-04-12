@@ -37,7 +37,11 @@ setup(
     ],
     packages=find_packages(exclude=["tests"]),
     package_data={"aio_pika": ["py.typed"]},
+<<<<<<< HEAD
     install_requires=["aiormq~=5.2.0", "yarl"],
+=======
+    install_requires=["aiormq~=4.3.0", "yarl"],
+>>>>>>> e20286d (bump aiormq)
     python_requires=">3.5.*, <4",
     extras_require={
         "develop": [
