@@ -135,79 +135,92 @@ async def test_revive_passive_queue_on_reconnect(create_connection):
     assert reconnect_count == 1
 
 
-@pytest.mark.skip("Temporary skipped flapping test")
+@aiomisc.timeout(30)
 async def test_robust_reconnect(
-    create_connection, proxy: TCPProxy, loop, add_cleanup: Callable
+    create_connection, create_direct_connection,
+    proxy: TCPProxy, loop, add_cleanup: Callable
 ):
-    conn1 = await create_connection()
-    conn2 = await create_connection()
+    read_conn = await create_connection()   # type: aio_pika.RobustConnection
+    write_conn = await create_direct_connection()
 
-    assert isinstance(conn1, aio_pika.RobustConnection)
-    assert isinstance(conn2, aio_pika.RobustConnection)
+    reconnect_event = asyncio.Event()
+    read_conn.reconnect_callbacks.add(
+        lambda *_: reconnect_event.set(), weak=False
+    )
 
-    async with conn1, conn2:
+    assert isinstance(read_conn, aio_pika.RobustConnection)
 
-        channel1 = await conn1.channel()
-        channel2 = await conn2.channel()
+    async with read_conn, write_conn:
+        read_channel = await read_conn.channel()
+        write_channel = await write_conn.channel()
 
-        assert isinstance(channel1, aio_pika.RobustChannel)
-        assert isinstance(channel2, aio_pika.RobustChannel)
+        assert isinstance(read_channel, aio_pika.RobustChannel)
 
-        async with channel1, channel2:
+        qname = get_random_name("robust", "proxy", "shared")
+
+        async with read_channel, write_channel:
             shared = []
 
             # Declaring temporary queue
-            queue = await channel1.declare_queue()
+            queue = await write_channel.declare_queue(qname,
+                                                      auto_delete=False,
+                                                      durable=True)
+
+            consumer_event = asyncio.Event()
 
             async def reader(queue_name):
                 nonlocal shared
-                queue = await channel1.declare_queue(
-                    name=queue_name, passive=True,
-                )
-                async with queue.iterator() as q:
-                    async for message in q:
-                        shared.append(message)
-                        await message.ack()
 
-            reader_task = loop.create_task(reader(queue.name))
+                try:
+                    queue = await read_channel.declare_queue(
+                        name=queue_name, passive=True,
+                    )
 
-            for i in range(5):
-                await channel2.default_exchange.publish(
-                    Message(str(i).encode()), queue.name,
-                )
+                    async with queue.iterator() as q:
+                        loop.call_soon(consumer_event.set)
 
-            logging.info("Disconnect all clients")
-            with proxy.slowdown(1, 1):
-                task = proxy.disconnect_all()
+                        async for message in q:
+                            shared.append(message)
+                            await message.ack()
+                finally:
+                    logging.info("Exit reader task")
 
-                with pytest.raises((
-                    ConnectionResetError, ConnectionError,
-                    aiormq.exceptions.ChannelInvalidStateError
-                )):
-                    await asyncio.gather(conn1.channel(), conn2.channel())
+            try:
+                reader_task = loop.create_task(reader(queue.name))
 
-                await task
+                await consumer_event.wait()
+                logging.info("Disconnect all clients")
+                with proxy.slowdown(1, 1):
+                    for i in range(5):
+                        await write_channel.default_exchange.publish(
+                            Message(str(i).encode()), queue.name,
+                        )
 
-            logging.info("Waiting reconnect")
-            await asyncio.sleep(conn1.reconnect_interval * 2)
+                    await proxy.disconnect_all()
 
-            logging.info("Waiting connections")
-            await asyncio.wait_for(
-                asyncio.gather(conn1.ready(), conn2.ready()), timeout=20,
-            )
+                    with pytest.raises(ConnectionError):
+                        await read_conn.channel()
 
-            for i in range(5, 10):
-                await channel2.default_exchange.publish(
-                    Message(str(i).encode()), queue.name,
-                )
+                logging.info("Waiting reconnect")
+                await reconnect_event.wait()
 
-            while len(shared) < 10:
-                await asyncio.sleep(0.1)
+                logging.info("Waiting connections")
+                await asyncio.wait_for(read_conn.ready(), timeout=20)
 
-            assert len(shared) == 10
+                for i in range(5, 10):
+                    await write_channel.default_exchange.publish(
+                        Message(str(i).encode()), queue.name,
+                    )
 
-            reader_task.cancel()
-            await asyncio.gather(reader_task, return_exceptions=True)
+                while len(shared) < 10:
+                    await asyncio.sleep(0.1)
+
+                assert len(shared) == 10
+
+                reader_task.cancel()
+                await asyncio.gather(reader_task, return_exceptions=True)
+            finally:
+                await queue.delete()
 
 
 async def test_channel_locked_resource2(connection: aio_pika.RobustConnection):
