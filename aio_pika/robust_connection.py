@@ -4,6 +4,8 @@ from logging import getLogger
 from typing import Callable, Type
 from weakref import WeakSet
 
+from aiormq import ChannelLockedResource
+from aiormq.base import task
 from aiormq.connection import parse_bool, parse_int
 
 from .connection import Connection, ConnectionType, connect
@@ -30,6 +32,7 @@ def _ensure_connection(func):
 class RobustConnection(Connection):
     """ Robust connection """
 
+    CHANNEL_REOPEN_PAUSE = 1
     CHANNEL_CLASS = RobustChannel
     KWARGS_TYPES = (
         ("reconnect_interval", parse_int, "5"),
@@ -85,7 +88,8 @@ class RobustConnection(Connection):
         )
         self.loop.call_later(
             self.reconnect_interval,
-            lambda: self.loop.create_task(self.reconnect()),
+            self.loop.create_task,
+            self.reconnect(),
         )
 
     def add_reconnect_callback(
@@ -129,7 +133,18 @@ class RobustConnection(Connection):
                     )
 
                     for channel in self._channels.values():
-                        await channel.reopen()
+                        while True:
+                            try:
+                                await channel.reopen()
+                            except ChannelLockedResource as e:
+                                if self.fail_fast:
+                                    raise
+
+                                log.warning("Waiting for: %r", e)
+                                await asyncio.sleep(self.CHANNEL_REOPEN_PAUSE)
+                                continue
+                            else:
+                                break
 
                     self.fail_fast = False
                     self.connected.set()
