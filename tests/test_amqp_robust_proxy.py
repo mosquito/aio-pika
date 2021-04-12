@@ -38,6 +38,7 @@ def amqp_url(amqp_direct_url, proxy: TCPProxy):
         proxy.proxy_port
     ).update_query(
         reconnect_interval=1,
+        heartbeat=1
     )
 
 
@@ -53,7 +54,13 @@ def connection_fabric():
 
 @pytest.fixture
 def create_direct_connection(loop, amqp_direct_url):
-    return partial(aio_pika.connect, amqp_direct_url, loop=loop)
+    return partial(
+        aio_pika.connect,
+        amqp_direct_url.update_query(
+           name=amqp_direct_url.query['name'] + "::direct"
+        ),
+        loop=loop
+   )
 
 
 @pytest.fixture
@@ -216,10 +223,12 @@ async def test_channel_locked_resource2(connection: aio_pika.RobustConnection):
 async def test_channel_close_when_exclusive_queue(
     create_connection, create_direct_connection, proxy: TCPProxy, loop
 ):
+    logging.info("Creating connections")
     direct_conn, proxy_conn = await asyncio.gather(
         create_direct_connection(), create_connection(),
     )
 
+    logging.info("Creating channels")
     direct_channel, proxy_channel = await asyncio.gather(
         direct_conn.channel(), proxy_conn.channel(),
     )
@@ -231,6 +240,7 @@ async def test_channel_close_when_exclusive_queue(
 
     qname = get_random_name("robust", "exclusive", "queue")
 
+    logging.info("Declaring exclusing queue: %s", qname)
     proxy_queue = await proxy_channel.declare_queue(
         qname, exclusive=True, durable=True,
     )
@@ -240,10 +250,13 @@ async def test_channel_close_when_exclusive_queue(
     await asyncio.sleep(0.5)
 
     logging.info("Declaring exclusive queue through direct channel")
-    await direct_channel.declare_queue(qname, exclusive=True, durable=True)
+    await direct_channel.declare_queue(
+        qname, exclusive=True, durable=True
+    )
 
     async def close_after(delay, closer):
         await asyncio.sleep(delay)
+        logging.info("Disconnecting direct connection")
         await closer()
         logging.info("Closed")
 
