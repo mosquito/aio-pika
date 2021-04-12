@@ -12,6 +12,7 @@ from aiomisc_pytest.pytest_plugin import TCPProxy
 from yarl import URL
 
 import aio_pika
+from aio_pika.exceptions import QueueEmpty
 from aio_pika.message import Message
 from aio_pika.robust_channel import RobustChannel
 from aio_pika.robust_connection import RobustConnection
@@ -225,6 +226,9 @@ async def test_robust_reconnect(
 
                 reader_task.cancel()
                 await asyncio.gather(reader_task, return_exceptions=True)
+
+                with pytest.raises(QueueEmpty):
+                    await queue.get(timeout=0.5)
             finally:
                 await queue.purge()
                 await queue.delete()
