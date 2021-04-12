@@ -5,7 +5,6 @@ from typing import Callable, Type
 from weakref import WeakSet
 
 from aiormq import ChannelLockedResource
-from aiormq.base import task
 from aiormq.connection import parse_bool, parse_int
 
 from .connection import Connection, ConnectionType, connect
