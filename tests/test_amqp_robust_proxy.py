@@ -200,7 +200,13 @@ async def test_robust_reconnect(
 
                     await proxy.disconnect_all()
 
-                    with pytest.raises(ConnectionError):
+                    conection_closed_exceptions = (
+                        ConnectionError,
+                        aiormq.ChannelInvalidStateError
+                    )
+
+                    # noinspection PyTypeChecker
+                    with pytest.raises(conection_closed_exceptions):
                         await read_conn.channel()
 
                 logging.info("Waiting reconnect")
@@ -222,6 +228,7 @@ async def test_robust_reconnect(
                 reader_task.cancel()
                 await asyncio.gather(reader_task, return_exceptions=True)
             finally:
+                await queue.purge()
                 await queue.delete()
 
 
