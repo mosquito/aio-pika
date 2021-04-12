@@ -60,7 +60,7 @@ def create_direct_connection(loop, amqp_direct_url):
            name=amqp_direct_url.query['name'] + "::direct"
         ),
         loop=loop
-   )
+    )
 
 
 @pytest.fixture
