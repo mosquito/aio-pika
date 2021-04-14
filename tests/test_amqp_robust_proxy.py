@@ -6,9 +6,11 @@ from typing import Callable, Type
 
 import aiomisc
 import aiormq.exceptions
+import async_timeout
 import pytest
 import shortuuid
 from aiomisc_pytest.pytest_plugin import TCPProxy
+from aiormq import Connection
 from async_generator import async_generator, yield_
 from yarl import URL
 
@@ -34,17 +36,13 @@ async def proxy(tcp_proxy: Type[TCPProxy], amqp_direct_url: URL):
 
 @pytest.fixture
 def amqp_url(amqp_direct_url, proxy: TCPProxy):
-    url = amqp_direct_url.with_host(
+    return amqp_direct_url.with_host(
         proxy.proxy_host
     ).with_port(
         proxy.proxy_port
     ).update_query(
         reconnect_interval=1
     )
-
-    print(url)
-
-    return url
 
 
 @pytest.fixture
@@ -364,3 +362,42 @@ async def test_robust_duplicate_queue(
         await asyncio.sleep(0.1)
 
     assert len(shared) == 10
+
+
+async def test_channel_reconnect(
+    connection_fabric, loop, amqp_url, proxy: TCPProxy, add_cleanup: Callable,
+):
+    drop_packets = False
+
+    async def processor(body: bytes) -> bytes:
+        return body if not drop_packets else b""
+
+    proxy.set_content_processors(read=processor, write=processor)
+
+    heartbeat = 1
+    amqp_url.update_query(heartbeat=heartbeat)
+
+    conn = await connection_fabric(amqp_url, loop=loop)
+    assert isinstance(conn, aio_pika.RobustConnection)
+
+    async with conn:
+        channel = await conn.channel()
+        assert isinstance(channel, aio_pika.RobustChannel)
+
+        async with channel:
+            await channel.set_qos(0)
+            await channel.set_qos(1)
+
+            drop_packets = True
+            with pytest.raises(asyncio.exceptions.TimeoutError):
+                async with async_timeout.timeout(0.5):
+                    await channel.set_qos(0)
+
+            drop_packets = False
+            # Wait HEARTBEAT_GRACE_MULTIPLIER * 3 to recover state
+            await asyncio.sleep(
+                heartbeat * Connection.HEARTBEAT_GRACE_MULTIPLIER + heartbeat
+            )
+
+            await channel.set_qos(0)
+            await channel.set_qos(1)
