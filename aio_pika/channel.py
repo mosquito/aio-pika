@@ -109,7 +109,7 @@ class Channel(PoolInstance):
     def channel(self) -> aiormq.Channel:
         if self._channel is None:
             raise aiormq.exceptions.ChannelInvalidStateError(
-                "Channel was not opened"
+                "Channel was not opened",
             )
 
         if self.is_closed:
@@ -151,12 +151,12 @@ class Channel(PoolInstance):
         await self.close()
 
     def add_close_callback(
-        self, callback: CloseCallbackType, weak: bool = False
+        self, callback: CloseCallbackType, weak: bool = False,
     ) -> None:
         self._done_callbacks.add(callback, weak=weak)
 
     def remove_close_callback(
-        self, callback: CloseCallbackType
+        self, callback: CloseCallbackType,
     ) -> None:
         self._done_callbacks.remove(callback)
 
