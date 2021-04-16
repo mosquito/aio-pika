@@ -8,7 +8,7 @@ from functools import singledispatch
 from logging import getLogger
 from pprint import pformat
 from typing import (
-    Any, AsyncContextManager, Callable, Dict, Iterable, Optional, Union
+    Any, AsyncContextManager, Callable, Dict, Iterable, Optional, Union,
 )
 from warnings import warn
 
