@@ -9,6 +9,7 @@ import aiormq.exceptions
 import pytest
 import shortuuid
 from aiomisc_pytest.pytest_plugin import TCPProxy
+from pamqp.exceptions import AMQPFrameError
 from yarl import URL
 
 import aio_pika
@@ -195,13 +196,8 @@ async def test_robust_reconnect(
 
                     await proxy.disconnect_all()
 
-                    conection_closed_exceptions = (
-                        ConnectionError,
-                        aiormq.ChannelInvalidStateError
-                    )
-
                     # noinspection PyTypeChecker
-                    with pytest.raises(conection_closed_exceptions):
+                    with pytest.raises(AMQPFrameError):
                         await read_conn.channel()
 
                 logging.info("Waiting reconnect")
