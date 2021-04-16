@@ -6,7 +6,6 @@ from typing import Callable, Type
 
 import aiomisc
 import aiormq.exceptions
-import async_timeout
 import pytest
 import shortuuid
 from aiomisc_pytest.pytest_plugin import TCPProxy
@@ -422,9 +421,8 @@ async def test_channel_reconnect(
             await channel.set_qos(1)
 
             drop_packets = True
-            with pytest.raises(asyncio.exceptions.TimeoutError):
-                async with async_timeout.timeout(0.5):
-                    await channel.set_qos(0)
+            with pytest.raises(asyncio.TimeoutError):
+                await channel.set_qos(0, timeout=0.5)
 
             drop_packets = False
             # Wait HEARTBEAT_GRACE_MULTIPLIER * 3 to recover state
