@@ -105,8 +105,6 @@ class Channel(PoolInstance):
         self._is_closed_by_user = True
         await channel.close()
 
-        self._done_callbacks(exc)
-
     @property
     def channel(self) -> aiormq.Channel:
         if self._channel is None:
