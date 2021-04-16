@@ -5,7 +5,7 @@ from typing import Optional, Union
 from warnings import warn
 
 import aiormq
-import aiormq.types
+import aiormq.abc
 
 from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage
@@ -208,7 +208,7 @@ class Channel(PoolInstance):
         self.channel.on_return_callbacks.add(self._on_return)
         self.channel.closing.add_done_callback(self._done_callbacks)
 
-    def _on_return(self, message: aiormq.types.DeliveredMessage):
+    def _on_return(self, message: aiormq.abc.DeliveredMessage):
         self._return_callbacks(IncomingMessage(message, no_ack=True))
 
     async def reopen(self):

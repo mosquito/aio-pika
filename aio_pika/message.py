@@ -14,7 +14,7 @@ from typing import (
 from warnings import warn
 
 import aiormq
-from aiormq.types import DeliveredMessage
+from aiormq.abc import DeliveredMessage
 
 from .exceptions import MessageProcessError
 

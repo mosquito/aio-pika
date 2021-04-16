@@ -5,7 +5,7 @@ from logging import getLogger
 from typing import Any, Callable, Optional
 
 import aiormq
-from aiormq.types import DeliveredMessage
+from aiormq.abc import DeliveredMessage
 
 from .exceptions import QueueEmpty
 from .exchange import Exchange, ExchangeParamType
