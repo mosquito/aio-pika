@@ -208,7 +208,7 @@ class Exchange:
         mandatory: bool = True,
         immediate: bool = False,
         timeout: TimeoutType = None
-    ) -> Optional[aiormq.types.ConfirmationFrameType]:
+    ) -> Optional[aiormq.abc.ConfirmationFrameType]:
 
         """ Publish the message to the queue. `aio-pika` uses
         `publisher confirms`_ extension for message delivery.
