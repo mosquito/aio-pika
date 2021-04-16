@@ -9,7 +9,6 @@ import aiormq.exceptions
 import pytest
 import shortuuid
 from aiomisc_pytest.pytest_plugin import TCPProxy
-from aiormq import Connection
 from async_generator import async_generator, yield_
 from pamqp.exceptions import AMQPFrameError
 from yarl import URL
@@ -38,12 +37,12 @@ async def proxy(tcp_proxy: Type[TCPProxy], amqp_direct_url: URL):
 @pytest.fixture
 def amqp_url(amqp_direct_url, proxy: TCPProxy):
     return amqp_direct_url.with_host(
-        proxy.proxy_host
+        proxy.proxy_host,
     ).with_port(
-        proxy.proxy_port
+        proxy.proxy_port,
     ).update_query(
         reconnect_interval=1,
-        heartbeat=1
+        heartbeat=1,
     )
 
 
@@ -62,9 +61,9 @@ def create_direct_connection(loop, amqp_direct_url):
     return partial(
         aio_pika.connect,
         amqp_direct_url.update_query(
-           name=amqp_direct_url.query['name'] + "::direct"
+           name=amqp_direct_url.query["name"] + "::direct",
         ),
-        loop=loop
+        loop=loop,
     )
 
 
@@ -146,7 +145,7 @@ async def test_robust_reconnect(
 
     reconnect_event = asyncio.Event()
     read_conn.reconnect_callbacks.add(
-        lambda *_: reconnect_event.set(), weak=False
+        lambda *_: reconnect_event.set(), weak=False,
     )
 
     assert isinstance(read_conn, aio_pika.RobustConnection)
@@ -163,9 +162,11 @@ async def test_robust_reconnect(
             shared = []
 
             # Declaring temporary queue
-            queue = await write_channel.declare_queue(qname,
-                                                      auto_delete=False,
-                                                      durable=True)
+            queue = await write_channel.declare_queue(
+                qname,
+                auto_delete=False,
+                durable=True,
+            )
 
             consumer_event = asyncio.Event()
 
@@ -258,7 +259,7 @@ async def test_channel_close_when_exclusive_queue(
 
     reconnect_event = asyncio.Event()
     proxy_conn.reconnect_callbacks.add(
-        lambda *_: reconnect_event.set(), weak=False
+        lambda *_: reconnect_event.set(), weak=False,
     )
 
     qname = get_random_name("robust", "exclusive", "queue")
@@ -274,7 +275,7 @@ async def test_channel_close_when_exclusive_queue(
 
     logging.info("Declaring exclusive queue through direct channel")
     await direct_channel.declare_queue(
-        qname, exclusive=True, durable=True
+        qname, exclusive=True, durable=True,
     )
 
     async def close_after(delay, closer):
@@ -352,7 +353,7 @@ async def test_robust_duplicate_queue(
 
     reconnect_event = asyncio.Event()
     connection.reconnect_callbacks.add(
-        lambda *_: reconnect_event.set(), weak=False
+        lambda *_: reconnect_event.set(), weak=False,
     )
 
     shared = []

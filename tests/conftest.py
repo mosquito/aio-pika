@@ -9,11 +9,11 @@ import aiormq
 import pamqp
 import pytest
 from aiomisc import awaitable
+from aiormq.connection import DEFAULT_PORTS
 from async_generator import async_generator, yield_
 from yarl import URL
 
 import aio_pika
-from aiormq.connection import DEFAULT_PORTS
 
 
 @pytest.fixture
@@ -80,7 +80,7 @@ def amqp_direct_url(request) -> URL:
 @pytest.fixture
 def amqp_url(request, amqp_direct_url) -> URL:
     query = dict(amqp_direct_url.query)
-    query['name'] = request.node.nodeid
+    query["name"] = request.node.nodeid
     return amqp_direct_url.with_query(**query)
 
 

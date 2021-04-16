@@ -417,7 +417,7 @@ class QueueIterator:
     def __repr__(self):
         return "<{}: queue={!r} ctag={!r}>".format(
             self.__class__.__name__, self._amqp_queue.name,
-            self._consumer_tag
+            self._consumer_tag,
         )
 
     def __init__(self, queue: Queue, **kwargs):
@@ -455,7 +455,7 @@ class QueueIterator:
         try:
             return await asyncio.wait_for(
                 self._queue.get(),
-                timeout=self._consume_kwargs.get('timeout')
+                timeout=self._consume_kwargs.get("timeout"),
             )
         except KeyboardInterrupt:
             raise

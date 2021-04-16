@@ -92,7 +92,7 @@ class RobustConnection(Connection):
         )
 
     def add_reconnect_callback(
-        self, callback: Callable[[], None], weak: bool = False
+        self, callback: Callable[[], None], weak: bool = False,
     ):
         """ Add callback which will be called after reconnect.
 

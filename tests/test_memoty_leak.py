@@ -2,6 +2,7 @@ import gc
 import weakref
 
 import pytest
+
 import aio_pika
 
 

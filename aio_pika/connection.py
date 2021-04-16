@@ -71,7 +71,7 @@ class Connection(PoolInstance):
         return '<{0}: "{1}">'.format(self.__class__.__name__, str(self))
 
     def add_close_callback(
-        self, callback: CloseCallbackType, weak: bool = False
+        self, callback: CloseCallbackType, weak: bool = False,
     ):
         """ Add callback which will be called after connection will be closed.
 
