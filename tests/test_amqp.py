@@ -45,7 +45,6 @@ class TestCaseAmqpBase:
 class TestCaseAmqp(TestCaseAmqpBase):
     async def test_properties(self, loop, connection: aio_pika.Connection):
         assert not connection.is_closed
-        assert connection.heartbeat_last < loop.time()
 
     async def test_channel_close(self, connection: aio_pika.Connection):
         event = asyncio.Event()
