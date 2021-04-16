@@ -97,8 +97,6 @@ class Channel(PoolInstance):
         self._closed = True
         await channel.close()
 
-        self._done_callbacks(exc)
-
     @property
     def channel(self) -> aiormq.Channel:
         if self._channel is None:
@@ -191,6 +189,7 @@ class Channel(PoolInstance):
             )
 
         self.channel.on_return_callbacks.add(self._on_return)
+        self.channel.closing.add_done_callback(self._done_callbacks)
 
     def _on_return(self, message: aiormq.abc.DeliveredMessage):
         self._return_callbacks(IncomingMessage(message, no_ack=True))
