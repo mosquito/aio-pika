@@ -11,16 +11,13 @@ from aiormq.exceptions import (
 )
 
 
-PAMQP_EXCEPTIONS = (pamqp.exceptions.PAMQPException,) + tuple(
-    pamqp.exceptions.CLASS_MAPPING.values(),
-)
-
 CONNECTION_EXCEPTIONS = (
-    RuntimeError,
+    AMQPError,
     ConnectionError,
     OSError,
-    AMQPError,
-) + PAMQP_EXCEPTIONS
+    RuntimeError,
+    pamqp.exceptions.PAMQPException,
+)
 
 
 class MessageProcessError(AMQPError):

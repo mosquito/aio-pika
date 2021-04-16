@@ -3,18 +3,18 @@ import json
 import time
 from collections.abc import Mapping
 from datetime import datetime, timedelta
-from decimal import Decimal
 from enum import IntEnum, unique
 from functools import singledispatch
 from logging import getLogger
 from pprint import pformat
 from typing import (
-    Any, AsyncContextManager, Callable, Dict, Iterable, Optional, Union,
+    Any, AsyncContextManager, Callable, Dict, Iterable, Optional, Union
 )
 from warnings import warn
 
 import aiormq
 from aiormq.abc import DeliveredMessage
+from pamqp.common import FieldTable
 
 from .exceptions import MessageProcessError
 
@@ -144,16 +144,9 @@ def optional(value, func: Callable[[Any], Any] = str, default=None):
     return func(value) if value else default
 
 
-HeadersValueType = Union[
-    bool, int, Decimal, float, str, dict, list,
-    bytearray, time.struct_time, datetime,
-]
-HeadersType = Dict[str, HeadersValueType]
-
-
 class HeaderProxy(Mapping):
-    def __init__(self, headers: HeadersType):
-        self._headers: HeadersType = headers
+    def __init__(self, headers: FieldTable):
+        self._headers: FieldTable = headers
         self._cache: Dict[str, Any] = {}
 
     def __getitem__(self, k):
