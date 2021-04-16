@@ -82,7 +82,8 @@ class RobustChannel(Channel):
         else:
             log.debug("Robust channel %r has been closed.", sender)
 
-        self.loop.create_task(self.reopen())
+        if not self._closed:
+            self.loop.create_task(self.reopen())
 
     async def initialize(self, timeout: TimeoutType = None) -> None:
         await super().initialize(timeout)

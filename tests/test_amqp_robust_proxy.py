@@ -406,8 +406,8 @@ async def test_channel_reconnect(
 
     proxy.set_content_processors(read=processor, write=processor)
 
-    heartbeat = 1
-    amqp_url.update_query(heartbeat=heartbeat)
+    heartbeat = 2
+    amqp_url = amqp_url.update_query(heartbeat=heartbeat)
 
     conn = await connection_fabric(amqp_url, loop=loop)
     assert isinstance(conn, aio_pika.RobustConnection)
@@ -425,10 +425,7 @@ async def test_channel_reconnect(
                 await channel.set_qos(0, timeout=0.5)
 
             drop_packets = False
-            # Wait HEARTBEAT_GRACE_MULTIPLIER * 3 to recover state
-            await asyncio.sleep(
-                heartbeat * Connection.HEARTBEAT_GRACE_MULTIPLIER + heartbeat
-            )
-
+            # Wait less then heartbeat * HEARTBEAT_GRACEFUL_PERIOD
+            await asyncio.sleep(heartbeat)
             await channel.set_qos(0)
             await channel.set_qos(1)

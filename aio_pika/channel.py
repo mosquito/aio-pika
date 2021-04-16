@@ -100,7 +100,9 @@ class Channel(PoolInstance):
     @property
     def channel(self) -> aiormq.Channel:
         if self._channel is None:
-            raise RuntimeError("Channel was not opened")
+            raise aiormq.exceptions.ChannelInvalidStateError(
+                "Channel was not opened"
+            )
 
         return self._channel
 
