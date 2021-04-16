@@ -54,7 +54,7 @@ class Queue:
 
     @property
     def __channel(self) -> aiormq.Channel:
-        if self.channel is None or self.channel.channel is None:
+        if self.channel is None or self.channel.is_closed:
             raise RuntimeError("Channel not opened")
         return self.channel.channel
 
@@ -381,7 +381,6 @@ class Queue:
 
 
 class QueueIterator:
-    # @shield
     async def close(self):
         log.debug("Cancelling queue iterator %r", self)
 
@@ -457,8 +456,6 @@ class QueueIterator:
                 self._queue.get(),
                 timeout=self._consume_kwargs.get("timeout"),
             )
-        except KeyboardInterrupt:
-            raise
         except asyncio.CancelledError:
             await self.close()
             raise
