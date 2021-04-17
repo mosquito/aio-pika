@@ -87,12 +87,13 @@ async def test_set_qos(channel: aio_pika.Channel):
     await channel.set_qos(prefetch_count=1)
 
 
-async def test_revive_passive_queue_on_reconnect(create_connection):
-    client1 = await create_connection()
-    assert isinstance(client1, RobustConnection)
+async def test_revive_passive_queue_on_reconnect(
+    create_connection, create_direct_connection, proxy: TCPProxy
+):
+    client = await create_connection()
+    assert isinstance(client, RobustConnection)
 
-    client2 = await create_connection()
-    assert isinstance(client2, RobustConnection)
+    direct_client = await create_direct_connection()
 
     reconnect_event = asyncio.Event()
     reconnect_count = 0
@@ -103,32 +104,31 @@ async def test_revive_passive_queue_on_reconnect(create_connection):
         reconnect_event.set()
         reconnect_event.clear()
 
-    client2.add_reconnect_callback(reconnect_callback)
+    client.add_reconnect_callback(reconnect_callback)
 
     queue_name = get_random_name()
-    channel1 = await client1.channel()
-    assert isinstance(channel1, RobustChannel)
+    channel = await client.channel()
+    assert isinstance(channel, RobustChannel)
 
-    channel2 = await client2.channel()
-    assert isinstance(channel2, RobustChannel)
+    direct_channel = await direct_client.channel()
 
-    queue1 = await channel1.declare_queue(
-        queue_name, auto_delete=False, passive=False,
+    direct_queue = await direct_channel.declare_queue(
+        queue_name, auto_delete=True, passive=False,
     )
-    assert isinstance(queue1, RobustQueue)
 
-    queue2 = await channel2.declare_queue(queue_name, passive=True)
+    queue2 = await channel.declare_queue(
+        direct_queue.name, passive=True, auto_delete=False
+    )
     assert isinstance(queue2, RobustQueue)
 
-    await client2.connection.close(aiormq.AMQPError(320, "Closed"))
-
+    await proxy.disconnect_all()
     await reconnect_event.wait()
 
     assert reconnect_count == 1
 
     with suppress(asyncio.TimeoutError):
         await asyncio.wait_for(
-            reconnect_event.wait(), client2.reconnect_interval * 2,
+            reconnect_event.wait(), client.reconnect_interval * 2,
         )
 
     assert reconnect_count == 1
