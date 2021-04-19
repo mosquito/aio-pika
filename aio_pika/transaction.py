@@ -1,17 +1,11 @@
 import asyncio
-from enum import Enum
 
 import aiormq
 
-
-class TransactionStates(Enum):
-    created = "created"
-    commited = "commited"
-    rolled_back = "rolled back"
-    started = "started"
+from aio_pika.abc import AbstractTransaction, TransactionStates
 
 
-class Transaction:
+class Transaction(AbstractTransaction):
     def __str__(self):
         return self.state.value
 

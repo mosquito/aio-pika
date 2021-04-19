@@ -165,4 +165,4 @@ class CallbackCollection(Set):
                 try:
                     cb(self.__sender(), *args, **kwargs)
                 except Exception:
-                    log.exception("Callback error")
+                    log.exception("Callback %r error", cb)

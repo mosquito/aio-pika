@@ -1,6 +1,6 @@
 from collections import defaultdict
 from logging import getLogger
-from typing import Union
+from typing import DefaultDict, Optional, Set, Type, Union
 from warnings import warn
 
 import aiormq
@@ -20,8 +20,12 @@ log = getLogger(__name__)
 class RobustChannel(Channel):
     """ Channel abstraction """
 
-    QUEUE_CLASS = RobustQueue
-    EXCHANGE_CLASS = RobustExchange
+    QUEUE_CLASS: Type[Queue] = RobustQueue
+    EXCHANGE_CLASS: Type[Exchange] = RobustExchange
+
+    _exchanges: DefaultDict[str, Set[RobustExchange]]
+    _queues: DefaultDict[str, Set[RobustQueue]]
+    default_exchange: Optional[RobustExchange]
 
     def __init__(
         self,
@@ -50,12 +54,13 @@ class RobustChannel(Channel):
 
         self._exchanges = defaultdict(set)
         self._queues = defaultdict(set)
-        self._prefetch_count = 0
-        self._prefetch_size = 0
-        self._global_ = False
-        self.reopen_callbacks = CallbackCollection(self)
+        self._prefetch_count: int = 0
+        self._prefetch_size: int = 0
+        self._global_qos: bool = False
+        self.reopen_callbacks: CallbackCollection = CallbackCollection(self)
 
     async def reopen(self) -> None:
+        log.debug("Reopening channel %r", self)
         await super().reopen()
         await self.restore()
         self.reopen_callbacks()
@@ -64,7 +69,7 @@ class RobustChannel(Channel):
         await self.set_qos(
             prefetch_count=self._prefetch_count,
             prefetch_size=self._prefetch_size,
-            global_=self._global_,
+            global_=self._global_qos,
         )
 
         await self.default_exchange.restore(self)
@@ -77,6 +82,10 @@ class RobustChannel(Channel):
             for queue in queues:
                 await queue.restore(self)
 
+    def _on_initialized(self):
+        self.channel.on_return_callbacks.add(self._on_return)
+        self.add_close_callback(self._on_channel_close)
+
     def _on_channel_close(self, sender, exc: BaseException):
         if not self._is_closed_by_user:
             self.loop.create_task(self.reopen())
@@ -88,10 +97,6 @@ class RobustChannel(Channel):
             return
 
         log.debug("Robust channel %r has been closed.", sender)
-
-    async def initialize(self, timeout: TimeoutType = None) -> None:
-        await super().initialize(timeout)
-        self.add_close_callback(self._on_channel_close)
 
     async def set_qos(
         self,
@@ -107,7 +112,7 @@ class RobustChannel(Channel):
 
         self._prefetch_count = prefetch_count
         self._prefetch_size = prefetch_size
-        self._global_ = global_
+        self._global_qos = global_
 
         return await super().set_qos(
             prefetch_count=prefetch_count,
@@ -127,7 +132,7 @@ class RobustChannel(Channel):
         arguments: dict = None,
         timeout: TimeoutType = None,
         robust: bool = True,
-    ) -> Exchange:
+    ) -> RobustExchange:
         exchange = await super().declare_exchange(
             name=name,
             type=type,

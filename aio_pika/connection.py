@@ -1,14 +1,14 @@
 import asyncio
 import logging
 from functools import partial
-from typing import Optional, Type, TypeVar
+from typing import Dict, Optional, Type, TypeVar
 
 import aiormq
 from aiormq.tools import censor_url
 from yarl import URL
 
+from .abc import AbstractConnection
 from .channel import Channel
-from .pool import PoolInstance
 from .tools import CallbackCollection
 from .types import CloseCallbackType, TimeoutType
 
@@ -16,7 +16,7 @@ from .types import CloseCallbackType, TimeoutType
 log = logging.getLogger(__name__)
 
 
-class Connection(PoolInstance):
+class Connection(AbstractConnection):
     """ Connection abstraction """
 
     CHANNEL_CLASS = Channel
@@ -30,7 +30,10 @@ class Connection(PoolInstance):
         if not self.closing.done():
             self.closing.set_result(exc)
 
-        return await self.connection.close(exc)
+        if self.connection is None:
+            return None
+
+        await self.connection.close(exc)
 
     @classmethod
     def _parse_kwargs(cls, kwargs):
@@ -49,14 +52,15 @@ class Connection(PoolInstance):
 
         self._close_callbacks = CallbackCollection(self)
         self.connection: Optional[aiormq.Connection] = None
-        self.closing = self.loop.create_future()
+        self.ready_event: asyncio.Event = asyncio.Event()
+        self.closing: asyncio.Future = self.loop.create_future()
 
     @property
     def close_callbacks(self) -> CallbackCollection:
         return self._close_callbacks
 
     @property
-    def _channels(self) -> dict:
+    def channels(self) -> Dict[int, aiormq.abc.AbstractChannel]:
         return self.connection.channels
 
     def __str__(self):
@@ -91,16 +95,28 @@ class Connection(PoolInstance):
         """
         self.close_callbacks.add(callback, weak=weak)
 
-    def _on_connection_close(self, connection, closing, *args, **kwargs):
+    def _on_connection_close(
+        self, connection, closing: asyncio.Future,
+        *args, **kwargs
+    ):
+        log.debug("Closing AMQP connection %r", connection)
         exc = closing.exception()
         self.close_callbacks(exc)
-        log.debug("Closing AMQP connection %r", connection)
+
+        if self.closing.done():
+            return
+
+        if closing.exception() is not None:
+            self.closing.set_exception(closing.exception())
+        else:
+            self.closing.set_result(closing.result())
 
     async def _make_connection(self, **kwargs) -> aiormq.Connection:
-        connection = await aiormq.connect(self.url, **kwargs)
+        connection: aiormq.Connection = await aiormq.connect(self.url, **kwargs)
         connection.closing.add_done_callback(
             partial(self._on_connection_close, self.connection),
         )
+        await connection.ready()
         return connection
 
     async def connect(self, timeout: TimeoutType = None, **kwargs):
@@ -112,8 +128,12 @@ class Connection(PoolInstance):
             You shouldn't call it explicitly.
 
         """
-        self.connection = await asyncio.wait_for(
+        self.connection: aiormq.Connection = await asyncio.wait_for(
             self._make_connection(**kwargs), timeout=timeout,
+        )
+        self.ready_event.set()
+        self.connection.closing.add_done_callback(
+            lambda _: self.ready_event.clear(),
         )
 
     def channel(
@@ -188,8 +208,7 @@ class Connection(PoolInstance):
         return channel
 
     async def ready(self):
-        while self.connection is None:
-            await asyncio.sleep(0)
+        await self.ready_event.wait()
 
     def __del__(self):
         if any((self.is_closed, self.loop.is_closed(), not self.connection)):
@@ -201,7 +220,7 @@ class Connection(PoolInstance):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        for channel in tuple(self._channels.values()):  # can change size
+        for channel in tuple(self.channels.values()):  # can change size
             if channel and not channel.is_closed:
                 await channel.close()
 

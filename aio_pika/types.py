@@ -1,9 +1,11 @@
-from typing import Any, Callable, Optional, Union
+import warnings
 
-import aiormq.abc
+from .abc import *  # noqa
 
 
-Sender = Any
-ReturnCallbackType = Callable[[Sender, aiormq.abc.DeliveredMessage], Any]
-CloseCallbackType = Callable[[Sender, Optional[BaseException]], None]
-TimeoutType = Union[int, float]
+warnings.warn(
+    "aio_pika.types was deprecated and will be removed in "
+    "one of next major releases. Use aio_pika.abc instead.",
+    category=DeprecationWarning,
+    stacklevel=2,
+)

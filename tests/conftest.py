@@ -10,7 +10,6 @@ import pamqp
 import pytest
 from aiomisc import awaitable
 from aiormq.connection import DEFAULT_PORTS
-from async_generator import async_generator, yield_
 from yarl import URL
 
 import aio_pika
