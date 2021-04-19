@@ -381,7 +381,7 @@ class Queue:
 
 
 class QueueIterator:
-    async def close(self):
+    async def close(self, *_):
         log.debug("Cancelling queue iterator %r", self)
 
         if not self._consumer_tag:
@@ -393,22 +393,25 @@ class QueueIterator:
             return
 
         log.debug("Basic.cancel for %r", self._consumer_tag)
-
-        await self._amqp_queue.cancel(self._consumer_tag)
+        consumer_tag = self._consumer_tag
         self._consumer_tag = None
+
+        await self._amqp_queue.cancel(consumer_tag)
         self._amqp_queue.channel.remove_close_callback(self.close)
 
-        def get_msg():
-            try:
-                return self._queue.get_nowait()
-            except asyncio.QueueEmpty:
-                return
+        log.debug("Queue iterator %r closed", self)
+
+        def queue_tail(channel: aiormq.Channel):
+            while not channel.closing.done():
+                try:
+                    yield self._queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    raise StopIteration
 
         # Reject all messages
-        msg: IncomingMessage = get_msg()
-        while msg and not self._amqp_queue.channel.closing.done():
+        msg: IncomingMessage
+        for msg in queue_tail(self._amqp_queue.channel.channel):
             await msg.reject(requeue=True)
-            msg = get_msg()
 
     def __str__(self):
         return "queue[%s](...)" % self._amqp_queue.name

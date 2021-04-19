@@ -1,15 +1,14 @@
 import asyncio
-from enum import Enum, unique
 from logging import getLogger
-from typing import Optional, Union
+from typing import Optional, Type, Union
 from warnings import warn
 
 import aiormq
 import aiormq.abc
 
+from .abc import AbstractChannel
 from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage
-from .pool import PoolInstance
 from .queue import Queue
 from .tools import CallbackCollection
 from .transaction import Transaction
@@ -19,17 +18,11 @@ from .types import CloseCallbackType, ReturnCallbackType, TimeoutType
 log = getLogger(__name__)
 
 
-@unique
-class ConfirmationTypes(Enum):
-    ACK = "ack"
-    NACK = "nack"
-
-
-class Channel(PoolInstance):
+class Channel(AbstractChannel):
     """ Channel abstraction """
 
-    QUEUE_CLASS = Queue
-    EXCHANGE_CLASS = Exchange
+    QUEUE_CLASS: Type[Queue] = Queue
+    EXCHANGE_CLASS: Type[Exchange] = Exchange
 
     def __init__(
         self,
@@ -56,50 +49,50 @@ class Channel(PoolInstance):
 
         self.loop = connection.loop
 
-        self._connection = connection
-        self._done_callbacks = CallbackCollection(self)
-        self._return_callbacks = CallbackCollection(self)
-        self._channel: Optional[aiormq.Channel] = None
+        self._channel: aiormq.Channel
         self._channel_number = channel_number
+
+        self.connection = connection
+        self._close_callbacks = CallbackCollection(self)
+        self._return_callbacks = CallbackCollection(self)
+
         self._on_return_raises = on_return_raises
         self._publisher_confirms = publisher_confirms
 
         self._delivery_tag = 0
         self._closed: bool = False
 
-        # noinspection PyTypeChecker
-        self.default_exchange = None  # type: Optional[Exchange]
+        self.default_exchange: Optional[Exchange] = None
 
     @property
     def done_callbacks(self) -> CallbackCollection:
-        return self._done_callbacks
+        return self._close_callbacks
 
     @property
     def return_callbacks(self) -> CallbackCollection:
         return self._return_callbacks
 
     @property
+    def is_opened(self):
+        return hasattr(self, "_channel")
+
+    @property
     def is_closed(self):
-        if not self._channel:
-            return True
-        return self.channel.is_closed
+        return self._closed
 
     async def close(self, exc=None):
-        if not self._channel:
+        if self.is_closed:
             log.warning("Channel already closed")
             return
 
-        if self.channel.is_closed:
-            return
-
         channel: aiormq.Channel = self._channel
-        self._channel = None
+        del self._channel
         self._closed = True
         await channel.close()
 
     @property
     def channel(self) -> aiormq.Channel:
-        if self._channel is None:
+        if not self.is_opened:
             raise aiormq.exceptions.ChannelInvalidStateError(
                 "Channel was not opened",
             )
@@ -107,19 +100,21 @@ class Channel(PoolInstance):
         return self._channel
 
     @property
-    def number(self):
-        return self.channel.number if self._channel else None
+    def number(self) -> Optional[int]:
+        if self.is_opened:
+            return self.channel.number
+        return self._channel_number
 
     def __str__(self):
-        return "{0}".format(self.number or "Not initialized channel")
+        return "{}".format(self.number or "Not initialized channel")
 
     def __repr__(self):
         conn = None
 
-        if self._channel:
+        if self.is_opened:
             conn = self._channel.connection
 
-        return '<%s "%s#%s">' % (self.__class__.__name__, conn, self)
+        return '<%s #%s "%s">' % (self.__class__.__name__, self, conn)
 
     def __iter__(self):
         return (yield from self.__await__())
@@ -129,9 +124,8 @@ class Channel(PoolInstance):
         return self
 
     async def __aenter__(self):
-        if not self._channel:
+        if not hasattr(self, "_channel"):
             await self.initialize()
-
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -140,12 +134,12 @@ class Channel(PoolInstance):
     def add_close_callback(
         self, callback: CloseCallbackType, weak: bool = False,
     ) -> None:
-        self._done_callbacks.add(callback, weak=weak)
+        self._close_callbacks.add(callback, weak=weak)
 
     def remove_close_callback(
         self, callback: CloseCallbackType,
     ) -> None:
-        self._done_callbacks.remove(callback)
+        self._close_callbacks.remove(callback)
 
     def add_on_return_callback(
         self, callback: ReturnCallbackType, weak: bool = False,
@@ -156,30 +150,30 @@ class Channel(PoolInstance):
         self._return_callbacks.remove(callback)
 
     async def _create_channel(self) -> aiormq.Channel:
-        await self._connection.ready()
+        await self.connection.ready()
 
-        return await self._connection.connection.channel(
+        return await self.connection.connection.channel(
             publisher_confirms=self._publisher_confirms,
             on_return_raises=self._on_return_raises,
             channel_number=self._channel_number,
         )
 
     async def initialize(self, timeout: TimeoutType = None) -> None:
-        if self._channel is not None:
+        if self.is_opened:
             raise RuntimeError("Already initialized")
-
-        if self._closed:
+        elif self._closed:
             raise RuntimeError("Can't initialize closed channel")
 
-        self._channel = await asyncio.wait_for(
+        channel: aiormq.Channel = await asyncio.wait_for(
             self._create_channel(), timeout=timeout,
         )
 
+        self._channel = channel
         self._delivery_tag = 0
 
         if self.default_exchange is None:
             self.default_exchange = self.EXCHANGE_CLASS(
-                connection=self._connection,
+                connection=self.connection,
                 channel=self.channel,
                 arguments=None,
                 auto_delete=None,
@@ -190,14 +184,19 @@ class Channel(PoolInstance):
                 type=ExchangeType.DIRECT,
             )
 
-        self.channel.on_return_callbacks.add(self._on_return)
-        self.channel.closing.add_done_callback(self._done_callbacks)
+        self._on_initialized()
 
-    def _on_return(self, message: aiormq.abc.DeliveredMessage):
+    def _on_initialized(self):
+        self.channel.on_return_callbacks.add(self._on_return)
+        self.channel.closing.add_done_callback(self._close_callbacks)
+
+    async def _on_return(self, message: aiormq.abc.DeliveredMessage):
         self._return_callbacks(IncomingMessage(message, no_ack=True))
 
     async def reopen(self):
-        self._channel = None
+        if hasattr(self, "_channel"):
+            del self._channel
+
         self._closed = False
         await self.initialize()
 
@@ -211,7 +210,7 @@ class Channel(PoolInstance):
         passive: bool = False,
         arguments: dict = None,
         timeout: TimeoutType = None,
-    ) -> Exchange:
+    ) -> EXCHANGE_CLASS:
         """
         Declare an exchange.
 
@@ -236,7 +235,7 @@ class Channel(PoolInstance):
             durable = False
 
         exchange = self.EXCHANGE_CLASS(
-            connection=self._connection,
+            connection=self.connection,
             channel=self.channel,
             name=name,
             type=type,
@@ -275,7 +274,7 @@ class Channel(PoolInstance):
             return await self.declare_exchange(name=name, passive=True)
         else:
             return self.EXCHANGE_CLASS(
-                connection=self._connection,
+                connection=self.connection,
                 channel=self.channel,
                 name=name,
                 durable=None,
@@ -295,7 +294,7 @@ class Channel(PoolInstance):
         auto_delete: bool = False,
         arguments: dict = None,
         timeout: TimeoutType = None
-    ) -> Queue:
+    ) -> QUEUE_CLASS:
         """
 
         :param name: queue name
@@ -429,4 +428,4 @@ class Channel(PoolInstance):
         log.debug("%r deleted", self)
 
 
-__all__ = ("Channel", "ConfirmationTypes")
+__all__ = ("Channel",)

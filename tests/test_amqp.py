@@ -1274,12 +1274,12 @@ class TestCaseAmqp(TestCaseAmqpBase):
     ):
         async with await create_connection() as connection:
 
-            channel2 = await self.create_channel(connection)
+            channel = await self.create_channel(connection)
 
             queue = await declare_queue(
                 get_random_name("queue", "is_async", "for"),
                 auto_delete=True,
-                channel=channel2,
+                channel=channel,
             )
 
             messages = 100
@@ -1310,7 +1310,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
                 map(lambda x: str(x).encode(), range(messages)),
             )
 
-        assert channel2.is_closed
+        assert channel.is_closed
 
     async def test_async_with_channel(self, connection: aio_pika.Connection):
         async with self.create_channel(connection) as channel:

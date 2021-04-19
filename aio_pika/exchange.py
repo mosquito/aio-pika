@@ -5,6 +5,7 @@ from typing import Optional, Union
 
 import aiormq
 
+from .abc import AbstractExchange
 from .message import Message
 from .types import TimeoutType
 
@@ -26,7 +27,7 @@ class ExchangeType(Enum):
 ExchangeParamType = Union["Exchange", str]
 
 
-class Exchange:
+class Exchange(AbstractExchange):
     """ Exchange abstraction """
 
     def __init__(
