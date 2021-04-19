@@ -4,7 +4,6 @@ from logging import getLogger
 from typing import Callable, Type
 from weakref import WeakSet
 
-from aiormq import ChannelLockedResource
 from aiormq.connection import parse_bool, parse_int
 
 from .connection import Connection, ConnectionType, connect
@@ -49,7 +48,6 @@ class RobustConnection(Connection):
         self._reconnect_callbacks = CallbackCollection(self)
         self._connect_lock = asyncio.Lock()
         self._closed = False
-        self.connected = asyncio.Event()
 
     @property
     def reconnecting(self) -> bool:
@@ -60,7 +58,7 @@ class RobustConnection(Connection):
         return self._reconnect_callbacks
 
     @property
-    def _channels(self) -> dict:
+    def channels(self) -> dict:
         return {ch.number: ch for ch in self.__channels}
 
     def __repr__(self):
@@ -72,18 +70,18 @@ class RobustConnection(Connection):
         if self.reconnecting:
             return
 
-        self.connected.clear()
+        self.ready_event.clear()
         self.connection = None
 
-        super()._on_connection_close(connection, closing)
+        log.debug("Closing AMQP connection %r", connection)
+        exc = closing.exception()
 
-        if self._closed:
+        if self.closing.done():
             return
 
         log.info(
             "Connection to %s closed. Reconnecting after %r seconds.",
-            self,
-            self.reconnect_interval,
+            self, self.reconnect_interval,
         )
         self.loop.call_later(
             self.reconnect_interval,
@@ -118,36 +116,24 @@ class RobustConnection(Connection):
             self.connect_kwargs = kwargs
 
         if self.reconnecting:
-            log.warning(
-                "Connect method called but connection %r is "
-                "reconnecting right now.",
-                self,
+            raise asyncio.InvalidStateError(
+                (
+                    "Connect method called but connection "
+                    "{!r} is reconnecting right now."
+                ).format(self), self,
             )
 
         async with self._connect_lock:
-            while True:
+            while not self.closing.done():
                 try:
-                    result = await super().connect(
+                    await super().connect(
                         timeout=timeout, **self.connect_kwargs
                     )
 
-                    for channel in self._channels.values():
-                        while True:
-                            try:
-                                await channel.reopen()
-                            except ChannelLockedResource as e:
-                                if self.fail_fast:
-                                    raise
-
-                                log.warning("Waiting for: %r", e)
-                                await asyncio.sleep(self.CHANNEL_REOPEN_PAUSE)
-                                continue
-                            else:
-                                break
+                    for channel in self.channels.values():
+                        await channel.reopen()
 
                     self.fail_fast = False
-                    self.connected.set()
-                    return result
                 except CONNECTION_EXCEPTIONS as e:
                     if self.fail_fast:
                         raise
@@ -164,7 +150,14 @@ class RobustConnection(Connection):
                 except asyncio.CancelledError as e:
                     await self.__cleanup_connection(e)
                     raise
+                else:
+                    self.ready_event.set()
+                    return
 
+                log.info(
+                    "Reconnect attempt failed %s. Retrying after %r seconds.",
+                    self, self.reconnect_interval,
+                )
                 await asyncio.sleep(self.reconnect_interval)
 
     async def reconnect(self):

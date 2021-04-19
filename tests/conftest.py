@@ -10,14 +10,12 @@ import pamqp
 import pytest
 from aiomisc import awaitable
 from aiormq.connection import DEFAULT_PORTS
-from async_generator import async_generator, yield_
 from yarl import URL
 
 import aio_pika
 
 
 @pytest.fixture
-@async_generator
 async def add_cleanup(loop):
     entities = []
 
@@ -27,7 +25,7 @@ async def add_cleanup(loop):
         entities.append(func)
 
     try:
-        await yield_(payload)
+        yield payload
     finally:
         for func in entities[::-1]:
             await func()
@@ -36,7 +34,6 @@ async def add_cleanup(loop):
 
 
 @pytest.fixture
-@async_generator
 async def create_task(loop):
     tasks = []
 
@@ -47,7 +44,7 @@ async def create_task(loop):
         return task
 
     try:
-        await yield_(payload)
+        yield payload
     finally:
         cancelled = []
         for task in tasks:
@@ -119,18 +116,16 @@ def create_channel(connection: aio_pika.Connection, add_cleanup):
 
 # noinspection PyTypeChecker
 @pytest.fixture
-@async_generator
 async def connection(create_connection) -> aio_pika.Connection:
     async with await create_connection() as conn:
-        await yield_(conn)
+        yield conn
 
 
 # noinspection PyTypeChecker
 @pytest.fixture
-@async_generator
 async def channel(connection: aio_pika.Connection) -> aio_pika.Channel:
     async with connection.channel() as ch:
-        await yield_(ch)
+        yield ch
 
 
 @pytest.fixture

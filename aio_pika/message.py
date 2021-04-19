@@ -13,9 +13,12 @@ from typing import (
 from warnings import warn
 
 import aiormq
-from aiormq.abc import DeliveredMessage
-from pamqp.common import FieldTable
+from aiormq.abc import DeliveredMessage, FieldTable
 
+from .abc import (
+    MILLISECONDS, ZERO_TIME, AbstractIncomingMessage, AbstractMessage,
+    AbstractProcessContext, HeadersType,
+)
 from .exceptions import MessageProcessError
 
 
@@ -30,8 +33,6 @@ class DeliveryMode(IntEnum):
 
 
 DateType = Union[int, datetime, float, timedelta, None]
-
-MILLISECONDS = 1000
 
 
 def to_milliseconds(seconds):
@@ -57,15 +58,12 @@ def _(value):
 
 @encode_expiration.register(timedelta)
 def _(value):
-    return str(int(value.total_seconds() * 1000))
+    return str(int(value.total_seconds() * MILLISECONDS))
 
 
 @encode_expiration.register(type(None))
 def _(_):
     return None
-
-
-ZERO_TIME = datetime.utcfromtimestamp(0)
 
 
 @singledispatch
@@ -205,7 +203,7 @@ def _(v: Iterable):
     return header_converter(list(v))
 
 
-def format_headers(d: Dict[str, Any]) -> Dict[str, bytes]:
+def format_headers(d: Dict[str, Any]) -> FieldTable:
     ret = {}
 
     if not d:
@@ -216,7 +214,7 @@ def format_headers(d: Dict[str, Any]) -> Dict[str, bytes]:
     return ret
 
 
-class Message:
+class Message(AbstractMessage):
     """ AMQP message abstraction """
 
     __slots__ = (
@@ -243,19 +241,19 @@ class Message:
         self,
         body: bytes,
         *,
-        headers: dict = None,
-        content_type: str = None,
-        content_encoding: str = None,
+        headers: HeadersType = None,
+        content_type: Optional[str] = None,
+        content_encoding: Optional[str] = None,
         delivery_mode: DeliveryMode = None,
-        priority: int = None,
-        correlation_id=None,
-        reply_to: str = None,
-        expiration: DateType = None,
-        message_id: str = None,
-        timestamp: DateType = None,
-        type: str = None,
-        user_id: str = None,
-        app_id: str = None
+        priority: Optional[int] = None,
+        correlation_id: Optional[str] = None,
+        reply_to: Optional[str] = None,
+        expiration: Optional[DateType] = None,
+        message_id: Optional[str] = None,
+        timestamp: Optional[DateType] = None,
+        type: Optional[str] = None,
+        user_id: Optional[str] = None,
+        app_id: Optional[str] = None
     ):
 
         """ Creates a new instance of Message
@@ -407,7 +405,7 @@ class Message:
     def __copy__(self):
         return Message(
             body=self.body,
-            headers=self.headers._headers,
+            headers=self.headers_raw,
             content_encoding=self.content_encoding,
             content_type=self.content_type,
             delivery_mode=self.delivery_mode,
@@ -423,7 +421,7 @@ class Message:
         )
 
 
-class IncomingMessage(Message):
+class IncomingMessage(Message, AbstractIncomingMessage):
     """ Incoming message is seems like Message but has additional methods for
     message acknowledgement.
 
@@ -665,7 +663,7 @@ class ReturnedMessage(IncomingMessage):
     pass
 
 
-class ProcessContext(AsyncContextManager):
+class ProcessContext(AbstractProcessContext):
     def __init__(
         self,
         message: IncomingMessage,
