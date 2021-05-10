@@ -67,7 +67,7 @@ class RobustChannel(Channel):
         await self.default_exchange.restore(self)
 
         for exchanges in self._exchanges.values():
-            for exchange in exchanges:
+            for exchange in exchanges.copy():
                 await exchange.restore(self)
 
         for queues in self._queues.values():
