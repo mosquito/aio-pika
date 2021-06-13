@@ -104,7 +104,7 @@ class Connection(PoolInstance):
     async def _make_connection(self, **kwargs) -> aiormq.Connection:
         connection = await aiormq.connect(self.url, **kwargs)
         connection.closing.add_done_callback(
-            partial(self._on_connection_close, self.connection),
+            partial(self._on_connection_close, connection),
         )
         return connection
 
