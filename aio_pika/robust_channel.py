@@ -75,7 +75,7 @@ class RobustChannel(Channel):
                 await queue.restore(self)
 
     @staticmethod
-    def _on_channel_close(sender, exc: Exception):
+    def _on_channel_close(sender, exc: Exception = None):
         if exc:
             log.exception(
                 "Robust channel %r has been closed.", sender, exc_info=exc,
