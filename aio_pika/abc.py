@@ -1,6 +1,7 @@
 import asyncio
 import time
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum, unique
 from typing import (
@@ -96,13 +97,12 @@ HeadersType = Dict[
 ]
 
 
+@dataclass(frozen=True)
 class AbstractMessage(ABC):
     body: bytes
-    body_size: int
-    headers_raw: aiormq.abc.FieldTable
+    headers: aiormq.abc.FieldTable
     content_type: Optional[str]
     content_encoding: Optional[str]
-    delivery_mode: DeliveryMode
     priority: Optional[int]
     correlation_id: Optional[str]
     reply_to: Optional[str]
@@ -112,24 +112,12 @@ class AbstractMessage(ABC):
     type: Optional[str]
     user_id: Optional[str]
     app_id: Optional[str]
-
-    @property
-    @abstractmethod
-    def headers(self) -> HeadersType:
-        raise NotImplementedError
-
-    @headers.setter
-    @abstractmethod
-    def headers(self, value: HeadersType):
-        raise NotImplementedError
+    delivery_mode: DeliveryMode = field(
+        default_factory=DeliveryMode.NOT_PERSISTENT
+    )
 
     @abstractmethod
     def info(self) -> Dict[str, HeadersValue]:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def locked(self) -> bool:
         raise NotImplementedError
 
     @property
@@ -138,34 +126,36 @@ class AbstractMessage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def __setattr__(self, key: str, value: HeadersValue):
-        raise NotImplementedError
-
-    @abstractmethod
     def __iter__(self) -> Iterable[bytes]:
         raise NotImplementedError
 
-    @abstractmethod
-    def lock(self) -> None:
-        raise NotImplementedError
 
-    def __copy__(self) -> "AbstractMessage":
-        raise NotImplementedError
-
-
-class AbstractIncomingMessage(AbstractMessage, ABC):
-    cluster_id: Optional[str]
-    consumer_tag: Optional["ConsumerTag"]
-    delivery_tag: Optional[str]
-    redelivered: bool
-    message_count: Optional[int]
-    routing_key: str
-    exchange: str
-
-    @property
-    @abstractmethod
-    def channel(self):
-        raise NotImplementedError
+@dataclass(frozen=True)
+class AbstractIncomingMessage(ABC):
+    body: bytes
+    headers: aiormq.abc.FieldTable
+    content_type: Optional[str]
+    content_encoding: Optional[str]
+    priority: Optional[int]
+    correlation_id: Optional[str]
+    reply_to: Optional[str]
+    expiration: Optional[DateType]
+    message_id: Optional[str]
+    timestamp: Optional[time.struct_time]
+    type: Optional[str]
+    user_id: Optional[str]
+    app_id: Optional[str]
+    delivery_mode: DeliveryMode
+    cluster_id: Optional[str] = field()
+    consumer_tag: Optional[ConsumerTag] = field()
+    delivery_tag: Optional[int] = field()
+    redelivered: bool = field()
+    message_count: Optional[int] = field()
+    routing_key: str = field()
+    exchange: str = field()
+    channel: aiormq.Channel = field()
+    no_ack: bool = field()
+    processed_future: asyncio.Future = field(default_factory=asyncio.Future)
 
     @abstractmethod
     def process(
@@ -173,7 +163,7 @@ class AbstractIncomingMessage(AbstractMessage, ABC):
         requeue=False,
         reject_on_redelivered=False,
         ignore_processed=False,
-    ) -> "AbstractProcessContext":
+    ) -> AsyncContextManager["AbstractIncomingMessage"]:
         raise NotImplementedError
 
     @abstractmethod
@@ -194,16 +184,6 @@ class AbstractIncomingMessage(AbstractMessage, ABC):
     @property
     @abstractmethod
     def processed(self):
-        raise NotImplementedError
-
-
-class AbstractProcessContext(AsyncContextManager):
-    @abstractmethod
-    async def __aenter__(self) -> AbstractIncomingMessage:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
         raise NotImplementedError
 
 

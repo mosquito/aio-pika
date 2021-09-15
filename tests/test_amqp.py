@@ -427,8 +427,6 @@ class TestCaseAmqp(TestCaseAmqpBase):
             async with incoming_message.process(requeue=True):
                 raise AssertionError
 
-        assert incoming_message.locked
-
         incoming_message = await queue.get(timeout=5)
 
         async with incoming_message.process():
@@ -446,8 +444,6 @@ class TestCaseAmqp(TestCaseAmqpBase):
         with pytest.raises(MessageProcessError):
             async with incoming_message.process():
                 incoming_message.reject(requeue=True)
-
-        assert incoming_message.locked
 
         incoming_message = await queue.get(timeout=5)
 
@@ -474,8 +470,6 @@ class TestCaseAmqp(TestCaseAmqpBase):
                 requeue=True, reject_on_redelivered=True,
             ):
                 raise AssertionError
-
-        assert incoming_message.locked
 
     async def test_context_process_redelivery(
         self,

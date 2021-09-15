@@ -6,11 +6,11 @@ from weakref import WeakSet
 
 from aiormq.connection import parse_bool, parse_int
 
+from .abc import TimeoutType
 from .connection import Connection, ConnectionType, connect
 from .exceptions import CONNECTION_EXCEPTIONS
 from .robust_channel import RobustChannel
 from .tools import CallbackCollection
-from .types import TimeoutType
 
 
 log = getLogger(__name__)

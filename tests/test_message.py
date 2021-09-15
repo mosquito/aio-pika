@@ -7,21 +7,6 @@ import shortuuid
 from aio_pika import DeliveryMode, Message
 
 
-def test_message_copy():
-    msg1 = Message(
-        bytes(shortuuid.uuid(), "utf-8"),
-        content_type="application/json",
-        content_encoding="text",
-        timestamp=datetime(2000, 1, 1),
-        headers={"h1": "v1", "h2": "v2"},
-    )
-    msg2 = copy(msg1)
-
-    msg1.lock()
-
-    assert not msg2.locked
-
-
 def test_message_info():
     body = bytes(shortuuid.uuid(), "utf-8")
 

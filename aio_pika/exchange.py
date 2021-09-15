@@ -5,9 +5,8 @@ from typing import Optional, Union
 
 import aiormq
 
-from .abc import AbstractExchange
+from .abc import AbstractExchange, TimeoutType
 from .message import Message
-from .types import TimeoutType
 
 
 log = getLogger(__name__)

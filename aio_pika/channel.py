@@ -6,13 +6,14 @@ from warnings import warn
 import aiormq
 import aiormq.abc
 
-from .abc import AbstractChannel
+from .abc import (
+    AbstractChannel, CloseCallbackType, ReturnCallbackType, TimeoutType
+)
 from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage
 from .queue import Queue
 from .tools import CallbackCollection
 from .transaction import Transaction
-from .types import CloseCallbackType, ReturnCallbackType, TimeoutType
 
 
 log = getLogger(__name__)
@@ -87,7 +88,6 @@ class Channel(AbstractChannel):
 
         channel: aiormq.Channel = self._channel
         del self._channel
-        self._closed = True
         await channel.close()
 
     @property
@@ -186,11 +186,19 @@ class Channel(AbstractChannel):
 
         self._on_initialized()
 
+        def on_close(*_):
+            self._closed = True
+
+            if hasattr(self, "_channel"):
+                del self._channel
+
+        self.add_close_callback(on_close)
+
     def _on_initialized(self):
         self.channel.on_return_callbacks.add(self._on_return)
         self.channel.closing.add_done_callback(self._close_callbacks)
 
-    async def _on_return(self, message: aiormq.abc.DeliveredMessage):
+    def _on_return(self, message: aiormq.abc.DeliveredMessage):
         self._return_callbacks(IncomingMessage(message, no_ack=True))
 
     async def reopen(self):
