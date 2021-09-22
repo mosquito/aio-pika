@@ -215,6 +215,12 @@ class Exchange:
 
         .. _publisher confirms: https://www.rabbitmq.com/confirms.html
 
+        :param message: :class:`aio_pika.message.Message` instance
+        :param routing_key: routing key
+        :param mandatory: Indicate mandatory routing in the underlying pamqp `spec.Basic.publish() <https://pamqp.readthedocs.io/en/stable/commands.html#pamqp.commands.Basic.Publish>`_ call
+        :param immediate: Request immediate delivery
+        :param timeout: Asyncio timeout
+        :return: :class:`None`
         """
 
         log.debug(
