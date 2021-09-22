@@ -220,7 +220,7 @@ class Exchange:
         :param mandatory: Indicate mandatory routing in the underlying pamqp `spec.Basic.publish() <https://pamqp.readthedocs.io/en/stable/commands.html#pamqp.commands.Basic.Publish>`_ call
         :param immediate: Request immediate delivery
         :param timeout: Asyncio timeout
-        :return: :class:`None`
+        :return: :class:`bool` or :class:`None`
         """
 
         log.debug(
