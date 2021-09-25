@@ -141,11 +141,11 @@ class RobustConnection(Connection):
                     await self.__cleanup_connection(e)
 
                     log.warning(
-                        'Connection attempt to "%s" failed. '
+                        'Connection attempt to "%s" failed: %s. '
                         "Reconnecting after %r seconds.",
                         self,
+                        e,
                         self.reconnect_interval,
-                        exc_info=True,
                     )
                 except asyncio.CancelledError as e:
                     await self.__cleanup_connection(e)
