@@ -242,7 +242,7 @@ class Message:
 
     def __init__(
         self,
-        body: bytes,
+        body: Union[bytes, str],
         *,
         headers: dict = None,
         content_type: str = None,
@@ -279,7 +279,8 @@ class Message:
         """
 
         self.__lock = False
-        self.body = body if isinstance(body, bytes) else bytes(body)
+
+        self.body = Message._prepare_msg_body(body)
         self.body_size = len(self.body) if self.body else 0
         self.headers_raw = format_headers(headers)
         self._headers = HeaderProxy(self.headers_raw)
@@ -307,6 +308,20 @@ class Message:
     @headers.setter
     def headers(self, value: dict):
         self.headers_raw = format_headers(value)
+
+    @staticmethod
+    def _prepare_msg_body(body: Union[str, bytes]) -> bytes:
+        """
+        If body type is bytes returns body with no changes
+        If body type is str converts it to bytes ith encoding = 'utf8'
+        If body type is not either str or bytes raises TypeError
+        """
+        if isinstance(body, bytes):
+            return body
+        elif isinstance(body, str):
+            return bytes(body, 'utf8')
+        else:
+            raise TypeError("body argument should be str or bytes, {} was provided instead".format(type(body)))
 
     @staticmethod
     def _as_bytes(value):
