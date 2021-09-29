@@ -46,12 +46,10 @@ jobs:
 
       matrix:
         toxenv:
-          - py35
           - py36
           - py37
           - py38
           - py39
-          - py35-uvloop
           - py36-uvloop
           - py37-uvloop
           - py38-uvloop
