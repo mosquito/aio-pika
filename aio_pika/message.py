@@ -184,6 +184,7 @@ def header_converter(value: Any) -> bytes:
 @header_converter.register(datetime)
 @header_converter.register(NoneType)
 @header_converter.register(list)
+@header_converter.register(dict)
 @header_converter.register(int)
 def _(v: bytes):
     return v
