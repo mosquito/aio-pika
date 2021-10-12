@@ -93,6 +93,7 @@ class Channel(PoolInstance):
 
         # noinspection PyTypeChecker
         channel = self._channel  # type: aiormq.Channel
+        channel.on_return_callbacks.remove(self._on_return)
         self._channel = ()
         await channel.close()
 
