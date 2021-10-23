@@ -4,7 +4,7 @@ from aio_pika import connect, IncomingMessage
 loop = asyncio.get_event_loop()
 
 
-def on_message(message: IncomingMessage):
+async def on_message(message: IncomingMessage):
     async with message.process():
         print(" [x] Received message %r" % message)
         print("     Message body is: %r" % message.body)
