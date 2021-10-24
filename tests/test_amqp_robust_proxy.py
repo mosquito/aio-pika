@@ -13,7 +13,7 @@ from async_generator import async_generator, yield_
 from yarl import URL
 
 import aio_pika
-from aio_pika.message import Message
+from aio_pika.message import Message, IncomingMessage
 from aio_pika.robust_channel import RobustChannel
 from aio_pika.robust_connection import RobustConnection
 from aio_pika.robust_queue import RobustQueue
@@ -34,17 +34,13 @@ async def proxy(tcp_proxy: Type[TCPProxy], amqp_direct_url: URL):
 
 @pytest.fixture
 def amqp_url(amqp_direct_url, proxy: TCPProxy):
-    url = amqp_direct_url.with_host(
+    return amqp_direct_url.with_host(
         proxy.proxy_host
     ).with_port(
         proxy.proxy_port
     ).update_query(
-        reconnect_interval=1
+        reconnect_interval=1,
     )
-
-    print(url)
-
-    return url
 
 
 @pytest.fixture
@@ -311,11 +307,10 @@ async def test_robust_duplicate_queue(
     connection: aio_pika.RobustConnection,
     declare_exchange: Callable,
     declare_queue: Callable,
-    loop: asyncio.AbstractEventLoop,
     proxy: TCPProxy,
     create_task: Callable,
 ):
-    queue_name = "test"
+    queue_name = get_random_name()
 
     channel1 = await connection.channel()
     channel2 = await connection.channel()
@@ -333,7 +328,10 @@ async def test_robust_duplicate_queue(
         nonlocal shared
         async with queue.iterator() as q:
             async for message in q:
-                shared.append(message)
+                message: IncomingMessage
+                # https://www.rabbitmq.com/confirms.html#automatic-requeueing
+                if not message.redelivered:
+                    shared.append(message)
                 await message.ack()
 
     create_task(reader(queue1))
@@ -347,9 +345,8 @@ async def test_robust_duplicate_queue(
     logging.info("Disconnect all clients")
     await proxy.disconnect_all()
 
-    await reconnect_event.wait()
-
     logging.info("Waiting connections")
+    await reconnect_event.wait()
     await asyncio.wait([
         channel1._connection.ready(),
         channel2._connection.ready(),
