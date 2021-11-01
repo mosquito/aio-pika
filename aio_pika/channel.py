@@ -211,7 +211,7 @@ class Channel(AbstractChannel):
         self.channel.on_return_callbacks.add(self._on_return)
         self.channel.closing.add_done_callback(self._close_callbacks)
 
-    async def _on_return(self, message: aiormq.abc.DeliveredMessage):
+    def _on_return(self, message: aiormq.abc.DeliveredMessage):
         self._return_callbacks(IncomingMessage(message, no_ack=True))
 
     async def reopen(self):

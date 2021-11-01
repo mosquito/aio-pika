@@ -406,7 +406,7 @@ class QueueIterator:
                 try:
                     yield self._queue.get_nowait()
                 except asyncio.QueueEmpty:
-                    raise StopIteration
+                    return
 
         # Reject all messages
         msg: IncomingMessage
