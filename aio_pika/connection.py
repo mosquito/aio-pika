@@ -7,10 +7,9 @@ import aiormq
 from aiormq.tools import censor_url
 from yarl import URL
 
-from .abc import AbstractConnection
+from .abc import AbstractConnection, CloseCallbackType, TimeoutType
 from .channel import Channel
 from .tools import CallbackCollection
-from .types import CloseCallbackType, TimeoutType
 
 
 log = logging.getLogger(__name__)

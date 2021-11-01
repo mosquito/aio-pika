@@ -87,7 +87,7 @@ class TestCase:
         await rpc.close()
 
     async def test_send_unknown_message(
-        self, channel: aio_pika.Channel, caplog
+        self, channel: aio_pika.Channel, caplog,
     ):
         rpc = await RPC.create(channel, auto_delete=True)
 

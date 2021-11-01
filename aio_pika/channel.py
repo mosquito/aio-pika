@@ -7,13 +7,14 @@ from warnings import warn
 import aiormq
 import aiormq.abc
 
-from .abc import AbstractChannel
+from .abc import (
+    AbstractChannel, CloseCallbackType, ReturnCallbackType, TimeoutType,
+)
 from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage
 from .queue import Queue
 from .tools import CallbackCollection
 from .transaction import Transaction
-from .types import CloseCallbackType, ReturnCallbackType, TimeoutType
 
 
 log = getLogger(__name__)

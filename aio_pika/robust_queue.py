@@ -132,7 +132,7 @@ class RobustQueue(Queue):
         return consumer_tag
 
     async def cancel(
-        self, consumer_tag: ConsumerTag, timeout=None, nowait: bool = False
+        self, consumer_tag: ConsumerTag, timeout=None, nowait: bool = False,
     ):
 
         result = await super().cancel(consumer_tag, timeout, nowait)

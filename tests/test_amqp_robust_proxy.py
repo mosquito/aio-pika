@@ -94,7 +94,7 @@ async def test_set_qos(channel: aio_pika.Channel):
 
 
 async def test_revive_passive_queue_on_reconnect(
-    create_connection, direct_connection, proxy: TCPProxy
+    create_connection, direct_connection, proxy: TCPProxy,
 ):
     client = await create_connection()
     assert isinstance(client, RobustConnection)
@@ -141,7 +141,7 @@ async def test_revive_passive_queue_on_reconnect(
 @aiomisc.timeout(30)
 async def test_robust_reconnect(
     create_connection, direct_connection,
-    proxy: TCPProxy, loop, add_cleanup: Callable
+    proxy: TCPProxy, loop, add_cleanup: Callable,
 ):
     read_conn = await create_connection()   # type: aio_pika.RobustConnection
 
@@ -247,7 +247,7 @@ async def test_channel_locked_resource2(connection: aio_pika.RobustConnection):
 
 
 async def test_channel_close_when_exclusive_queue(
-    create_connection, create_direct_connection, proxy: TCPProxy, loop
+    create_connection, create_direct_connection, proxy: TCPProxy, loop,
 ):
     logging.info("Creating connections")
     direct_conn, proxy_conn = await asyncio.gather(

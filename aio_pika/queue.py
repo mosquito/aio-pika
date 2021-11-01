@@ -77,7 +77,7 @@ class Queue:
         )
 
     async def declare(
-        self, timeout: int = None
+        self, timeout: int = None,
     ) -> aiormq.spec.Queue.DeclareOk:
         """ Declare queue.
 
@@ -240,7 +240,7 @@ class Queue:
         ).consumer_tag
 
     async def cancel(
-        self, consumer_tag: ConsumerTag, timeout=None, nowait: bool = False
+        self, consumer_tag: ConsumerTag, timeout=None, nowait: bool = False,
     ) -> aiormq.spec.Basic.CancelOk:
         """ This method cancels a consumer. This does not affect already
         delivered messages, but it does mean the server will not send any more
@@ -293,7 +293,7 @@ class Queue:
         return IncomingMessage(msg, no_ack=no_ack)
 
     async def purge(
-        self, no_wait=False, timeout=None
+        self, no_wait=False, timeout=None,
     ) -> aiormq.spec.Queue.PurgeOk:
         """ Purge all messages from the queue.
 

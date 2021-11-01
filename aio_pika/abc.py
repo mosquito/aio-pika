@@ -138,10 +138,6 @@ class AbstractMessage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def __setattr__(self, key: str, value: HeadersValue):
-        raise NotImplementedError
-
-    @abstractmethod
     def __iter__(self) -> Iterable[bytes]:
         raise NotImplementedError
 
@@ -256,7 +252,7 @@ class AbstractQueue:
 
     @abstractmethod
     async def cancel(
-        self, consumer_tag: ConsumerTag, timeout=None, nowait: bool = False
+        self, consumer_tag: ConsumerTag, timeout=None, nowait: bool = False,
     ) -> aiormq.spec.Basic.CancelOk:
         raise NotImplementedError
 
@@ -268,7 +264,7 @@ class AbstractQueue:
 
     @abstractmethod
     async def purge(
-        self, no_wait=False, timeout=None
+        self, no_wait=False, timeout=None,
     ) -> aiormq.spec.Queue.PurgeOk:
         raise NotImplementedError
 
@@ -326,7 +322,7 @@ class AbstractExchange(ABC):
 
     @abstractmethod
     async def declare(
-        self, timeout: TimeoutType = None
+        self, timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.DeclareOk:
         raise NotImplementedError
 
@@ -365,7 +361,7 @@ class AbstractExchange(ABC):
 
     @abstractmethod
     async def delete(
-        self, if_unused: bool = False, timeout: TimeoutType = None
+        self, if_unused: bool = False, timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.DeleteOk:
         raise NotImplementedError
 
