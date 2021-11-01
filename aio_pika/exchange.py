@@ -5,9 +5,8 @@ from typing import Optional, Union
 
 import aiormq
 
-from .abc import AbstractExchange
+from .abc import AbstractExchange, TimeoutType
 from .message import Message
-from .types import TimeoutType
 
 
 log = getLogger(__name__)
@@ -77,7 +76,7 @@ class Exchange(AbstractExchange):
         )
 
     async def declare(
-        self, timeout: TimeoutType = None
+        self, timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.DeclareOk:
         return await asyncio.wait_for(
             self.channel.exchange_declare(
@@ -244,7 +243,7 @@ class Exchange(AbstractExchange):
         )
 
     async def delete(
-        self, if_unused: bool = False, timeout: TimeoutType = None
+        self, if_unused: bool = False, timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.DeleteOk:
 
         """ Delete the queue

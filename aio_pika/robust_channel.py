@@ -6,12 +6,12 @@ from warnings import warn
 
 import aiormq
 
+from .abc import TimeoutType
 from .channel import Channel
 from .exchange import Exchange, ExchangeType
 from .queue import Queue
 from .robust_exchange import RobustExchange
 from .robust_queue import RobustQueue
-from .types import TimeoutType
 
 
 log = getLogger(__name__)

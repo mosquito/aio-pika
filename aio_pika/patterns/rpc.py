@@ -220,7 +220,7 @@ class RPC(Base):
             )
 
     async def on_call_message(
-        self, method_name: str, message: IncomingMessage
+        self, method_name: str, message: IncomingMessage,
     ):
         if method_name not in self.routes:
             log.warning("Method %r not registered in %r", method_name, self)
