@@ -1,4 +1,3 @@
-import asyncio
 from collections import defaultdict
 from logging import getLogger
 from typing import DefaultDict, Optional, Set, Type, Union
@@ -82,6 +81,11 @@ class RobustChannel(Channel):
 
     def _on_initialized(self):
         self.channel.on_return_callbacks.add(self._on_return)
+
+    async def close(self, exc=None):
+        await super(RobustChannel, self).close()
+        # Have to fire callbacks here cause user call close.
+        self.close_callbacks(self)
 
     async def set_qos(
         self,

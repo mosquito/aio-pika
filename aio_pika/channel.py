@@ -8,6 +8,7 @@ import aiormq.abc
 
 from .abc import (
     AbstractChannel, CloseCallbackType, ReturnCallbackType, TimeoutType,
+    AbstractConnection,
 )
 from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage
@@ -27,7 +28,7 @@ class Channel(AbstractChannel):
 
     def __init__(
         self,
-        connection,
+        connection: AbstractConnection,
         channel_number: Optional[int] = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
@@ -54,24 +55,22 @@ class Channel(AbstractChannel):
         self._channel_number = channel_number
 
         self.connection = connection
-        self._close_callbacks = CallbackCollection(self)
-        self._return_callbacks = CallbackCollection(self)
+        self.close_callbacks = CallbackCollection(self)
+        self.return_callbacks = CallbackCollection(self)
 
         self._on_return_raises = on_return_raises
         self._publisher_confirms = publisher_confirms
 
         self._delivery_tag = 0
+
+        # That's means user closed channel instance explicitly
         self._closed: bool = False
 
         self.default_exchange: Optional[Exchange] = None
 
     @property
     def done_callbacks(self) -> CallbackCollection:
-        return self._close_callbacks
-
-    @property
-    def return_callbacks(self) -> CallbackCollection:
-        return self._return_callbacks
+        return self.close_callbacks
 
     @property
     def is_opened(self):
@@ -79,7 +78,7 @@ class Channel(AbstractChannel):
 
     @property
     def is_closed(self):
-        return self._closed
+        return self._closed or self.channel.is_closed
 
     async def close(self, exc=None):
         if self.is_closed:
@@ -135,20 +134,20 @@ class Channel(AbstractChannel):
     def add_close_callback(
         self, callback: CloseCallbackType, weak: bool = False,
     ) -> None:
-        self._close_callbacks.add(callback, weak=weak)
+        self.close_callbacks.add(callback, weak=weak)
 
     def remove_close_callback(
         self, callback: CloseCallbackType,
     ) -> None:
-        self._close_callbacks.remove(callback)
+        self.close_callbacks.remove(callback)
 
     def add_on_return_callback(
         self, callback: ReturnCallbackType, weak: bool = False,
     ) -> None:
-        self._return_callbacks.add(callback, weak=weak)
+        self.return_callbacks.add(callback, weak=weak)
 
     def remove_on_return_callback(self, callback: ReturnCallbackType) -> None:
-        self._return_callbacks.remove(callback)
+        self.return_callbacks.remove(callback)
 
     async def _create_channel(self) -> aiormq.Channel:
         await self.connection.ready()
@@ -189,10 +188,10 @@ class Channel(AbstractChannel):
 
     def _on_initialized(self):
         self.channel.on_return_callbacks.add(self._on_return)
-        self.channel.closing.add_done_callback(self._close_callbacks)
+        self.channel.closing.add_done_callback(self.close_callbacks)
 
     def _on_return(self, message: aiormq.abc.DeliveredMessage):
-        self._return_callbacks(IncomingMessage(message, no_ack=True))
+        self.return_callbacks(IncomingMessage(message, no_ack=True))
 
     async def reopen(self):
         if hasattr(self, "_channel"):

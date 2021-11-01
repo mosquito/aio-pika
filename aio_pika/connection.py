@@ -49,14 +49,10 @@ class Connection(AbstractConnection):
 
         self.kwargs = self._parse_kwargs(kwargs or self.url.query)
 
-        self._close_callbacks = CallbackCollection(self)
+        self.close_callbacks = CallbackCollection(self)
         self.connection: Optional[aiormq.Connection] = None
-        self.ready_event: asyncio.Event = asyncio.Event()
+        self.connected: asyncio.Event = asyncio.Event()
         self.closing: asyncio.Future = self.loop.create_future()
-
-    @property
-    def close_callbacks(self) -> CallbackCollection:
-        return self._close_callbacks
 
     @property
     def channels(self) -> Dict[int, aiormq.abc.AbstractChannel]:
@@ -130,9 +126,9 @@ class Connection(AbstractConnection):
         self.connection: aiormq.Connection = await asyncio.wait_for(
             self._make_connection(**kwargs), timeout=timeout,
         )
-        self.ready_event.set()
+        self.connected.set()
         self.connection.closing.add_done_callback(
-            lambda _: self.ready_event.clear(),
+            lambda _: self.connected.clear(),
         )
 
     def channel(
@@ -207,7 +203,7 @@ class Connection(AbstractConnection):
         return channel
 
     async def ready(self):
-        await self.ready_event.wait()
+        await self.connected.wait()
 
     def __del__(self):
         if any((self.is_closed, self.loop.is_closed(), not self.connection)):
