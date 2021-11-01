@@ -367,14 +367,12 @@ class AbstractExchange(ABC):
 
 
 class AbstractChannel(PoolInstance, ABC):
-    @property
-    @abstractmethod
-    def done_callbacks(self) -> CallbackCollection:
-        raise NotImplementedError
+    close_callbacks: CallbackCollection
+    return_callbacks: CallbackCollection
 
     @property
     @abstractmethod
-    def return_callbacks(self) -> CallbackCollection:
+    def done_callbacks(self) -> CallbackCollection:
         raise NotImplementedError
 
     @property
@@ -525,6 +523,8 @@ class AbstractChannel(PoolInstance, ABC):
 
 
 class AbstractConnection(PoolInstance, ABC):
+    loop: asyncio.AbstractEventLoop
+    close_callbacks: CallbackCollection
 
     @property
     @abstractmethod
@@ -533,11 +533,6 @@ class AbstractConnection(PoolInstance, ABC):
 
     @abstractmethod
     async def close(self, exc=asyncio.CancelledError):
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def close_callbacks(self) -> CallbackCollection:
         raise NotImplementedError
 
     @property

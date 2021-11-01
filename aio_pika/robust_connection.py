@@ -70,7 +70,7 @@ class RobustConnection(Connection):
         if self.reconnecting:
             return
 
-        self.ready_event.clear()
+        self.connected.clear()
         self.connection = None
 
         log.debug("Closing AMQP connection %r", connection)
@@ -151,7 +151,7 @@ class RobustConnection(Connection):
                     await self.__cleanup_connection(e)
                     raise
                 else:
-                    self.ready_event.set()
+                    self.connected.set()
                     return
 
                 log.info(
@@ -178,6 +178,7 @@ class RobustConnection(Connection):
         )
 
         self.__channels.add(channel)
+        self.close_callbacks.add(channel.close_callbacks, weak=False)
 
         return channel
 
@@ -194,7 +195,10 @@ class RobustConnection(Connection):
 
         if self.connection is None:
             return
-        return await super().close(exc)
+
+        result = await super().close(exc)
+        self.close_callbacks(self)
+        return result
 
 
 async def connect_robust(

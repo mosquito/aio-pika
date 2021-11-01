@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from collections.abc import Set
+from collections.abc import MutableSet
 from functools import wraps
 from itertools import chain
 from threading import Lock
@@ -73,7 +73,7 @@ def shield(func):
     return wrap
 
 
-class CallbackCollection(Set):
+class CallbackCollection(MutableSet):
     __slots__ = "__sender", "__callbacks", "__weak_callbacks", "__lock"
 
     def __init__(self, sender):
@@ -94,7 +94,7 @@ class CallbackCollection(Set):
             else:
                 self.__callbacks.add(callback)
 
-    def remove(self, callback: Callable):
+    def discard(self, callback: Callable) -> None:
         if self.is_frozen:
             raise RuntimeError("Collection frozen")
 
@@ -166,3 +166,6 @@ class CallbackCollection(Set):
                     cb(self.__sender(), *args, **kwargs)
                 except Exception:
                     log.exception("Callback %r error", cb)
+
+    def __hash__(self):
+        return id(self)

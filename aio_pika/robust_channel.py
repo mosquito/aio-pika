@@ -98,6 +98,11 @@ class RobustChannel(Channel):
 
         log.debug("Robust channel %r has been closed.", sender)
 
+    async def close(self, exc=None):
+        await super(RobustChannel, self).close()
+        # Have to fire callbacks here cause user call close.
+        self.close_callbacks(self)
+
     async def set_qos(
         self,
         prefetch_count: int = 0,
