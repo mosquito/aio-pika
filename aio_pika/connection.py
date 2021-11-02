@@ -1,72 +1,77 @@
 import asyncio
 import logging
 from functools import partial
-from typing import Dict, Optional, Type, TypeVar
+from types import TracebackType
+from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
 
 import aiormq
+from aiormq.abc import ExceptionType
 from aiormq.tools import censor_url
 from yarl import URL
 
-from .abc import AbstractConnection, CloseCallbackType, TimeoutType
+from .abc import AbstractConnection, ConnectionCloseCallback, TimeoutType
 from .channel import Channel
 from .tools import CallbackCollection
 
 
 log = logging.getLogger(__name__)
+T = TypeVar("T")
 
 
 class Connection(AbstractConnection):
     """ Connection abstraction """
 
     CHANNEL_CLASS = Channel
-    KWARGS_TYPES = ()
+    KWARGS_TYPES: Tuple[Tuple[str, Callable[[str], Any], str], ...] = ()
 
     @property
-    def is_closed(self):
+    def is_closed(self) -> bool:
         return self.closing.done()
 
-    async def close(self, exc=asyncio.CancelledError):
+    async def close(
+        self, exc: Optional[ExceptionType] = asyncio.CancelledError,
+    ) -> None:
         if not self.closing.done():
             self.closing.set_result(exc)
 
-        if self.connection is None:
+        if not hasattr(self, "connection"):
             return None
 
         await self.connection.close(exc)
+        del self.connection
 
     @classmethod
-    def _parse_kwargs(cls, kwargs):
+    def _parse_kwargs(cls, kwargs: Dict[str, Any]) -> Dict[str, Any]:
         result = {}
         for key, parser, default in cls.KWARGS_TYPES:
             result[key] = parser(kwargs.get(key, default))
         return result
 
     def __init__(
-        self, url, loop: Optional[asyncio.AbstractEventLoop] = None, **kwargs
+        self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None,
+        **kwargs: Any
     ):
         self.loop = loop or asyncio.get_event_loop()
         self.url = URL(url)
 
-        self.kwargs = self._parse_kwargs(kwargs or self.url.query)
+        self.kwargs: Dict[str, Any] = self._parse_kwargs(
+            kwargs or dict(self.url.query),
+        )
 
+        self.connection: aiormq.abc.AbstractConnection
         self.close_callbacks = CallbackCollection(self)
-        self.connection: Optional[aiormq.Connection] = None
         self.connected: asyncio.Event = asyncio.Event()
         self.closing: asyncio.Future = self.loop.create_future()
 
-    @property
-    def channels(self) -> Dict[int, aiormq.abc.AbstractChannel]:
-        return self.connection.channels
-
-    def __str__(self):
+    def __str__(self) -> str:
         return str(censor_url(self.url))
 
-    def __repr__(self):
-        return '<{0}: "{1}">'.format(self.__class__.__name__, str(self))
+    def __repr__(self) -> str:
+        return f'<{self.__class__.__name__}: "{self}">'
 
     def add_close_callback(
-        self, callback: CloseCallbackType, weak: bool = False,
-    ):
+        self, callback: ConnectionCloseCallback, weak: bool = False,
+    ) -> None:
         """ Add callback which will be called after connection will be closed.
 
         :class:`BaseException` or None will be passed as a first argument.
@@ -91,23 +96,24 @@ class Connection(AbstractConnection):
         self.close_callbacks.add(callback, weak=weak)
 
     def _on_connection_close(
-        self, connection, closing: asyncio.Future,
-        *args, **kwargs
-    ):
+        self, connection: AbstractConnection, closing: asyncio.Future,
+        *args: Any, **kwargs: Any
+    ) -> None:
         log.debug("Closing AMQP connection %r", connection)
-        exc = closing.exception()
+        exc: Optional[BaseException] = closing.exception()
         self.close_callbacks(exc)
 
         if self.closing.done():
             return
 
-        if closing.exception() is not None:
-            self.closing.set_exception(closing.exception())
-        else:
-            self.closing.set_result(closing.result())
+        if exc is not None:
+            self.closing.set_exception(exc)
+            return
+
+        self.closing.set_result(closing.result())
 
     async def _make_connection(
-        self, *, timeout: TimeoutType = None, **kwargs
+        self, *, timeout: TimeoutType = None, **kwargs: Any
     ) -> aiormq.abc.AbstractConnection:
         connection: aiormq.abc.AbstractConnection = await asyncio.wait_for(
             aiormq.connect(self.url, **kwargs), timeout=timeout,
@@ -118,7 +124,9 @@ class Connection(AbstractConnection):
         await connection.ready()
         return connection
 
-    async def connect(self, timeout: TimeoutType = None, **kwargs):
+    async def connect(
+        self, timeout: TimeoutType = None, **kwargs: Any
+    ) -> None:
         """ Connect to AMQP server. This method should be called after
         :func:`aio_pika.connection.Connection.__init__`
 
@@ -127,7 +135,7 @@ class Connection(AbstractConnection):
             You shouldn't call it explicitly.
 
         """
-        self.connection: aiormq.abc.AbstractConnection = (
+        self.connection = (
             await self._make_connection(timeout=timeout, **kwargs)
         )
         self.connected.set()
@@ -206,10 +214,10 @@ class Connection(AbstractConnection):
         log.debug("Channel created: %r", channel)
         return channel
 
-    async def ready(self):
+    async def ready(self) -> None:
         await self.connected.wait()
 
-    def __del__(self):
+    def __del__(self) -> None:
         if any((self.is_closed, self.loop.is_closed(), not self.connection)):
             return
 
@@ -218,19 +226,17 @@ class Connection(AbstractConnection):
     async def __aenter__(self) -> "Connection":
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        for channel in tuple(self.channels.values()):  # can change size
-            if not channel.is_closed:
-                await channel.close()
-
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         await self.close()
 
 
-ConnectionType = TypeVar("ConnectionType", bound=Connection)
-
-
 async def connect(
-    url: str = None,
+    url: Union[str, URL] = None,
     *,
     host: str = "localhost",
     port: int = 5672,
@@ -241,10 +247,10 @@ async def connect(
     loop: asyncio.AbstractEventLoop = None,
     ssl_options: dict = None,
     timeout: TimeoutType = None,
-    connection_class: Type[ConnectionType] = Connection,
+    connection_class: Type[Connection] = Connection,
     client_properties: dict = None,
-    **kwargs
-) -> ConnectionType:
+    **kwargs: Any
+) -> AbstractConnection:
 
     """ Make connection to the broker.
 
@@ -326,11 +332,13 @@ async def connect(
 
     """
 
+    amqp_url: URL
+
     if url is None:
         kw = kwargs
         kw.update(ssl_options or {})
 
-        url = URL.build(
+        amqp_url = URL.build(
             scheme="amqps" if ssl else "amqp",
             host=host,
             port=port,
@@ -340,11 +348,15 @@ async def connect(
             path="/" + virtualhost,
             query=kw,
         )
+    else:
+        amqp_url = URL(url)
 
-    connection = connection_class(url, loop=loop)
+    connection = connection_class(amqp_url, loop=loop)
 
     await connection.connect(
-        timeout=timeout, client_properties=client_properties, loop=loop,
+        timeout=timeout,
+        client_properties=client_properties,
+        loop=loop,
     )
     return connection
 

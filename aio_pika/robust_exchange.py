@@ -1,11 +1,13 @@
 from logging import getLogger
-from typing import Optional, Union, Dict, Tuple, Any
+from typing import Any, Dict, Optional, Tuple, Union
 
 import aiormq
 from pamqp.common import Arguments
 
-from .abc import AbstractChannel, AbstractConnection, AbstractExchange, \
-    ExchangeParamType, TimeoutType
+from .abc import (
+    AbstractChannel, AbstractConnection, AbstractExchange, ExchangeParamType,
+    TimeoutType,
+)
 from .channel import Channel
 from .exchange import Exchange, ExchangeType
 

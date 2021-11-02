@@ -679,6 +679,9 @@ class ReturnedMessage(IncomingMessage):
     pass
 
 
+ReturnCallback = Callable[[ReturnedMessage], Any]
+
+
 class ProcessContext(AbstractProcessContext):
     def __init__(
         self,
