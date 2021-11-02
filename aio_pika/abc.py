@@ -6,7 +6,7 @@ from types import TracebackType
 from typing import (
     Any, AsyncContextManager, Awaitable, Callable, Dict, FrozenSet, Generator,
     Iterable, MutableMapping, NamedTuple, Optional, Set, Tuple, Type, TypeVar,
-    Union,
+    Union, Protocol
 )
 
 import aiormq
@@ -17,9 +17,6 @@ from .pool import PoolInstance
 from .tools import CallbackCollection
 
 
-Sender = Any
-ReturnCallbackType = Callable[[Sender, aiormq.abc.DeliveredMessage], Any]
-CloseCallbackType = Callable[[Sender, Optional[BaseException]], Any]
 TimeoutType = Optional[Union[int, float]]
 
 NoneType = type(None)
@@ -260,7 +257,7 @@ class AbstractQueue:
         arguments: Arguments = None,
         consumer_tag: ConsumerTag = None,
         timeout: TimeoutType = None,
-    ) -> Optional[ConsumerTag]:
+    ) -> ConsumerTag:
         raise NotImplementedError
 
     @abstractmethod
@@ -439,24 +436,24 @@ class AbstractChannel(PoolInstance, ABC):
 
     @abstractmethod
     def add_close_callback(
-        self, callback: CloseCallbackType, weak: bool = False,
+        self, callback: "ChannelCloseCallback", weak: bool = False,
     ) -> None:
         raise NotImplementedError
 
     @abstractmethod
     def remove_close_callback(
-        self, callback: CloseCallbackType,
+        self, callback: "ChannelCloseCallback",
     ) -> None:
         raise NotImplementedError
 
     @abstractmethod
     def add_on_return_callback(
-        self, callback: ReturnCallbackType, weak: bool = False,
+        self, callback: Callable[..., Any], weak: bool = False,
     ) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def remove_on_return_callback(self, callback: ReturnCallbackType) -> None:
+    def remove_on_return_callback(self, callback: Callable[..., Any]) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -563,13 +560,9 @@ class AbstractConnection(PoolInstance, ABC):
     async def close(self, exc: ExceptionType = asyncio.CancelledError) -> None:
         raise NotImplementedError
 
-    @abstractproperty
-    def channels(self) -> Dict[int, AbstractChannel]:
-        raise NotImplementedError
-
     @abstractmethod
     def add_close_callback(
-        self, callback: CloseCallbackType, weak: bool = False,
+        self, callback: "ConnectionCloseCallback", weak: bool = False,
     ) -> None:
         raise NotImplementedError
 
@@ -607,3 +600,5 @@ class AbstractConnection(PoolInstance, ABC):
 
 
 ConnectionType = TypeVar("ConnectionType", bound=AbstractConnection)
+ChannelCloseCallback = Callable[[AbstractChannel, Any], Any]
+ConnectionCloseCallback = Callable[[AbstractConnection], Any]

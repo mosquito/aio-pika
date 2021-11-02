@@ -2,7 +2,7 @@ import asyncio
 from enum import Enum, unique
 from logging import getLogger
 from types import TracebackType
-from typing import Any, Awaitable, Generator, Optional, Type, Union
+from typing import Any, Generator, Optional, Type, Union
 from warnings import warn
 
 import aiormq
@@ -11,10 +11,10 @@ from pamqp.common import Arguments
 
 from .abc import (
     AbstractChannel, AbstractConnection, AbstractExchange, AbstractQueue,
-    CloseCallbackType, ReturnCallbackType, TimeoutType,
+    ChannelCloseCallback, TimeoutType,
 )
 from .exchange import Exchange, ExchangeType
-from .message import IncomingMessage
+from .message import IncomingMessage, ReturnCallback
 from .queue import Queue
 from .tools import CallbackCollection, task
 from .transaction import Transaction
@@ -77,7 +77,7 @@ class Channel(AbstractChannel):
         # That's means user closed channel instance explicitly
         self._closed: bool = False
 
-        self.default_exchange: Optional[Exchange] = None
+        self.default_exchange: Exchange
 
     @property
     def done_callbacks(self) -> CallbackCollection:
@@ -159,21 +159,21 @@ class Channel(AbstractChannel):
         await self.close()
 
     def add_close_callback(
-        self, callback: CloseCallbackType, weak: bool = False,
+        self, callback: ChannelCloseCallback, weak: bool = False,
     ) -> None:
         self.close_callbacks.add(callback, weak=weak)
 
     def remove_close_callback(
-        self, callback: CloseCallbackType,
+        self, callback: ChannelCloseCallback,
     ) -> None:
         self.close_callbacks.remove(callback)
 
     def add_on_return_callback(
-        self, callback: ReturnCallbackType, weak: bool = False,
+        self, callback: ReturnCallback, weak: bool = False,
     ) -> None:
         self.return_callbacks.add(callback, weak=weak)
 
-    def remove_on_return_callback(self, callback: ReturnCallbackType) -> None:
+    def remove_on_return_callback(self, callback: ReturnCallback) -> None:
         self.return_callbacks.remove(callback)
 
     async def _create_channel(
@@ -201,18 +201,17 @@ class Channel(AbstractChannel):
         self._channel = channel
         self._delivery_tag = 0
 
-        if self.default_exchange is None:
-            self.default_exchange = self.EXCHANGE_CLASS(
-                connection=self.connection,
-                channel=self,
-                arguments=None,
-                auto_delete=False,
-                durable=False,
-                internal=False,
-                name="",
-                passive=False,
-                type=ExchangeType.DIRECT,
-            )
+        self.default_exchange = self.EXCHANGE_CLASS(
+            connection=self.connection,
+            channel=self,
+            arguments=None,
+            auto_delete=False,
+            durable=False,
+            internal=False,
+            name="",
+            passive=False,
+            type=ExchangeType.DIRECT,
+        )
 
         self._on_initialized()
 

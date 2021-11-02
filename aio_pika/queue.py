@@ -200,7 +200,7 @@ class Queue(AbstractQueue):
         arguments: Arguments = None,
         consumer_tag: str = None,
         timeout: TimeoutType = None,
-    ) -> Optional[ConsumerTag]:
+    ) -> ConsumerTag:
 
         """ Start to consuming the :class:`Queue`.
 
@@ -226,22 +226,23 @@ class Queue(AbstractQueue):
 
         log.debug("Start to consuming queue: %r", self)
 
-        return (
-            await self.__channel.basic_consume(
-                queue=self.name,
-                consumer_callback=partial(
-                    consumer,
-                    callback,
-                    no_ack=no_ack,
-                    loop=self.loop,
-                ),
-                exclusive=exclusive,
+        consume_result = await self.__channel.basic_consume(
+            queue=self.name,
+            consumer_callback=partial(
+                consumer,
+                callback,
                 no_ack=no_ack,
-                arguments=arguments,
-                consumer_tag=consumer_tag,
-                timeout=timeout,
-            )
-        ).consumer_tag
+                loop=self.loop,
+            ),
+            exclusive=exclusive,
+            no_ack=no_ack,
+            arguments=arguments,
+            consumer_tag=consumer_tag,
+            timeout=timeout,
+        )
+
+        assert consume_result.consumer_tag is not None, "Consumer tag is None"
+        return consume_result.consumer_tag
 
     async def cancel(
         self, consumer_tag: ConsumerTag,
