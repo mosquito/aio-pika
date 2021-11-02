@@ -4,36 +4,25 @@ from logging import getLogger
 from typing import Optional, Union
 
 import aiormq
+from pamqp.common import Arguments
 
-from .abc import AbstractConnection, AbstractExchange, TimeoutType, \
-    ArgumentsType
-from .message import Message
+from .abc import (
+    AbstractChannel, AbstractConnection, AbstractExchange, AbstractMessage,
+    ExchangeParamType, ExchangeType, TimeoutType,
+)
 
 
 log = getLogger(__name__)
 
 
-@unique
-class ExchangeType(Enum):
-    FANOUT = "fanout"
-    DIRECT = "direct"
-    TOPIC = "topic"
-    HEADERS = "headers"
-    X_DELAYED_MESSAGE = "x-delayed-message"
-    X_CONSISTENT_HASH = "x-consistent-hash"
-    X_MODULUS_HASH = "x-modulus-hash"
-
-
-ExchangeParamType = Union["Exchange", str]
-
-
 class Exchange(AbstractExchange):
     """ Exchange abstraction """
+    _channel: AbstractChannel
 
     def __init__(
         self,
         connection: AbstractConnection,
-        channel: aiormq.Channel,
+        channel: AbstractChannel,
         name: str,
         type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         *,
@@ -41,7 +30,7 @@ class Exchange(AbstractExchange):
         durable: bool = False,
         internal: bool = False,
         passive: bool = False,
-        arguments: dict = None
+        arguments: Arguments = None
     ):
 
         self.loop = connection.loop
@@ -60,7 +49,7 @@ class Exchange(AbstractExchange):
         self.arguments = arguments
 
     @property
-    def channel(self) -> aiormq.Channel:
+    def channel(self) -> AbstractChannel:
         if self._channel is None:
             raise RuntimeError("Channel not opened")
 
@@ -80,16 +69,14 @@ class Exchange(AbstractExchange):
     async def declare(
         self, timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.DeclareOk:
-        return await asyncio.wait_for(
-            self.channel.exchange_declare(
-                self.name,
-                exchange_type=self.__type,
-                durable=self.durable,
-                auto_delete=self.auto_delete,
-                internal=self.internal,
-                passive=self.passive,
-                arguments=self.arguments,
-            ),
+        return await self.channel.channel.exchange_declare(
+            self.name,
+            exchange_type=self.__type,
+            durable=self.durable,
+            auto_delete=self.auto_delete,
+            internal=self.internal,
+            passive=self.passive,
+            arguments=self.arguments,
             timeout=timeout,
         )
 
@@ -109,7 +96,7 @@ class Exchange(AbstractExchange):
         exchange: ExchangeParamType,
         routing_key: str = "",
         *,
-        arguments: ArgumentsType = None,
+        arguments: Arguments = None,
         timeout: TimeoutType = None
     ) -> aiormq.spec.Exchange.BindOk:
 
@@ -155,13 +142,11 @@ class Exchange(AbstractExchange):
             arguments,
         )
 
-        return await asyncio.wait_for(
-            self.channel.exchange_bind(
-                arguments=arguments,
-                destination=self.name,
-                routing_key=routing_key,
-                source=self._get_exchange_name(exchange),
-            ),
+        return await self.channel.channel.exchange_bind(
+            arguments=arguments,
+            destination=self.name,
+            routing_key=routing_key,
+            source=self._get_exchange_name(exchange),
             timeout=timeout,
         )
 
@@ -169,7 +154,7 @@ class Exchange(AbstractExchange):
         self,
         exchange: ExchangeParamType,
         routing_key: str = "",
-        arguments: dict = None,
+        arguments: Arguments = None,
         timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.UnbindOk:
 
@@ -192,19 +177,17 @@ class Exchange(AbstractExchange):
             arguments,
         )
 
-        return await asyncio.wait_for(
-            self.channel.exchange_unbind(
-                arguments=arguments,
-                destination=self.name,
-                routing_key=routing_key,
-                source=self._get_exchange_name(exchange),
-            ),
+        return await self.channel.channel.exchange_unbind(
+            arguments=arguments,
+            destination=self.name,
+            routing_key=routing_key,
+            source=self._get_exchange_name(exchange),
             timeout=timeout,
         )
 
     async def publish(
         self,
-        message: Message,
+        message: AbstractMessage,
         routing_key: str,
         *,
         mandatory: bool = True,
@@ -232,15 +215,13 @@ class Exchange(AbstractExchange):
                 "Can not publish to internal exchange: '%s'!" % self.name,
             )
 
-        return await asyncio.wait_for(
-            self.channel.basic_publish(
-                exchange=self.name,
-                routing_key=routing_key,
-                body=message.body,
-                properties=message.properties,
-                mandatory=mandatory,
-                immediate=immediate,
-            ),
+        return await self.channel.channel.basic_publish(
+            exchange=self.name,
+            routing_key=routing_key,
+            body=message.body,
+            properties=message.properties,
+            mandatory=mandatory,
+            immediate=immediate,
             timeout=timeout,
         )
 
@@ -255,9 +236,8 @@ class Exchange(AbstractExchange):
         """
 
         log.info("Deleting %r", self)
-        return await asyncio.wait_for(
-            self.channel.exchange_delete(self.name, if_unused=if_unused),
-            timeout=timeout,
+        return await self.channel.channel.exchange_delete(
+            self.name, if_unused=if_unused, timeout=timeout,
         )
 
 

@@ -32,9 +32,7 @@ class Transaction(AbstractTransaction):
     async def select(
         self, timeout: TimeoutType = None,
     ) -> aiormq.spec.Tx.SelectOk:
-        result = await asyncio.wait_for(
-            self.channel.channel.tx_select(), timeout=timeout,
-        )
+        result = await self.channel.channel.tx_select(timeout=timeout)
 
         self.state = TransactionStates.started
         return result
