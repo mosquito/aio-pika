@@ -9,7 +9,6 @@ import aiormq.exceptions
 import pytest
 import shortuuid
 from aiomisc_pytest.pytest_plugin import TCPProxy
-from aiormq import Connection
 from pamqp.exceptions import AMQPFrameError
 from yarl import URL
 
@@ -356,6 +355,8 @@ async def test_robust_duplicate_queue(
     direct_channel = await direct_connection.channel()
 
     reconnect_event = asyncio.Event()
+    shared_condition = asyncio.Condition()
+
     connection.reconnect_callbacks.add(
         lambda *_: reconnect_event.set(), weak=False,
     )
@@ -367,8 +368,10 @@ async def test_robust_duplicate_queue(
         nonlocal shared
         async with queue.iterator() as q:
             async for message in q:
-                shared.append(message)
-                await message.ack()
+                async with shared_condition:
+                    shared.append(message)
+                    shared_condition.notify_all()
+                    await message.ack()
 
     queue = await declare_queue(
         queue_name, channel=channel, cleanup=False,
@@ -389,13 +392,16 @@ async def test_robust_duplicate_queue(
             Message(b"1234567890"), queue_name,
         )
 
-    await reconnect_event.wait()
+    await asyncio.wait_for(reconnect_event.wait(), timeout=5)
 
     logging.info("Waiting connections")
     await channel.connection.ready()
 
-    while len(shared) < 10:
-        await asyncio.sleep(0.5)
+    async with shared_condition:
+        await asyncio.wait_for(
+            shared_condition.wait_for(lambda: len(shared) == 10),
+            timeout=5,
+        )
 
     assert len(shared) == 10
 

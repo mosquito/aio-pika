@@ -1,14 +1,14 @@
 import asyncio
 from logging import getLogger
-from typing import Optional, Type, Union
+from typing import Optional, Union
 from warnings import warn
 
 import aiormq
 import aiormq.abc
 
 from .abc import (
-    AbstractChannel, CloseCallbackType, ReturnCallbackType, TimeoutType,
-    AbstractConnection,
+    AbstractChannel, AbstractConnection, AbstractExchange, AbstractQueue,
+    CloseCallbackType, ReturnCallbackType, TimeoutType,
 )
 from .exchange import Exchange, ExchangeType
 from .message import IncomingMessage
@@ -23,8 +23,8 @@ log = getLogger(__name__)
 class Channel(AbstractChannel):
     """ Channel abstraction """
 
-    QUEUE_CLASS: Type[Queue] = Queue
-    EXCHANGE_CLASS: Type[Exchange] = Exchange
+    QUEUE_CLASS = Queue
+    EXCHANGE_CLASS = Exchange
 
     def __init__(
         self,
@@ -252,7 +252,9 @@ class Channel(AbstractChannel):
 
         return exchange
 
-    async def get_exchange(self, name: str, *, ensure: bool = True) -> Exchange:
+    async def get_exchange(
+        self, name: str, *, ensure: bool = True
+    ) -> AbstractExchange:
         """
         With ``ensure=True``, it's a shortcut for
         ``.declare_exchange(..., passive=True)``; otherwise, it returns an
@@ -294,7 +296,7 @@ class Channel(AbstractChannel):
         auto_delete: bool = False,
         arguments: dict = None,
         timeout: TimeoutType = None
-    ) -> QUEUE_CLASS:
+    ) -> AbstractQueue:
         """
 
         :param name: queue name
@@ -314,7 +316,7 @@ class Channel(AbstractChannel):
         :raises: :class:`aio_pika.exceptions.ChannelClosed` instance
         """
 
-        queue = self.QUEUE_CLASS(
+        queue: AbstractQueue = self.QUEUE_CLASS(
             channel=self,
             name=name,
             durable=durable,
@@ -325,10 +327,11 @@ class Channel(AbstractChannel):
         )
 
         await queue.declare(timeout=timeout)
-
         return queue
 
-    async def get_queue(self, name: str, *, ensure: bool = True) -> Queue:
+    async def get_queue(
+        self, name: str, *, ensure: bool = True
+    ) -> AbstractQueue:
         """
         With ``ensure=True``, it's a shortcut for
         ``.declare_queue(..., passive=True)``; otherwise, it returns a
@@ -419,7 +422,7 @@ class Channel(AbstractChannel):
                 "confirms are enabled",
             )
 
-        return Transaction(self._channel)
+        return Transaction(self)
 
     async def flow(self, active: bool = True) -> aiormq.spec.Channel.FlowOk:
         return await self.channel.flow(active=active)

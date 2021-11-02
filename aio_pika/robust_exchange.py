@@ -61,6 +61,8 @@ class RobustExchange(Exchange):
         timeout: int = None,
         robust: bool = True
     ):
+        await self.connection.connected.wait()
+
         result = await super().bind(
             exchange,
             routing_key=routing_key,
@@ -82,6 +84,7 @@ class RobustExchange(Exchange):
         arguments: dict = None,
         timeout: int = None,
     ):
+        await self.connection.connected.wait()
 
         result = await super().unbind(
             exchange, routing_key, arguments=arguments, timeout=timeout,

@@ -7,10 +7,11 @@ from typing import Any, Callable, Optional
 import aiormq
 from aiormq.abc import DeliveredMessage
 
+from .abc import AbstractChannel, AbstractQueue, ArgumentsType
 from .exceptions import QueueEmpty
 from .exchange import Exchange, ExchangeParamType
 from .message import IncomingMessage
-from .tools import create_task, shield
+from .tools import create_task, shield, task
 
 
 log = getLogger(__name__)
@@ -27,22 +28,22 @@ async def consumer(callback, msg: DeliveredMessage, *, no_ack, loop):
     return await create_task(callback, message, loop=loop)
 
 
-class Queue:
+class Queue(AbstractQueue):
     """ AMQP queue abstraction """
 
     def __init__(
         self,
-        channel,
-        name,
-        durable,
-        exclusive,
-        auto_delete,
-        arguments,
+        channel: AbstractChannel,
+        name: str,
+        durable: Optional[bool],
+        exclusive: bool,
+        auto_delete: bool,
+        arguments: ArgumentsType,
         passive: bool = False,
     ):
-
         self.loop = channel.loop
         self.channel = channel
+        self.connection = channel.connection
         self.name = name or ""
         self.durable = durable
         self.exclusive = exclusive
@@ -381,6 +382,7 @@ class Queue:
 
 
 class QueueIterator:
+    @task
     async def close(self, *_):
         log.debug("Cancelling queue iterator %r", self)
 

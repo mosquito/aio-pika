@@ -10,7 +10,7 @@ from .abc import TimeoutType
 from .connection import Connection, ConnectionType, connect
 from .exceptions import CONNECTION_EXCEPTIONS
 from .robust_channel import RobustChannel
-from .tools import CallbackCollection
+from .tools import CallbackCollection, task
 
 
 log = getLogger(__name__)
@@ -85,8 +85,7 @@ class RobustConnection(Connection):
         )
         self.loop.call_later(
             self.reconnect_interval,
-            self.loop.create_task,
-            self.reconnect(),
+            self.reconnect,
         )
 
     def add_reconnect_callback(
@@ -160,6 +159,7 @@ class RobustConnection(Connection):
                 )
                 await asyncio.sleep(self.reconnect_interval)
 
+    @task
     async def reconnect(self):
         await self.connect()
         self._reconnect_callbacks(self)

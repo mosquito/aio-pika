@@ -99,6 +99,8 @@ class RobustChannel(Channel):
             warn('Use "global_" instead of "all_channels"', DeprecationWarning)
             global_ = all_channels
 
+        await self.connection.connected.wait()
+
         self._prefetch_count = prefetch_count
         self._prefetch_size = prefetch_size
         self._global_qos = global_
@@ -122,6 +124,7 @@ class RobustChannel(Channel):
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> RobustExchange:
+        await self.connection.connected.wait()
         exchange = await super().declare_exchange(
             name=name,
             type=type,
@@ -145,7 +148,7 @@ class RobustChannel(Channel):
         if_unused=False,
         nowait=False,
     ) -> aiormq.spec.Exchange.DeleteOk:
-
+        await self.connection.connected.wait()
         result = await super().exchange_delete(
             exchange_name=exchange_name,
             timeout=timeout,
@@ -169,7 +172,7 @@ class RobustChannel(Channel):
         timeout: TimeoutType = None,
         robust: bool = True
     ) -> Queue:
-
+        await self.connection.connected.wait()
         queue = await super().declare_queue(
             name=name,
             durable=durable,
@@ -193,6 +196,7 @@ class RobustChannel(Channel):
         if_empty: bool = False,
         nowait: bool = False,
     ):
+        await self.connection.connected.wait()
         result = await super().queue_delete(
             queue_name=queue_name,
             timeout=timeout,
