@@ -1,19 +1,20 @@
 import asyncio
 import logging
-from collections.abc import MutableSet
 from functools import wraps
 from itertools import chain
 from threading import Lock
-from typing import Callable, Iterable
-from weakref import WeakSet, ref
+from typing import (
+    Any, Awaitable, Callable, Coroutine, FrozenSet, Iterator, MutableSet,
+    Optional, Set, TypeVar, Union,
+)
+from weakref import ReferenceType, WeakSet, ref
 
-
-__all__ = "create_task", "iscoroutinepartial", "shield", "CallbackCollection"
 
 log = logging.getLogger(__name__)
+T = TypeVar("T")
 
 
-def iscoroutinepartial(fn):
+def iscoroutinepartial(fn: Callable[..., Any]) -> bool:
     """
     Function returns True if function is a partial instance of coroutine.
     See additional information here_.
@@ -36,15 +37,20 @@ def iscoroutinepartial(fn):
     return asyncio.iscoroutinefunction(parent)
 
 
-def create_task(func, *args, loop=None, **kwargs):
+def create_task(
+    func: Callable[..., Coroutine[Any, Any, T]],
+    *args: Any,
+    loop: Optional[asyncio.AbstractEventLoop] = None,
+    **kwargs: Any
+) -> Awaitable[T]:
     loop = loop or asyncio.get_event_loop()
 
     if iscoroutinepartial(func):
         return loop.create_task(func(*args, **kwargs))
 
-    def run(future):
+    def run(future: asyncio.Future) -> Optional[asyncio.Future]:
         if future.done():
-            return
+            return None
 
         try:
             future.set_result(func(*args, **kwargs))
@@ -58,31 +64,44 @@ def create_task(func, *args, loop=None, **kwargs):
     return future
 
 
-def shield(func):
-    """
-    Simple and useful decorator for wrap the coroutine to `asyncio.shield`.
-    """
-
-    async def awaiter(future):
-        return await future
-
+def task(
+    func: Callable[..., Coroutine[Any, Any, T]],
+) -> Callable[..., Awaitable[T]]:
     @wraps(func)
-    def wrap(*args, **kwargs):
-        return wraps(func)(awaiter)(asyncio.shield(func(*args, **kwargs)))
+    def wrap(*args: Any, **kwargs: Any) -> Awaitable[T]:
+        return create_task(func, *args, **kwargs)
+    return wrap
+
+
+def shield(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
+    @wraps(func)
+    def wrap(*args: Any, **kwargs: Any) -> Awaitable[T]:
+        return asyncio.shield(func(*args, **kwargs))
 
     return wrap
+
+
+CallbackType = Callable[..., Any]
+CallbackSetType = Union[FrozenSet[CallbackType], Set[CallbackType]]
 
 
 class CallbackCollection(MutableSet):
     __slots__ = "__sender", "__callbacks", "__weak_callbacks", "__lock"
 
-    def __init__(self, sender):
-        self.__sender = ref(sender)
-        self.__callbacks = set()
-        self.__weak_callbacks = WeakSet()
-        self.__lock = Lock()
+    def __init__(self, sender: Union[T, ReferenceType[T]]):
+        self.__sender: ReferenceType[T]
+        if isinstance(sender, ReferenceType):
+            self.__sender = sender
+        else:
+            self.__sender = ref(sender)
 
-    def add(self, callback: Callable, weak=True):
+        self.__callbacks: CallbackSetType = set()
+        self.__weak_callbacks: MutableSet[CallbackType] = WeakSet()
+        self.__lock: Lock = Lock()
+
+    def add(
+        self, callback: Callable[[T, Any], Any], weak: bool = True,
+    ) -> None:
         if self.is_frozen:
             raise RuntimeError("Collection frozen")
         if not callable(callback):
@@ -92,31 +111,31 @@ class CallbackCollection(MutableSet):
             if weak:
                 self.__weak_callbacks.add(callback)
             else:
-                self.__callbacks.add(callback)
+                self.__callbacks.add(callback)      # type: ignore
 
-    def discard(self, callback: Callable) -> None:
+    def discard(self, callback: Callable[[T, Any], Any]) -> None:
         if self.is_frozen:
             raise RuntimeError("Collection frozen")
 
         with self.__lock:
             try:
-                self.__callbacks.remove(callback)
+                self.__callbacks.remove(callback)    # type: ignore
             except KeyError:
                 self.__weak_callbacks.remove(callback)
 
-    def clear(self):
+    def clear(self) -> None:
         if self.is_frozen:
             raise RuntimeError("Collection frozen")
 
         with self.__lock:
-            self.__callbacks.clear()
+            self.__callbacks.clear()        # type: ignore
             self.__weak_callbacks.clear()
 
     @property
     def is_frozen(self) -> bool:
         return isinstance(self.__callbacks, frozenset)
 
-    def freeze(self):
+    def freeze(self) -> None:
         if self.is_frozen:
             raise RuntimeError("Collection already frozen")
 
@@ -124,7 +143,7 @@ class CallbackCollection(MutableSet):
             self.__callbacks = frozenset(self.__callbacks)
             self.__weak_callbacks = WeakSet(self.__weak_callbacks)
 
-    def unfreeze(self):
+    def unfreeze(self) -> None:
         if not self.is_frozen:
             raise RuntimeError("Collection is not frozen")
 
@@ -138,14 +157,14 @@ class CallbackCollection(MutableSet):
     def __len__(self) -> int:
         return len(self.__callbacks) + len(self.__weak_callbacks)
 
-    def __iter__(self) -> Iterable[Callable]:
+    def __iter__(self) -> Iterator[CallbackType]:
         return iter(chain(self.__callbacks, self.__weak_callbacks))
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return bool(self.__callbacks) or bool(self.__weak_callbacks)
 
-    def __copy__(self):
-        instance = self.__class__(self.__sender())
+    def __copy__(self) -> "CallbackCollection":
+        instance = self.__class__(self.__sender)
 
         with self.__lock:
             for cb in self.__callbacks:
@@ -159,13 +178,24 @@ class CallbackCollection(MutableSet):
 
         return instance
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> None:
         with self.__lock:
+            sender = self.__sender()
+
             for cb in self:
                 try:
-                    cb(self.__sender(), *args, **kwargs)
+                    cb(sender, *args, **kwargs)
                 except Exception:
                     log.exception("Callback %r error", cb)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return id(self)
+
+
+__all__ = (
+    "CallbackCollection",
+    "create_task",
+    "iscoroutinepartial",
+    "shield",
+    "task",
+)

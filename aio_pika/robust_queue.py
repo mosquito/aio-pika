@@ -29,7 +29,7 @@ class RobustQueue(Queue):
 
     def __init__(
         self,
-        channel: aiormq.Channel,
+        channel,
         name,
         durable,
         exclusive,
@@ -71,7 +71,7 @@ class RobustQueue(Queue):
         timeout: int = None,
         robust: bool = True
     ):
-
+        await self.connection.connected.wait()
         if routing_key is None:
             routing_key = self.name
 
@@ -93,7 +93,7 @@ class RobustQueue(Queue):
         arguments: dict = None,
         timeout: int = None,
     ):
-
+        await self.connection.connected.wait()
         if routing_key is None:
             routing_key = self.name
 
@@ -114,7 +114,6 @@ class RobustQueue(Queue):
         timeout=None,
         robust: bool = True,
     ) -> ConsumerTag:
-
         kwargs = dict(
             callback=callback,
             no_ack=no_ack,
@@ -122,6 +121,7 @@ class RobustQueue(Queue):
             arguments=arguments,
         )
 
+        await self.connection.connected.wait()
         consumer_tag = await super().consume(
             consumer_tag=consumer_tag, **kwargs
         )
@@ -134,7 +134,7 @@ class RobustQueue(Queue):
     async def cancel(
         self, consumer_tag: ConsumerTag, timeout=None, nowait: bool = False,
     ):
-
+        await self.connection.connected.wait()
         result = await super().cancel(consumer_tag, timeout, nowait)
         self._consumers.pop(consumer_tag, None)
         return result

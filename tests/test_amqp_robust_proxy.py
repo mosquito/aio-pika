@@ -354,6 +354,8 @@ async def test_robust_duplicate_queue(
     direct_channel = await direct_connection.channel()
 
     reconnect_event = asyncio.Event()
+    shared_condition = asyncio.Condition()
+
     connection.reconnect_callbacks.add(
         lambda *_: reconnect_event.set(), weak=False,
     )
@@ -390,13 +392,16 @@ async def test_robust_duplicate_queue(
             Message(b"1234567890"), queue_name,
         )
 
-    await reconnect_event.wait()
+    await asyncio.wait_for(reconnect_event.wait(), timeout=5)
 
     logging.info("Waiting connections")
     await channel.connection.ready()
 
-    while len(shared) < 10:
-        await asyncio.sleep(0.5)
+    async with shared_condition:
+        await asyncio.wait_for(
+            shared_condition.wait_for(lambda: len(shared) == 10),
+            timeout=5,
+        )
 
     assert len(shared) == 10
 

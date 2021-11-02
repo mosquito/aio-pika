@@ -5,7 +5,8 @@ from typing import Optional, Union
 
 import aiormq
 
-from .abc import AbstractExchange, TimeoutType
+from .abc import AbstractConnection, AbstractExchange, TimeoutType, \
+    ArgumentsType
 from .message import Message
 
 
@@ -31,15 +32,15 @@ class Exchange(AbstractExchange):
 
     def __init__(
         self,
-        connection,
+        connection: AbstractConnection,
         channel: aiormq.Channel,
         name: str,
         type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         *,
-        auto_delete: Optional[bool],
-        durable: Optional[bool],
-        internal: Optional[bool] = False,
-        passive: Optional[bool],
+        auto_delete: bool = False,
+        durable: bool = False,
+        internal: bool = False,
+        passive: bool = False,
         arguments: dict = None
     ):
 
@@ -48,6 +49,7 @@ class Exchange(AbstractExchange):
         if not arguments:
             arguments = {}
 
+        self.connection = connection
         self._channel = channel
         self.__type = type.value if isinstance(type, ExchangeType) else type
         self.name = name
@@ -64,10 +66,10 @@ class Exchange(AbstractExchange):
 
         return self._channel
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<Exchange(%s): auto_delete=%s, durable=%s, arguments=%r)>" % (
             self,
             self.auto_delete,
@@ -92,7 +94,7 @@ class Exchange(AbstractExchange):
         )
 
     @staticmethod
-    def _get_exchange_name(exchange: ExchangeParamType):
+    def _get_exchange_name(exchange: ExchangeParamType) -> str:
         if isinstance(exchange, Exchange):
             return exchange.name
         elif isinstance(exchange, str):
@@ -107,7 +109,7 @@ class Exchange(AbstractExchange):
         exchange: ExchangeParamType,
         routing_key: str = "",
         *,
-        arguments: dict = None,
+        arguments: ArgumentsType = None,
         timeout: TimeoutType = None
     ) -> aiormq.spec.Exchange.BindOk:
 
