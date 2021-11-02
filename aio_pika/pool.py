@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 
 class PoolInstance(abc.ABC):
     @abc.abstractclassmethod
-    async def close(cls) -> None:
+    def close(cls) -> Awaitable[None]:
         raise NotImplementedError
 
 

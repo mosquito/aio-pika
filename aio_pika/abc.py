@@ -4,12 +4,14 @@ from datetime import datetime, timedelta
 from enum import Enum, IntEnum, unique
 from types import TracebackType
 from typing import (
-    Any, AsyncContextManager, Callable, Dict, FrozenSet, Iterable, NamedTuple,
-    Optional, Set, Tuple, Type, TypeVar, Union, MutableMapping,
+    Any, AsyncContextManager, Awaitable, Callable, Dict, FrozenSet, Generator,
+    Iterable, MutableMapping, NamedTuple, Optional, Set, Tuple, Type, TypeVar,
+    Union,
 )
 
 import aiormq
 from aiormq.abc import ExceptionType
+from pamqp.common import Arguments
 
 from .pool import PoolInstance
 from .tools import CallbackCollection
@@ -17,7 +19,7 @@ from .tools import CallbackCollection
 
 Sender = Any
 ReturnCallbackType = Callable[[Sender, aiormq.abc.DeliveredMessage], Any]
-CloseCallbackType = Callable[[Sender, Optional[BaseException]], None]
+CloseCallbackType = Callable[[Sender, Optional[BaseException]], Any]
 TimeoutType = Optional[Union[int, float]]
 
 NoneType = type(None)
@@ -134,13 +136,11 @@ class AbstractMessage(ABC):
     def info(self) -> Dict[str, HeadersValue]:
         raise NotImplementedError
 
-    @property
-    @abstractmethod
+    @abstractproperty
     def locked(self) -> bool:
         raise NotImplementedError
 
-    @property
-    @abstractmethod
+    @abstractproperty
     def properties(self) -> aiormq.spec.Basic.Properties:
         raise NotImplementedError
 
@@ -165,8 +165,7 @@ class AbstractIncomingMessage(AbstractMessage, ABC):
     routing_key: Optional[str]
     exchange: str
 
-    @property
-    @abstractmethod
+    @abstractproperty
     def channel(self) -> aiormq.abc.AbstractChannel:
         raise NotImplementedError
 
@@ -214,23 +213,20 @@ class AbstractProcessContext(AsyncContextManager):
         raise NotImplementedError
 
 
-ArgumentsType = Optional[aiormq.abc.FieldTable]
-
-
 class AbstractQueue:
     channel: "AbstractChannel"
     connection: "AbstractConnection"
     name: str
-    durable: Optional[bool]
+    durable: bool
     exclusive: bool
     auto_delete: bool
-    arguments: ArgumentsType
+    arguments: Arguments
     passive: bool
     declaration_result: aiormq.spec.Queue.DeclareOk
 
     @abstractmethod
     async def declare(
-        self, timeout: int = None,
+        self, timeout: TimeoutType = None,
     ) -> aiormq.spec.Queue.DeclareOk:
         raise NotImplementedError
 
@@ -240,7 +236,7 @@ class AbstractQueue:
         exchange: ExchangeParamType,
         routing_key: str = None,
         *,
-        arguments: Optional[aiormq.abc.FieldTable] = None,
+        arguments: Arguments = None,
         timeout: TimeoutType = None
     ) -> aiormq.spec.Queue.BindOk:
         raise NotImplementedError
@@ -250,8 +246,8 @@ class AbstractQueue:
         self,
         exchange: ExchangeParamType,
         routing_key: Optional[str] = None,
-        arguments: Optional[aiormq.abc.FieldTable] = None,
-        timeout: Optional[int] = None,
+        arguments: Arguments = None,
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Queue.UnbindOk:
         raise NotImplementedError
 
@@ -261,10 +257,10 @@ class AbstractQueue:
         callback: Callable[[AbstractIncomingMessage], Any],
         no_ack: bool = False,
         exclusive: bool = False,
-        arguments: Optional[aiormq.abc.FieldTable] = None,
+        arguments: Arguments = None,
         consumer_tag: ConsumerTag = None,
         timeout: TimeoutType = None,
-    ) -> ConsumerTag:
+    ) -> Optional[ConsumerTag]:
         raise NotImplementedError
 
     @abstractmethod
@@ -292,7 +288,7 @@ class AbstractQueue:
     async def delete(
         self, *, if_unused: bool = True, if_empty: bool = True,
         timeout: TimeoutType = None
-    ) -> aiormq.spec.Queue.DeclareOk:
+    ) -> aiormq.spec.Queue.DeleteOk:
         raise NotImplementedError
 
     @abstractmethod
@@ -307,7 +303,7 @@ class AbstractQueueIterator:
     _consume_kwargs: Dict[str, Any]
 
     @abstractmethod
-    async def close(self, *_: Any) -> None:
+    def close(self, *_: Any) -> Awaitable[Any]:
         raise NotImplementedError
 
     @abstractmethod
@@ -323,7 +319,7 @@ class AbstractQueueIterator:
         raise NotImplementedError
 
     @abstractmethod
-    async def __aenter__(self) -> "AbstractQueueIterator":
+    def __aenter__(self) -> Awaitable["AbstractQueueIterator"]:
         raise NotImplementedError
 
     @abstractmethod
@@ -341,9 +337,8 @@ class AbstractQueueIterator:
 
 
 class AbstractExchange(ABC):
-    @property
-    @abstractmethod
-    def channel(self) -> aiormq.Channel:
+    @abstractproperty
+    def channel(self) -> "AbstractChannel":
         raise NotImplementedError
 
     @abstractmethod
@@ -358,7 +353,7 @@ class AbstractExchange(ABC):
         exchange: ExchangeParamType,
         routing_key: str = "",
         *,
-        arguments: ArgumentsType = None,
+        arguments: Arguments = None,
         timeout: TimeoutType = None
     ) -> aiormq.spec.Exchange.BindOk:
         raise NotImplementedError
@@ -368,7 +363,7 @@ class AbstractExchange(ABC):
         self,
         exchange: ExchangeParamType,
         routing_key: str = "",
-        arguments: dict = None,
+        arguments: Arguments = None,
         timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.UnbindOk:
         raise NotImplementedError
@@ -401,8 +396,7 @@ class AbstractChannel(PoolInstance, ABC):
     connection: "AbstractConnection"
     loop: asyncio.AbstractEventLoop
 
-    @property
-    @abstractmethod
+    @abstractproperty
     def done_callbacks(self) -> CallbackCollection:
         raise NotImplementedError
 
@@ -415,21 +409,19 @@ class AbstractChannel(PoolInstance, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def close(self, exc: ExceptionType = None) -> None:
+    def close(self, exc: ExceptionType = None) -> Awaitable[None]:
         raise NotImplementedError
 
-    @property
-    @abstractmethod
-    def channel(self) -> aiormq.Channel:
+    @abstractproperty
+    def channel(self) -> aiormq.abc.AbstractChannel:
         raise NotImplementedError
 
-    @property
-    @abstractmethod
+    @abstractproperty
     def number(self) -> Optional[int]:
         raise NotImplementedError
 
     @abstractmethod
-    def __await__(self) -> "AbstractChannel":
+    def __await__(self) -> Generator[Any, Any, "AbstractChannel"]:
         raise NotImplementedError
 
     @abstractmethod
@@ -480,11 +472,12 @@ class AbstractChannel(PoolInstance, ABC):
         self,
         name: str,
         type: Union[ExchangeType, str] = ExchangeType.DIRECT,
-        durable: bool = None,
+        *,
+        durable: bool = False,
         auto_delete: bool = False,
         internal: bool = False,
         passive: bool = False,
-        arguments: dict = None,
+        arguments: Arguments = None,
         timeout: TimeoutType = None,
     ) -> AbstractExchange:
         raise NotImplementedError
@@ -500,11 +493,11 @@ class AbstractChannel(PoolInstance, ABC):
         self,
         name: str = None,
         *,
-        durable: bool = None,
+        durable: bool = False,
         exclusive: bool = False,
         passive: bool = False,
         auto_delete: bool = False,
-        arguments: dict = None,
+        arguments: Arguments = None,
         timeout: TimeoutType = None
     ) -> AbstractQueue:
         raise NotImplementedError
@@ -560,9 +553,9 @@ class AbstractConnection(PoolInstance, ABC):
     loop: asyncio.AbstractEventLoop
     close_callbacks: CallbackCollection
     connected: asyncio.Event
+    connection: aiormq.abc.AbstractConnection
 
-    @property
-    @abstractmethod
+    @abstractproperty
     def is_closed(self) -> bool:
         raise NotImplementedError
 
@@ -571,7 +564,7 @@ class AbstractConnection(PoolInstance, ABC):
         raise NotImplementedError
 
     @abstractproperty
-    def channels(self) -> Dict[int, aiormq.abc.AbstractChannel]:
+    def channels(self) -> Dict[int, AbstractChannel]:
         raise NotImplementedError
 
     @abstractmethod

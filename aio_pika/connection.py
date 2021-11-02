@@ -106,8 +106,12 @@ class Connection(AbstractConnection):
         else:
             self.closing.set_result(closing.result())
 
-    async def _make_connection(self, **kwargs) -> aiormq.Connection:
-        connection: aiormq.Connection = await aiormq.connect(self.url, **kwargs)
+    async def _make_connection(
+        self, *, timeout: TimeoutType = None, **kwargs
+    ) -> aiormq.abc.AbstractConnection:
+        connection: aiormq.abc.AbstractConnection = await asyncio.wait_for(
+            aiormq.connect(self.url, **kwargs), timeout=timeout,
+        )
         connection.closing.add_done_callback(
             partial(self._on_connection_close, self.connection),
         )
@@ -123,8 +127,8 @@ class Connection(AbstractConnection):
             You shouldn't call it explicitly.
 
         """
-        self.connection: aiormq.Connection = await asyncio.wait_for(
-            self._make_connection(**kwargs), timeout=timeout,
+        self.connection: aiormq.abc.AbstractConnection = (
+            await self._make_connection(timeout=timeout, **kwargs)
         )
         self.connected.set()
         self.connection.closing.add_done_callback(

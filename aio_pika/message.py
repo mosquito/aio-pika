@@ -7,19 +7,18 @@ from logging import getLogger
 from pprint import pformat
 from types import TracebackType
 from typing import (
-    Any, AsyncContextManager, Callable, Dict, Iterable, Optional, Type, Union,
-    TypeVar, Iterator, List, MutableMapping
+    Any, AsyncContextManager, Callable, Dict, Iterable, Iterator, List,
+    MutableMapping, Optional, Type, TypeVar, Union,
 )
 from warnings import warn
 
 import aiormq
 from aiormq.abc import DeliveredMessage, FieldTable
-from pamqp.commands import Basic
 from pamqp.common import FieldValue
 
 from .abc import (
     MILLISECONDS, ZERO_TIME, AbstractIncomingMessage, AbstractMessage,
-    AbstractProcessContext, HeadersType, DeliveryMode, HeadersPythonValues,
+    AbstractProcessContext, DeliveryMode, HeadersPythonValues, HeadersType,
 )
 from .exceptions import MessageProcessError
 
@@ -142,7 +141,7 @@ T = TypeVar("T")
 def optional(
     value: V,
     func: Union[Callable[[V], T], Type[T]],
-    default: D = None
+    default: D = None,
 ) -> Union[T, D]:
     return func(value) if value else default    # type: ignore
 
@@ -189,7 +188,7 @@ def header_converter(value: Any) -> FieldValue:
             separators=(",", ":"),
             ensure_ascii=False,
             default=repr,
-        ).encode()
+        ).encode(),
     )
 
 
@@ -521,7 +520,11 @@ class IncomingMessage(Message, AbstractIncomingMessage):
         self.routing_key = None
 
         if isinstance(
-            message.delivery, (Basic.Return, Basic.GetOk, Basic.Deliver)
+            message.delivery, (
+                aiormq.spec.Basic.Return,
+                aiormq.spec.Basic.GetOk,
+                aiormq.spec.Basic.Deliver,
+            ),
         ):
             self.routing_key = message.delivery.routing_key
 
@@ -595,7 +598,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
 
         if self.delivery_tag is not None:
             await self.__channel.basic_ack(
-                delivery_tag=self.delivery_tag, multiple=multiple
+                delivery_tag=self.delivery_tag, multiple=multiple,
             )
 
         self.__processed = True
@@ -623,7 +626,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
         if self.delivery_tag is not None:
             self.__channel.basic_reject(
                 delivery_tag=self.delivery_tag,
-                requeue=requeue
+                requeue=requeue,
             )
 
         self.__processed = True
