@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from functools import partial
-from typing import Any, Callable
+from typing import Any, Callable, TypeVar, Awaitable, Dict
 
 from aiormq.tools import awaitable
 
@@ -13,9 +13,10 @@ from aio_pika.message import (
 from aio_pika.queue import Queue
 
 from .base import Base, Proxy
-
+from ..abc import AbstractExchange, AbstractIncomingMessage, AbstractQueue
 
 log = logging.getLogger(__name__)
+T = TypeVar("T")
 
 
 class MessageProcessingError(Exception):
@@ -23,12 +24,12 @@ class MessageProcessingError(Exception):
 
 
 class NackMessage(MessageProcessingError):
-    def __init__(self, requeue=False):
+    def __init__(self, requeue: bool = False):
         self.requeue = requeue
 
 
 class RejectMessage(MessageProcessingError):
-    def __init__(self, requeue=False):
+    def __init__(self, requeue: bool = False):
         self.requeue = requeue
 
 
@@ -39,7 +40,10 @@ class Worker:
         "loop",
     )
 
-    def __init__(self, queue: Queue, consumer_tag: str, loop):
+    def __init__(
+        self, queue: AbstractQueue, consumer_tag: str,
+        loop: asyncio.AbstractEventLoop
+    ):
         self.queue = queue
         self.consumer_tag = consumer_tag
         self.loop = loop
@@ -50,7 +54,7 @@ class Worker:
         :return: :class:`asyncio.Task`
         """
 
-        async def closer():
+        async def closer() -> None:
             await self.queue.cancel(self.consumer_tag)
 
         return self.loop.create_task(closer())
@@ -100,11 +104,11 @@ class Master(Base):
         self._reject_on_redelivered = reject_on_redelivered
 
     @property
-    def exchange(self):
+    def exchange(self) -> AbstractExchange:
         return self.channel.default_exchange
 
     @staticmethod
-    def on_message_returned(_, message: ReturnedMessage):
+    def on_message_returned(message: ReturnedMessage) -> None:
         log.warning(
             "Message returned. Probably destination queue does not exists: %r",
             message,
@@ -131,7 +135,9 @@ class Master(Base):
         return super().deserialize(data)
 
     @classmethod
-    async def execute(cls, func, kwargs):
+    async def execute(
+        cls, func: Callable[..., Awaitable[T]], kwargs: Any
+    ) -> T:
         kwargs = kwargs or {}
 
         if not isinstance(kwargs, dict):
@@ -139,7 +145,10 @@ class Master(Base):
 
         return await func(**kwargs)
 
-    async def on_message(self, func, message: IncomingMessage):
+    async def on_message(
+        self, func: Callable[..., Any],
+        message: AbstractIncomingMessage
+    ) -> None:
         async with message.process(
             requeue=self._requeue,
             reject_on_redelivered=self._reject_on_redelivered,
@@ -150,15 +159,17 @@ class Master(Base):
             try:
                 await self.execute(func, data)
             except RejectMessage as e:
-                message.reject(requeue=e.requeue)
+                await message.reject(requeue=e.requeue)
             except NackMessage as e:
-                message.nack(requeue=e.requeue)
+                await message.nack(requeue=e.requeue)
 
-    async def create_queue(self, channel_name, **kwargs) -> Queue:
+    async def create_queue(
+        self, channel_name: str, **kwargs: Any
+    ) -> AbstractQueue:
         return await self.channel.declare_queue(channel_name, **kwargs)
 
     async def create_worker(
-        self, channel_name: str, func: Callable, **kwargs
+        self, channel_name: str, func: Callable[..., Any], **kwargs: Any
     ) -> Worker:
         """ Creates a new :class:`Worker` instance. """
 
@@ -173,8 +184,9 @@ class Master(Base):
         return Worker(queue, consumer_tag, self.loop)
 
     async def create_task(
-        self, channel_name: str, kwargs=None, **message_kwargs
-    ):
+        self, channel_name: str,
+        kwargs: Dict[str, Any] = None, **message_kwargs: Any
+    ) -> None:
 
         """ Creates a new task for the worker """
         message = Message(
@@ -191,5 +203,5 @@ class JsonMaster(Master):
     SERIALIZER = json
     CONTENT_TYPE = "application/json"
 
-    def serialize(self, data: Any) -> str:
-        return self.SERIALIZER.dumps(data, ensure_ascii=False)
+    def serialize(self, data: Any) -> bytes:
+        return self.SERIALIZER.dumps(data, ensure_ascii=False).encode()

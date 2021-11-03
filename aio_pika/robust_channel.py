@@ -1,15 +1,17 @@
 from collections import defaultdict
 from logging import getLogger
-from typing import DefaultDict, Optional, Set, Type, Union
+from typing import DefaultDict, Set, Type, Union, Optional
 from warnings import warn
 
 import aiormq
+from aiormq.abc import ExceptionType
 
 from .channel import Channel
 from .exchange import Exchange, ExchangeType
 from .queue import Queue
 from .robust_exchange import RobustExchange
 from .robust_queue import RobustQueue
+from .robust_connection import RobustConnection
 from .tools import CallbackCollection
 from .types import TimeoutType
 
@@ -25,11 +27,11 @@ class RobustChannel(Channel):
 
     _exchanges: DefaultDict[str, Set[RobustExchange]]
     _queues: DefaultDict[str, Set[RobustQueue]]
-    default_exchange: Optional[RobustExchange]
+    default_exchange: RobustExchange
 
     def __init__(
         self,
-        connection,
+        connection: RobustConnection,
         channel_number: int = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
@@ -82,7 +84,7 @@ class RobustChannel(Channel):
             for queue in queues:
                 await queue.restore(self)
 
-    def _on_initialized(self):
+    def _on_initialized(self) -> None:
         self.channel.on_return_callbacks.add(self._on_return)
         self.add_close_callback(self._on_channel_close)
 
@@ -98,7 +100,7 @@ class RobustChannel(Channel):
 
         log.debug("Robust channel %r has been closed.", sender)
 
-    async def close(self, exc=None):
+    async def close(self, exc: Optional[ExceptionType] = None) -> None:
         await super(RobustChannel, self).close()
         # Have to fire callbacks here cause user call close.
         self.close_callbacks(self)
@@ -110,7 +112,7 @@ class RobustChannel(Channel):
         global_: bool = False,
         timeout: TimeoutType = None,
         all_channels: bool = None,
-    ):
+    ) -> aiormq.spec.Basic.QosOk:
         if all_channels is not None:
             warn('Use "global_" instead of "all_channels"', DeprecationWarning)
             global_ = all_channels
@@ -132,7 +134,7 @@ class RobustChannel(Channel):
         self,
         name: str,
         type: Union[ExchangeType, str] = ExchangeType.DIRECT,
-        durable: bool = None,
+        durable: bool = False,
         auto_delete: bool = False,
         internal: bool = False,
         passive: bool = False,
@@ -141,15 +143,17 @@ class RobustChannel(Channel):
         robust: bool = True,
     ) -> RobustExchange:
         await self.connection.connected.wait()
-        exchange = await super().declare_exchange(
-            name=name,
-            type=type,
-            durable=durable,
-            auto_delete=auto_delete,
-            internal=internal,
-            passive=passive,
-            arguments=arguments,
-            timeout=timeout,
+        exchange: RobustExchange = (
+                await super().declare_exchange(     # type: ignore
+                name=name,
+                type=type,
+                durable=durable,
+                auto_delete=auto_delete,
+                internal=internal,
+                passive=passive,
+                arguments=arguments,
+                timeout=timeout,
+            )
         )
 
         if not internal and robust:
@@ -161,8 +165,8 @@ class RobustChannel(Channel):
         self,
         exchange_name: str,
         timeout: TimeoutType = None,
-        if_unused=False,
-        nowait=False,
+        if_unused: bool = False,
+        nowait: bool = False,
     ) -> aiormq.spec.Exchange.DeleteOk:
         await self.connection.connected.wait()
         result = await super().exchange_delete(
@@ -180,7 +184,7 @@ class RobustChannel(Channel):
         self,
         name: str = None,
         *,
-        durable: bool = None,
+        durable: bool = False,
         exclusive: bool = False,
         passive: bool = False,
         auto_delete: bool = False,
@@ -189,7 +193,7 @@ class RobustChannel(Channel):
         robust: bool = True
     ) -> Queue:
         await self.connection.connected.wait()
-        queue = await super().declare_queue(
+        queue: RobustQueue = await super().declare_queue(   # type: ignore
             name=name,
             durable=durable,
             exclusive=exclusive,
@@ -200,7 +204,7 @@ class RobustChannel(Channel):
         )
 
         if robust:
-            self._queues[name].add(queue)
+            self._queues[queue.name].add(queue)
 
         return queue
 
@@ -211,7 +215,7 @@ class RobustChannel(Channel):
         if_unused: bool = False,
         if_empty: bool = False,
         nowait: bool = False,
-    ):
+    ) -> aiormq.spec.Queue.DeleteOk:
         await self.connection.connected.wait()
         result = await super().queue_delete(
             queue_name=queue_name,

@@ -6,7 +6,7 @@ import time
 import uuid
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Dict, Hashable, Optional, TypeVar, Tuple
+from typing import Any, Callable, Dict, Hashable, Optional, Tuple, TypeVar
 
 from aiormq.abc import ExceptionType
 from aiormq.tools import awaitable
@@ -19,9 +19,12 @@ from aio_pika.message import (
 )
 from aio_pika.tools import shield
 
+from ..abc import (
+    AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
+    ConsumerTag,
+)
 from .base import Base, Proxy
-from ..abc import AbstractQueue, ConsumerTag, AbstractExchange, \
-    AbstractIncomingMessage, AbstractChannel
+
 
 log = logging.getLogger(__name__)
 
@@ -101,7 +104,7 @@ class RPC(Base):
 
     @shield
     async def close(self) -> None:
-        if not hasattr(self, 'result_queue'):
+        if not hasattr(self, "result_queue"):
             log.warning("RPC already closed")
             return
 
@@ -132,7 +135,7 @@ class RPC(Base):
         self, auto_delete: bool = True,
         durable: bool = False, **kwargs: Any
     ) -> None:
-        if not hasattr(self, 'result_queue'):
+        if not hasattr(self, "result_queue"):
             return
 
         self.result_queue = await self.channel.declare_queue(
@@ -158,8 +161,10 @@ class RPC(Base):
             self.on_message_returned, weak=False,
         )
 
-    def on_close(self, channel: AbstractChannel,
-                 exc: Optional[ExceptionType] = None) -> None:
+    def on_close(
+        self, channel: AbstractChannel,
+        exc: Optional[ExceptionType] = None,
+    ) -> None:
         log.debug("Closing RPC futures because %r", exc)
         for future in self.futures.values():
             if future.done():
@@ -184,7 +189,7 @@ class RPC(Base):
     def on_message_returned(self, message: ReturnedMessage) -> None:
         if message.correlation_id is None:
             log.warning(
-                "Message without correlation_id was returned: %r", message
+                "Message without correlation_id was returned: %r", message,
             )
             return
 
@@ -199,7 +204,7 @@ class RPC(Base):
     async def on_result_message(self, message: AbstractIncomingMessage) -> None:
         if message.correlation_id is None:
             log.warning(
-                "Message without correlation_id was received: %r", message
+                "Message without correlation_id was received: %r", message,
             )
             return
 
@@ -416,7 +421,7 @@ class JsonRPC(RPC):
 
     def serialize(self, data: Any) -> bytes:
         return self.SERIALIZER.dumps(
-            data, ensure_ascii=False, default=repr
+            data, ensure_ascii=False, default=repr,
         ).encode()
 
     def serialize_exception(self, exception: Exception) -> bytes:
