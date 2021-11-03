@@ -1,30 +1,23 @@
 import asyncio
 from functools import wraps
 from logging import getLogger
-from typing import Callable, Type
+from typing import Callable, Type, Any, Dict, Optional, MutableSet
 from weakref import WeakSet
 
+import aiormq
+from aiormq.abc import ExceptionType
 from aiormq.connection import parse_bool, parse_int
+from pamqp.common import FieldTable
+from yarl import URL
 
-from .abc import TimeoutType
-from .connection import Connection, ConnectionType, connect
+from .abc import TimeoutType, AbstractConnection, AbstractChannel
+from .connection import Connection, connect
 from .exceptions import CONNECTION_EXCEPTIONS
 from .robust_channel import RobustChannel
 from .tools import CallbackCollection, task
 
 
 log = getLogger(__name__)
-
-
-def _ensure_connection(func):
-    @wraps(func)
-    def wrap(self, *args, **kwargs):
-        if self.is_closed:
-            raise RuntimeError("Connection closed")
-
-        return func(self, *args, **kwargs)
-
-    return wrap
 
 
 class RobustConnection(Connection):
@@ -37,14 +30,16 @@ class RobustConnection(Connection):
         ("fail_fast", parse_bool, "1"),
     )
 
-    def __init__(self, url, loop=None, **kwargs):
+    def __init__(
+        self, url: URL, loop: asyncio.AbstractEventLoop = None, **kwargs: Any
+    ):
         super().__init__(url=url, loop=loop, **kwargs)
 
-        self.connect_kwargs = {}
+        self.connect_kwargs: Dict[str, Any] = {}
         self.reconnect_interval = self.kwargs["reconnect_interval"]
         self.fail_fast = self.kwargs["fail_fast"]
 
-        self.__channels = WeakSet()
+        self.__channels: WeakSet[AbstractChannel] = WeakSet()
         self._reconnect_callbacks = CallbackCollection(self)
         self._connect_lock = asyncio.Lock()
         self._closed = False
@@ -57,24 +52,22 @@ class RobustConnection(Connection):
     def reconnect_callbacks(self) -> CallbackCollection:
         return self._reconnect_callbacks
 
-    @property
-    def channels(self) -> dict:
-        return {ch.number: ch for ch in self.__channels}
-
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '<{0}: "{1}" {2} channels>'.format(
             self.__class__.__name__, str(self), len(self.__channels),
         )
 
-    def _on_connection_close(self, connection, closing, *args, **kwargs):
+    def _on_connection_close(
+        self, connection: AbstractConnection, closing: asyncio.Future
+    ) -> None:
         if self.reconnecting:
             return
 
         self.connected.clear()
-        self.connection = None
+        del self.connection
 
         log.debug("Closing AMQP connection %r", connection)
-        exc = closing.exception()
+        exc: Optional[BaseException] = closing.exception()
 
         if self.closing.done():
             return
@@ -90,7 +83,7 @@ class RobustConnection(Connection):
 
     def add_reconnect_callback(
         self, callback: Callable[[], None], weak: bool = False,
-    ):
+    ) -> None:
         """ Add callback which will be called after reconnect.
 
         :return: None
@@ -98,15 +91,18 @@ class RobustConnection(Connection):
 
         self._reconnect_callbacks.add(callback, weak=weak)
 
-    async def __cleanup_connection(self, exc):
-        if self.connection is None:
+    async def __cleanup_connection(self, exc: Optional[BaseException]) -> None:
+        if not hasattr(self, "connection"):
             return
+
         await asyncio.gather(
             self.connection.close(exc), return_exceptions=True,
         )
-        self.connection = None
+        del self.connection
 
-    async def connect(self, timeout: TimeoutType = None, **kwargs):
+    async def connect(
+        self, timeout: TimeoutType = None, **kwargs: Any
+    ) -> None:
         if self.is_closed:
             raise RuntimeError("{!r} connection closed".format(self))
 
@@ -129,7 +125,7 @@ class RobustConnection(Connection):
                         timeout=timeout, **self.connect_kwargs
                     )
 
-                    for channel in self.channels.values():
+                    for channel in self.__channels:
                         await channel.reopen()
 
                     self.fail_fast = False
@@ -160,7 +156,7 @@ class RobustConnection(Connection):
                 await asyncio.sleep(self.reconnect_interval)
 
     @task
-    async def reconnect(self):
+    async def reconnect(self) -> None:
         await self.connect()
         self._reconnect_callbacks(self)
 
@@ -168,8 +164,8 @@ class RobustConnection(Connection):
         self,
         channel_number: int = None,
         publisher_confirms: bool = True,
-        on_return_raises=False,
-    ):
+        on_return_raises: bool = False,
+    ) -> AbstractChannel:
 
         channel = super().channel(
             channel_number=channel_number,
@@ -183,17 +179,19 @@ class RobustConnection(Connection):
         return channel
 
     @property
-    def is_closed(self):
+    def is_closed(self) -> bool:
         """ Is this connection is closed """
         return self._closed or super().is_closed
 
-    async def close(self, exc=asyncio.CancelledError):
+    async def close(
+        self, exc: Optional[ExceptionType] = asyncio.CancelledError
+    ) -> None:
         if self.is_closed:
             return
 
         self._closed = True
 
-        if self.connection is None:
+        if not hasattr(self, "connection"):
             return
 
         result = await super().close(exc)
@@ -213,10 +211,10 @@ async def connect_robust(
     loop: asyncio.AbstractEventLoop = None,
     ssl_options: dict = None,
     timeout: TimeoutType = None,
-    connection_class: Type[ConnectionType] = RobustConnection,
-    client_properties: dict = None,
-    **kwargs
-) -> ConnectionType:
+    connection_class: Type[AbstractConnection] = RobustConnection,
+    client_properties: FieldTable = None,
+    **kwargs: Any
+) -> AbstractConnection:
 
     """ Make robust connection to the broker.
 
@@ -273,6 +271,7 @@ async def connect_robust(
         Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
     :param connection_class: Factory of a new connection
     :param kwargs: addition parameters which will be passed to the connection.
+    :param client_properties: Additional client connection properties
     :return: :class:`aio_pika.connection.Connection`
 
     .. _RFC3986: https://goo.gl/MzgYAs

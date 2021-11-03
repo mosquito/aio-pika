@@ -9,7 +9,8 @@ from aiormq.abc import ExceptionType
 from aiormq.tools import censor_url
 from yarl import URL
 
-from .abc import AbstractConnection, ConnectionCloseCallback, TimeoutType
+from .abc import AbstractConnection, ConnectionCloseCallback, TimeoutType, \
+    AbstractChannel
 from .channel import Channel
 from .tools import CallbackCollection
 
@@ -51,6 +52,8 @@ class Connection(AbstractConnection):
         self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None,
         **kwargs: Any
     ):
+        super().__init__(url, loop, **kwargs)
+
         self.loop = loop or asyncio.get_event_loop()
         self.url = URL(url)
 
@@ -96,8 +99,7 @@ class Connection(AbstractConnection):
         self.close_callbacks.add(callback, weak=weak)
 
     def _on_connection_close(
-        self, connection: AbstractConnection, closing: asyncio.Future,
-        *args: Any, **kwargs: Any
+        self, connection: AbstractConnection, closing: asyncio.Future
     ) -> None:
         log.debug("Closing AMQP connection %r", connection)
         exc: Optional[BaseException] = closing.exception()
@@ -148,7 +150,7 @@ class Connection(AbstractConnection):
         channel_number: int = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
-    ) -> Channel:
+    ) -> AbstractChannel:
         """ Coroutine which returns new instance of :class:`Channel`.
 
         Example:
@@ -247,7 +249,7 @@ async def connect(
     loop: asyncio.AbstractEventLoop = None,
     ssl_options: dict = None,
     timeout: TimeoutType = None,
-    connection_class: Type[Connection] = Connection,
+    connection_class: Type[AbstractConnection] = Connection,
     client_properties: dict = None,
     **kwargs: Any
 ) -> AbstractConnection:
@@ -351,7 +353,7 @@ async def connect(
     else:
         amqp_url = URL(url)
 
-    connection = connection_class(amqp_url, loop=loop)
+    connection: AbstractConnection = connection_class(amqp_url, loop=loop)
 
     await connection.connect(
         timeout=timeout,

@@ -5,13 +5,14 @@ from enum import Enum, IntEnum, unique
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, Awaitable, Callable, Dict, FrozenSet, Generator,
-    Iterable, MutableMapping, NamedTuple, Optional, Set, Tuple, Type, TypeVar,
-    Union, Protocol
+    Iterable, MutableMapping, NamedTuple, Optional, Protocol, Set, Tuple, Type,
+    TypeVar, Union,
 )
 
 import aiormq
 from aiormq.abc import ExceptionType
 from pamqp.common import Arguments
+from yarl import URL
 
 from .pool import PoolInstance
 from .tools import CallbackCollection
@@ -551,6 +552,13 @@ class AbstractConnection(PoolInstance, ABC):
     close_callbacks: CallbackCollection
     connected: asyncio.Event
     connection: aiormq.abc.AbstractConnection
+
+    @abstractmethod
+    def __init__(
+        self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None,
+        **kwargs: Any
+    ):
+        pass
 
     @abstractproperty
     def is_closed(self) -> bool:
