@@ -17,8 +17,9 @@ from aiormq.abc import DeliveredMessage, FieldTable
 from pamqp.common import FieldValue
 
 from .abc import (
-    MILLISECONDS, ZERO_TIME, AbstractIncomingMessage, AbstractMessage,
-    AbstractProcessContext, DeliveryMode, HeadersPythonValues, HeadersType,
+    MILLISECONDS, ZERO_TIME, AbstractChannel, AbstractIncomingMessage,
+    AbstractMessage, AbstractProcessContext, DeliveryMode, HeadersPythonValues,
+    HeadersType,
 )
 from .exceptions import MessageProcessError
 
@@ -594,7 +595,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             raise TypeError('Can\'t ack message with "no_ack" flag')
 
         if self.__processed:
-            raise MessageProcessError("Message already processed")
+            raise MessageProcessError("Message already processed", self)
 
         if self.delivery_tag is not None:
             await self.__channel.basic_ack(
@@ -621,10 +622,10 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             raise TypeError('This message has "no_ack" flag.')
 
         if self.__processed:
-            raise MessageProcessError("Message already processed")
+            raise MessageProcessError("Message already processed", self)
 
         if self.delivery_tag is not None:
-            self.__channel.basic_reject(
+            await self.__channel.basic_reject(
                 delivery_tag=self.delivery_tag,
                 requeue=requeue,
             )
@@ -644,7 +645,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             raise TypeError('Can\'t nack message with "no_ack" flag')
 
         if self.__processed:
-            raise MessageProcessError("Message already processed")
+            raise MessageProcessError("Message already processed", self)
 
         if self.delivery_tag is not None:
             await self.__channel.basic_nack(
@@ -679,7 +680,7 @@ class ReturnedMessage(IncomingMessage):
     pass
 
 
-ReturnCallback = Callable[[ReturnedMessage], Any]
+ReturnCallback = Callable[[AbstractChannel, ReturnedMessage], Any]
 
 
 class ProcessContext(AbstractProcessContext):

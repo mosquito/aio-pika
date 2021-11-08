@@ -1,16 +1,14 @@
 import asyncio
-from functools import wraps
 from logging import getLogger
-from typing import Callable, Type, Any, Dict, Optional, MutableSet
+from typing import Any, Callable, Dict, Optional, Type
 from weakref import WeakSet
 
-import aiormq
 from aiormq.abc import ExceptionType
 from aiormq.connection import parse_bool, parse_int
 from pamqp.common import FieldTable
 from yarl import URL
 
-from .abc import TimeoutType, AbstractConnection, AbstractChannel
+from .abc import AbstractChannel, AbstractConnection, TimeoutType
 from .connection import Connection, connect
 from .exceptions import CONNECTION_EXCEPTIONS
 from .robust_channel import RobustChannel
@@ -58,7 +56,7 @@ class RobustConnection(Connection):
         )
 
     def _on_connection_close(
-        self, connection: AbstractConnection, closing: asyncio.Future
+        self, connection: AbstractConnection, closing: asyncio.Future,
     ) -> None:
         if self.reconnecting:
             return
@@ -82,7 +80,8 @@ class RobustConnection(Connection):
         )
 
     def add_reconnect_callback(
-        self, callback: Callable[[], None], weak: bool = False,
+        self, callback: Callable[["RobustConnection"], None],
+        weak: bool = False,
     ) -> None:
         """ Add callback which will be called after reconnect.
 
@@ -174,7 +173,10 @@ class RobustConnection(Connection):
         )
 
         self.__channels.add(channel)
-        self.close_callbacks.add(channel.close_callbacks, weak=False)
+        self.close_callbacks.add(
+            lambda c, e: channel.close_callbacks(e),
+            weak=False,
+        )
 
         return channel
 
@@ -184,7 +186,7 @@ class RobustConnection(Connection):
         return self._closed or super().is_closed
 
     async def close(
-        self, exc: Optional[ExceptionType] = asyncio.CancelledError
+        self, exc: Optional[ExceptionType] = asyncio.CancelledError,
     ) -> None:
         if self.is_closed:
             return
@@ -195,7 +197,7 @@ class RobustConnection(Connection):
             return
 
         result = await super().close(exc)
-        self.close_callbacks(self)
+        self.close_callbacks(exc)
         return result
 
 

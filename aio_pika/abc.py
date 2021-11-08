@@ -5,8 +5,8 @@ from enum import Enum, IntEnum, unique
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, Awaitable, Callable, Dict, FrozenSet, Generator,
-    Iterable, MutableMapping, NamedTuple, Optional, Protocol, Set, Tuple, Type,
-    TypeVar, Union,
+    Iterable, MutableMapping, NamedTuple, Optional, Set, Tuple, Type, TypeVar,
+    Union,
 )
 
 import aiormq
@@ -393,6 +393,7 @@ class AbstractChannel(PoolInstance, ABC):
     return_callbacks: CallbackCollection
     connection: "AbstractConnection"
     loop: asyncio.AbstractEventLoop
+    default_exchange: AbstractExchange
 
     @abstractproperty
     def done_callbacks(self) -> CallbackCollection:
@@ -462,7 +463,7 @@ class AbstractChannel(PoolInstance, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def reopen(self) -> None:
+    def reopen(self) -> Awaitable[None]:
         raise NotImplementedError
 
     @abstractmethod
@@ -604,6 +605,49 @@ class AbstractConnection(PoolInstance, ABC):
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
+        raise NotImplementedError
+
+
+class AbstractRobustQueue(AbstractQueue):
+    @abstractmethod
+    def reopen(self) -> Awaitable[None]:
+        raise NotImplementedError
+
+
+class AbstractRobustExchange(AbstractExchange):
+    @abstractmethod
+    def reopen(self) -> Awaitable[None]:
+        raise NotImplementedError
+
+
+class AbstractRobustChannel(AbstractChannel):
+    @abstractmethod
+    def reopen(self) -> Awaitable[None]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def restore(self) -> Awaitable[None]:
+        raise NotImplementedError
+
+
+class AbstractRobustConnection(AbstractConnection):
+    @abstractproperty
+    def reconnecting(self) -> bool:
+        raise NotImplementedError
+
+    @abstractproperty
+    def reconnect_callbacks(self) -> CallbackCollection:
+        raise NotImplementedError
+
+    @abstractmethod
+    def add_reconnect_callback(
+        self, callback: Callable[["AbstractRobustConnection"], None],
+        weak: bool = False,
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def reconnect(self) -> Awaitable[None]:
         raise NotImplementedError
 
 

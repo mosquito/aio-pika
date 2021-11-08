@@ -5,7 +5,7 @@ import pytest
 
 import aio_pika
 from aio_pika import Message
-from aio_pika.exceptions import DeliveryError
+from aio_pika.exceptions import MessageProcessError
 from aio_pika.message import IncomingMessage
 from aio_pika.patterns.rpc import RPC
 from aio_pika.patterns.rpc import log as rpc_logger
@@ -50,7 +50,7 @@ class TestCase:
 
         await rpc.register("test.rpc", rpc_func, auto_delete=True)
 
-        with pytest.raises(DeliveryError):
+        with pytest.raises(MessageProcessError):
             await rpc.proxy.unroutable()
 
         await rpc.unregister(rpc_func)
@@ -109,7 +109,10 @@ class TestCase:
 
             assert isinstance(incoming, IncomingMessage)
             assert incoming.body == body
-            assert "Unknown message:" in log_record.message
+            assert (
+                "Message without correlation_id was received:"
+                in log_record.message
+            )
 
         with caplog.at_level(logging.WARNING, logger=rpc_logger.name):
             await channel.default_exchange.publish(
@@ -127,7 +130,10 @@ class TestCase:
             incoming = log_record.args[0]
             assert isinstance(incoming, IncomingMessage)
             assert incoming.body == body
-            assert "Unknown message:" in log_record.message
+            assert (
+                "Message without correlation_id was received:"
+                in log_record.message
+            )
 
         await rpc.close()
 

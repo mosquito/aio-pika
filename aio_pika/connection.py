@@ -9,8 +9,9 @@ from aiormq.abc import ExceptionType
 from aiormq.tools import censor_url
 from yarl import URL
 
-from .abc import AbstractConnection, ConnectionCloseCallback, TimeoutType, \
-    AbstractChannel
+from .abc import (
+    AbstractChannel, AbstractConnection, ConnectionCloseCallback, TimeoutType,
+)
 from .channel import Channel
 from .tools import CallbackCollection
 
@@ -39,7 +40,9 @@ class Connection(AbstractConnection):
             return None
 
         await self.connection.close(exc)
-        del self.connection
+
+        if hasattr(self, "connection"):
+            del self.connection
 
     @classmethod
     def _parse_kwargs(cls, kwargs: Dict[str, Any]) -> Dict[str, Any]:
@@ -99,7 +102,7 @@ class Connection(AbstractConnection):
         self.close_callbacks.add(callback, weak=weak)
 
     def _on_connection_close(
-        self, connection: AbstractConnection, closing: asyncio.Future
+        self, connection: AbstractConnection, closing: asyncio.Future,
     ) -> None:
         log.debug("Closing AMQP connection %r", connection)
         exc: Optional[BaseException] = closing.exception()
@@ -121,7 +124,7 @@ class Connection(AbstractConnection):
             aiormq.connect(self.url, **kwargs), timeout=timeout,
         )
         connection.closing.add_done_callback(
-            partial(self._on_connection_close, self.connection),
+            partial(self._on_connection_close, connection),
         )
         await connection.ready()
         return connection
@@ -220,7 +223,11 @@ class Connection(AbstractConnection):
         await self.connected.wait()
 
     def __del__(self) -> None:
-        if any((self.is_closed, self.loop.is_closed(), not self.connection)):
+        if (
+            self.is_closed or
+            self.loop.is_closed() or
+            not hasattr(self, "connection")
+        ):
             return
 
         asyncio.shield(self.close())

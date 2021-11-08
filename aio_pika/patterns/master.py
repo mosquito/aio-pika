@@ -2,18 +2,18 @@ import asyncio
 import json
 import logging
 from functools import partial
-from typing import Any, Callable, TypeVar, Awaitable, Dict
+from typing import Any, Awaitable, Callable, Dict, TypeVar
 
 from aiormq.tools import awaitable
 
 from aio_pika.channel import Channel
-from aio_pika.message import (
-    DeliveryMode, IncomingMessage, Message, ReturnedMessage,
-)
-from aio_pika.queue import Queue
+from aio_pika.message import DeliveryMode, Message, ReturnedMessage
 
+from ..abc import (
+    AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
+)
 from .base import Base, Proxy
-from ..abc import AbstractExchange, AbstractIncomingMessage, AbstractQueue
+
 
 log = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -42,7 +42,7 @@ class Worker:
 
     def __init__(
         self, queue: AbstractQueue, consumer_tag: str,
-        loop: asyncio.AbstractEventLoop
+        loop: asyncio.AbstractEventLoop,
     ):
         self.queue = queue
         self.consumer_tag = consumer_tag
@@ -108,7 +108,10 @@ class Master(Base):
         return self.channel.default_exchange
 
     @staticmethod
-    def on_message_returned(message: ReturnedMessage) -> None:
+    def on_message_returned(
+        channel: AbstractChannel,
+        message: ReturnedMessage,
+    ) -> None:
         log.warning(
             "Message returned. Probably destination queue does not exists: %r",
             message,
@@ -136,7 +139,7 @@ class Master(Base):
 
     @classmethod
     async def execute(
-        cls, func: Callable[..., Awaitable[T]], kwargs: Any
+        cls, func: Callable[..., Awaitable[T]], kwargs: Any,
     ) -> T:
         kwargs = kwargs or {}
 
@@ -147,7 +150,7 @@ class Master(Base):
 
     async def on_message(
         self, func: Callable[..., Any],
-        message: AbstractIncomingMessage
+        message: AbstractIncomingMessage,
     ) -> None:
         async with message.process(
             requeue=self._requeue,
