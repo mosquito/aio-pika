@@ -4,7 +4,7 @@ import os
 import time
 import uuid
 from datetime import datetime
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, Optional
 from unittest import mock
 
 import aiormq.exceptions
@@ -14,10 +14,12 @@ import shortuuid
 import aio_pika
 import aio_pika.exceptions
 from aio_pika import Channel, DeliveryMode, Message
+from aio_pika.abc import AbstractIncomingMessage
 from aio_pika.exceptions import (
     DeliveryError, MessageProcessError, ProbableAuthenticationError,
 )
 from aio_pika.exchange import ExchangeType
+from aio_pika.message import ReturnedMessage
 from tests import get_random_name
 
 
@@ -51,10 +53,14 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         closed = False
 
-        def on_close(sender, ch):
+        def on_close(
+            ch: aio_pika.abc.AbstractChannel,
+            exc: Optional[Exception] = None,
+        ):
             nonlocal event, closed
             log.info("Close called")
             closed = True
+            assert ch.is_closed
             event.set()
 
         channel = await self.create_channel(connection)
@@ -215,7 +221,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         assert result
 
         incoming_message = await queue.get(timeout=5)
-        incoming_message.ack()
+        await incoming_message.ack()
 
         assert incoming_message.body == body
 
@@ -251,7 +257,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         assert result is None
 
         incoming_message = await queue.get(timeout=5)
-        incoming_message.ack()
+        await incoming_message.ack()
 
         assert incoming_message.body == body
 
@@ -288,7 +294,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         )
 
         incoming_message = await queue.get(timeout=5)
-        incoming_message.ack()
+        await incoming_message.ack()
 
         assert incoming_message.body == body
 
@@ -322,7 +328,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         )
 
         incoming_message = await queue.get(timeout=5)
-        incoming_message.ack()
+        await incoming_message.ack()
 
         assert incoming_message.body == body
 
@@ -383,7 +389,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         await exchange.publish(msg, routing_key)
 
         incoming_message = await queue.get(timeout=5)
-        incoming_message.ack()
+        await incoming_message.ack()
 
         info["routing_key"] = incoming_message.routing_key
         info["redelivered"] = incoming_message.redelivered
@@ -421,7 +427,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         if not channel._publisher_confirms:
             await asyncio.sleep(1)
 
-        incoming_message = await queue.get(timeout=5)
+        incoming_message: AbstractIncomingMessage = await queue.get(timeout=5)
 
         with pytest.raises(AssertionError):
             async with incoming_message.process(requeue=True):
@@ -445,14 +451,14 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         with pytest.raises(MessageProcessError):
             async with incoming_message.process():
-                incoming_message.reject(requeue=True)
+                await incoming_message.reject(requeue=True)
 
         assert incoming_message.locked
 
         incoming_message = await queue.get(timeout=5)
 
         async with incoming_message.process(ignore_processed=True):
-            incoming_message.reject(requeue=False)
+            await incoming_message.reject(requeue=False)
 
         assert incoming_message.body == body
 
@@ -561,7 +567,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         first_message = await queue.get(timeout=5)
 
         last_message = await queue.get(timeout=5)
-        last_message.ack()
+        await last_message.ack()
 
         # close channel, not acked message should be redelivered
         await channel.close()
@@ -577,7 +583,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         # receive not acked message
         message = await queue.get(timeout=5)
         assert message.body == first_message.body
-        message.ack()
+        await message.ack()
 
         await queue.unbind(exchange, routing_key)
 
@@ -614,7 +620,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         # message should be acked too
         await queue.get(timeout=5)
         last_message = await queue.get(timeout=5)
-        last_message.ack(multiple=True)
+        await last_message.ack(multiple=True)
 
         # close channel, no messages should be redelivered
         await channel.close()
@@ -652,10 +658,10 @@ class TestCaseAmqp(TestCaseAmqpBase):
         )
 
         incoming_message = await queue.get(timeout=5)
-        incoming_message.ack()
+        await incoming_message.ack()
 
         with pytest.raises(MessageProcessError):
-            incoming_message.ack()
+            await incoming_message.ack()
 
         assert incoming_message.body == body
 
@@ -686,10 +692,10 @@ class TestCaseAmqp(TestCaseAmqpBase):
         )
 
         incoming_message = await queue.get(timeout=5)
-        incoming_message.reject(requeue=False)
+        await incoming_message.reject(requeue=False)
 
         with pytest.raises(MessageProcessError):
-            incoming_message.reject(requeue=False)
+            await incoming_message.reject(requeue=False)
 
         assert incoming_message.body == body
 
@@ -715,7 +721,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         f = loop.create_future()
 
         async def handle(message):
-            message.ack()
+            await message.ack()
             assert message.body == body
             assert message.routing_key == routing_key
             f.set_result(True)
@@ -752,8 +758,8 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         f = loop.create_future()
 
-        def handle(message):
-            message.ack()
+        async def handle(message):
+            await message.ack()
             assert message.body == body
             assert message.routing_key == routing_key
             f.set_result(True)
@@ -794,7 +800,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         incoming_message = await queue.get(timeout=5, no_ack=True)
 
         with pytest.raises(TypeError):
-            incoming_message.ack()
+            await incoming_message.ack()
 
         await exchange.publish(
             Message(body, content_type="text/plain", headers={"foo": "bar"}),
@@ -803,7 +809,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         incoming_message = await queue.get(timeout=5)
 
-        incoming_message.reject()
+        await incoming_message.reject()
 
         await exchange.publish(
             Message(body, content_type="text/plain", headers={"foo": "bar"}),
@@ -887,7 +893,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         f = loop.create_future()
 
         async def dlx_handle(message):
-            message.ack()
+            await message.ack()
             assert message.body == body
             assert message.routing_key == dlx_routing_key
             f.set_result(True)
@@ -1024,7 +1030,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         )
 
         incoming_message = await queue.get(timeout=5)
-        incoming_message.ack()
+        await incoming_message.ack()
 
         assert incoming_message.body == body
 
@@ -1133,7 +1139,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         message = await queue.get()  # type: aio_pika.IncomingMessage
 
         assert message.body == body
-        message.nack(requeue=True)
+        await message.nack(requeue=True)
 
         message = await queue.get()
 
@@ -1565,8 +1571,8 @@ class TestCaseAmqpWithConfirms(TestCaseAmqpBase):
 
         f = loop.create_future()
 
-        def handler(sender, *args, **kwargs):
-            f.set_result(*args, **kwargs)
+        def handler(channel, message: ReturnedMessage):
+            f.set_result(message)
 
         channel.add_on_return_callback(handler)
 
@@ -1590,7 +1596,10 @@ class TestCaseAmqpWithConfirms(TestCaseAmqpBase):
             connection,
         )  # type: aio_pika.Channel
 
-        def bad_handler(sender, message):
+        def bad_handler(
+            channel: aio_pika.abc.AbstractChannel,
+            message: aio_pika.message.IncomingMessage,
+        ):
             try:
                 raise ValueError
             finally:

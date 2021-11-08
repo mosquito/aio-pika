@@ -361,7 +361,7 @@ async def test_robust_duplicate_queue(
         lambda *_: reconnect_event.set(), weak=False,
     )
 
-    shared = []
+    shared = {}
 
     # noinspection PyShadowingNames
     async def reader(queue: aio_pika.Queue):
@@ -369,7 +369,7 @@ async def test_robust_duplicate_queue(
         async with queue.iterator() as q:
             async for message in q:
                 async with shared_condition:
-                    shared.append(message)
+                    shared[message.message_id] = message
                     shared_condition.notify_all()
                     await message.ack()
 
@@ -384,8 +384,16 @@ async def test_robust_duplicate_queue(
             aio_pika.Message(b"1234567890"), queue_name,
         )
 
+    async with shared_condition:
+        await asyncio.wait_for(
+            shared_condition.wait_for(lambda: len(shared) >= 5),
+            timeout=5,
+        )
+
     logging.info("Disconnect all clients")
     await proxy.disconnect_all()
+
+    assert len(shared) == 5, shared
 
     for _ in range(5):
         await direct_channel.default_exchange.publish(

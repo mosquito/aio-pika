@@ -21,7 +21,7 @@ CONNECTION_EXCEPTIONS = (
 
 
 class MessageProcessError(AMQPError):
-    pass
+    reason = "%s: %r"
 
 
 class QueueEmpty(AMQPError, asyncio.QueueEmpty):

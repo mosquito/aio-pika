@@ -1,3 +1,4 @@
+import asyncio
 from logging import getLogger
 from types import TracebackType
 from typing import Any, Generator, Optional, Type, Union
@@ -194,9 +195,12 @@ class Channel(AbstractChannel):
 
         self._on_initialized()
 
+    def __on_channel_closed(self, closing: asyncio.Future) -> None:
+        self.close_callbacks(closing.exception())
+
     def _on_initialized(self) -> None:
         self.channel.on_return_callbacks.add(self._on_return)
-        self.channel.closing.add_done_callback(self.close_callbacks)
+        self.channel.closing.add_done_callback(self.__on_channel_closed)
 
     def _on_return(self, message: aiormq.abc.DeliveredMessage) -> None:
         self.return_callbacks(IncomingMessage(message, no_ack=True))

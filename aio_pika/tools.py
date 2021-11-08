@@ -88,8 +88,8 @@ CallbackSetType = Union[FrozenSet[CallbackType], Set[CallbackType]]
 class CallbackCollection(MutableSet):
     __slots__ = "__sender", "__callbacks", "__weak_callbacks", "__lock"
 
-    def __init__(self, sender: Union[T, ReferenceType[T]]):
-        self.__sender: ReferenceType[T]
+    def __init__(self, sender: Union[T, ReferenceType]):
+        self.__sender: ReferenceType
         if isinstance(sender, ReferenceType):
             self.__sender = sender
         else:

@@ -135,7 +135,7 @@ class RPC(Base):
         self, auto_delete: bool = True,
         durable: bool = False, **kwargs: Any
     ) -> None:
-        if not hasattr(self, "result_queue"):
+        if hasattr(self, "result_queue"):
             return
 
         self.result_queue = await self.channel.declare_queue(
@@ -186,7 +186,9 @@ class RPC(Base):
         await rpc.initialize(**kwargs)
         return rpc
 
-    def on_message_returned(self, message: ReturnedMessage) -> None:
+    def on_message_returned(
+        self, channel: AbstractChannel, message: ReturnedMessage,
+    ) -> None:
         if message.correlation_id is None:
             log.warning(
                 "Message without correlation_id was returned: %r", message,
@@ -199,7 +201,9 @@ class RPC(Base):
             log.warning("Unknown message was returned: %r", message)
             return
 
-        future.set_exception(MessageProcessError(message))
+        future.set_exception(
+            MessageProcessError("Message has been returned", message)
+        )
 
     async def on_result_message(self, message: AbstractIncomingMessage) -> None:
         if message.correlation_id is None:

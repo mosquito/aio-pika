@@ -1,24 +1,23 @@
 from collections import defaultdict
 from logging import getLogger
-from typing import DefaultDict, Set, Type, Union, Optional
+from typing import DefaultDict, Optional, Set, Type, Union
 from warnings import warn
 
 import aiormq
 from aiormq.abc import ExceptionType
 
-from .abc import TimeoutType
+from .abc import AbstractRobustChannel, AbstractRobustConnection, TimeoutType
 from .channel import Channel
 from .exchange import Exchange, ExchangeType
 from .queue import Queue
 from .robust_exchange import RobustExchange
 from .robust_queue import RobustQueue
-from .robust_connection import RobustConnection
 
 
 log = getLogger(__name__)
 
 
-class RobustChannel(Channel):
+class RobustChannel(Channel, AbstractRobustChannel):
     """ Channel abstraction """
 
     QUEUE_CLASS: Type[Queue] = RobustQueue
@@ -30,7 +29,7 @@ class RobustChannel(Channel):
 
     def __init__(
         self,
-        connection: RobustConnection,
+        connection: AbstractRobustConnection,
         channel_number: int = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
@@ -87,7 +86,7 @@ class RobustChannel(Channel):
     async def close(self, exc: Optional[ExceptionType] = None) -> None:
         await super(RobustChannel, self).close()
         # Have to fire callbacks here cause user call close.
-        self.close_callbacks(self)
+        self.close_callbacks(exc)
 
     async def set_qos(
         self,
@@ -137,7 +136,7 @@ class RobustChannel(Channel):
                 passive=passive,
                 arguments=arguments,
                 timeout=timeout,
-            )
+                )
         )
 
         if not internal and robust:

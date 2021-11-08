@@ -454,7 +454,7 @@ class QueueIterator(AbstractQueueIterator):
 
     @shield
     async def __aenter__(self) -> "AbstractQueueIterator":
-        if self._consumer_tag is None:
+        if not hasattr(self, "_consumer_tag"):
             await self.consume()
         return self
 
@@ -467,7 +467,7 @@ class QueueIterator(AbstractQueueIterator):
         await self.close()
 
     async def __anext__(self) -> IncomingMessage:
-        if not self._consumer_tag:
+        if not hasattr(self, "_consumer_tag"):
             await self.consume()
         try:
             return await asyncio.wait_for(
