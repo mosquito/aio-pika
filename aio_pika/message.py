@@ -1,4 +1,3 @@
-import asyncio
 import json
 import time
 from datetime import datetime, timedelta
@@ -7,10 +6,9 @@ from logging import getLogger
 from pprint import pformat
 from types import TracebackType
 from typing import (
-    Any, AsyncContextManager, Callable, Dict, Iterable, Iterator, List,
+    Any, Callable, Dict, Iterable, Iterator, List,
     MutableMapping, Optional, Type, TypeVar, Union,
 )
-from warnings import warn
 
 import aiormq
 from aiormq.abc import DeliveredMessage, FieldTable

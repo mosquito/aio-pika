@@ -6,7 +6,7 @@ import time
 import uuid
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Dict, Hashable, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, Optional, Tuple, TypeVar
 
 from aiormq.abc import ExceptionType
 from aiormq.tools import awaitable

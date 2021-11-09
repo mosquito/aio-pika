@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Union
 
 import aiormq
 from pamqp.common import Arguments

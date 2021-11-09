@@ -22,7 +22,7 @@ class RobustConnection(Connection):
     """ Robust connection """
 
     CHANNEL_REOPEN_PAUSE = 1
-    CHANNEL_CLASS = RobustChannel
+    CHANNEL_CLASS: Type[RobustChannel] = RobustChannel
     KWARGS_TYPES = (
         ("reconnect_interval", parse_int, "5"),
         ("fail_fast", parse_bool, "1"),
@@ -65,7 +65,6 @@ class RobustConnection(Connection):
         del self.connection
 
         log.debug("Closing AMQP connection %r", connection)
-        exc: Optional[BaseException] = closing.exception()
 
         if self.closing.done():
             return

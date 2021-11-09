@@ -1,4 +1,3 @@
-import asyncio
 from types import TracebackType
 from typing import Optional, Type
 

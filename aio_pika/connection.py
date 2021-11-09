@@ -23,7 +23,7 @@ T = TypeVar("T")
 class Connection(AbstractConnection):
     """ Connection abstraction """
 
-    CHANNEL_CLASS = Channel
+    CHANNEL_CLASS: Type[Channel] = Channel
     KWARGS_TYPES: Tuple[Tuple[str, Callable[[str], Any], str], ...] = ()
 
     @property
