@@ -616,7 +616,7 @@ class AbstractRobustQueue(AbstractQueue):
 
 class AbstractRobustExchange(AbstractExchange):
     @abstractmethod
-    def reopen(self) -> Awaitable[None]:
+    def restore(self, channel: "AbstractRobustChannel") -> Awaitable[None]:
         raise NotImplementedError
 
 

@@ -6,7 +6,8 @@ from warnings import warn
 import aiormq
 from aiormq.abc import ExceptionType
 
-from .abc import AbstractRobustChannel, AbstractRobustConnection, TimeoutType
+from .abc import AbstractRobustChannel, AbstractRobustConnection, TimeoutType, \
+    AbstractExchange, AbstractRobustExchange
 from .channel import Channel
 from .exchange import Exchange, ExchangeType
 from .queue import Queue
@@ -23,7 +24,7 @@ class RobustChannel(Channel, AbstractRobustChannel):
     QUEUE_CLASS: Type[Queue] = RobustQueue
     EXCHANGE_CLASS: Type[Exchange] = RobustExchange
 
-    _exchanges: DefaultDict[str, Set[RobustExchange]]
+    _exchanges: DefaultDict[str, Set[AbstractRobustExchange]]
     _queues: DefaultDict[str, Set[RobustQueue]]
     default_exchange: RobustExchange
 
@@ -124,10 +125,10 @@ class RobustChannel(Channel, AbstractRobustChannel):
         arguments: dict = None,
         timeout: TimeoutType = None,
         robust: bool = True,
-    ) -> RobustExchange:
+    ) -> AbstractExchange:
         await self.connection.connected.wait()
-        exchange: RobustExchange = (
-                await super().declare_exchange(     # type: ignore
+        exchange = (
+            await super().declare_exchange(
                 name=name,
                 type=type,
                 durable=durable,
@@ -136,11 +137,12 @@ class RobustChannel(Channel, AbstractRobustChannel):
                 passive=passive,
                 arguments=arguments,
                 timeout=timeout,
-                )
+            )
         )
 
         if not internal and robust:
-            self._exchanges[name].add(exchange)
+            # noinspection PyTypeChecker
+            self._exchanges[name].add(exchange)     # type: ignore
 
         return exchange
 
