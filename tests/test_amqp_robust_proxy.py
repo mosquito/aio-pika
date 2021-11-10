@@ -349,7 +349,7 @@ async def test_robust_duplicate_queue(
     proxy: TCPProxy,
     create_task: Callable,
 ):
-    queue_name = "test"
+    queue_name = get_random_name("test")
 
     channel = await connection.channel()
     direct_channel = await direct_connection.channel()
@@ -366,6 +366,7 @@ async def test_robust_duplicate_queue(
     # noinspection PyShadowingNames
     async def reader(queue: aio_pika.Queue):
         nonlocal shared
+
         async with queue.iterator() as q:
             async for message in q:
                 async with shared_condition:
@@ -379,14 +380,14 @@ async def test_robust_duplicate_queue(
 
     create_task(reader(queue))
 
-    for _ in range(5):
+    for x in range(5):
         await direct_channel.default_exchange.publish(
-            aio_pika.Message(b"1234567890"), queue_name,
+            aio_pika.Message(b"1234567890", message_id=f'0-{x}'), queue_name,
         )
 
     async with shared_condition:
         await asyncio.wait_for(
-            shared_condition.wait_for(lambda: len(shared) >= 5),
+            shared_condition.wait_for(lambda: len(shared) == 5),
             timeout=5,
         )
 
@@ -395,9 +396,9 @@ async def test_robust_duplicate_queue(
 
     assert len(shared) == 5, shared
 
-    for _ in range(5):
+    for x in range(5):
         await direct_channel.default_exchange.publish(
-            Message(b"1234567890"), queue_name,
+            Message(b"1234567890", message_id=f'1-{x}'), queue_name,
         )
 
     await asyncio.wait_for(reconnect_event.wait(), timeout=5)
