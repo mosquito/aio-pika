@@ -102,6 +102,8 @@ class Pool(Generic[T]):
 
     async def _create_item(self) -> T:
         async with self.__lock:
+            if self._is_overflow:
+                return await self.__items.get()
             log.debug("Creating a new instance of %r", self.__constructor)
             item = await self.__constructor(*self.__constructor_args)
             self.__created += 1
