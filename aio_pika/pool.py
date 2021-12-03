@@ -122,7 +122,7 @@ class Pool(Generic[T]):
             raise PoolInvalidStateError("put operation on closed pool")
 
         return self.__items.put_nowait(item)
-    
+
     def delete(self, item: T):
         if self.__closed:
             raise PoolInvalidStateError("put operation on closed pool")
