@@ -153,7 +153,7 @@ class RPC(Base):
             self.on_message_returned, weak=False,
         )
 
-    def on_close(self, exc=None):
+    def on_close(self, _: Channel, exc: Optional[BaseException] = None):
         log.debug("Closing RPC futures because %r", exc)
         for future in self.futures.values():
             if future.done():
