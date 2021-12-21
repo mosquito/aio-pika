@@ -415,6 +415,7 @@ async def test_robust_duplicate_queue(
     assert len(shared) == 10
 
 
+@aiomisc.timeout(10)
 async def test_channel_reconnect(
     connection_fabric, loop, amqp_url, proxy: TCPProxy, add_cleanup: Callable,
 ):
