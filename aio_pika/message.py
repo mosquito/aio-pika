@@ -16,7 +16,7 @@ import aiormq
 from aiormq.types import DeliveredMessage
 
 from .exceptions import MessageProcessError
-
+from .transaction import current_transaction
 
 log = getLogger(__name__)
 NoneType = type(None)
@@ -461,6 +461,7 @@ class IncomingMessage(Message):
         "__no_ack",
         "__processed",
         "message_count",
+        "__weakref__",
     )
 
     def __init__(self, message: DeliveredMessage, no_ack: bool = False):
@@ -584,6 +585,11 @@ class IncomingMessage(Message):
         )
         self.__processed = True
 
+        transaction = current_transaction.get(None)
+        if transaction is not None:
+            transaction._add_restore_operation(
+                self, type(self).__reset_processed)
+
         if not self.locked:
             self.lock()
 
@@ -612,6 +618,12 @@ class IncomingMessage(Message):
             ),
         )
         self.__processed = True
+
+        transaction = current_transaction.get(None)
+        if transaction is not None:
+            transaction._add_restore_operation(
+                self, type(self).__reset_processed)
+
         if not self.locked:
             self.lock()
 
@@ -640,6 +652,11 @@ class IncomingMessage(Message):
 
         self.__processed = True
 
+        transaction = current_transaction.get(None)
+        if transaction is not None:
+            transaction._add_restore_operation(
+                self, type(self).__reset_processed)
+
         if not self.locked:
             self.lock()
 
@@ -660,6 +677,9 @@ class IncomingMessage(Message):
     @property
     def processed(self):
         return self.__processed
+
+    def __reset_processed(self):
+        self.__processed = False
 
 
 class ReturnedMessage(IncomingMessage):

@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Awaitable, Callable
 from unittest import mock
+from contextlib import suppress
 
 import aiormq.exceptions
 import pytest
@@ -19,7 +20,6 @@ from aio_pika.exceptions import (
 )
 from aio_pika.exchange import ExchangeType
 from tests import get_random_name
-
 
 log = logging.getLogger(__name__)
 
@@ -1197,6 +1197,30 @@ class TestCaseAmqp(TestCaseAmqpBase):
             with pytest.raises(ValueError):
                 async with channel.transaction():
                     raise ValueError
+
+    async def test_transaction_async_rollback_with_ack_message(
+        self, connection: aio_pika.Connection, declare_queue
+    ):
+        async with connection.channel(publisher_confirms=False) as channel:
+            queue = await declare_queue(
+                get_random_name("queue", "is_async", "for"),
+                auto_delete=True,
+                channel=channel
+            )
+
+            await channel.default_exchange.publish(
+                Message(body=b'1'), routing_key=queue.name
+            )
+
+            message = await queue.get()
+
+            with suppress(RuntimeError):
+                async with channel.transaction():
+                    await message.ack()
+
+                    raise RuntimeError
+
+            assert not message.processed
 
     async def test_async_for_queue(self, loop, connection, declare_queue):
         channel2 = await self.create_channel(connection)

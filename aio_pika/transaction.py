@@ -1,7 +1,11 @@
 import asyncio
+from contextvars import ContextVar
 from enum import Enum
+from weakref import WeakKeyDictionary
 
 import aiormq
+
+current_transaction = ContextVar('current_transaction')
 
 
 class TransactionStates(Enum):
@@ -20,6 +24,10 @@ class Transaction:
         self._channel = channel
         self.state = TransactionStates.created  # type: TransactionStates
 
+        self.restore_object_operations = WeakKeyDictionary()
+
+        self.token = None
+
     @property
     def channel(self) -> aiormq.Channel:
         if self._channel is None:
@@ -35,23 +43,39 @@ class Transaction:
             self.channel.tx_select(), timeout=timeout,
         )
 
+        self.token = current_transaction.set(self)
         self.state = TransactionStates.started
+
         return result
 
     async def rollback(self, timeout=None):
-        result = await asyncio.wait_for(
-            self.channel.tx_rollback(), timeout=timeout,
-        )
-        self.state = TransactionStates.rolled_back
-        return result
+        try:
+            result = await asyncio.wait_for(
+                self.channel.tx_rollback(), timeout=timeout,
+            )
+            self.state = TransactionStates.rolled_back
+
+            return result
+        finally:
+            current_transaction.reset(self.token)
+
+            for obj, callback in self.restore_object_operations.items():
+                callback(obj)
+
+            self.restore_object_operations.clear()
 
     async def commit(self, timeout=None):
-        result = await asyncio.wait_for(
-            self.channel.tx_commit(), timeout=timeout,
-        )
+        try:
+            result = await asyncio.wait_for(
+                self.channel.tx_commit(), timeout=timeout,
+            )
+            self.state = TransactionStates.commited
 
-        self.state = TransactionStates.commited
-        return result
+            return result
+        finally:
+            current_transaction.reset(self.token)
+
+            self.restore_object_operations.clear()
 
     async def __aenter__(self):
         await self.select()
@@ -62,3 +86,6 @@ class Transaction:
             await self.rollback()
         else:
             await self.commit()
+
+    def _add_restore_operation(self, obj, operation):
+        self.restore_object_operations[obj] = operation
