@@ -62,6 +62,7 @@ jobs:
       - name: tox ${{ matrix.toxenv }}
         uses: docker://snakepacker/python:all
         env:
+          FORCE_COLOR: 1
           TOXENV: ${{ matrix.toxenv }}
           AMQP_URL: amqp://guest:guest@rabbitmq
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
