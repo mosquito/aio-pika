@@ -1547,6 +1547,9 @@ class TestCaseAmqp(TestCaseAmqpBase):
         # Ensure close callback has been called
         assert close_reasons
 
+        with pytest.raises(RuntimeError):
+            await channel.set_qos(10)
+
 
 class TestCaseAmqpNoConfirms(TestCaseAmqp):
     @staticmethod

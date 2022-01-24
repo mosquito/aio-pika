@@ -103,6 +103,9 @@ class Channel(PoolInstance):
         if self._channel is None:
             raise RuntimeError("Channel was not opened")
 
+        if self._channel.is_closed:
+            raise RuntimeError("Channel has been closed")
+
         return self._channel
 
     @property
