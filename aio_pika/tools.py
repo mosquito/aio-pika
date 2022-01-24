@@ -29,7 +29,7 @@ def iscoroutinepartial(fn: Callable[..., Any]) -> bool:
     while True:
         parent = fn
 
-        fn = getattr(parent, "func", None)
+        fn = getattr(parent, "func", None)  # type: ignore
 
         if fn is None:
             break
