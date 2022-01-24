@@ -10,6 +10,7 @@ from .exchange import Exchange, ExchangeType
 from .queue import Queue
 from .robust_exchange import RobustExchange
 from .robust_queue import RobustQueue
+from .tools import CallbackCollection
 from .types import TimeoutType
 
 
@@ -52,10 +53,12 @@ class RobustChannel(Channel):
         self._prefetch_count = 0
         self._prefetch_size = 0
         self._global_ = False
+        self.reopen_callbacks = CallbackCollection(self)
 
     async def reopen(self) -> None:
         await super().reopen()
         await self.restore()
+        self.reopen_callbacks()
 
     async def restore(self) -> None:
         await self.set_qos(
@@ -74,14 +77,15 @@ class RobustChannel(Channel):
             for queue in queues:
                 await queue.restore(self)
 
-    @staticmethod
-    def _on_channel_close(sender, exc: Exception):
+    def _on_channel_close(self, sender, exc: Exception):
         if exc:
             log.exception(
                 "Robust channel %r has been closed.", sender, exc_info=exc,
             )
-        else:
-            log.debug("Robust channel %r has been closed.", sender)
+            self.loop.create_task(self.reopen())
+            return
+
+        log.debug("Robust channel %r has been closed.", sender)
 
     async def initialize(self, timeout: TimeoutType = None) -> None:
         await super().initialize(timeout)

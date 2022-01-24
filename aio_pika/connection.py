@@ -207,7 +207,7 @@ class Connection(PoolInstance):
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         for channel in tuple(self._channels.values()):  # can change size
-            if not channel.is_closed:
+            if channel and not channel.is_closed:
                 await channel.close()
 
         await self.close()

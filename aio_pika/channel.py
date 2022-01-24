@@ -189,6 +189,7 @@ class Channel(PoolInstance):
             )
 
         self.channel.on_return_callbacks.add(self._on_return)
+        self.channel.closing.add_done_callback(self._done_callbacks)
 
     def _on_return(self, message: aiormq.types.DeliveredMessage):
         self._return_callbacks(IncomingMessage(message, no_ack=True))

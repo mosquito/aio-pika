@@ -1521,6 +1521,32 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         assert queue.name, queue_passive.name
 
+    async def test_channel_blocking_timeout(self, connection):
+        channel = await connection.channel()
+        close_reasons = []
+
+        def on_done(*args):
+            close_reasons.append(args)
+            return
+
+        channel.add_close_callback(on_done)
+
+        async def run():
+            await channel.set_qos(1)
+            time.sleep(1)
+            await channel.set_qos(0)
+
+        with pytest.raises(asyncio.TimeoutError):
+            await asyncio.wait_for(run(), timeout=0.2)
+
+        with pytest.raises(asyncio.CancelledError):
+            await channel.channel.closing
+
+        assert channel.is_closed
+
+        # Ensure close callback has been called
+        assert close_reasons
+
 
 class TestCaseAmqpNoConfirms(TestCaseAmqp):
     @staticmethod
