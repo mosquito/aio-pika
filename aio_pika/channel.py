@@ -114,7 +114,7 @@ class Channel(PoolInstance):
                 "Channel was not opened"
             )
 
-        if self._channel.is_closed:
+        if self.is_closed:
             raise aiormq.exceptions.ChannelInvalidStateError(
                 "Channel has been closed"
             )

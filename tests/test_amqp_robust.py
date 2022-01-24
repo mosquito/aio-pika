@@ -56,11 +56,13 @@ class TestCaseNoRobust(TestCaseAmqp):
     async def test_channel_blocking_timeout_reopen(self, connection):
         channel = await connection.channel()
         close_reasons = []
+        close_event = asyncio.Event()
         reopen_event = asyncio.Event()
         channel.reopen_callbacks.add(lambda _: reopen_event.set(), weak=False)
 
         def on_done(*args):
             close_reasons.append(args)
+            close_event.set()
             return
 
         channel.add_close_callback(on_done)
@@ -73,6 +75,8 @@ class TestCaseNoRobust(TestCaseAmqp):
 
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(run(), timeout=0.2)
+
+        await close_event.wait()
 
         with pytest.raises(RuntimeError):
             await channel.channel.closing

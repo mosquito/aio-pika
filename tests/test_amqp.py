@@ -1524,9 +1524,11 @@ class TestCaseAmqp(TestCaseAmqpBase):
     async def test_channel_blocking_timeout(self, connection):
         channel = await connection.channel()
         close_reasons = []
+        close_event = asyncio.Event()
 
         def on_done(*args):
             close_reasons.append(args)
+            close_event.set()
             return
 
         channel.add_close_callback(on_done)
@@ -1538,6 +1540,8 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(run(), timeout=0.2)
+
+        await close_event.wait()
 
         with pytest.raises(RuntimeError):
             await channel.channel.closing
