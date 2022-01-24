@@ -79,7 +79,7 @@ class Channel(PoolInstance):
 
     @property
     def is_closed(self):
-        if not self._channel:
+        if not self._channel or self._is_closed_by_user:
             return True
         return self._channel.is_closed
 
