@@ -1,19 +1,21 @@
+import asyncio
 from collections import defaultdict
 from logging import getLogger
-from typing import DefaultDict, Optional, Set, Type, Union
+from typing import DefaultDict, Set, Type, Union
 from warnings import warn
 
 import aiormq
-from aiormq.abc import ExceptionType
 
-from .abc import AbstractRobustChannel, AbstractRobustConnection, AbstractExchange, AbstractRobustExchange
+from .abc import (
+    AbstractExchange, AbstractRobustChannel, AbstractRobustConnection,
+    AbstractRobustExchange, TimeoutType,
+)
 from .channel import Channel
 from .exchange import Exchange, ExchangeType
 from .queue import Queue
 from .robust_exchange import RobustExchange
 from .robust_queue import RobustQueue
 from .tools import CallbackCollection
-from .types import TimeoutType
 
 
 log = getLogger(__name__)
@@ -84,26 +86,19 @@ class RobustChannel(Channel, AbstractRobustChannel):
             for queue in queues:
                 await queue.restore(self)
 
-    def _on_initialized(self) -> None:
-        self.channel.on_return_callbacks.add(self._on_return)
-        self.add_close_callback(self._on_channel_close)
+    def _on_channel_closed(self, closing: asyncio.Future) -> None:
+        super()._on_channel_closed(closing)
 
-    def _on_channel_close(self, sender, exc: BaseException):
-        if not self._is_closed_by_user:
+        if not self._is_closed_by_user and not self.connection.is_closed:
             self.loop.create_task(self.reopen())
+            exc = closing.exception()
+            if exc:
+                log.exception(
+                    "Robust channel %r has been closed.",
+                    self, exc_info=exc,
+                )
 
-        if exc:
-            log.exception(
-                "Robust channel %r has been closed.", sender, exc_info=exc,
-            )
-            return
-
-        log.debug("Robust channel %r has been closed.", sender)
-
-    async def close(self, exc: Optional[ExceptionType] = None) -> None:
-        await super(RobustChannel, self).close()
-        # Have to fire callbacks here cause user call close.
-        self.close_callbacks(exc)
+        log.debug("Robust channel %r has been closed.", self)
 
     async def set_qos(
         self,

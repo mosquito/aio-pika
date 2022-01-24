@@ -38,11 +38,11 @@ setup(
     ],
     packages=find_packages(exclude=["tests"]),
     package_data={"aio_pika": ["py.typed"]},
-    install_requires=["aiormq~=6.1.0", "yarl"],
+    install_requires=["aiormq~=6.1.1", "yarl"],
     python_requires=">3.5.*, <4",
     extras_require={
         "develop": [
-            "aiomisc~=10.1.6",
+            "aiomisc~=15.6.7",
             "coverage!=4.3",
             "coveralls",
             "pylava",

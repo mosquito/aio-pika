@@ -241,10 +241,6 @@ class Connection(AbstractConnection):
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
-        for channel in tuple(self.channels.values()):  # can change size
-            if channel and not channel.is_closed:
-                await channel.close()
-
         await self.close()
 
 

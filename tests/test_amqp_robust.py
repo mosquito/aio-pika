@@ -5,6 +5,7 @@ from functools import partial
 import pytest
 
 import aio_pika
+from aio_pika import RobustChannel
 from tests.test_amqp import (
     TestCaseAmqp, TestCaseAmqpNoConfirms, TestCaseAmqpWithConfirms,
 )
@@ -54,7 +55,7 @@ class TestCaseNoRobust(TestCaseAmqp):
         assert len(connection.reconnect_callbacks) == 1
 
     async def test_channel_blocking_timeout_reopen(self, connection):
-        channel = await connection.channel()
+        channel: RobustChannel = await connection.channel()     # type: ignore
         close_reasons = []
         close_event = asyncio.Event()
         reopen_event = asyncio.Event()

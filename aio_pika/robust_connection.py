@@ -40,7 +40,7 @@ class RobustConnection(Connection):
         self.__channels: WeakSet[AbstractChannel] = WeakSet()
         self._reconnect_callbacks = CallbackCollection(self)
         self._connect_lock = asyncio.Lock()
-        self._closed = False
+        self._is_closed_by_user = False
 
     @property
     def reconnecting(self) -> bool:
@@ -182,7 +182,7 @@ class RobustConnection(Connection):
     @property
     def is_closed(self) -> bool:
         """ Is this connection is closed """
-        return self._closed or super().is_closed
+        return self._is_closed_by_user or super().is_closed
 
     async def close(
         self, exc: Optional[ExceptionType] = asyncio.CancelledError,
@@ -190,7 +190,7 @@ class RobustConnection(Connection):
         if self.is_closed:
             return
 
-        self._closed = True
+        self._is_closed_by_user = True
 
         if not hasattr(self, "connection"):
             return

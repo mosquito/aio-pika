@@ -75,7 +75,7 @@ class Channel(AbstractChannel):
         self._delivery_tag = 0
 
         # That's means user closed channel instance explicitly
-        self._closed: bool = False
+        self._is_closed_by_user: bool = False
 
         self.default_exchange: Exchange
 
@@ -89,22 +89,14 @@ class Channel(AbstractChannel):
 
     @property
     def is_closed(self) -> bool:
-        if not self._channel or self._is_closed_by_user:
+        if not self.is_opened or self._is_closed_by_user:
             return True
         return self._channel.is_closed
 
-    @property
-    def _is_closed_by_user(self):
-        return self._closed or self.channel.is_closed
-
-    @_is_closed_by_user.setter
-    def _is_closed_by_user(self, value: bool):
-        self._closed = value
-
     @task
     async def close(self, exc: aiormq.abc.ExceptionType = None) -> None:
-        if self.is_closed:
-            log.warning("Channel already closed")
+        if not self.is_opened:
+            log.warning("Channel not opened")
             return
 
         channel: aiormq.abc.AbstractChannel = self._channel
@@ -121,13 +113,13 @@ class Channel(AbstractChannel):
 
         if self.is_closed:
             raise aiormq.exceptions.ChannelInvalidStateError(
-                "Channel has been closed"
+                "Channel has been closed",
             )
 
         return self._channel
 
     @property
-    def number(self):
+    def number(self) -> Optional[int]:
         return self._channel.number if self.is_opened else None
 
     def __str__(self) -> str:
@@ -215,12 +207,12 @@ class Channel(AbstractChannel):
 
         self._on_initialized()
 
-    def __on_channel_closed(self, closing: asyncio.Future) -> None:
+    def _on_channel_closed(self, closing: asyncio.Future) -> None:
         self.close_callbacks(closing.exception())
 
     def _on_initialized(self) -> None:
         self.channel.on_return_callbacks.add(self._on_return)
-        self.channel.closing.add_done_callback(self.__on_channel_closed)
+        self.channel.closing.add_done_callback(self._on_channel_closed)
 
     def _on_return(self, message: aiormq.abc.DeliveredMessage) -> None:
         self.return_callbacks(IncomingMessage(message, no_ack=True))

@@ -14,7 +14,7 @@ from yarl import URL
 
 import aio_pika
 from aio_pika.exceptions import QueueEmpty
-from aio_pika.message import Message, IncomingMessage
+from aio_pika.message import IncomingMessage, Message
 from aio_pika.robust_channel import RobustChannel
 from aio_pika.robust_connection import RobustConnection
 from aio_pika.robust_queue import RobustQueue
@@ -370,9 +370,10 @@ async def test_robust_duplicate_queue(
             async for message in q:
                 message: IncomingMessage
                 # https://www.rabbitmq.com/confirms.html#automatic-requeueing
-                if not message.redelivered:
-                    shared.append(message)
-                await message.ack()
+                async with shared_condition:
+                    shared[message.message_id] = message
+                    shared_condition.notify_all()
+                    await message.ack()
 
     queue = await declare_queue(
         queue_name, channel=channel, cleanup=False,
@@ -382,7 +383,7 @@ async def test_robust_duplicate_queue(
 
     for x in range(5):
         await direct_channel.default_exchange.publish(
-            aio_pika.Message(b"1234567890", message_id=f'0-{x}'), queue_name,
+            aio_pika.Message(b"1234567890", message_id=f"0-{x}"), queue_name,
         )
 
     async with shared_condition:
@@ -398,7 +399,7 @@ async def test_robust_duplicate_queue(
 
     for x in range(5):
         await direct_channel.default_exchange.publish(
-            Message(b"1234567890", message_id=f'1-{x}'), queue_name,
+            Message(b"1234567890", message_id=f"1-{x}"), queue_name,
         )
 
     await asyncio.wait_for(reconnect_event.wait(), timeout=5)
@@ -419,18 +420,15 @@ async def test_robust_duplicate_queue(
 async def test_channel_reconnect(
     connection_fabric, loop, amqp_url, proxy: TCPProxy, add_cleanup: Callable,
 ):
-    drop_packets = False
-
-    async def processor(body: bytes) -> bytes:
-        return body if not drop_packets else b""
-
-    proxy.set_content_processors(read=processor, write=processor)
-
     heartbeat = 2
     amqp_url = amqp_url.update_query(heartbeat=heartbeat)
 
+    on_reconnect = asyncio.Event()
+
     conn = await connection_fabric(amqp_url, loop=loop)
     assert isinstance(conn, aio_pika.RobustConnection)
+
+    conn.reconnect_callbacks.add(lambda *_: on_reconnect.set(), weak=False)
 
     async with conn:
         channel = await conn.channel()
@@ -440,12 +438,10 @@ async def test_channel_reconnect(
             await channel.set_qos(0)
             await channel.set_qos(1)
 
-            drop_packets = True
             with pytest.raises(asyncio.TimeoutError):
-                await channel.set_qos(0, timeout=0.5)
+                with proxy.slowdown(1, 1):
+                    await channel.set_qos(0, timeout=0.5)
 
-            drop_packets = False
-            # Wait less then heartbeat * HEARTBEAT_GRACEFUL_PERIOD
-            await asyncio.sleep(heartbeat)
+            await on_reconnect.wait()
             await channel.set_qos(0)
             await channel.set_qos(1)

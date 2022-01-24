@@ -6,8 +6,8 @@ from logging import getLogger
 from pprint import pformat
 from types import TracebackType
 from typing import (
-    Any, Callable, Dict, Iterable, Iterator, List,
-    MutableMapping, Optional, Type, TypeVar, Union,
+    Any, Callable, Dict, Iterable, Iterator, List, MutableMapping, Optional,
+    Type, TypeVar, Union,
 )
 
 import aiormq

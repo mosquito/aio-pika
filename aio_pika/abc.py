@@ -621,6 +621,8 @@ class AbstractRobustExchange(AbstractExchange):
 
 
 class AbstractRobustChannel(AbstractChannel):
+    reopen_callbacks: CallbackCollection
+
     @abstractmethod
     def reopen(self) -> Awaitable[None]:
         raise NotImplementedError

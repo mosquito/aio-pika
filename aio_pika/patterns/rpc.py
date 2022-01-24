@@ -202,7 +202,7 @@ class RPC(Base):
             return
 
         future.set_exception(
-            MessageProcessError("Message has been returned", message)
+            MessageProcessError("Message has been returned", message),
         )
 
     async def on_result_message(self, message: AbstractIncomingMessage) -> None:
