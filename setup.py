@@ -42,7 +42,7 @@ setup(
     python_requires=">3.5.*, <4",
     extras_require={
         "develop": [
-            "aiomisc~=15.6.7",
+            "aiomisc~=15.6.8",
             "coverage!=4.3",
             "coveralls",
             "pylava",
