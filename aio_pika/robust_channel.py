@@ -77,12 +77,14 @@ class RobustChannel(Channel):
             for queue in queues:
                 await queue.restore(self)
 
-    def _on_channel_close(self, sender, exc: Exception):
+    def _on_channel_close(self, sender, exc: BaseException):
+        if not self._is_closed_by_user:
+            self.loop.create_task(self.reopen())
+
         if exc:
             log.exception(
                 "Robust channel %r has been closed.", sender, exc_info=exc,
             )
-            self.loop.create_task(self.reopen())
             return
 
         log.debug("Robust channel %r has been closed.", sender)

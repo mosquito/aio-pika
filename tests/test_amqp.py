@@ -1539,7 +1539,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(run(), timeout=0.2)
 
-        with pytest.raises(asyncio.CancelledError):
+        with pytest.raises(RuntimeError):
             await channel.channel.closing
 
         assert channel.is_closed
