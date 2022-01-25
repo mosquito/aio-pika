@@ -48,10 +48,10 @@ class DeliveryMode(IntEnum):
 
 @unique
 class TransactionStates(str, Enum):
-    created = "created"
-    commited = "commited"
-    rolled_back = "rolled back"
-    started = "started"
+    CREATED = "created"
+    COMMITED = "commited"
+    ROLLED_BACK = "rolled back"
+    STARTED = "started"
 
 
 class DeclarationResult(NamedTuple):

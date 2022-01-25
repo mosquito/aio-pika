@@ -18,7 +18,7 @@ class Transaction(AbstractTransaction):
 
     def __init__(self, channel: AbstractChannel):
         self.__channel = channel
-        self.state: TransactionStates = TransactionStates.created
+        self.state: TransactionStates = TransactionStates.CREATED
 
     @property
     def channel(self) -> AbstractChannel:
@@ -35,21 +35,21 @@ class Transaction(AbstractTransaction):
     ) -> aiormq.spec.Tx.SelectOk:
         result = await self.channel.channel.tx_select(timeout=timeout)
 
-        self.state = TransactionStates.started
+        self.state = TransactionStates.STARTED
         return result
 
     async def rollback(
         self, timeout: TimeoutType = None,
     ) -> commands.Tx.RollbackOk:
         result = await self.channel.channel.tx_rollback(timeout=timeout)
-        self.state = TransactionStates.rolled_back
+        self.state = TransactionStates.ROLLED_BACK
         return result
 
     async def commit(
         self, timeout: TimeoutType = None,
     ) -> commands.Tx.CommitOk:
         result = await self.channel.channel.tx_commit(timeout=timeout)
-        self.state = TransactionStates.commited
+        self.state = TransactionStates.COMMITED
         return result
 
     async def __aenter__(self) -> "Transaction":
