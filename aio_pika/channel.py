@@ -1,5 +1,4 @@
 import asyncio
-from enum import Enum, unique
 from logging import getLogger
 from types import TracebackType
 from typing import Any, Generator, Optional, Type, Union
@@ -21,12 +20,6 @@ from .transaction import Transaction
 
 
 log = getLogger(__name__)
-
-
-@unique
-class ConfirmationTypes(Enum):
-    ACK = "ack"
-    NACK = "nack"
 
 
 class Channel(AbstractChannel):
@@ -452,4 +445,4 @@ class Channel(AbstractChannel):
         log.debug("%r deleted", self)
 
 
-__all__ = ("Channel", "ConfirmationTypes")
+__all__ = ("Channel",)

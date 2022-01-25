@@ -30,7 +30,7 @@ ZERO_TIME = datetime.utcfromtimestamp(0)
 
 
 @unique
-class ExchangeType(Enum):
+class ExchangeType(str, Enum):
     FANOUT = "fanout"
     DIRECT = "direct"
     TOPIC = "topic"

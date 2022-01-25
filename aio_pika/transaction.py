@@ -10,11 +10,13 @@ from .abc import (
 
 
 class Transaction(AbstractTransaction):
+    def __repr__(self) -> str:
+        return "<{} self.state.value>".format(self.__class__.__name__)
+
     def __str__(self) -> str:
         return self.state.value
 
     def __init__(self, channel: AbstractChannel):
-        self.loop = channel.loop
         self.__channel = channel
         self.state: TransactionStates = TransactionStates.created
 

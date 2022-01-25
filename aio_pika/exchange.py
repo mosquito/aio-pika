@@ -30,9 +30,6 @@ class Exchange(AbstractExchange):
         passive: bool = False,
         arguments: Arguments = None
     ):
-
-        self.loop = connection.loop
-
         if not arguments:
             arguments = {}
 

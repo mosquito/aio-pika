@@ -32,7 +32,7 @@ T = TypeVar("T")
 CallbackType = Callable[..., T]
 
 
-class RPCMessageTypes(Enum):
+class RPCMessageTypes(str, Enum):
     error = "error"
     result = "result"
     call = "call"
