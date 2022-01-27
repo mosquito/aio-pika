@@ -79,21 +79,30 @@ class Channel(PoolInstance):
 
     @property
     def is_closed(self):
-        if not self._channel:
+        if not self._channel or self._is_closed_by_user:
             return True
-        return self.channel.is_closed
+        return self._channel.is_closed
+
+    @property
+    def _is_closed_by_user(self):
+        return self._channel == ()
+
+    @_is_closed_by_user.setter
+    def _is_closed_by_user(self, value: bool):
+        if value:
+            self._channel = ()
 
     async def close(self, exc=None):
         if not self._channel:
             log.warning("Channel already closed")
             return
 
-        if self.channel.is_closed:
+        if self.is_closed:
             return
 
         # noinspection PyTypeChecker
         channel = self._channel  # type: aiormq.Channel
-        self._channel = ()
+        self._is_closed_by_user = True
         await channel.close()
 
         self._done_callbacks(exc)
@@ -101,13 +110,20 @@ class Channel(PoolInstance):
     @property
     def channel(self) -> aiormq.Channel:
         if self._channel is None:
-            raise RuntimeError("Channel was not opened")
+            raise aiormq.exceptions.ChannelInvalidStateError(
+                "Channel was not opened"
+            )
+
+        if self.is_closed:
+            raise aiormq.exceptions.ChannelInvalidStateError(
+                "Channel has been closed"
+            )
 
         return self._channel
 
     @property
     def number(self):
-        return self.channel.number if self._channel else None
+        return self._channel.number if self._channel else None
 
     def __str__(self):
         return "{0}".format(self.number or "Not initialized channel")
@@ -189,6 +205,7 @@ class Channel(PoolInstance):
             )
 
         self.channel.on_return_callbacks.add(self._on_return)
+        self.channel.closing.add_done_callback(self._done_callbacks)
 
     def _on_return(self, message: aiormq.types.DeliveredMessage):
         self._return_callbacks(IncomingMessage(message, no_ack=True))
