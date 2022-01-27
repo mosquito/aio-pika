@@ -135,7 +135,7 @@ class Channel(AbstractChannel):
         return self
 
     async def __aenter__(self) -> "AbstractChannel":
-        if not hasattr(self, "_channel"):
+        if not self.is_opened:
             await self.initialize()
         return self
 

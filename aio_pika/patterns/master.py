@@ -4,7 +4,7 @@ import json
 import logging
 from functools import partial
 from types import MappingProxyType
-from typing import Any, Awaitable, Callable, Dict, Mapping, Optional, TypeVar
+from typing import Any, Awaitable, Callable, Mapping, Optional, TypeVar
 
 import aiormq
 from aiormq.tools import awaitable
