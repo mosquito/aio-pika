@@ -130,7 +130,8 @@ class RobustQueue(Queue):
             arguments=arguments,
         )
 
-        assert consumer_tag, "No consumer tag"
+        if consumer_tag is None:
+            raise RuntimeError("Consumer tag is None")
 
         if robust:
             self._consumers[consumer_tag] = dict(

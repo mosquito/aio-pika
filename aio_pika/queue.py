@@ -241,7 +241,8 @@ class Queue(AbstractQueue):
             timeout=timeout,
         )
 
-        assert consume_result.consumer_tag is not None, "Consumer tag is None"
+        if consume_result.consumer_tag is None:
+            raise RuntimeError("Consumer tag is None")
         return consume_result.consumer_tag
 
     async def cancel(
@@ -446,7 +447,8 @@ class QueueIterator(AbstractQueueIterator):
         consumer_tag = await self._amqp_queue.consume(
             self.on_message, **self._consume_kwargs
         )
-        assert consumer_tag is not None, "Consumer tag is None"
+        if consumer_tag is None:
+            raise RuntimeError("Consumer tag is None")
         self._consumer_tag = consumer_tag
 
     def __aiter__(self) -> "AbstractQueueIterator":
