@@ -1,5 +1,5 @@
 import asyncio
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum, unique
 from types import TracebackType
@@ -62,7 +62,8 @@ class DeclarationResult(NamedTuple):
 class AbstractTransaction:
     state: TransactionStates
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def channel(self) -> "AbstractChannel":
         raise NotImplementedError
 
@@ -134,11 +135,13 @@ class AbstractMessage(ABC):
     def info(self) -> Dict[str, HeadersValue]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def locked(self) -> bool:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def properties(self) -> aiormq.spec.Basic.Properties:
         raise NotImplementedError
 
@@ -163,7 +166,8 @@ class AbstractIncomingMessage(AbstractMessage, ABC):
     routing_key: Optional[str]
     exchange: str
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def channel(self) -> aiormq.abc.AbstractChannel:
         raise NotImplementedError
 
@@ -191,7 +195,8 @@ class AbstractIncomingMessage(AbstractMessage, ABC):
     def info(self) -> Dict[str, Any]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def processed(self) -> bool:
         raise NotImplementedError
 
@@ -335,7 +340,8 @@ class AbstractQueueIterator:
 
 
 class AbstractExchange(ABC):
-    @abstractproperty
+    @property
+    @abstractmethod
     def channel(self) -> "AbstractChannel":
         raise NotImplementedError
 
@@ -395,15 +401,18 @@ class AbstractChannel(PoolInstance, ABC):
     loop: asyncio.AbstractEventLoop
     default_exchange: AbstractExchange
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def done_callbacks(self) -> CallbackCollection:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def is_opened(self) -> bool:
         return hasattr(self, "_channel")
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def is_closed(self) -> bool:
         raise NotImplementedError
 
@@ -411,11 +420,13 @@ class AbstractChannel(PoolInstance, ABC):
     def close(self, exc: ExceptionType = None) -> Awaitable[None]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def channel(self) -> aiormq.abc.AbstractChannel:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def number(self) -> Optional[int]:
         raise NotImplementedError
 
@@ -561,7 +572,8 @@ class AbstractConnection(PoolInstance, ABC):
     ):
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def is_closed(self) -> bool:
         raise NotImplementedError
 
@@ -633,11 +645,13 @@ class AbstractRobustChannel(AbstractChannel):
 
 
 class AbstractRobustConnection(AbstractConnection):
-    @abstractproperty
+    @property
+    @abstractmethod
     def reconnecting(self) -> bool:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def reconnect_callbacks(self) -> CallbackCollection:
         raise NotImplementedError
 
