@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from collections import namedtuple
 from functools import partial
 from logging import getLogger
@@ -411,10 +412,9 @@ class QueueIterator(AbstractQueueIterator):
             channel: aiormq.abc.AbstractChannel,
         ) -> Generator[Any, AbstractIncomingMessage, None]:
             while not channel.is_closed:
-                try:
+                with contextlib.suppress(asyncio.QueueEmpty):
                     yield self._queue.get_nowait()
-                except asyncio.QueueEmpty:
-                    return None
+                return None
 
         # Reject all messages
         msg: IncomingMessage
