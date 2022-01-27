@@ -1,7 +1,9 @@
 import asyncio
+import gzip
 import json
 import logging
 from functools import partial
+from types import MappingProxyType
 from typing import Any, Awaitable, Callable, Dict, TypeVar
 
 from aiormq.tools import awaitable
@@ -188,18 +190,21 @@ class Master(Base):
 
     async def create_task(
         self, channel_name: str,
-        kwargs: Dict[str, Any] = None, **message_kwargs: Any
+        kwargs: Dict[str, Any] = MappingProxyType({}),
+        **message_kwargs: Any
     ) -> None:
 
         """ Creates a new task for the worker """
         message = Message(
-            body=self.serialize(kwargs or {}),
+            body=self.serialize(kwargs),
             content_type=self.CONTENT_TYPE,
             delivery_mode=self.DELIVERY_MODE,
             **message_kwargs
         )
 
-        await self.exchange.publish(message, channel_name, mandatory=True)
+        return await self.exchange.publish(
+            message, channel_name, mandatory=True,
+        )
 
 
 class JsonMaster(Master):
@@ -208,3 +213,17 @@ class JsonMaster(Master):
 
     def serialize(self, data: Any) -> bytes:
         return self.SERIALIZER.dumps(data, ensure_ascii=False).encode()
+
+
+class CompressedJsonMaster(JsonMaster):
+    CONTENT_TYPE = "application/json;compression=gzip"
+    COMPRESS_LEVEL = 6
+
+    def serialize(self, data: Any) -> bytes:
+        return gzip.compress(
+            self.SERIALIZER.dumps(data, ensure_ascii=False).encode(),
+            compresslevel=self.COMPRESS_LEVEL,
+        )
+
+    def deserialize(self, data: bytes) -> Any:
+        return self.SERIALIZER.loads(gzip.decompress(data))
