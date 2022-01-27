@@ -78,10 +78,14 @@ class Channel(AbstractChannel):
 
     @property
     def is_opened(self) -> bool:
+        """ Returns True when the channel has been opened
+        and ready for interaction """
         return hasattr(self, "_channel")
 
     @property
     def is_closed(self) -> bool:
+        """ Returns True when the channel has been closed from the broker
+        side or after the close() method has been called. """
         if not self.is_opened or self._is_closed_by_user:
             return True
         return self._channel.is_closed
