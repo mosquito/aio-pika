@@ -159,10 +159,8 @@ class Master(Base):
             reject_on_redelivered=self._reject_on_redelivered,
             ignore_processed=True,
         ):
-            data = self.deserialize(message.body)
-
             try:
-                await self.execute(func, data)
+                await self.execute(func, self.deserialize(message.body))
             except RejectMessage as e:
                 await message.reject(requeue=e.requeue)
             except NackMessage as e:
