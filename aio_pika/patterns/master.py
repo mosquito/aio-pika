@@ -4,8 +4,9 @@ import json
 import logging
 from functools import partial
 from types import MappingProxyType
-from typing import Any, Awaitable, Callable, Dict, TypeVar
+from typing import Any, Awaitable, Callable, Dict, Mapping, Optional, TypeVar
 
+import aiormq
 from aiormq.tools import awaitable
 
 from aio_pika.channel import Channel
@@ -188,9 +189,9 @@ class Master(Base):
 
     async def create_task(
         self, channel_name: str,
-        kwargs: Dict[str, Any] = MappingProxyType({}),
+        kwargs: Mapping[str, Any] = MappingProxyType({}),
         **message_kwargs: Any
-    ) -> None:
+    ) -> Optional[aiormq.abc.ConfirmationFrameType]:
 
         """ Creates a new task for the worker """
         message = Message(
@@ -213,7 +214,8 @@ class JsonMaster(Master):
         return self.SERIALIZER.dumps(data, ensure_ascii=False).encode()
 
 
-class CompressedJsonMaster(JsonMaster):
+class CompressedJsonMaster(Master):
+    SERIALIZER = json
     CONTENT_TYPE = "application/json;compression=gzip"
     COMPRESS_LEVEL = 6
 

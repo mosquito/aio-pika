@@ -439,12 +439,12 @@ class AbstractChannel(PoolInstance, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def __aexit__(
+    def __aexit__(
         self,
         exc_type: Optional[Type[BaseException]],
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
-    ) -> None:
+    ) -> Awaitable[None]:
         raise NotImplementedError
 
     @abstractmethod
