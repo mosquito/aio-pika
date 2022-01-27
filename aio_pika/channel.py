@@ -1,7 +1,7 @@
 import asyncio
 from logging import getLogger
 from types import TracebackType
-from typing import Any, Generator, Optional, Type, Union
+from typing import Any, Awaitable, Generator, Optional, Type, Union
 from warnings import warn
 
 import aiormq
@@ -135,13 +135,13 @@ class Channel(AbstractChannel):
             await self.initialize()
         return self
 
-    async def __aexit__(
+    def __aexit__(
         self,
         exc_type: Optional[Type[BaseException]],
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
-    ) -> None:
-        await self.close()
+    ) -> Awaitable[Any]:
+        return self.close()
 
     def add_close_callback(
         self, callback: ChannelCloseCallback, weak: bool = False,
