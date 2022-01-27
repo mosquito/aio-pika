@@ -1,3 +1,28 @@
+7.0.0
+-----
+
+* There are a lot of changes in the structure of the library,
+  due to the widespread use of typing.
+* `aio_pike.abc` module now contains all types and abstract class prototypes.
+* Use modern `aiormq~=6.1.1`
+* Complete type checks coverage with mypy.
+* The interface of `aio_pika`'s classes has undergone minimal changes,
+  but you should double-check your code before migrating, at least because
+  almost all types are now in `aio_pika.abc`.
+
+6.8.2
+-----
+
+* explicit `Channel.is_user_closed` property
+* user-friendly exception when channel has been closed
+* reopen channels which are closed from the broker side
+
+6.8.1
+-----
+
+* Fix flapping test test_robust_duplicate_queue #424
+* Fixed callback on_close for rpc #424
+
 6.8.0
 -----
 
