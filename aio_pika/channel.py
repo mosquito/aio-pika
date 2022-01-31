@@ -150,19 +150,43 @@ class Channel(AbstractChannel):
     def add_close_callback(
         self, callback: ChannelCloseCallback, weak: bool = False,
     ) -> None:
+        warn(
+            "This method will be removed from future release. "
+            f"Use {self.__class__.__name__}.close_callbacks.add instead",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.close_callbacks.add(callback, weak=weak)
 
     def remove_close_callback(
         self, callback: ChannelCloseCallback,
     ) -> None:
+        warn(
+            "This method will be removed from future release. "
+            f"Use {self.__class__.__name__}.close_callbacks.remove instead",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.close_callbacks.remove(callback)
 
     def add_on_return_callback(
         self, callback: ReturnCallback, weak: bool = False,
     ) -> None:
+        warn(
+            "This method will be removed from future release. "
+            f"Use {self.__class__.__name__}.return_callbacks.add instead",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.return_callbacks.add(callback, weak=weak)
 
     def remove_on_return_callback(self, callback: ReturnCallback) -> None:
+        warn(
+            "This method will be removed from future release. "
+            f"Use {self.__class__.__name__}.return_callbacks.remove instead",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.return_callbacks.remove(callback)
 
     async def _create_channel(

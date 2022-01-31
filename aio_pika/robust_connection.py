@@ -1,6 +1,7 @@
 import asyncio
 from logging import getLogger
 from typing import Any, Callable, Dict, Optional, Type
+from warnings import warn
 from weakref import WeakSet
 
 from aiormq.abc import ExceptionType
@@ -38,17 +39,13 @@ class RobustConnection(Connection):
         self.fail_fast = self.kwargs["fail_fast"]
 
         self.__channels: WeakSet[AbstractChannel] = WeakSet()
-        self._reconnect_callbacks = CallbackCollection(self)
         self._connect_lock = asyncio.Lock()
         self._is_closed_by_user = False
+        self.reconnect_callbacks: CallbackCollection = CallbackCollection(self)
 
     @property
     def reconnecting(self) -> bool:
         return self._connect_lock.locked()
-
-    @property
-    def reconnect_callbacks(self) -> CallbackCollection:
-        return self._reconnect_callbacks
 
     def __repr__(self) -> str:
         return '<{0}: "{1}" {2} channels>'.format(
@@ -86,8 +83,13 @@ class RobustConnection(Connection):
 
         :return: None
         """
-
-        self._reconnect_callbacks.add(callback, weak=weak)
+        warn(
+            "This method will be removed from future release. "
+            f"Use {self.__class__.__name__}.reconnect_callbacks.add instead",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        self.reconnect_callbacks.add(callback, weak=weak)
 
     async def __cleanup_connection(self, exc: Optional[BaseException]) -> None:
         if not hasattr(self, "connection"):
@@ -156,7 +158,7 @@ class RobustConnection(Connection):
     @task
     async def reconnect(self) -> None:
         await self.connect()
-        self._reconnect_callbacks(self)
+        self.reconnect_callbacks(self)
 
     def channel(
         self,
@@ -174,7 +176,6 @@ class RobustConnection(Connection):
         self.__channels.add(channel)
         self.close_callbacks.add(
             lambda c, e: channel.close_callbacks(e),
-            weak=False,
         )
 
         return channel

@@ -108,7 +108,7 @@ async def test_revive_passive_queue_on_reconnect(
         reconnect_event.set()
         reconnect_event.clear()
 
-    client.add_reconnect_callback(reconnect_callback)
+    client.reconnect_callbacks.add(reconnect_callback)
 
     queue_name = get_random_name()
     channel = await client.channel()
@@ -147,7 +147,7 @@ async def test_robust_reconnect(
 
     reconnect_event = asyncio.Event()
     read_conn.reconnect_callbacks.add(
-        lambda *_: reconnect_event.set(), weak=False,
+        lambda *_: reconnect_event.set(),
     )
 
     assert isinstance(read_conn, aio_pika.RobustConnection)
@@ -357,7 +357,7 @@ async def test_robust_duplicate_queue(
     shared_condition = asyncio.Condition()
 
     connection.reconnect_callbacks.add(
-        lambda *_: reconnect_event.set(), weak=False,
+        lambda *_: reconnect_event.set(),
     )
 
     shared = {}

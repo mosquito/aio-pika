@@ -49,7 +49,7 @@ class TestCaseNoRobust(TestCaseAmqp):
         def cb(*a, **kw):
             pass
 
-        connection.add_reconnect_callback(cb)
+        connection.reconnect_callbacks.add(cb)
 
         del cb
         assert len(connection.reconnect_callbacks) == 1
@@ -59,14 +59,14 @@ class TestCaseNoRobust(TestCaseAmqp):
         close_reasons = []
         close_event = asyncio.Event()
         reopen_event = asyncio.Event()
-        channel.reopen_callbacks.add(lambda _: reopen_event.set(), weak=False)
+        channel.reopen_callbacks.add(lambda _: reopen_event.set())
 
         def on_done(*args):
             close_reasons.append(args)
             close_event.set()
             return
 
-        channel.add_close_callback(on_done)
+        channel.close_callbacks.add(on_done)
 
         async def run(sleep_time=1):
             await channel.set_qos(1)

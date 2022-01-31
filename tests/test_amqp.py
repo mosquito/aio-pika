@@ -64,7 +64,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
             event.set()
 
         channel = await self.create_channel(connection)
-        channel.add_close_callback(on_close)
+        channel.close_callbacks.add(on_close)
         await channel.close()
 
         await event.wait()
@@ -996,7 +996,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         def share(*a, **kw):
             shared_list.append((a, kw))
 
-        connection.add_close_callback(share)
+        connection.close_callbacks.add(share)
 
         del share
         assert len(connection.close_callbacks) == 1
@@ -1537,7 +1537,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
             close_event.set()
             return
 
-        channel.add_close_callback(on_done)
+        channel.close_callbacks.add(on_done)
 
         async def run():
             await channel.set_qos(1)
@@ -1607,7 +1607,7 @@ class TestCaseAmqpWithConfirms(TestCaseAmqpBase):
         def handler(channel, message: ReturnedMessage):
             f.set_result(message)
 
-        channel.add_on_return_callback(handler)
+        channel.return_callbacks.add(handler)
 
         body = bytes(shortuuid.uuid(), "utf-8")
 
@@ -1638,7 +1638,7 @@ class TestCaseAmqpWithConfirms(TestCaseAmqpBase):
             finally:
                 f.set_result(message)
 
-        channel.add_on_return_callback(bad_handler)
+        channel.return_callbacks.add(bad_handler)
 
         body = bytes(shortuuid.uuid(), "utf-8")
 

@@ -10,6 +10,8 @@
   but you should double-check your code before migrating, at least because
   almost all types are now in `aio_pika.abc`. Module `aio_pika.types`
   is still exists, but will write a `DeprecationWarning`.
+* Change default for argument `weak=False` in
+  `CallbackCollection.add(func, weak=False)`.
 
 6.8.2
 -----

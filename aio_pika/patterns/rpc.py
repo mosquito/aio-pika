@@ -154,10 +154,8 @@ class RPC(Base):
             self.on_result_message, exclusive=True, no_ack=True,
         )
 
-        self.channel.add_close_callback(self.on_close)
-        self.channel.add_on_return_callback(
-            self.on_message_returned, weak=False,
-        )
+        self.channel.close_callbacks.add(self.on_close)
+        self.channel.return_callbacks.add(self.on_message_returned)
 
     def on_close(
         self, channel: AbstractChannel,

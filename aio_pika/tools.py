@@ -100,7 +100,7 @@ class CallbackCollection(MutableSet):
         self.__lock: Lock = Lock()
 
     def add(
-        self, callback: Callable[..., Any], weak: bool = True,
+        self, callback: Callable[..., Any], weak: bool = False,
     ) -> None:
         if self.is_frozen:
             raise RuntimeError("Collection frozen")

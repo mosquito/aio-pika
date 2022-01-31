@@ -448,28 +448,6 @@ class AbstractChannel(PoolInstance, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def add_close_callback(
-        self, callback: "ChannelCloseCallback", weak: bool = False,
-    ) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def remove_close_callback(
-        self, callback: "ChannelCloseCallback",
-    ) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def add_on_return_callback(
-        self, callback: Callable[..., Any], weak: bool = False,
-    ) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def remove_on_return_callback(self, callback: Callable[..., Any]) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
     async def initialize(self, timeout: TimeoutType = None) -> None:
         raise NotImplementedError
 
@@ -582,12 +560,6 @@ class AbstractConnection(PoolInstance, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def add_close_callback(
-        self, callback: "ConnectionCloseCallback", weak: bool = False,
-    ) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
     async def connect(
         self, timeout: TimeoutType = None, **kwargs: Any
     ) -> None:
@@ -653,13 +625,6 @@ class AbstractRobustConnection(AbstractConnection):
     @property
     @abstractmethod
     def reconnect_callbacks(self) -> CallbackCollection:
-        raise NotImplementedError
-
-    @abstractmethod
-    def add_reconnect_callback(
-        self, callback: Callable[["AbstractRobustConnection"], None],
-        weak: bool = False,
-    ) -> None:
         raise NotImplementedError
 
     @abstractmethod

@@ -399,7 +399,7 @@ class QueueIterator(AbstractQueueIterator):
         del self._consumer_tag
 
         await self._amqp_queue.cancel(consumer_tag)
-        self._amqp_queue.channel.remove_close_callback(self.close)
+        self._amqp_queue.channel.close_callbacks.remove(self.close)
 
         log.debug("Queue iterator %r closed", self)
 
@@ -433,7 +433,7 @@ class QueueIterator(AbstractQueueIterator):
         self._queue = asyncio.Queue()
         self._consume_kwargs = kwargs
 
-        self._amqp_queue.channel.add_close_callback(self.close)
+        self._amqp_queue.channel.close_callbacks.add(self.close)
 
     async def on_message(self, message: AbstractIncomingMessage) -> None:
         await self._queue.put(message)

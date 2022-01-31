@@ -79,27 +79,12 @@ class Connection(AbstractConnection):
     def add_close_callback(
         self, callback: ConnectionCloseCallback, weak: bool = False,
     ) -> None:
-        """ Add callback which will be called after connection will be closed.
-
-        :class:`BaseException` or None will be passed as a first argument.
-
-        Example:
-
-        .. code-block:: python
-
-            import aio_pika
-
-            async def main():
-                connection = await aio_pika.connect(
-                    "amqp://guest:guest@127.0.0.1/"
-                )
-                connection.add_close_callback(print)
-                await connection.close()
-                # None
-
-
-        :return: None
-        """
+        warn(
+            "This method will be removed from future release. "
+            f"Use {self.__class__.__name__}.close_callbacks.add instead",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.close_callbacks.add(callback, weak=weak)
 
     def _on_connection_close(

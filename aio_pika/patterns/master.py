@@ -102,7 +102,7 @@ class Master(Base):
         self.loop: asyncio.AbstractEventLoop = self.channel.loop
         self.proxy = Proxy(self.create_task)
 
-        self.channel.add_on_return_callback(self.on_message_returned)
+        self.channel.return_callbacks.add(self.on_message_returned)
 
         self._requeue = requeue
         self._reject_on_redelivered = reject_on_redelivered
