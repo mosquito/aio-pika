@@ -13,7 +13,8 @@ from .abc import (
     ChannelCloseCallback, TimeoutType,
 )
 from .exchange import Exchange, ExchangeType
-from .message import IncomingMessage, ReturnCallback
+from .message import ReturnCallback  # noqa
+from .message import IncomingMessage
 from .queue import Queue
 from .tools import CallbackCollection, task
 from .transaction import Transaction
@@ -154,7 +155,7 @@ class Channel(AbstractChannel):
             "This method will be removed from future release. "
             f"Use {self.__class__.__name__}.close_callbacks.add instead",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         self.close_callbacks.add(callback, weak=weak)
 
@@ -165,7 +166,7 @@ class Channel(AbstractChannel):
             "This method will be removed from future release. "
             f"Use {self.__class__.__name__}.close_callbacks.remove instead",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         self.close_callbacks.remove(callback)
 
@@ -176,7 +177,7 @@ class Channel(AbstractChannel):
             "This method will be removed from future release. "
             f"Use {self.__class__.__name__}.return_callbacks.add instead",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         self.return_callbacks.add(callback, weak=weak)
 
@@ -185,7 +186,7 @@ class Channel(AbstractChannel):
             "This method will be removed from future release. "
             f"Use {self.__class__.__name__}.return_callbacks.remove instead",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         self.return_callbacks.remove(callback)
 

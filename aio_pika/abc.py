@@ -15,7 +15,7 @@ from pamqp.common import Arguments
 from yarl import URL
 
 from .pool import PoolInstance
-from .tools import CallbackCollection, CallbackType, CallbackSetType
+from .tools import CallbackCollection, CallbackSetType, CallbackType
 
 
 TimeoutType = Optional[Union[int, float]]
