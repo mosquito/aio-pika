@@ -16,16 +16,13 @@ from pamqp.common import FieldValue
 
 from .abc import (
     MILLISECONDS, ZERO_TIME, AbstractChannel, AbstractIncomingMessage,
-    AbstractMessage, AbstractProcessContext, DeliveryMode, HeadersPythonValues,
-    HeadersType, NoneType,
+    AbstractMessage, AbstractProcessContext, DateType, DeliveryMode,
+    HeadersPythonValues, HeadersType, NoneType,
 )
 from .exceptions import MessageProcessError
 
 
 log = getLogger(__name__)
-
-
-DateType = Union[int, datetime, float, timedelta, None]
 
 
 def to_milliseconds(seconds: Union[float, int]) -> int:

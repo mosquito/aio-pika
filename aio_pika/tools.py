@@ -4,10 +4,12 @@ from functools import wraps
 from itertools import chain
 from threading import Lock
 from typing import (
-    Any, Awaitable, Callable, Coroutine, FrozenSet, Iterator, MutableSet,
-    Optional, Set, TypeVar, Union,
+    Any, Awaitable, Callable, Coroutine, Iterator, MutableSet, Optional,
+    TypeVar, Union,
 )
 from weakref import ReferenceType, WeakSet, ref
+
+from aio_pika.abc import CallbackSetType, CallbackType
 
 
 log = logging.getLogger(__name__)
@@ -79,10 +81,6 @@ def shield(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
         return asyncio.shield(func(*args, **kwargs))
 
     return wrap
-
-
-CallbackType = Callable[..., Any]
-CallbackSetType = Union[FrozenSet[CallbackType], Set[CallbackType]]
 
 
 class CallbackCollection(MutableSet):
