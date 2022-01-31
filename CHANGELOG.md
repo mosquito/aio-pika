@@ -8,7 +8,8 @@
 * Complete type checks coverage with mypy.
 * The interface of `aio_pika`'s classes has undergone minimal changes,
   but you should double-check your code before migrating, at least because
-  almost all types are now in `aio_pika.abc`.
+  almost all types are now in `aio_pika.abc`. Module `aio_pika.types`
+  is still exists, but will write a `DeprecationWarning`.
 
 6.8.2
 -----
