@@ -667,8 +667,6 @@ class AbstractRobustConnection(AbstractConnection):
         raise NotImplementedError
 
 
-CallbackType = Callable[..., Any]
-CallbackSetType = Union[FrozenSet[CallbackType], Set[CallbackType]]
 ChannelCloseCallback = Callable[[AbstractChannel, Any], Any]
 ConnectionCloseCallback = Callable[[AbstractConnection], Any]
 ConnectionType = TypeVar("ConnectionType", bound=AbstractConnection)
