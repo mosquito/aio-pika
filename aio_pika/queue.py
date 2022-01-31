@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-from collections import namedtuple
 from functools import partial
 from logging import getLogger
 from types import TracebackType
@@ -10,6 +9,8 @@ import aiormq
 from aiormq.abc import DeliveredMessage
 from pamqp.common import Arguments
 
+# For migration from 6.x to 7.x
+from .abc import DeclarationResult  # noqa
 from .abc import (
     AbstractChannel, AbstractIncomingMessage, AbstractQueue,
     AbstractQueueIterator, ConsumerTag, TimeoutType,
@@ -21,11 +22,6 @@ from .tools import create_task, shield, task
 
 
 log = getLogger(__name__)
-
-
-DeclarationResult = namedtuple(
-    "DeclarationResult", ("message_count", "consumer_count"),
-)
 
 
 async def consumer(
@@ -480,4 +476,4 @@ class QueueIterator(AbstractQueueIterator):
             raise
 
 
-__all__ = "Queue", "QueueIterator", "DeclarationResult", "ConsumerTag"
+__all__ = ("Queue", "QueueIterator", "ConsumerTag")

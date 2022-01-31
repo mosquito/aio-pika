@@ -1,11 +1,12 @@
 import logging
-from collections import namedtuple
 from random import getrandbits
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import aiormq
 from pamqp.common import Arguments
 
+# For migration from 6.x to 7.x
+from .abc import DeclarationResult  # noqa
 from .abc import (
     AbstractChannel, AbstractExchange, AbstractIncomingMessage, ConsumerTag,
     TimeoutType,
@@ -15,11 +16,6 @@ from .queue import Queue
 
 
 log = logging.getLogger(__name__)
-
-
-DeclarationResult = namedtuple(
-    "DeclarationResult", ("message_count", "consumer_count"),
-)
 
 
 class RobustQueue(Queue):

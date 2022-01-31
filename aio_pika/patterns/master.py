@@ -11,10 +11,10 @@ from aiormq.tools import awaitable
 
 from aio_pika.abc import (
     AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
-    ConsumerTag,
+    ConsumerTag, DeliveryMode,
 )
 from aio_pika.channel import Channel
-from aio_pika.message import DeliveryMode, Message, ReturnedMessage
+from aio_pika.message import Message, ReturnedMessage
 
 from .base import Base, Proxy
 

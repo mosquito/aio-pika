@@ -730,4 +730,4 @@ class ProcessContext(AbstractProcessContext):
                 log.warning("Reject is not sent since channel is closed")
 
 
-__all__ = "Message", "IncomingMessage", "ReturnedMessage", "DeliveryMode"
+__all__ = "Message", "IncomingMessage", "ReturnedMessage",

@@ -13,14 +13,12 @@ from aiormq.tools import awaitable
 
 from aio_pika.abc import (
     AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
-    ConsumerTag,
+    ConsumerTag, DeliveryMode,
 )
 from aio_pika.channel import Channel
 from aio_pika.exceptions import MessageProcessError
 from aio_pika.exchange import ExchangeType
-from aio_pika.message import (
-    DeliveryMode, IncomingMessage, Message, ReturnedMessage,
-)
+from aio_pika.message import IncomingMessage, Message, ReturnedMessage
 from aio_pika.tools import shield
 
 from .base import Base, Proxy
