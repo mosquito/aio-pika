@@ -408,7 +408,7 @@ class AbstractChannel(PoolInstance, ABC):
 
     @property
     @abstractmethod
-    def is_opened(self) -> bool:
+    def is_initialized(self) -> bool:
         return hasattr(self, "_channel")
 
     @property

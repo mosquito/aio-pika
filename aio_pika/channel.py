@@ -77,7 +77,7 @@ class Channel(AbstractChannel):
         return self.close_callbacks
 
     @property
-    def is_opened(self) -> bool:
+    def is_initialized(self) -> bool:
         """ Returns True when the channel has been opened
         and ready for interaction """
         return hasattr(self, "_channel")
@@ -86,13 +86,13 @@ class Channel(AbstractChannel):
     def is_closed(self) -> bool:
         """ Returns True when the channel has been closed from the broker
         side or after the close() method has been called. """
-        if not self.is_opened or self._is_closed_by_user:
+        if not self.is_initialized or self._is_closed_by_user:
             return True
         return self._channel.is_closed
 
     @task
     async def close(self, exc: aiormq.abc.ExceptionType = None) -> None:
-        if not self.is_opened:
+        if not self.is_initialized:
             log.warning("Channel not opened")
             return
 
@@ -103,7 +103,7 @@ class Channel(AbstractChannel):
 
     @property
     def channel(self) -> aiormq.abc.AbstractChannel:
-        if not self.is_opened:
+        if not self.is_initialized:
             raise aiormq.exceptions.ChannelInvalidStateError(
                 "Channel was not opened",
             )
@@ -117,7 +117,7 @@ class Channel(AbstractChannel):
 
     @property
     def number(self) -> Optional[int]:
-        return self._channel.number if self.is_opened else None
+        return self._channel.number if self.is_initialized else None
 
     def __str__(self) -> str:
         return "{}".format(self.number or "Not initialized channel")
@@ -125,7 +125,7 @@ class Channel(AbstractChannel):
     def __repr__(self) -> str:
         conn = None
 
-        if self.is_opened:
+        if self.is_initialized:
             conn = self._channel.connection
 
         return '<%s #%s "%s">' % (self.__class__.__name__, self, conn)
@@ -135,7 +135,7 @@ class Channel(AbstractChannel):
         return self
 
     async def __aenter__(self) -> "AbstractChannel":
-        if not self.is_opened:
+        if not self.is_initialized:
             await self.initialize()
         return self
 
@@ -202,7 +202,7 @@ class Channel(AbstractChannel):
         )
 
     async def initialize(self, timeout: TimeoutType = None) -> None:
-        if self.is_opened:
+        if self.is_initialized:
             raise RuntimeError("Already initialized")
         elif self._is_closed_by_user:
             raise RuntimeError("Can't initialize closed channel")
