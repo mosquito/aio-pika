@@ -9,12 +9,13 @@ from typing import Any, Awaitable, Callable, Mapping, Optional, TypeVar
 import aiormq
 from aiormq.tools import awaitable
 
+from aio_pika.abc import (
+    AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
+    ConsumerTag,
+)
 from aio_pika.channel import Channel
 from aio_pika.message import DeliveryMode, Message, ReturnedMessage
 
-from ..abc import (
-    AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
-)
 from .base import Base, Proxy
 
 
@@ -44,7 +45,7 @@ class Worker:
     )
 
     def __init__(
-        self, queue: AbstractQueue, consumer_tag: str,
+        self, queue: AbstractQueue, consumer_tag: ConsumerTag,
         loop: asyncio.AbstractEventLoop,
     ):
         self.queue = queue

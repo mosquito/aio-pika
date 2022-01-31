@@ -7,10 +7,11 @@ import aiormq
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractExchange, AbstractIncomingMessage, TimeoutType,
+    AbstractChannel, AbstractExchange, AbstractIncomingMessage, ConsumerTag,
+    TimeoutType,
 )
 from .exchange import ExchangeParamType
-from .queue import ConsumerTag, Queue
+from .queue import Queue
 
 
 log = logging.getLogger(__name__)
@@ -116,7 +117,7 @@ class RobustQueue(Queue):
         no_ack: bool = False,
         exclusive: bool = False,
         arguments: Arguments = None,
-        consumer_tag: str = None,
+        consumer_tag: ConsumerTag = None,
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> ConsumerTag:

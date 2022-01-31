@@ -12,7 +12,7 @@ from pamqp.common import Arguments
 
 from .abc import (
     AbstractChannel, AbstractIncomingMessage, AbstractQueue,
-    AbstractQueueIterator, TimeoutType,
+    AbstractQueueIterator, ConsumerTag, TimeoutType,
 )
 from .exceptions import QueueEmpty
 from .exchange import Exchange, ExchangeParamType
@@ -23,7 +23,6 @@ from .tools import create_task, shield, task
 log = getLogger(__name__)
 
 
-ConsumerTag = str
 DeclarationResult = namedtuple(
     "DeclarationResult", ("message_count", "consumer_count"),
 )
@@ -199,7 +198,7 @@ class Queue(AbstractQueue):
         no_ack: bool = False,
         exclusive: bool = False,
         arguments: Arguments = None,
-        consumer_tag: str = None,
+        consumer_tag: ConsumerTag = None,
         timeout: TimeoutType = None,
     ) -> ConsumerTag:
 
@@ -432,7 +431,7 @@ class QueueIterator(AbstractQueueIterator):
         )
 
     def __init__(self, queue: Queue, **kwargs: Any):
-        self._consumer_tag: str
+        self._consumer_tag: ConsumerTag
         self.loop = queue.loop
         self._amqp_queue: AbstractQueue = queue
         self._queue = asyncio.Queue()

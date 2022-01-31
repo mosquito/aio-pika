@@ -11,6 +11,10 @@ from typing import Any, Callable, Dict, Optional, Tuple, TypeVar
 from aiormq.abc import ExceptionType
 from aiormq.tools import awaitable
 
+from aio_pika.abc import (
+    AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
+    ConsumerTag,
+)
 from aio_pika.channel import Channel
 from aio_pika.exceptions import MessageProcessError
 from aio_pika.exchange import ExchangeType
@@ -19,10 +23,6 @@ from aio_pika.message import (
 )
 from aio_pika.tools import shield
 
-from ..abc import (
-    AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
-    ConsumerTag,
-)
 from .base import Base, Proxy
 
 
@@ -80,7 +80,7 @@ class RPC(Base):
 
     def __init__(self, channel: Channel):
         self.result_queue: AbstractQueue
-        self.result_consumer_tag: str
+        self.result_consumer_tag: ConsumerTag
         self.dlx_exchange: AbstractExchange
         self.channel = channel
         self.loop = self.channel.loop
