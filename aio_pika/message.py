@@ -17,13 +17,12 @@ from pamqp.common import FieldValue
 from .abc import (
     MILLISECONDS, ZERO_TIME, AbstractChannel, AbstractIncomingMessage,
     AbstractMessage, AbstractProcessContext, DeliveryMode, HeadersPythonValues,
-    HeadersType,
+    HeadersType, NoneType,
 )
 from .exceptions import MessageProcessError
 
 
 log = getLogger(__name__)
-NoneType = type(None)
 
 
 DateType = Union[int, datetime, float, timedelta, None]
