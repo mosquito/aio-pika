@@ -399,18 +399,36 @@ class RPC(Base):
         self.routes.pop(queue.name)
 
 
+class JsonRPCError(Exception):
+    def __init__(self, exc_type, message=None, *args):
+        super(JsonRPCError, self).__init__(message, args)
+        self.exc_type = exc_type
+
+
 class JsonRPC(RPC):
     SERIALIZER = json
     CONTENT_TYPE = "application/json"
 
     def serialize(self, data: Any) -> bytes:
-        return self.SERIALIZER.dumps(data, ensure_ascii=False, default=repr)
+        return self.SERIALIZER.dumps(
+            data, ensure_ascii=False, default=repr).encode('ascii')
+
+    def deserialize(self, data: Any) -> bytes:
+        res = super().deserialize(data)
+        if isinstance(res, dict) and "error" in res:
+            res = JsonRPCError(res['error']['type'],
+                               res['error']['message'],
+                               res['error']['args'])
+        return res
 
     def serialize_exception(self, exception: Exception) -> bytes:
         return self.serialize(
             {
                 "error": {
-                    "type": exception.__class__.__name__,
+                    "type": f'{exception.__module__}.'
+                            f'{exception.__class__.__name__}'
+                            if hasattr(exception, '__module__')
+                            else exception.__class__.__name__,
                     "message": repr(exception),
                     "args": exception.args,
                 },
