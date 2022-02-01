@@ -10,7 +10,8 @@ from aiormq.abc import ExceptionType
 from aiormq.tools import censor_url
 from yarl import URL
 
-# For migration from 6.x to 7.x
+# This needed only for migration from 6.x to 7.x
+# TODO: Remove this in 8.x release
 from .abc import ConnectionType  # noqa
 from .abc import (
     AbstractChannel, AbstractConnection, ConnectionCloseCallback, TimeoutType,

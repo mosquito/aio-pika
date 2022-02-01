@@ -30,10 +30,15 @@ T = TypeVar("T")
 CallbackType = Callable[..., T]
 
 
-class RPCMessageTypes(str, Enum):
+class RPCMessageType(str, Enum):
     error = "error"
     result = "result"
     call = "call"
+
+
+# This needed only for migration from 6.x to 7.x
+# TODO: Remove this in 8.x release
+RPCMessageTypes = RPCMessageType    # noqa
 
 
 class RPC(Base):
@@ -221,11 +226,11 @@ class RPC(Base):
             future.set_exception(e)
             return
 
-        if message.type == RPCMessageTypes.result.value:
+        if message.type == RPCMessageType.result.value:
             future.set_result(payload)
-        elif message.type == RPCMessageTypes.error.value:
+        elif message.type == RPCMessageType.error.value:
             future.set_exception(payload)
-        elif message.type == RPCMessageTypes.call.value:
+        elif message.type == RPCMessageType.call.value:
             future.set_exception(
                 asyncio.TimeoutError("Message timed-out", message),
             )
@@ -246,10 +251,10 @@ class RPC(Base):
             func = self.routes[method_name]
 
             result = self.serialize(await self.execute(func, payload))
-            message_type = RPCMessageTypes.result.value
+            message_type = RPCMessageType.result.value
         except Exception as e:
             result = self.serialize_exception(e)
-            message_type = RPCMessageTypes.error.value
+            message_type = RPCMessageType.error.value
 
         if not message.reply_to:
             log.info(
@@ -278,7 +283,7 @@ class RPC(Base):
             await message.reject(requeue=False)
             return
 
-        if message_type == RPCMessageTypes.error.value:
+        if message_type == RPCMessageType.error.value:
             await message.ack()
             return
 
@@ -343,7 +348,7 @@ class RPC(Base):
 
         message = Message(
             body=self.serialize(kwargs or {}),
-            type=RPCMessageTypes.call.value,
+            type=RPCMessageType.call.value,
             timestamp=time.time(),
             priority=priority,
             correlation_id=correlation_id,
@@ -434,3 +439,11 @@ class JsonRPC(RPC):
                 },
             },
         )
+
+
+__all__ = (
+    "CallbackType",
+    "JsonRPC",
+    "RPC",
+    "RPCMessageType",
+)

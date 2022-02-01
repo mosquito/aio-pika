@@ -5,7 +5,8 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
 import aiormq
 from pamqp.common import Arguments
 
-# For migration from 6.x to 7.x
+# This needed only for migration from 6.x to 7.x
+# TODO: Remove this in 8.x release
 from .abc import DeclarationResult  # noqa
 from .abc import (
     AbstractChannel, AbstractExchange, AbstractIncomingMessage, ConsumerTag,

@@ -9,7 +9,8 @@ import aiormq
 from aiormq.abc import DeliveredMessage
 from pamqp.common import Arguments
 
-# For migration from 6.x to 7.x
+# This needed only for migration from 6.x to 7.x
+# TODO: Remove this in 8.x release
 from .abc import DeclarationResult  # noqa
 from .abc import (
     AbstractChannel, AbstractIncomingMessage, AbstractQueue,
