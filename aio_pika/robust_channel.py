@@ -15,7 +15,7 @@ from .exchange import Exchange, ExchangeType
 from .queue import Queue
 from .robust_exchange import RobustExchange
 from .robust_queue import RobustQueue
-from .tools import CallbackCollection
+from .tools import CallbackCollection, create_task
 
 
 log = getLogger(__name__)
@@ -90,7 +90,7 @@ class RobustChannel(Channel, AbstractRobustChannel):
         super()._on_channel_closed(closing)
 
         if not self._is_closed_by_user and not self.connection.is_closed:
-            self.loop.create_task(self.reopen())
+            create_task(self.reopen)
             exc = closing.exception()
             if exc:
                 log.exception(

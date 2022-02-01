@@ -38,7 +38,7 @@ def iscoroutinepartial(fn: Callable[..., Any]) -> bool:
 
 
 def create_task(
-    func: Callable[..., Coroutine[Any, Any, T]],
+    func: Callable[..., Union[Coroutine[Any, Any, T], Awaitable[T]]],
     *args: Any,
     loop: Optional[asyncio.AbstractEventLoop] = None,
     **kwargs: Any

@@ -9,6 +9,8 @@ from typing import (
 
 from aiormq.tools import awaitable
 
+from aio_pika.tools import create_task
+
 
 log = logging.getLogger(__name__)
 
@@ -121,7 +123,7 @@ class Pool(Generic[T]):
             tasks = []
 
             for item in self.__item_set:
-                tasks.append(self.loop.create_task(item.close()))
+                tasks.append(create_task(item.close))
 
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)

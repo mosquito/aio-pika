@@ -16,6 +16,7 @@ from aio_pika.abc import (
 from aio_pika.channel import Channel
 from aio_pika.message import Message, ReturnedMessage
 
+from ..tools import create_task
 from .base import Base, Proxy
 
 
@@ -52,7 +53,7 @@ class Worker:
         self.consumer_tag = consumer_tag
         self.loop = loop
 
-    def close(self) -> asyncio.Task:
+    def close(self) -> Awaitable[None]:
         """ Cancel subscription to the channel
 
         :return: :class:`asyncio.Task`
@@ -61,7 +62,7 @@ class Worker:
         async def closer() -> None:
             await self.queue.cancel(self.consumer_tag)
 
-        return self.loop.create_task(closer())
+        return create_task(closer)
 
 
 class Master(Base):
