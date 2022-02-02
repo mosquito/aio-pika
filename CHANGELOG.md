@@ -1,6 +1,18 @@
 7.0.0
 -----
 
+This release brings support for a new version of `aiormq`, which is used here as
+a low-level driver for working with AMQP.
+
+The release contains a huge number of changes in the internal structure of the
+library, mainly changes related to type inheritance and abstract types, as well
+as checking all typehints through mypy.
+
+The biggest change to the user API is the violation of the inheritance order,
+due to the introduction of abstract types, so this release is a major one.
+
+### Changes
+
 * There are a lot of changes in the structure of the library,
   due to the widespread use of typing.
 * `aio_pike.abc` module now contains all types and abstract class prototypes.
@@ -12,6 +24,35 @@
   is still exists, but will write a `DeprecationWarning`.
 * Change default for argument `weak=False` in
   `CallbackCollection.add(func, weak=False)`.
+
+
+### Known 6.x to 7.x migration issues
+
+* `pamqp.specification` module didn't exists in `pamqp==3.0.1` so you have to
+  change it:
+  * `pamqp.commands` for AMPQ-RPC–relates classes
+  * `pamqp.base` for `Frame` class
+  * `pamqp.body` for `ContentBody` class
+  * `pamqp.commands` for `Basic`, `Channel`, `Confirm`, `Exchange`,
+    `Queue`, `Tx` classes.
+  * `pamqp.common` for `FieldArray`, `FieldTable`, `FieldValue` classes
+  * `pamqp.constants` for constants like `REPLY_SUCCESS`.
+  * `pamqp.header` for `ContentHeader` class.
+  * `pamqp.heartbeat` for `Heartbeat` class.
+* Type definitions related which imports from `aio_pika` might throw warnings like
+  `'SomeType' is not declared in __all__ `. This is a normal situation, since
+  now it is necessary to import types from `aio_pika.abc`. In this release,
+  these are just warnings, but in a next major release, this will stop working,
+  so you should take care of changes in your code.
+
+  Just replace the import with the import from `aio_pika.abc`.
+
+  The list of deprecated imports:
+  * `from aio_pika.message import ReturnCallback`
+  * `from aio_pika.patterns.rpc import RPCMessageType` - renamed to
+    `RPCMessageTypes`
+  * `import aio_pika.types` - module deprecated use `aio_pika.abc` instead
+  * `from aio_pika.connection import ConnectionType`
 
 6.8.2
 -----
