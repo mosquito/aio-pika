@@ -21,14 +21,14 @@ due to the introduction of abstract types, so this release is a major one.
 * The interface of `aio_pika`'s classes has undergone minimal changes,
   but you should double-check your code before migrating, at least because
   almost all types are now in `aio_pika.abc`. Module `aio_pika.types`
-  is still exists, but will write a `DeprecationWarning`.
+  is still exists, but will produce a `DeprecationWarning`.
 * Change default for argument `weak=False` in
   `CallbackCollection.add(func, weak=False)`.
 
 
 ### Known 6.x to 7.x migration issues
 
-* `pamqp.specification` module didn't exists in `pamqp==3.0.1` so you have to
+* `pamqp.specification` module didn't exist in `pamqp==3.0.1` so you have to
   change it:
   * `pamqp.commands` for AMPQ-RPC–relates classes
   * `pamqp.base` for `Frame` class
@@ -39,13 +39,13 @@ due to the introduction of abstract types, so this release is a major one.
   * `pamqp.constants` for constants like `REPLY_SUCCESS`.
   * `pamqp.header` for `ContentHeader` class.
   * `pamqp.heartbeat` for `Heartbeat` class.
-* Type definitions related which imports from `aio_pika` might throw warnings like
-  `'SomeType' is not declared in __all__ `. This is a normal situation, since
-  now it is necessary to import types from `aio_pika.abc`. In this release,
-  these are just warnings, but in a next major release, this will stop working,
-  so you should take care of changes in your code.
+* Type definitions related to imports from `aio_pika` might throw warnings
+  like `'SomeType' is not declared in __all__ `. This is a normal situation,
+  since now it is necessary to import types from `aio_pika.abc`. In this
+  release, these are just warnings, but in the next major release, this will
+  stop working, so you should take care of changes in your code.
 
-  Just replace the import with the import from `aio_pika.abc`.
+  Just use `aio_pika.abc` in your imports.
 
   The list of deprecated imports:
   * `from aio_pika.message import ReturnCallback`
