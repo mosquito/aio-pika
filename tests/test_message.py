@@ -5,6 +5,21 @@ from datetime import datetime
 import shortuuid
 
 from aio_pika import DeliveryMode, Message
+import pytest
+
+
+def test_init_message_body():
+    # test body is string
+    msg = Message(body="test")
+    assert msg.body == b"test"
+
+    # test body is bytes
+    msg = Message(body=b"test")
+    assert msg.body == b"test"
+
+    # net not str or bytes body
+    with pytest.raises(TypeError):
+        Message(body=1)
 
 
 def test_message_copy():
