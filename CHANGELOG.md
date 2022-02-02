@@ -15,7 +15,7 @@ due to the introduction of abstract types, so this release is a major one.
 
 * There are a lot of changes in the structure of the library,
   due to the widespread use of typing.
-* `aio_pike.abc` module now contains all types and abstract class prototypes.
+* `aio_pika.abc` module now contains all types and abstract class prototypes.
 * Use modern `aiormq~=6.1.1`
 * Complete type checks coverage with mypy.
 * The interface of `aio_pika`'s classes has undergone minimal changes,
