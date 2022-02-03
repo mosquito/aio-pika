@@ -5,7 +5,7 @@ import aiormq
 from pamqp import commands
 
 from .abc import (
-    AbstractChannel, AbstractTransaction, TimeoutType, TransactionStates,
+    AbstractChannel, AbstractTransaction, TimeoutType, TransactionState,
 )
 
 
@@ -18,7 +18,7 @@ class Transaction(AbstractTransaction):
 
     def __init__(self, channel: AbstractChannel):
         self.__channel = channel
-        self.state: TransactionStates = TransactionStates.CREATED
+        self.state: TransactionState = TransactionState.CREATED
 
     @property
     def channel(self) -> AbstractChannel:
@@ -35,21 +35,21 @@ class Transaction(AbstractTransaction):
     ) -> aiormq.spec.Tx.SelectOk:
         result = await self.channel.channel.tx_select(timeout=timeout)
 
-        self.state = TransactionStates.STARTED
+        self.state = TransactionState.STARTED
         return result
 
     async def rollback(
         self, timeout: TimeoutType = None,
     ) -> commands.Tx.RollbackOk:
         result = await self.channel.channel.tx_rollback(timeout=timeout)
-        self.state = TransactionStates.ROLLED_BACK
+        self.state = TransactionState.ROLLED_BACK
         return result
 
     async def commit(
         self, timeout: TimeoutType = None,
     ) -> commands.Tx.CommitOk:
         result = await self.channel.channel.tx_commit(timeout=timeout)
-        self.state = TransactionStates.COMMITED
+        self.state = TransactionState.COMMITED
         return result
 
     async def __aenter__(self) -> "Transaction":

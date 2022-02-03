@@ -47,7 +47,7 @@ class DeliveryMode(IntEnum):
 
 
 @unique
-class TransactionStates(str, Enum):
+class TransactionState(str, Enum):
     CREATED = "created"
     COMMITED = "commited"
     ROLLED_BACK = "rolled back"
@@ -60,7 +60,7 @@ class DeclarationResult(NamedTuple):
 
 
 class AbstractTransaction:
-    state: TransactionStates
+    state: TransactionState
 
     @property
     @abstractmethod
@@ -666,6 +666,6 @@ __all__ = (
     "HeadersValue",
     "MILLISECONDS",
     "TimeoutType",
-    "TransactionStates",
+    "TransactionState",
     "ZERO_TIME",
 )
