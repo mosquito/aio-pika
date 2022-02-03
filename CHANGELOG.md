@@ -1,12 +1,12 @@
 7.0.0
 -----
 
-This release brings support for a new version of `aiormq`, which is used here as
+This release brings support for a new version of `aiormq`, which is used as
 a low-level driver for working with AMQP.
 
 The release contains a huge number of changes in the internal structure of the
-library, mainly changes related to type inheritance and abstract types, as well
-as checking all typehints through mypy.
+library, mainly related to type inheritance and abstract types, as well
+as typehints checking via mypy.
 
 The biggest change to the user API is the violation of the inheritance order,
 due to the introduction of abstract types, so this release is a major one.
@@ -16,13 +16,13 @@ due to the introduction of abstract types, so this release is a major one.
 * There are a lot of changes in the structure of the library,
   due to the widespread use of typing.
 * `aio_pika.abc` module now contains all types and abstract class prototypes.
-* Use modern `aiormq~=6.1.1`
-* Complete type checks coverage with mypy.
+* Modern `aiormq~=6.1.1` used.
+* Complete type checks coverage via mypy.
 * The interface of `aio_pika`'s classes has undergone minimal changes,
   but you should double-check your code before migrating, at least because
   almost all types are now in `aio_pika.abc`. Module `aio_pika.types`
-  is still exists, but will produce a `DeprecationWarning`.
-* Change default for argument `weak=False` in
+  still exists, but will produce a `DeprecationWarning`.
+* Default value for argument `weak` is changed to `False` in
   `CallbackCollection.add(func, weak=False)`.
 
 
