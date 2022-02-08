@@ -124,6 +124,7 @@ class AbstractMessage(ABC):
     app_id: Optional[str]
 
     @property
+    @abstractmethod
     def headers(self) -> HeadersType:
         raise NotImplementedError
 
