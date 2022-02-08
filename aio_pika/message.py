@@ -36,7 +36,7 @@ def encode_expiration(value: Any) -> Optional[str]:
 
 @encode_expiration.register(datetime)
 def encode_expiration_datetime(value: datetime) -> str:
-    now = datetime.now()
+    now = datetime.now(tz=value.tzinfo)
     return str(to_milliseconds((value - now).total_seconds()))
 
 
