@@ -111,11 +111,11 @@ class RobustConnection(Connection):
             self.connect_kwargs = kwargs
 
         if self.reconnecting:
-            raise asyncio.InvalidStateError(
+            raise RuntimeError(
                 (
-                    "Connect method called but connection "
-                    "{!r} is reconnecting right now."
-                ).format(self), self,
+                    f"Connect method called but connection "
+                    f"{self!r} is reconnecting right now."
+                ), self,
             )
 
         async with self._connect_lock:

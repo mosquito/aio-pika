@@ -118,9 +118,9 @@ class CallbackCollection(MutableSet):
             raise RuntimeError("Collection frozen")
 
         with self.__lock:
-            try:
+            if callback in self.__callbacks:
                 self.__callbacks.remove(callback)    # type: ignore
-            except KeyError:
+            elif callback in self.__weak_callbacks:
                 self.__weak_callbacks.remove(callback)
 
     def clear(self) -> None:

@@ -440,12 +440,9 @@ class QueueIterator(AbstractQueueIterator):
         await self._queue.put(message)
 
     async def consume(self) -> None:
-        consumer_tag = await self._amqp_queue.consume(
+        self._consumer_tag = await self._amqp_queue.consume(
             self.on_message, **self._consume_kwargs
         )
-        if consumer_tag is None:
-            raise RuntimeError("Consumer tag is None")
-        self._consumer_tag = consumer_tag
 
     def __aiter__(self) -> "AbstractQueueIterator":
         return self

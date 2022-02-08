@@ -194,12 +194,12 @@ def header_converter(value: Any) -> FieldValue:
 @header_converter.register(time.struct_time)
 @header_converter.register(list)
 @header_converter.register(int)
-def header_converter_bytes(v: T) -> T:
+def header_converter_native(v: T) -> T:
     return v
 
 
 @header_converter.register(bytes)
-def _(v: bytes) -> bytearray:
+def header_converter_bytes(v: bytes) -> bytearray:
     return bytearray(v)
 
 
@@ -402,7 +402,7 @@ class Message(AbstractMessage):
 
         return super().__setattr__(key, value)
 
-    def __iter__(self) -> Iterator[int]:    # type: ignore
+    def __iter__(self) -> Iterator[int]:
         return iter(self.body)
 
     def lock(self) -> None:
@@ -512,8 +512,6 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             self.delivery_tag = message.delivery.delivery_tag
             self.redelivered = message.delivery.redelivered
 
-        self.routing_key = None
-
         if isinstance(
             message.delivery, (
                 aiormq.spec.Basic.Return,
@@ -522,6 +520,8 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             ),
         ):
             self.routing_key = message.delivery.routing_key
+        else:
+            self.routing_key = None
 
         self.exchange = message.delivery.exchange
 

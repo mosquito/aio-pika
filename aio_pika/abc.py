@@ -5,7 +5,7 @@ from enum import Enum, IntEnum, unique
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, Awaitable, Callable, Dict, FrozenSet, Generator,
-    Iterable, MutableMapping, NamedTuple, Optional, Set, Tuple, Type, TypeVar,
+    Iterator, MutableMapping, NamedTuple, Optional, Set, Tuple, Type, TypeVar,
     Union,
 )
 
@@ -147,7 +147,7 @@ class AbstractMessage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def __iter__(self) -> Iterable[bytes]:
+    def __iter__(self) -> Iterator[int]:
         raise NotImplementedError
 
     @abstractmethod
@@ -549,7 +549,9 @@ class AbstractConnection(PoolInstance, ABC):
         self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None,
         **kwargs: Any
     ):
-        pass
+        NotImplementedError(
+            f"Method not implemented, passed: url={url}, loop={loop!r}",
+        )
 
     @property
     @abstractmethod
@@ -633,8 +635,12 @@ class AbstractRobustConnection(AbstractConnection):
         raise NotImplementedError
 
 
-ChannelCloseCallback = Callable[[AbstractChannel, Any], Any]
-ConnectionCloseCallback = Callable[[AbstractConnection], Any]
+ChannelCloseCallback = Callable[
+    [AbstractChannel, Optional[BaseException]], Any,
+]
+ConnectionCloseCallback = Callable[
+    [AbstractConnection, Optional[BaseException]], Any,
+]
 ConnectionType = TypeVar("ConnectionType", bound=AbstractConnection)
 
 

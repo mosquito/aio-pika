@@ -11,7 +11,7 @@ from .abc import (
 
 class Transaction(AbstractTransaction):
     def __repr__(self) -> str:
-        return "<{} self.state.value>".format(self.__class__.__name__)
+        return f"<{self.__class__.__name__} {self.state.value}>"
 
     def __str__(self) -> str:
         return self.state.value
