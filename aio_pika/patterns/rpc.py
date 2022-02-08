@@ -31,9 +31,9 @@ CallbackType = Callable[..., T]
 
 
 class RPCMessageType(str, Enum):
-    error = "error"
-    result = "result"
-    call = "call"
+    ERROR = "error"
+    RESULT = "result"
+    CALL = "call"
 
 
 # This needed only for migration from 6.x to 7.x
@@ -226,11 +226,11 @@ class RPC(Base):
             future.set_exception(e)
             return
 
-        if message.type == RPCMessageType.result.value:
+        if message.type == RPCMessageType.RESULT.value:
             future.set_result(payload)
-        elif message.type == RPCMessageType.error.value:
+        elif message.type == RPCMessageType.ERROR.value:
             future.set_exception(payload)
-        elif message.type == RPCMessageType.call.value:
+        elif message.type == RPCMessageType.CALL.value:
             future.set_exception(
                 asyncio.TimeoutError("Message timed-out", message),
             )
@@ -251,10 +251,10 @@ class RPC(Base):
             func = self.routes[method_name]
 
             result = self.serialize(await self.execute(func, payload))
-            message_type = RPCMessageType.result.value
+            message_type = RPCMessageType.RESULT.value
         except Exception as e:
             result = self.serialize_exception(e)
-            message_type = RPCMessageType.error.value
+            message_type = RPCMessageType.ERROR.value
 
         if not message.reply_to:
             log.info(
@@ -283,7 +283,7 @@ class RPC(Base):
             await message.reject(requeue=False)
             return
 
-        if message_type == RPCMessageType.error.value:
+        if message_type == RPCMessageType.ERROR.value:
             await message.ack()
             return
 
@@ -348,7 +348,7 @@ class RPC(Base):
 
         message = Message(
             body=self.serialize(kwargs or {}),
-            type=RPCMessageType.call.value,
+            type=RPCMessageType.CALL.value,
             timestamp=time.time(),
             priority=priority,
             correlation_id=correlation_id,
