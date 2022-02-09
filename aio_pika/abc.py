@@ -162,10 +162,10 @@ class AbstractIncomingMessage(AbstractMessage, ABC):
     cluster_id: Optional[str]
     consumer_tag: Optional["ConsumerTag"]
     delivery_tag: Optional[int]
-    redelivered: bool
+    redelivered: Optional[bool]
     message_count: Optional[int]
     routing_key: Optional[str]
-    exchange: str
+    exchange: Optional[str]
 
     @property
     @abstractmethod
