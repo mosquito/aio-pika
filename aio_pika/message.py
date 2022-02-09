@@ -512,17 +512,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             self.delivery_tag = message.delivery.delivery_tag
             self.redelivered = message.delivery.redelivered
 
-        if isinstance(
-            message.delivery, (
-                aiormq.spec.Basic.Return,
-                aiormq.spec.Basic.GetOk,
-                aiormq.spec.Basic.Deliver,
-            ),
-        ):
-            self.routing_key = message.delivery.routing_key
-        else:
-            self.routing_key = None
-
+        self.routing_key = message.routing_key
         self.exchange = message.delivery.exchange
 
         if no_ack or not self.delivery_tag:
