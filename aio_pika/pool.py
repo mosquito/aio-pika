@@ -30,6 +30,23 @@ class PoolInvalidStateError(RuntimeError):
     pass
 
 
+class PoolItemContextManager(Generic[T], AsyncContextManager):
+    __slots__ = "pool", "item"
+
+    def __init__(self, pool: "Pool"):
+        self.pool = pool
+        self.item = None
+
+    async def __aenter__(self) -> T:
+        # noinspection PyProtectedMember
+        self.item = await self.pool.get()
+        return self.item
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.item is not None:
+            await self.pool.put(self.item)
+
+
 class Pool(Generic[T]):
     __slots__ = (
         "loop",
@@ -41,6 +58,7 @@ class Pool(Generic[T]):
         "__constructor_args",
         "__item_set",
         "__closed",
+        "__cm",
     )
 
     def __init__(
@@ -48,7 +66,8 @@ class Pool(Generic[T]):
         constructor: ConstructorType,
         *args,
         max_size: int = None,
-        loop: asyncio.AbstractEventLoop = None
+        loop: asyncio.AbstractEventLoop = None,
+        cm: "PoolItemContextManager[T]" = PoolItemContextManager[T]
     ):
         self.loop = loop or asyncio.get_event_loop()
         self.__closed = False
@@ -59,6 +78,7 @@ class Pool(Generic[T]):
         self.__items = asyncio.Queue()
         self.__lock = asyncio.Lock()
         self.__max_size = max_size
+        self.__cm = cm
 
     @property
     def is_closed(self) -> bool:
@@ -81,20 +101,16 @@ class Pool(Generic[T]):
         return self._has_released
 
     async def _create_item(self) -> T:
-        if self.__closed:
-            raise PoolInvalidStateError("create item operation on closed pool")
-
         async with self.__lock:
             if self._is_overflow:
                 return await self.__items.get()
-
             log.debug("Creating a new instance of %r", self.__constructor)
             item = await self.__constructor(*self.__constructor_args)
             self.__created += 1
             self.__item_set.add(item)
             return item
 
-    async def _get(self) -> T:
+    async def get(self) -> T:
         if self.__closed:
             raise PoolInvalidStateError("get operation on closed pool")
 
@@ -103,11 +119,21 @@ class Pool(Generic[T]):
 
         return await self._create_item()
 
-    def put(self, item: T):
+    async def put(self, item: T):
         if self.__closed:
             raise PoolInvalidStateError("put operation on closed pool")
 
         return self.__items.put_nowait(item)
+
+    def delete(self, item: T):
+        if self.__closed:
+            raise PoolInvalidStateError("put operation on closed pool")
+
+        try:
+            self.__item_set.remove(item)
+            self.__created -= 1
+        except KeyError:
+            pass
 
     async def close(self):
         async with self.__lock:
@@ -128,20 +154,3 @@ class Pool(Generic[T]):
             return
 
         await asyncio.shield(self.close())
-
-
-class PoolItemContextManager(Generic[T], AsyncContextManager):
-    __slots__ = "pool", "item"
-
-    def __init__(self, pool: Pool):
-        self.pool = pool
-        self.item = None
-
-    async def __aenter__(self) -> T:
-        # noinspection PyProtectedMember
-        self.item = await self.pool._get()
-        return self.item
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self.item is not None:
-            self.pool.put(self.item)
