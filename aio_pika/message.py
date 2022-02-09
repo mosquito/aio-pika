@@ -497,23 +497,13 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             app_id=message.header.properties.app_id,
         )
 
-        self.redelivered: bool
         self.cluster_id = message.header.properties.cluster_id
-        self.consumer_tag = None
-        self.delivery_tag = None
-        self.message_count = None
-
-        if isinstance(message.delivery, aiormq.spec.Basic.GetOk):
-            self.message_count = message.delivery.message_count
-            self.delivery_tag = message.delivery.delivery_tag
-            self.redelivered = message.delivery.redelivered
-        elif isinstance(message.delivery, aiormq.spec.Basic.Deliver):
-            self.consumer_tag = message.delivery.consumer_tag
-            self.delivery_tag = message.delivery.delivery_tag
-            self.redelivered = message.delivery.redelivered
-
+        self.consumer_tag = message.consumer_tag
+        self.delivery_tag = message.delivery_tag
+        self.exchange = message.exchange
+        self.message_count = message.message_count
+        self.redelivered = message.redelivered
         self.routing_key = message.routing_key
-        self.exchange = message.delivery.exchange
 
         if no_ack or not self.delivery_tag:
             self.lock()

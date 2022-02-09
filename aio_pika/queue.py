@@ -238,6 +238,12 @@ class Queue(AbstractQueue):
             timeout=timeout,
         )
 
+        # consumer_tag property is Optional[str] in practice this check
+        # should never take place, however, it protects against the case
+        # if the `None` comes from pamqp
+        if consume_result.consumer_tag is None:
+            raise RuntimeError("Consumer tag is None")
+
         return consume_result.consumer_tag
 
     async def cancel(
