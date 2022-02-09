@@ -238,8 +238,6 @@ class Queue(AbstractQueue):
             timeout=timeout,
         )
 
-        if consume_result.consumer_tag is None:
-            raise RuntimeError("Consumer tag is None")
         return consume_result.consumer_tag
 
     async def cancel(
