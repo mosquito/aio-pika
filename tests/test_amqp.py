@@ -10,11 +10,12 @@ from unittest import mock
 import aiormq.exceptions
 import pytest
 import shortuuid
+from yarl import URL
 
 import aio_pika
 import aio_pika.exceptions
 from aio_pika import Channel, DeliveryMode, Message
-from aio_pika.abc import AbstractIncomingMessage
+from aio_pika.abc import AbstractConnection, AbstractIncomingMessage
 from aio_pika.exceptions import (
     DeliveryError, MessageProcessError, ProbableAuthenticationError,
 )
@@ -1559,6 +1560,15 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         with pytest.raises(RuntimeError):
             await channel.set_qos(10)
+
+    async def test_heartbeat_disabling(
+        self, loop, amqp_url: URL, connection_fabric,
+    ):
+        url = amqp_url.update_query(heartbeat=0)
+        connection: AbstractConnection = await connection_fabric(url)
+
+        async with connection:
+            assert connection.connection.connection_tune.heartbeat == 0
 
 
 class TestCaseAmqpNoConfirms(TestCaseAmqp):
