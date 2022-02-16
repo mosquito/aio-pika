@@ -8,6 +8,7 @@ from warnings import warn
 import aiormq
 from aiormq.abc import ExceptionType
 from aiormq.tools import censor_url
+from pamqp.common import FieldTable
 from yarl import URL
 
 # This needed only for migration from 6.x to 7.x
@@ -233,6 +234,38 @@ class Connection(AbstractConnection):
         await self.close()
 
 
+def make_url(
+    url: Union[str, URL] = None,
+    *,
+    host: str = "localhost",
+    port: int = 5672,
+    login: str = "guest",
+    password: str = "guest",
+    virtualhost: str = "/",
+    ssl: bool = False,
+    ssl_options: dict = None,
+    **kwargs: Any
+) -> URL:
+    if url is not None:
+        if not isinstance(url, URL):
+            return URL(url)
+        return url
+
+    kw = kwargs
+    kw.update(ssl_options or {})
+
+    return URL.build(
+        scheme="amqps" if ssl else "amqp",
+        host=host,
+        port=port,
+        user=login,
+        password=password,
+        # yarl >= 1.3.0 requires path beginning with slash
+        path="/" + virtualhost,
+        query=kw,
+    )
+
+
 async def connect(
     url: Union[str, URL] = None,
     *,
@@ -245,8 +278,8 @@ async def connect(
     loop: asyncio.AbstractEventLoop = None,
     ssl_options: dict = None,
     timeout: TimeoutType = None,
+    client_properties: FieldTable = None,
     connection_class: Type[AbstractConnection] = Connection,
-    client_properties: dict = None,
     **kwargs: Any
 ) -> AbstractConnection:
 
@@ -330,32 +363,27 @@ async def connect(
 
     """
 
-    amqp_url: URL
-
-    if url is None:
-        kw = kwargs
-        kw.update(ssl_options or {})
-
-        amqp_url = URL.build(
-            scheme="amqps" if ssl else "amqp",
+    connection: AbstractConnection = connection_class(
+        make_url(
+            url,
             host=host,
             port=port,
-            user=login,
+            login=login,
             password=password,
-            # yarl >= 1.3.0 requires path beginning with slash
-            path="/" + virtualhost,
-            query=kw,
-        )
-    else:
-        amqp_url = URL(url)
-
-    connection: AbstractConnection = connection_class(amqp_url, loop=loop)
+            virtualhost=virtualhost,
+            ssl=ssl,
+            ssl_options=ssl_options,
+            **kwargs
+        ),
+        loop=loop,
+    )
 
     await connection.connect(
         timeout=timeout,
         client_properties=client_properties,
         loop=loop,
     )
+
     return connection
 
 

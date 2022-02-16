@@ -597,7 +597,7 @@ class AbstractConnection(PoolInstance, ABC):
 
 class AbstractRobustQueue(AbstractQueue):
     @abstractmethod
-    def reopen(self) -> Awaitable[None]:
+    def restore(self, channel: "AbstractRobustChannel") -> Awaitable[None]:
         raise NotImplementedError
 
 
@@ -620,14 +620,11 @@ class AbstractRobustChannel(AbstractChannel):
 
 
 class AbstractRobustConnection(AbstractConnection):
-    @property
-    @abstractmethod
-    def reconnecting(self) -> bool:
-        raise NotImplementedError
+    reconnect_callbacks: CallbackCollection
 
     @property
     @abstractmethod
-    def reconnect_callbacks(self) -> CallbackCollection:
+    def reconnecting(self) -> bool:
         raise NotImplementedError
 
     @abstractmethod

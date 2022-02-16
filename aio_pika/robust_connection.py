@@ -1,6 +1,6 @@
 import asyncio
 from logging import getLogger
-from typing import Any, Callable, Dict, Optional, Type
+from typing import Any, Callable, Dict, Optional, Type, Union
 from warnings import warn
 from weakref import WeakSet
 
@@ -9,8 +9,10 @@ from aiormq.connection import parse_bool, parse_int
 from pamqp.common import FieldTable
 from yarl import URL
 
-from .abc import AbstractChannel, AbstractConnection, TimeoutType
-from .connection import Connection, connect
+from .abc import (
+    AbstractChannel, AbstractConnection, AbstractRobustConnection, TimeoutType,
+)
+from .connection import Connection, make_url
 from .exceptions import CONNECTION_EXCEPTIONS
 from .robust_channel import RobustChannel
 from .tools import CallbackCollection, task
@@ -19,7 +21,7 @@ from .tools import CallbackCollection, task
 log = getLogger(__name__)
 
 
-class RobustConnection(Connection):
+class RobustConnection(Connection, AbstractRobustConnection):
     """ Robust connection """
 
     CHANNEL_REOPEN_PAUSE = 1
@@ -202,7 +204,7 @@ class RobustConnection(Connection):
 
 
 async def connect_robust(
-    url: str = None,
+    url: Union[str, URL] = None,
     *,
     host: str = "localhost",
     port: int = 5672,
@@ -213,16 +215,12 @@ async def connect_robust(
     loop: asyncio.AbstractEventLoop = None,
     ssl_options: dict = None,
     timeout: TimeoutType = None,
-    connection_class: Type[AbstractConnection] = RobustConnection,
     client_properties: FieldTable = None,
+    connection_class: Type[AbstractRobustConnection] = RobustConnection,
     **kwargs: Any
 ) -> AbstractConnection:
 
-    """ Make robust connection to the broker.
-
-    That means that connection state will be restored after reconnect.
-    After connection has been established the channels, the queues and the
-    exchanges with their bindings will be restored.
+    """ Make connection to the broker.
 
     Example:
 
@@ -231,7 +229,7 @@ async def connect_robust(
         import aio_pika
 
         async def main():
-            connection = await aio_pika.connect_robust(
+            connection = await aio_pika.connect(
                 "amqp://guest:guest@127.0.0.1/"
             )
 
@@ -242,7 +240,7 @@ async def connect_robust(
         import aio_pika
 
         async def main():
-            connection = await aio_pika.connect_robust()
+            connection = await aio_pika.connect()
 
     .. note::
 
@@ -255,9 +253,30 @@ async def connect_robust(
         For an information on what the ssl_options can be set to reference the
         `official Python documentation`_ .
 
+    Set connection name for RabbitMQ admin panel:
+
+    .. code-block:: python
+
+        read_connection = await connect(
+            client_properties={
+                'connection_name': 'Read connection'
+            }
+        )
+
+        write_connection = await connect(
+            client_properties={
+                'connection_name': 'Write connection'
+            }
+        )
+
+    .. note:
+
+        ``client_properties`` argument requires ``aiormq>=2.9``
+
     URL string might be contain ssl parameters e.g.
     `amqps://user:pass@host//?ca_certs=ca.pem&certfile=crt.pem&keyfile=key.pem`
 
+    :param client_properties: add custom client capability.
     :param url:
         RFC3986_ formatted broker address. When :class:`None`
         will be used keyword arguments.
@@ -273,28 +292,36 @@ async def connect_robust(
         Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
     :param connection_class: Factory of a new connection
     :param kwargs: addition parameters which will be passed to the connection.
-    :param client_properties: Additional client connection properties
     :return: :class:`aio_pika.connection.Connection`
 
     .. _RFC3986: https://goo.gl/MzgYAs
     .. _official Python documentation: https://goo.gl/pty9xA
 
+
     """
-    return await connect(
-        url=url,
-        host=host,
-        port=port,
-        login=login,
-        password=password,
-        virtualhost=virtualhost,
-        ssl=ssl,
+
+    connection: AbstractConnection = connection_class(
+        make_url(
+            url,
+            host=host,
+            port=port,
+            login=login,
+            password=password,
+            virtualhost=virtualhost,
+            ssl=ssl,
+            ssl_options=ssl_options,
+            **kwargs
+        ),
         loop=loop,
-        connection_class=connection_class,
-        ssl_options=ssl_options,
+    )
+
+    await connection.connect(
         timeout=timeout,
         client_properties=client_properties,
-        **kwargs
+        loop=loop,
     )
+
+    return connection
 
 
 __all__ = (

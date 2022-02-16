@@ -5,17 +5,17 @@ import aiormq
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractConnection, AbstractExchange, ExchangeParamType,
+    AbstractChannel, AbstractConnection, AbstractExchange,
+    AbstractRobustChannel, AbstractRobustExchange, ExchangeParamType,
     TimeoutType,
 )
-from .channel import Channel
 from .exchange import Exchange, ExchangeType
 
 
 log = getLogger(__name__)
 
 
-class RobustExchange(Exchange):
+class RobustExchange(Exchange, AbstractRobustExchange):
     """ Exchange abstraction """
 
     _bindings: Dict[Union[AbstractExchange, str], Dict[str, Any]]
@@ -48,7 +48,7 @@ class RobustExchange(Exchange):
 
         self._bindings = dict()
 
-    async def restore(self, channel: Channel) -> None:
+    async def restore(self, channel: AbstractRobustChannel) -> None:
         self._channel = channel
 
         if self.name == "":

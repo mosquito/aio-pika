@@ -9,8 +9,8 @@ from pamqp.common import Arguments
 # TODO: Remove this in 8.x release
 from .abc import DeclarationResult  # noqa
 from .abc import (
-    AbstractChannel, AbstractExchange, AbstractIncomingMessage, ConsumerTag,
-    TimeoutType,
+    AbstractChannel, AbstractExchange, AbstractIncomingMessage,
+    AbstractRobustChannel, AbstractRobustQueue, ConsumerTag, TimeoutType,
 )
 from .exchange import ExchangeParamType
 from .queue import Queue
@@ -19,7 +19,7 @@ from .queue import Queue
 log = logging.getLogger(__name__)
 
 
-class RobustQueue(Queue):
+class RobustQueue(Queue, AbstractRobustQueue):
     __slots__ = ("_consumers", "_bindings")
 
     _consumers: Dict[ConsumerTag, Dict[str, Any]]
@@ -54,7 +54,7 @@ class RobustQueue(Queue):
         self._consumers = {}
         self._bindings = {}
 
-    async def restore(self, channel: AbstractChannel) -> None:
+    async def restore(self, channel: AbstractRobustChannel) -> None:
         self.channel = channel
 
         await self.declare()
