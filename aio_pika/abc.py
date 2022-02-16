@@ -600,10 +600,34 @@ class AbstractRobustQueue(AbstractQueue):
     def restore(self, channel: "AbstractRobustChannel") -> Awaitable[None]:
         raise NotImplementedError
 
+    @abstractmethod
+    async def bind(
+        self,
+        exchange: ExchangeParamType,
+        routing_key: str = None,
+        *,
+        arguments: Arguments = None,
+        timeout: TimeoutType = None,
+        robust: bool = True
+    ) -> aiormq.spec.Queue.BindOk:
+        raise NotImplementedError
+
 
 class AbstractRobustExchange(AbstractExchange):
     @abstractmethod
     def restore(self, channel: "AbstractRobustChannel") -> Awaitable[None]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def bind(
+        self,
+        exchange: ExchangeParamType,
+        routing_key: str = "",
+        *,
+        arguments: Arguments = None,
+        timeout: TimeoutType = None,
+        robust: bool = True
+    ) -> aiormq.spec.Exchange.BindOk:
         raise NotImplementedError
 
 
