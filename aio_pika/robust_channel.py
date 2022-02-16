@@ -7,8 +7,8 @@ from warnings import warn
 import aiormq
 
 from .abc import (
-    AbstractExchange, AbstractRobustChannel, AbstractRobustConnection,
-    AbstractRobustExchange, TimeoutType,
+    AbstractRobustChannel, AbstractRobustConnection, AbstractRobustExchange,
+    AbstractRobustQueue, TimeoutType,
 )
 from .channel import Channel
 from .exchange import Exchange, ExchangeType
@@ -136,7 +136,7 @@ class RobustChannel(Channel, AbstractRobustChannel):
         arguments: dict = None,
         timeout: TimeoutType = None,
         robust: bool = True,
-    ) -> AbstractExchange:
+    ) -> AbstractRobustExchange:
         await self.connection.connected.wait()
         exchange = (
             await super().declare_exchange(
@@ -155,7 +155,7 @@ class RobustChannel(Channel, AbstractRobustChannel):
             # noinspection PyTypeChecker
             self._exchanges[name].add(exchange)     # type: ignore
 
-        return exchange
+        return exchange     # type: ignore
 
     async def exchange_delete(
         self,
@@ -187,7 +187,7 @@ class RobustChannel(Channel, AbstractRobustChannel):
         arguments: dict = None,
         timeout: TimeoutType = None,
         robust: bool = True
-    ) -> Queue:
+    ) -> AbstractRobustQueue:
         await self.connection.connected.wait()
         queue: RobustQueue = await super().declare_queue(   # type: ignore
             name=name,

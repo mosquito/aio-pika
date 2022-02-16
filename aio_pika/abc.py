@@ -618,6 +618,37 @@ class AbstractRobustChannel(AbstractChannel):
     def restore(self) -> Awaitable[None]:
         raise NotImplementedError
 
+    @abstractmethod
+    async def declare_exchange(
+        self,
+        name: str,
+        type: Union[ExchangeType, str] = ExchangeType.DIRECT,
+        *,
+        durable: bool = False,
+        auto_delete: bool = False,
+        internal: bool = False,
+        passive: bool = False,
+        arguments: Arguments = None,
+        timeout: TimeoutType = None,
+        robust: bool = True,
+    ) -> AbstractRobustExchange:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def declare_queue(
+        self,
+        name: str = None,
+        *,
+        durable: bool = False,
+        exclusive: bool = False,
+        passive: bool = False,
+        auto_delete: bool = False,
+        arguments: dict = None,
+        timeout: TimeoutType = None,
+        robust: bool = True
+    ) -> AbstractRobustQueue:
+        raise NotImplementedError
+
 
 class AbstractRobustConnection(AbstractConnection):
     reconnect_callbacks: CallbackCollection
