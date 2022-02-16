@@ -218,7 +218,7 @@ async def connect_robust(
     client_properties: FieldTable = None,
     connection_class: Type[AbstractRobustConnection] = RobustConnection,
     **kwargs: Any
-) -> AbstractConnection:
+) -> AbstractRobustConnection:
 
     """ Make connection to the broker.
 
@@ -300,7 +300,7 @@ async def connect_robust(
 
     """
 
-    connection: AbstractConnection = connection_class(
+    connection: AbstractRobustConnection = connection_class(
         make_url(
             url,
             host=host,
