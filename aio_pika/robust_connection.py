@@ -10,7 +10,8 @@ from pamqp.common import FieldTable
 from yarl import URL
 
 from .abc import (
-    AbstractChannel, AbstractConnection, AbstractRobustConnection, TimeoutType,
+    AbstractChannel, AbstractConnection, AbstractRobustChannel,
+    AbstractRobustConnection, TimeoutType,
 )
 from .connection import Connection, make_url
 from .exceptions import CONNECTION_EXCEPTIONS
@@ -167,13 +168,13 @@ class RobustConnection(Connection, AbstractRobustConnection):
         channel_number: int = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
-    ) -> AbstractChannel:
+    ) -> AbstractRobustChannel:
 
-        channel = super().channel(
+        channel: AbstractRobustChannel = super().channel(
             channel_number=channel_number,
             publisher_confirms=publisher_confirms,
             on_return_raises=on_return_raises,
-        )
+        )   # type: ignore
 
         self.__channels.add(channel)
         self.close_callbacks.add(

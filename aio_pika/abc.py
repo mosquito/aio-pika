@@ -686,6 +686,15 @@ class AbstractRobustConnection(AbstractConnection):
     def reconnect(self) -> Awaitable[None]:
         raise NotImplementedError
 
+    @abstractmethod
+    def channel(
+        self,
+        channel_number: int = None,
+        publisher_confirms: bool = True,
+        on_return_raises: bool = False,
+    ) -> AbstractRobustChannel:
+        raise NotImplementedError
+
 
 ChannelCloseCallback = Callable[
     [AbstractChannel, Optional[BaseException]], Any,
