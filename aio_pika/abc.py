@@ -612,6 +612,19 @@ class AbstractRobustQueue(AbstractQueue):
     ) -> aiormq.spec.Queue.BindOk:
         raise NotImplementedError
 
+    @abstractmethod
+    async def consume(
+        self,
+        callback: Callable[[AbstractIncomingMessage], Any],
+        no_ack: bool = False,
+        exclusive: bool = False,
+        arguments: Arguments = None,
+        consumer_tag: ConsumerTag = None,
+        timeout: TimeoutType = None,
+        robust: bool = True,
+    ) -> ConsumerTag:
+        raise NotImplementedError
+
 
 class AbstractRobustExchange(AbstractExchange):
     @abstractmethod
