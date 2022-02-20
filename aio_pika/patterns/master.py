@@ -1,21 +1,27 @@
 import asyncio
+import gzip
 import json
 import logging
 from functools import partial
-from typing import Any, Callable
+from types import MappingProxyType
+from typing import Any, Awaitable, Callable, Mapping, Optional, TypeVar
 
+import aiormq
 from aiormq.tools import awaitable
 
-from aio_pika.channel import Channel
-from aio_pika.message import (
-    DeliveryMode, IncomingMessage, Message, ReturnedMessage,
+from aio_pika.abc import (
+    AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
+    ConsumerTag, DeliveryMode,
 )
-from aio_pika.queue import Queue
+from aio_pika.channel import Channel
+from aio_pika.message import Message, ReturnedMessage
 
+from ..tools import create_task
 from .base import Base, Proxy
 
 
 log = logging.getLogger(__name__)
+T = TypeVar("T")
 
 
 class MessageProcessingError(Exception):
@@ -23,12 +29,12 @@ class MessageProcessingError(Exception):
 
 
 class NackMessage(MessageProcessingError):
-    def __init__(self, requeue=False):
+    def __init__(self, requeue: bool = False):
         self.requeue = requeue
 
 
 class RejectMessage(MessageProcessingError):
-    def __init__(self, requeue=False):
+    def __init__(self, requeue: bool = False):
         self.requeue = requeue
 
 
@@ -39,21 +45,24 @@ class Worker:
         "loop",
     )
 
-    def __init__(self, queue: Queue, consumer_tag: str, loop):
+    def __init__(
+        self, queue: AbstractQueue, consumer_tag: ConsumerTag,
+        loop: asyncio.AbstractEventLoop,
+    ):
         self.queue = queue
         self.consumer_tag = consumer_tag
         self.loop = loop
 
-    def close(self) -> asyncio.Task:
+    def close(self) -> Awaitable[None]:
         """ Cancel subscription to the channel
 
         :return: :class:`asyncio.Task`
         """
 
-        async def closer():
+        async def closer() -> None:
             await self.queue.cancel(self.consumer_tag)
 
-        return self.loop.create_task(closer())
+        return create_task(closer)
 
 
 class Master(Base):
@@ -90,21 +99,24 @@ class Master(Base):
 
         :param channel: Initialized instance of :class:`aio_pika.Channel`
         """
-        self.channel = channel  # type: Channel
-        self.loop = self.channel.loop  # type: asyncio.AbstractEventLoop
+        self.channel: Channel = channel
+        self.loop: asyncio.AbstractEventLoop = self.channel.loop
         self.proxy = Proxy(self.create_task)
 
-        self.channel.add_on_return_callback(self.on_message_returned)
+        self.channel.return_callbacks.add(self.on_message_returned)
 
         self._requeue = requeue
         self._reject_on_redelivered = reject_on_redelivered
 
     @property
-    def exchange(self):
+    def exchange(self) -> AbstractExchange:
         return self.channel.default_exchange
 
     @staticmethod
-    def on_message_returned(sender, message: ReturnedMessage):
+    def on_message_returned(
+        channel: AbstractChannel,
+        message: ReturnedMessage,
+    ) -> None:
         log.warning(
             "Message returned. Probably destination queue does not exists: %r",
             message,
@@ -131,7 +143,9 @@ class Master(Base):
         return super().deserialize(data)
 
     @classmethod
-    async def execute(cls, func, kwargs):
+    async def execute(
+        cls, func: Callable[..., Awaitable[T]], kwargs: Any,
+    ) -> T:
         kwargs = kwargs or {}
 
         if not isinstance(kwargs, dict):
@@ -139,26 +153,29 @@ class Master(Base):
 
         return await func(**kwargs)
 
-    async def on_message(self, func, message: IncomingMessage):
+    async def on_message(
+        self, func: Callable[..., Any],
+        message: AbstractIncomingMessage,
+    ) -> None:
         async with message.process(
             requeue=self._requeue,
             reject_on_redelivered=self._reject_on_redelivered,
             ignore_processed=True,
         ):
-            data = self.deserialize(message.body)
-
             try:
-                await self.execute(func, data)
+                await self.execute(func, self.deserialize(message.body))
             except RejectMessage as e:
-                message.reject(requeue=e.requeue)
+                await message.reject(requeue=e.requeue)
             except NackMessage as e:
-                message.nack(requeue=e.requeue)
+                await message.nack(requeue=e.requeue)
 
-    async def create_queue(self, channel_name, **kwargs) -> Queue:
+    async def create_queue(
+        self, channel_name: str, **kwargs: Any
+    ) -> AbstractQueue:
         return await self.channel.declare_queue(channel_name, **kwargs)
 
     async def create_worker(
-        self, channel_name: str, func: Callable, **kwargs
+        self, channel_name: str, func: Callable[..., Any], **kwargs: Any
     ) -> Worker:
         """ Creates a new :class:`Worker` instance. """
 
@@ -173,18 +190,22 @@ class Master(Base):
         return Worker(queue, consumer_tag, self.loop)
 
     async def create_task(
-        self, channel_name: str, kwargs=None, **message_kwargs
-    ):
+        self, channel_name: str,
+        kwargs: Mapping[str, Any] = MappingProxyType({}),
+        **message_kwargs: Any
+    ) -> Optional[aiormq.abc.ConfirmationFrameType]:
 
         """ Creates a new task for the worker """
         message = Message(
-            body=self.serialize(kwargs or {}),
+            body=self.serialize(kwargs),
             content_type=self.CONTENT_TYPE,
             delivery_mode=self.DELIVERY_MODE,
             **message_kwargs
         )
 
-        await self.exchange.publish(message, channel_name, mandatory=True)
+        return await self.exchange.publish(
+            message, channel_name, mandatory=True,
+        )
 
 
 class JsonMaster(Master):
@@ -192,4 +213,19 @@ class JsonMaster(Master):
     CONTENT_TYPE = "application/json"
 
     def serialize(self, data: Any) -> bytes:
-        return self.SERIALIZER.dumps(data, ensure_ascii=False)
+        return self.SERIALIZER.dumps(data, ensure_ascii=False).encode()
+
+
+class CompressedJsonMaster(Master):
+    SERIALIZER = json
+    CONTENT_TYPE = "application/json;compression=gzip"
+    COMPRESS_LEVEL = 6
+
+    def serialize(self, data: Any) -> bytes:
+        return gzip.compress(
+            self.SERIALIZER.dumps(data, ensure_ascii=False).encode(),
+            compresslevel=self.COMPRESS_LEVEL,
+        )
+
+    def deserialize(self, data: bytes) -> Any:
+        return self.SERIALIZER.loads(gzip.decompress(data))

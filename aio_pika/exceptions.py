@@ -1,6 +1,6 @@
 import asyncio
 
-import pamqp
+import pamqp.exceptions
 from aiormq.exceptions import (
     AMQPChannelError, AMQPConnectionError, AMQPError, AMQPException,
     AuthenticationError, ChannelClosed, ChannelInvalidStateError,
@@ -11,20 +11,17 @@ from aiormq.exceptions import (
 )
 
 
-PAMQP_EXCEPTIONS = (pamqp.exceptions.PAMQPException,) + tuple(
-    pamqp.specification.ERRORS.values(),
-)
-
 CONNECTION_EXCEPTIONS = (
-    RuntimeError,
+    AMQPError,
     ConnectionError,
     OSError,
-    AMQPError,
-) + PAMQP_EXCEPTIONS
+    RuntimeError,
+    pamqp.exceptions.PAMQPException,
+)
 
 
 class MessageProcessError(AMQPError):
-    pass
+    reason = "%s: %r"
 
 
 class QueueEmpty(AMQPError, asyncio.QueueEmpty):

@@ -77,8 +77,8 @@ class TestCase:
 
         assert l1 == l2
 
-        collection.add(lambda sender, x: l1.append(x), weak=False)
-        collection.add(lambda sender, x: l2.append(x), weak=False)
+        collection.add(lambda sender, x: l1.append(x))
+        collection.add(lambda sender, x: l2.append(x))
 
         collection(1)
         collection(2)

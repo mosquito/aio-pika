@@ -26,7 +26,7 @@ def test_message_info():
     body = bytes(shortuuid.uuid(), "utf-8")
 
     info = {
-        "headers": {"foo": b"bar"},
+        "headers": {"foo": "bar"},
         "content_type": "application/json",
         "content_encoding": "text",
         "delivery_mode": DeliveryMode.PERSISTENT.value,
@@ -44,7 +44,7 @@ def test_message_info():
 
     msg = Message(
         body=body,
-        headers={"foo": b"bar"},
+        headers={"foo": "bar"},
         content_type="application/json",
         content_encoding="text",
         delivery_mode=DeliveryMode.PERSISTENT,
@@ -64,7 +64,7 @@ def test_message_info():
 
 def test_headers_setter():
     data = {"foo": "bar"}
-    data_expected = {"foo": b"bar"}
+    data_expected = {"foo": "bar"}
 
     msg = Message(b"", headers={"bar": "baz"})
     msg.headers = data
@@ -74,14 +74,13 @@ def test_headers_setter():
 
 def test_headers_content():
     data = (
-        [42, 42, 42],
-        ["foo", b"foo", "foo"],
-        [b"\00", b"\00", "\00"],
+        [42, 42],
+        [b"foo", b"foo"],
+        [b"\00", b"\00"],
     )
 
-    for src, raw, value in data:
+    for src, value in data:
         msg = Message(b"", headers={"value": src})
-        assert msg.headers_raw["value"] == raw
         assert msg.headers["value"] == value
 
 
@@ -89,14 +88,13 @@ def test_headers_set():
     msg = Message(b"", headers={"header": "value"})
 
     data = (
-        ["header-1", 42, 42, 42],
-        ["header-2", "foo", b"foo", "foo"],
-        ["header-3", b"\00", b"\00", "\00"],
+        ["header-1", 42,  42],
+        ["header-2", b"foo", b"foo"],
+        ["header-3", b"\00", b"\00"],
     )
 
-    for name, src, raw, value in data:
+    for name, src, value in data:
         msg.headers[name] = value
-        assert msg.headers_raw[name] == raw
         assert msg.headers[name] == value
 
     assert msg.headers["header"] == "value"

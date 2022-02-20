@@ -1,3 +1,72 @@
+7.0.0
+-----
+
+This release brings support for a new version of `aiormq`, which is used as
+a low-level driver for working with AMQP.
+
+The release contains a huge number of changes in the internal structure of the
+library, mainly related to type inheritance and abstract types, as well
+as typehints checking via mypy.
+
+The biggest change to the user API is the violation of the inheritance order,
+due to the introduction of abstract types, so this release is a major one.
+
+### Changes
+
+* There are a lot of changes in the structure of the library,
+  due to the widespread use of typing.
+* `aio_pika.abc` module now contains all types and abstract class prototypes.
+* Modern `aiormq~=6.1.1` used.
+* Complete type checks coverage via mypy.
+* The interface of `aio_pika`'s classes has undergone minimal changes,
+  but you should double-check your code before migrating, at least because
+  almost all types are now in `aio_pika.abc`. Module `aio_pika.types`
+  still exists, but will produce a `DeprecationWarning`.
+* Default value for argument `weak` is changed to `False` in
+  `CallbackCollection.add(func, weak=False)`.
+
+
+### Known 6.x to 7.x migration issues
+
+* `pamqp.specification` module didn't exist in `pamqp==3.0.1` so you have to
+  change it:
+  * `pamqp.commands` for AMPQ-RPC–relates classes
+  * `pamqp.base` for `Frame` class
+  * `pamqp.body` for `ContentBody` class
+  * `pamqp.commands` for `Basic`, `Channel`, `Confirm`, `Exchange`,
+    `Queue`, `Tx` classes.
+  * `pamqp.common` for `FieldArray`, `FieldTable`, `FieldValue` classes
+  * `pamqp.constants` for constants like `REPLY_SUCCESS`.
+  * `pamqp.header` for `ContentHeader` class.
+  * `pamqp.heartbeat` for `Heartbeat` class.
+* Type definitions related to imports from `aio_pika` might throw warnings
+  like `'SomeType' is not declared in __all__ `. This is a normal situation,
+  since now it is necessary to import types from `aio_pika.abc`. In this
+  release, these are just warnings, but in the next major release, this will
+  stop working, so you should take care of changes in your code.
+
+  Just use `aio_pika.abc` in your imports.
+
+  The list of deprecated imports:
+  * `from aio_pika.message import ReturnCallback`
+  * `from aio_pika.patterns.rpc import RPCMessageType` - renamed to
+    `RPCMessageTypes`
+  * `import aio_pika.types` - module deprecated use `aio_pika.abc` instead
+  * `from aio_pika.connection import ConnectionType`
+
+6.8.2
+-----
+
+* explicit `Channel.is_user_closed` property
+* user-friendly exception when channel has been closed
+* reopen channels which are closed from the broker side
+
+6.8.1
+-----
+
+* Fix flapping test test_robust_duplicate_queue #424
+* Fixed callback on_close for rpc #424
+
 6.8.0
 -----
 

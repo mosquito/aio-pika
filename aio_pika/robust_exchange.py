@@ -1,30 +1,37 @@
 from logging import getLogger
-from typing import Optional
+from typing import Any, Dict, Union
 
 import aiormq
+from pamqp.common import Arguments
 
-from .channel import Channel
+from .abc import (
+    AbstractChannel, AbstractConnection, AbstractExchange,
+    AbstractRobustChannel, AbstractRobustExchange, ExchangeParamType,
+    TimeoutType,
+)
 from .exchange import Exchange, ExchangeType
 
 
 log = getLogger(__name__)
 
 
-class RobustExchange(Exchange):
+class RobustExchange(Exchange, AbstractRobustExchange):
     """ Exchange abstraction """
+
+    _bindings: Dict[Union[AbstractExchange, str], Dict[str, Any]]
 
     def __init__(
         self,
-        connection,
-        channel: aiormq.Channel,
+        connection: AbstractConnection,
+        channel: AbstractChannel,
         name: str,
-        type: ExchangeType = ExchangeType.DIRECT,
+        type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         *,
-        auto_delete: Optional[bool],
-        durable: Optional[bool],
-        internal: Optional[bool],
-        passive: Optional[bool],
-        arguments: dict = None
+        auto_delete: bool = False,
+        durable: bool = False,
+        internal: bool = False,
+        passive: bool = False,
+        arguments: Arguments = None
     ):
 
         super().__init__(
@@ -41,8 +48,8 @@ class RobustExchange(Exchange):
 
         self._bindings = dict()
 
-    async def restore(self, channel: Channel):
-        self._channel = channel._channel
+    async def restore(self, channel: AbstractRobustChannel) -> None:
+        self._channel = channel
 
         if self.name == "":
             return
@@ -54,13 +61,15 @@ class RobustExchange(Exchange):
 
     async def bind(
         self,
-        exchange,
+        exchange: ExchangeParamType,
         routing_key: str = "",
         *,
-        arguments=None,
-        timeout: int = None,
+        arguments: Arguments = None,
+        timeout: TimeoutType = None,
         robust: bool = True
-    ):
+    ) -> aiormq.spec.Exchange.BindOk:
+        await self.connection.connected.wait()
+
         result = await super().bind(
             exchange,
             routing_key=routing_key,
@@ -70,18 +79,20 @@ class RobustExchange(Exchange):
 
         if robust:
             self._bindings[exchange] = dict(
-                routing_key=routing_key, arguments=arguments,
+                routing_key=routing_key,
+                arguments=arguments,
             )
 
         return result
 
     async def unbind(
         self,
-        exchange,
+        exchange: ExchangeParamType,
         routing_key: str = "",
-        arguments: dict = None,
-        timeout: int = None,
-    ):
+        arguments: Arguments = None,
+        timeout: TimeoutType = None,
+    ) -> aiormq.spec.Exchange.UnbindOk:
+        await self.connection.connected.wait()
 
         result = await super().unbind(
             exchange, routing_key, arguments=arguments, timeout=timeout,

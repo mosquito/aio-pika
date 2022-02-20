@@ -1,5 +1,5 @@
 import pickle
-from typing import Any
+from typing import Any, Callable
 
 
 class Method:
@@ -8,24 +8,24 @@ class Method:
         "func",
     )
 
-    def __init__(self, name, func):
+    def __init__(self, name: str, func: Callable[..., Any]):
         self.name = name
         self.func = func
 
-    def __getattr__(self, item) -> "Method":
+    def __getattr__(self, item: str) -> "Method":
         return Method(".".join((self.name, item)), func=self.func)
 
-    def __call__(self, **kwargs):
+    def __call__(self, **kwargs: Any) -> Any:
         return self.func(self.name, kwargs=kwargs)
 
 
 class Proxy:
     __slots__ = ("func",)
 
-    def __init__(self, func):
+    def __init__(self, func: Callable[..., Any]):
         self.func = func
 
-    def __getattr__(self, item) -> Method:
+    def __getattr__(self, item: str) -> Method:
         return Method(item, self.func)
 
 

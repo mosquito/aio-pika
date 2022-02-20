@@ -1,12 +1,16 @@
 import asyncio
 
 import aio_pika
-from aio_pika.patterns.master import Master, NackMessage, RejectMessage
+from aio_pika.patterns.master import (
+    CompressedJsonMaster, JsonMaster, Master, NackMessage, RejectMessage,
+)
 
 
-class TestCase:
+class TestMaster:
+    MASTER_CLASS = Master
+
     async def test_simple(self, channel: aio_pika.Channel):
-        master = Master(channel)
+        master = self.MASTER_CLASS(channel)
         event = asyncio.Event()
 
         self.state = []
@@ -29,7 +33,7 @@ class TestCase:
         await worker.close()
 
     async def test_simple_coro(self, channel: aio_pika.Channel):
-        master = Master(channel)
+        master = self.MASTER_CLASS(channel)
         event = asyncio.Event()
 
         self.state = []
@@ -52,7 +56,7 @@ class TestCase:
         await worker.close()
 
     async def test_simple_many(self, channel: aio_pika.Channel):
-        master = Master(channel)
+        master = self.MASTER_CLASS(channel)
         tasks = 100
 
         state = []
@@ -78,7 +82,7 @@ class TestCase:
         await worker.close()
 
     async def test_exception_classes(self, channel: aio_pika.Channel):
-        master = Master(channel)
+        master = self.MASTER_CLASS(channel)
         counter = 200
 
         self.state = []
@@ -107,3 +111,11 @@ class TestCase:
         assert self.state == list(range(50, 101))
 
         await worker.close()
+
+
+class TestJsonMaster(TestMaster):
+    MASTER_CLASS = JsonMaster
+
+
+class TestCompressedJsonMaster(TestMaster):
+    MASTER_CLASS = CompressedJsonMaster
