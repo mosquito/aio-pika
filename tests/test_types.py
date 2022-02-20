@@ -16,11 +16,11 @@ async def test_connect(amqp_url) -> None:
     async with await aio_pika.connect(amqp_url) as connection:
         assert isinstance(connection, aio_pika.abc.AbstractConnection)
         assert not isinstance(
-            connection, aio_pika.abc.AbstractRobustConnection
+            connection, aio_pika.abc.AbstractRobustConnection,
         )
 
         channel = await connection.channel()
         assert isinstance(channel, aio_pika.abc.AbstractChannel)
         assert not isinstance(
-            channel, aio_pika.abc.AbstractRobustChannel
+            channel, aio_pika.abc.AbstractRobustChannel,
         )

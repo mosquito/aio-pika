@@ -56,7 +56,7 @@ class RobustExchange(Exchange, AbstractRobustExchange):
 
         await self.declare()
 
-        for exchange, kwargs in self._bindings.items():
+        for exchange, kwargs in tuple(self._bindings.items()):
             await self.bind(exchange, **kwargs)
 
     async def bind(

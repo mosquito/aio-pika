@@ -1,5 +1,6 @@
 import asyncio
 from collections import defaultdict
+from itertools import chain
 from logging import getLogger
 from typing import DefaultDict, Set, Type, Union
 from warnings import warn
@@ -78,13 +79,14 @@ class RobustChannel(Channel, AbstractRobustChannel):
 
         await self.default_exchange.restore(self)
 
-        for exchanges in self._exchanges.values():
-            for exchange in exchanges:
-                await exchange.restore(self)
+        exchanges = tuple(chain(*self._exchanges.values()))
+        queues = tuple(chain(*self._queues.values()))
 
-        for queues in self._queues.values():
-            for queue in queues:
-                await queue.restore(self)
+        for exchange in exchanges:
+            await exchange.restore(self)
+
+        for queue in queues:
+            await queue.restore(self)
 
     def _on_channel_closed(self, closing: asyncio.Future) -> None:
         super()._on_channel_closed(closing)

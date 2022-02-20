@@ -58,11 +58,13 @@ class RobustQueue(Queue, AbstractRobustQueue):
         self.channel = channel
 
         await self.declare()
+        bindings = tuple(self._bindings.items())
+        consumers = tuple(self._consumers.items())
 
-        for (exchange, routing_key), kwargs in self._bindings.items():
+        for (exchange, routing_key), kwargs in bindings:
             await self.bind(exchange, routing_key, **kwargs)
 
-        for consumer_tag, kwargs in tuple(self._consumers.items()):
+        for consumer_tag, kwargs in consumers:
             await self.consume(consumer_tag=consumer_tag, **kwargs)
 
     async def bind(
