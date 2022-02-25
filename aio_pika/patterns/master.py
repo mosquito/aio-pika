@@ -13,7 +13,6 @@ from aio_pika.abc import (
     AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
     ConsumerTag, DeliveryMode,
 )
-from aio_pika.channel import Channel
 from aio_pika.message import Message, ReturnedMessage
 
 from ..tools import create_task
@@ -91,7 +90,7 @@ class Master(Base):
 
     def __init__(
         self,
-        channel: Channel,
+        channel: AbstractChannel,
         requeue: bool = True,
         reject_on_redelivered: bool = False,
     ):
@@ -99,7 +98,7 @@ class Master(Base):
 
         :param channel: Initialized instance of :class:`aio_pika.Channel`
         """
-        self.channel: Channel = channel
+        self.channel: AbstractChannel = channel
         self.loop: asyncio.AbstractEventLoop = self.channel.loop
         self.proxy = Proxy(self.create_task)
 

@@ -387,6 +387,8 @@ class Queue(AbstractQueue):
 
 
 class QueueIterator(AbstractQueueIterator):
+    DEFAULT_CLOSE_TIMEOUT = 5
+
     @task
     async def close(self, *_: Any) -> Any:
         log.debug("Cancelling queue iterator %r", self)
@@ -474,7 +476,15 @@ class QueueIterator(AbstractQueueIterator):
                 timeout=self._consume_kwargs.get("timeout"),
             )
         except asyncio.CancelledError:
-            await self.close()
+            log.info(
+                "%r closing with timeout %d seconds",
+                self, self.DEFAULT_CLOSE_TIMEOUT,
+            )
+            await asyncio.wait_for(
+                self.close(), timeout=self._consume_kwargs.get(
+                    "timeout", self.DEFAULT_CLOSE_TIMEOUT,
+                ),
+            )
             raise
 
 

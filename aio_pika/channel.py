@@ -89,7 +89,9 @@ class Channel(AbstractChannel):
         side or after the close() method has been called. """
         if not self.is_initialized or self._is_closed_by_user:
             return True
-        return self._channel.is_closed
+        return (
+            self._channel.is_closed or not self._channel.connection.is_opened
+        )
 
     @task
     async def close(self, exc: aiormq.abc.ExceptionType = None) -> None:

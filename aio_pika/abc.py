@@ -1,12 +1,13 @@
+import abc
 import asyncio
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum, unique
 from types import TracebackType
 from typing import (
-    Any, AsyncContextManager, Awaitable, Callable, Dict, FrozenSet, Generator,
-    Iterator, MutableMapping, NamedTuple, Optional, Set, Tuple, Type, TypeVar,
-    Union,
+    Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
+    FrozenSet, Generator, Iterator, MutableMapping, NamedTuple, Optional, Set,
+    Tuple, Type, TypeVar, Union,
 )
 
 import aiormq
@@ -300,7 +301,7 @@ class AbstractQueue:
         raise NotImplementedError
 
 
-class AbstractQueueIterator:
+class AbstractQueueIterator(AsyncIterable):
     _amqp_queue: AbstractQueue
     _queue: asyncio.Queue
     _consumer_tag: ConsumerTag

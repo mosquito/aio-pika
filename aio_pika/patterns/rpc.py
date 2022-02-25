@@ -81,7 +81,7 @@ class RPC(Base):
 
     """
 
-    def __init__(self, channel: Channel):
+    def __init__(self, channel: AbstractChannel):
         self.result_queue: AbstractQueue
         self.result_consumer_tag: ConsumerTag
         self.dlx_exchange: AbstractExchange
@@ -174,7 +174,7 @@ class RPC(Base):
             future.set_exception(exc or Exception)
 
     @classmethod
-    async def create(cls, channel: Channel, **kwargs: Any) -> "RPC":
+    async def create(cls, channel: AbstractChannel, **kwargs: Any) -> "RPC":
         """ Creates a new instance of :class:`aio_pika.patterns.RPC`.
         You should use this method instead of :func:`__init__`,
         because :func:`create` returns coroutine and makes async initialize

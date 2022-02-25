@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
 from warnings import warn
 
 import aiormq
-from aiormq.abc import ExceptionType
+import aiormq.abc
 from aiormq.tools import censor_url
 from pamqp.common import FieldTable
 from yarl import URL
@@ -36,7 +36,7 @@ class Connection(AbstractConnection):
         return self.closing.done()
 
     async def close(
-        self, exc: Optional[ExceptionType] = asyncio.CancelledError,
+        self, exc: Optional[aiormq.abc.ExceptionType] = asyncio.CancelledError,
     ) -> None:
         if not self.closing.done():
             self.closing.set_result(exc)
@@ -92,7 +92,8 @@ class Connection(AbstractConnection):
         self.close_callbacks.add(callback, weak=weak)
 
     def _on_connection_close(
-        self, connection: AbstractConnection, closing: asyncio.Future,
+        self, connection: aiormq.abc.AbstractConnection,
+        closing: asyncio.Future,
     ) -> None:
         log.debug("Closing AMQP connection %r", connection)
         exc: Optional[BaseException] = closing.exception()
