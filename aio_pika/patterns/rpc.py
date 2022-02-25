@@ -15,7 +15,6 @@ from aio_pika.abc import (
     AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
     ConsumerTag, DeliveryMode,
 )
-from aio_pika.channel import Channel
 from aio_pika.exceptions import MessageProcessError
 from aio_pika.exchange import ExchangeType
 from aio_pika.message import IncomingMessage, Message, ReturnedMessage
