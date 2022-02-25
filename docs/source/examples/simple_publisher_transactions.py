@@ -1,10 +1,11 @@
 import asyncio
+
 import aio_pika
 
 
-async def main(loop):
+async def main() -> None:
     connection = await aio_pika.connect_robust(
-        "amqp://guest:guest@127.0.0.1/", loop=loop
+        "amqp://guest:guest@127.0.0.1/",
     )
 
     async with connection:
@@ -21,7 +22,7 @@ async def main(loop):
                 message = aio_pika.Message(body="Hello #{}".format(i).encode())
 
                 await channel.default_exchange.publish(
-                    message, routing_key=routing_key
+                    message, routing_key=routing_key,
                 )
 
         # Using transactions manually
@@ -36,7 +37,6 @@ async def main(loop):
         )
 
         await tx.commit()
-        tx.close()
 
         # Using transactions manually
         tx = channel.transaction()
@@ -50,10 +50,7 @@ async def main(loop):
         )
 
         await tx.rollback()
-        tx.close()
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main(loop))
-    loop.close()
+    asyncio.run(main())

@@ -41,10 +41,13 @@ Features
 
 * Completely asynchronous API.
 * Object oriented API.
-* Auto-reconnects with complete state recovery with `connect_robust`
+* Transparent auto-reconnects with complete state recovery with `connect_robust`
   (e.g. declared queues or exchanges, consuming state and bindings).
-* Python 3.4+ compatible (include 3.6).
-
+* Python 3.6+ compatible.
+* For python 3.5 users available `aio-pika<7`
+* Transparent `publisher confirms`_ support
+* `Transactions`_ support
+* Completely type-hints coverage.
 
 Installation
 ++++++++++++

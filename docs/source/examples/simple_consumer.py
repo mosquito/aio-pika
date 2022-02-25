@@ -1,10 +1,13 @@
 import asyncio
+import logging
+
 import aio_pika
 
 
-async def main(loop):
+async def main() -> None:
+    logging.basicConfig(level=logging.DEBUG)
     connection = await aio_pika.connect_robust(
-        "amqp://guest:guest@127.0.0.1/", loop=loop
+        "amqp://guest:guest@127.0.0.1/",
     )
 
     queue_name = "test_queue"
@@ -12,6 +15,9 @@ async def main(loop):
     async with connection:
         # Creating channel
         channel = await connection.channel()
+
+        # Will take no more than 10 messages in advance
+        await channel.set_qos(prefetch_count=10)
 
         # Declaring queue
         queue = await channel.declare_queue(queue_name, auto_delete=True)
@@ -26,6 +32,4 @@ async def main(loop):
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main(loop))
-    loop.close()
+    asyncio.run(main())
