@@ -1,18 +1,13 @@
 import asyncio
 import sys
-from aio_pika import connect, IncomingMessage, ExchangeType
+
+from aio_pika import ExchangeType, connect
+from aio_pika.abc import AbstractIncomingMessage
 
 
-def on_message(message: IncomingMessage):
-    with message.process():
-        print(" [x] %r:%r" % (message.routing_key, message.body))
-
-
-async def main(loop):
+async def main() -> None:
     # Perform connection
-    connection = await connect(
-        "amqp://guest:guest@localhost/", loop=loop
-    )
+    connection = await connect("amqp://guest:guest@localhost/")
 
     # Creating a channel
     channel = await connection.channel()
@@ -20,12 +15,12 @@ async def main(loop):
 
     # Declare an exchange
     topic_logs_exchange = await channel.declare_exchange(
-        "topic_logs", ExchangeType.TOPIC
+        "topic_logs", ExchangeType.TOPIC,
     )
 
     # Declaring queue
     queue = await channel.declare_queue(
-        "task_queue", durable=True
+        "task_queue", durable=True,
     )
 
     binding_keys = sys.argv[1:]
@@ -37,15 +32,15 @@ async def main(loop):
     for binding_key in binding_keys:
         await queue.bind(topic_logs_exchange, routing_key=binding_key)
 
+    print(" [*] Waiting for messages. To exit press CTRL+C")
+
     # Start listening the queue with name 'task_queue'
-    await queue.consume(on_message)
+    async with queue.iterator() as iterator:
+        message: AbstractIncomingMessage
+        async for message in iterator:
+            async with message.process():
+                print(f" [x] {message.routing_key!r}:{message.body!r}")
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.create_task(main(loop))
-
-    # we enter a never-ending loop that waits for
-    # data and runs callbacks whenever necessary.
-    print(" [*] Waiting for messages. To exit press CTRL+C")
-    loop.run_forever()
+    asyncio.run(main())

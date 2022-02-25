@@ -1,27 +1,27 @@
 import asyncio
-from aio_pika import connect, Message
+
+from aio_pika import Message, connect
 
 
-async def main(loop):
+async def main() -> None:
     # Perform connection
-    connection = await connect(
-        "amqp://guest:guest@localhost/", loop=loop
-    )
+    connection = await connect("amqp://guest:guest@localhost/")
 
-    # Creating a channel
-    channel = await connection.channel()
+    async with connection:
+        # Creating a channel
+        channel = await connection.channel()
 
-    # Sending the message
-    await channel.default_exchange.publish(
-        Message(b"Hello World!"),
-        routing_key="hello",
-    )
+        # Declaring queue
+        queue = await channel.declare_queue("hello")
 
-    print(" [x] Sent 'Hello World!'")
+        # Sending the message
+        await channel.default_exchange.publish(
+            Message(b"Hello World!"),
+            routing_key=queue.name,
+        )
 
-    await connection.close()
+        print(" [x] Sent 'Hello World!'")
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main(loop))
+    asyncio.run(main())

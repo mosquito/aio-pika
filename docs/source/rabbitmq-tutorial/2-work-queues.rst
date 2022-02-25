@@ -67,7 +67,7 @@ queue, so let's name it *new_task.py*:
 
 .. literalinclude:: examples/2-work-queues/new_task.py
    :language: python
-   :lines: 13-26
+   :pyobject: main
 
 Our old receive.py script also requires some changes: it needs to fake a second of work
 for every dot in the message body. It will pop messages from the queue and perform the task,
@@ -75,7 +75,7 @@ so let's call it *worker.py*:
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 9-10
+   :pyobject: on_message
 
 
 Round-robin dispatching
@@ -161,13 +161,13 @@ from the worker, once we're done with a task.
         print(" [x] Received %r" % message.body)
         await asyncio.sleep(message.body.count(b'.'), loop=loop)
         print(" [x] Done")
-        message.ack()
+        await message.ack()
 
 or using special context processor:
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 7-10
+   :lines: 8-10
 
 
 If context processor will catch an exception, the message will be returned to the queue.
@@ -207,7 +207,7 @@ we need to declare it as *durable*:
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 22,24-25
+   :lines: 23-26
 
 
 Although this command is correct by itself, it won't work in our setup.
@@ -218,7 +218,7 @@ But there is a quick workaround - let's declare a queue with different name, for
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 22-25
+   :lines: 22-26
 
 This queue_declare change needs to be applied to both the producer and consumer code.
 
@@ -272,7 +272,7 @@ acknowledged the previous one. Instead, it will dispatch it to the next worker t
 
 .. literalinclude:: examples/2-work-queues/worker.py
    :language: python
-   :lines: 17-19
+   :lines: 17-20
 
 
 .. note::

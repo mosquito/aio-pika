@@ -1,19 +1,26 @@
 import asyncio
 import uuid
-from aio_pika import connect, IncomingMessage, Message
+from typing import MutableMapping
+
+from aio_pika import Message, connect
+from aio_pika.abc import (
+    AbstractChannel, AbstractConnection, AbstractIncomingMessage, AbstractQueue,
+)
 
 
 class FibonacciRpcClient:
-    def __init__(self, loop):
-        self.connection = None
-        self.channel = None
-        self.callback_queue = None
-        self.futures = {}
-        self.loop = loop
+    connection: AbstractConnection
+    channel: AbstractChannel
+    callback_queue: AbstractQueue
+    loop: asyncio.AbstractEventLoop
 
-    async def connect(self):
+    def __init__(self) -> None:
+        self.futures: MutableMapping[str, asyncio.Future] = {}
+        self.loop = asyncio.get_running_loop()
+
+    async def connect(self) -> "FibonacciRpcClient":
         self.connection = await connect(
-            "amqp://guest:guest@localhost/", loop=loop
+            "amqp://guest:guest@localhost/", loop=self.loop,
         )
         self.channel = await self.connection.channel()
         self.callback_queue = await self.channel.declare_queue(exclusive=True)
@@ -21,11 +28,15 @@ class FibonacciRpcClient:
 
         return self
 
-    def on_response(self, message: IncomingMessage):
-        future = self.futures.pop(message.correlation_id)
+    def on_response(self, message: AbstractIncomingMessage) -> None:
+        if message.correlation_id is None:
+            print(f"Bad message {message!r}")
+            return
+
+        future: asyncio.Future = self.futures.pop(message.correlation_id)
         future.set_result(message.body)
 
-    async def call(self, n):
+    async def call(self, n: int) -> int:
         correlation_id = str(uuid.uuid4())
         future = self.loop.create_future()
 
@@ -44,13 +55,12 @@ class FibonacciRpcClient:
         return int(await future)
 
 
-async def main(loop):
-    fibonacci_rpc = await FibonacciRpcClient(loop).connect()
+async def main() -> None:
+    fibonacci_rpc = await FibonacciRpcClient().connect()
     print(" [x] Requesting fib(30)")
     response = await fibonacci_rpc.call(30)
-    print(" [.] Got %r" % response)
+    print(f" [.] Got {response!r}")
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main(loop))
+    asyncio.run(main())
