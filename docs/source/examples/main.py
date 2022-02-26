@@ -1,10 +1,12 @@
 import asyncio
-from aio_pika import connect_robust, Message
+
+from aio_pika import Message, connect_robust
+from aio_pika.abc import AbstractIncomingMessage
 
 
-async def main(loop):
+async def main() -> None:
     connection = await connect_robust(
-        "amqp://guest:guest@127.0.0.1/", loop=loop
+        "amqp://guest:guest@127.0.0.1/?name=aio-pika%20example",
     )
 
     queue_name = "test_queue"
@@ -32,10 +34,11 @@ async def main(loop):
     )
 
     # Receiving message
-    incoming_message = await queue.get(timeout=5)
-
-    # Confirm message
-    await incoming_message.ack()
+    if incoming_message := await queue.get(timeout=5, fail=False):
+        # Confirm message
+        await incoming_message.ack()
+    else:
+        print("Queue empty")
 
     await queue.unbind(exchange, routing_key)
     await queue.delete()
@@ -43,5 +46,4 @@ async def main(loop):
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main(loop))
+    asyncio.run(main())

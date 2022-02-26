@@ -4,14 +4,14 @@ from typing import Any, Callable, Dict, Optional, Type, Union
 from warnings import warn
 from weakref import WeakSet
 
-from aiormq.abc import ExceptionType
+import aiormq.abc
 from aiormq.connection import parse_bool, parse_int
 from pamqp.common import FieldTable
 from yarl import URL
 
 from .abc import (
-    AbstractChannel, AbstractConnection, AbstractRobustChannel,
-    AbstractRobustConnection, TimeoutType,
+    AbstractChannel, AbstractRobustChannel, AbstractRobustConnection,
+    TimeoutType,
 )
 from .connection import Connection, make_url
 from .exceptions import CONNECTION_EXCEPTIONS
@@ -56,7 +56,8 @@ class RobustConnection(Connection, AbstractRobustConnection):
         )
 
     def _on_connection_close(
-        self, connection: AbstractConnection, closing: asyncio.Future,
+        self, connection: aiormq.abc.AbstractConnection,
+        closing: asyncio.Future,
     ) -> None:
         if self.reconnecting:
             return
@@ -67,6 +68,11 @@ class RobustConnection(Connection, AbstractRobustConnection):
         log.debug("Closing AMQP connection %r", connection)
 
         if self.closing.done():
+            return
+
+        if connection.closing.exception() is None:
+            self.closing.set_result(None)
+            self.close_callbacks(None)
             return
 
         log.info(
@@ -189,7 +195,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
         return self._is_closed_by_user or super().is_closed
 
     async def close(
-        self, exc: Optional[ExceptionType] = asyncio.CancelledError,
+        self, exc: Optional[aiormq.abc.ExceptionType] = asyncio.CancelledError,
     ) -> None:
         if self.is_closed:
             return

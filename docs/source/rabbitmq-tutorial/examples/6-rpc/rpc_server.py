@@ -1,9 +1,11 @@
 import asyncio
-from functools import partial
-from aio_pika import connect, IncomingMessage, Exchange, Message
+import logging
+
+from aio_pika import Message, connect
+from aio_pika.abc import AbstractIncomingMessage
 
 
-def fib(n):
+def fib(n: int) -> int:
     if n == 0:
         return 0
     elif n == 1:
@@ -12,46 +14,42 @@ def fib(n):
         return fib(n - 1) + fib(n - 2)
 
 
-async def on_message(exchange: Exchange, message: IncomingMessage):
-    with message.process():
-        n = int(message.body.decode())
-
-        print(" [.] fib(%d)" % n)
-        response = str(fib(n)).encode()
-
-        await exchange.publish(
-            Message(
-                body=response,
-                correlation_id=message.correlation_id
-            ),
-            routing_key=message.reply_to,
-        )
-        print("Request complete")
-
-
-async def main(loop):
+async def main() -> None:
     # Perform connection
-    connection = await connect(
-        "amqp://guest:guest@localhost/", loop=loop
-    )
+    connection = await connect("amqp://guest:guest@localhost/")
 
     # Creating a channel
     channel = await connection.channel()
+    exchange = channel.default_exchange
 
     # Declaring queue
     queue = await channel.declare_queue("rpc_queue")
 
-    # Start listening the queue with name 'hello'
-    await queue.consume(partial(
-        on_message, channel.default_exchange)
-    )
+    print(" [x] Awaiting RPC requests")
 
+    # Start listening the queue with name 'hello'
+    async with queue.iterator() as qiterator:
+        message: AbstractIncomingMessage
+        async for message in qiterator:
+            try:
+                async with message.process(requeue=False):
+                    assert message.reply_to is not None
+
+                    n = int(message.body.decode())
+
+                    print(f" [.] fib({n})")
+                    response = str(fib(n)).encode()
+
+                    await exchange.publish(
+                        Message(
+                            body=response,
+                            correlation_id=message.correlation_id,
+                        ),
+                        routing_key=message.reply_to,
+                    )
+                    print("Request complete")
+            except Exception:
+                logging.exception("Processing error for message %r", message)
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.create_task(main(loop))
-
-    # we enter a never-ending loop that waits for data
-    # and runs callbacks whenever necessary.
-    print(" [x] Awaiting RPC requests")
-    loop.run_forever()
+    asyncio.run(main())

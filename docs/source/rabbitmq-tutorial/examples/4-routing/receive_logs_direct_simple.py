@@ -5,11 +5,6 @@ from aio_pika import ExchangeType, connect
 from aio_pika.abc import AbstractIncomingMessage
 
 
-def on_message(message: AbstractIncomingMessage) -> None:
-    async with message.process():
-        print(" [x] %r:%r" % (message.routing_key, message.body))
-
-
 async def main() -> None:
     # Perform connection
     connection = await connect("amqp://guest:guest@localhost/")
@@ -23,7 +18,7 @@ async def main() -> None:
 
         if not severities:
             sys.stderr.write(
-                "Usage: %s [info] [warning] [error]\n" % sys.argv[0],
+                f"Usage: {sys.argv[0]} [info] [warning] [error]\n",
             )
             sys.exit(1)
 
@@ -38,8 +33,11 @@ async def main() -> None:
         for severity in severities:
             await queue.bind(direct_logs_exchange, routing_key=severity)
 
-        # Start listening the random queue
-        await queue.consume(on_message)
+        async with queue.iterator() as iterator:
+            message: AbstractIncomingMessage
+            async for message in iterator:
+                async with message.process():
+                    print(f" [x] {message.routing_key!r}:{message.body!r}")
 
         print(" [*] Waiting for messages. To exit press CTRL+C")
         await asyncio.Future()

@@ -1,9 +1,10 @@
 import asyncio
-import aio_pika
 import ssl
 
+import aio_pika
 
-async def main(loop):
+
+async def main() -> None:
     connection = await aio_pika.connect_robust(
         host="127.0.0.1",
         login="",
@@ -14,7 +15,7 @@ async def main(loop):
             keyfile="key.pem",
             cert_reqs=ssl.CERT_REQUIRED,
         ),
-        loop=loop,
+        client_properties={"connection_name": "aio-pika external credentials"},
     )
 
     async with connection:
@@ -29,6 +30,4 @@ async def main(loop):
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main(loop))
-    loop.close()
+    asyncio.run(main())

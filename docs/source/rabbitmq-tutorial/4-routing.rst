@@ -180,9 +180,9 @@ Putting it all together
 .. image:: /_static/tutorial/python-four.png
    :align: center
 
-The code for :download:`receive_logs_direct.py <examples/4-routing/receive_logs_direct.py>`:
+The simplified code for :download:`receive_logs_direct_somple.py <examples/4-routing/receive_logs_direct_simple.py>`:
 
-.. literalinclude:: examples/4-routing/receive_logs_direct.py
+.. literalinclude:: examples/4-routing/receive_logs_direct_simple.py
    :language: python
 
 The code for :download:`emit_log_direct.py <examples/4-routing/emit_log_direct.py>`:
@@ -190,10 +190,18 @@ The code for :download:`emit_log_direct.py <examples/4-routing/emit_log_direct.p
 .. literalinclude:: examples/4-routing/emit_log_direct.py
    :language: python
 
+.. note::
+
+   The callback-based code for :download:`receive_logs_direct.py <examples/4-routing/receive_logs_direct.py>`:
+
+   .. literalinclude:: examples/4-routing/receive_logs_direct.py
+      :language: python
+
+
 If you want to save only *'warning'* and *'error'* (and not *'info'*) log messages to a file,
 just open a console and type::
 
-    $ python receive_logs_direct.py warning error > logs_from_rabbit.log
+    $ python receive_logs_direct_simple.py warning error > logs_from_rabbit.log
 
 If you'd like to see all the log messages on your screen, open a new terminal and do::
 

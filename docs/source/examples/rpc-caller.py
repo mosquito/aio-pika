@@ -1,9 +1,10 @@
 import asyncio
+
 from aio_pika import connect_robust
 from aio_pika.patterns import RPC
 
 
-async def main():
+async def main() -> None:
     connection = await connect_robust(
         "amqp://guest:guest@127.0.0.1/",
         client_properties={"connection_name": "caller"},
@@ -25,5 +26,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    asyncio.run(main())
