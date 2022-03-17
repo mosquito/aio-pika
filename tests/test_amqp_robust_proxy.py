@@ -445,3 +445,53 @@ async def test_channel_reconnect(
             await on_reconnect.wait()
             await channel.set_qos(0)
             await channel.set_qos(1)
+
+
+@aiomisc.timeout(10)
+async def test_channel_reconnect_after_5kb(
+    connection: aio_pika.RobustConnection,
+    direct_connection: aio_pika.Connection,
+    loop: asyncio.AbstractEventLoop,
+    proxy: TCPProxy,
+    add_cleanup: Callable,
+):
+    on_reconnect = asyncio.Event()
+
+    connection.reconnect_callbacks.add(
+        lambda *_: on_reconnect.set(), weak=False,
+    )
+
+    num_bytes = 0
+
+    def write_processor(chunk: bytes) -> bytes:
+        nonlocal num_bytes
+
+        if num_bytes >= 0:
+            num_bytes += len(chunk)
+
+            if num_bytes < 5000:
+                return chunk
+
+        num_bytes = -1
+        loop.call_soon(proxy.disconnect_all)
+        return chunk
+
+    proxy.write_processor = write_processor
+
+    channel = await connection.channel()
+    queue = await channel.declare_queue(auto_delete=False)
+
+    async with direct_connection.channel() as channel:
+        for _ in range(10):
+            await channel.default_exchange.publish(
+                aio_pika.Message(body=b"Hello world"),
+                routing_key=queue.name,
+            )
+
+    messages = []
+    async for message in queue.iterator():
+        if len(messages) == 10:
+            break
+        messages.append(message)
+
+    assert messages
