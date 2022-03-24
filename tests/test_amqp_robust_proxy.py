@@ -466,7 +466,6 @@ async def test_channel_reconnect_after_5kb(
 
     num_bytes = 0
 
-
     def server_to_client(chunk: bytes) -> bytes:
         nonlocal num_bytes
 
@@ -479,7 +478,6 @@ async def test_channel_reconnect_after_5kb(
         num_bytes = 0
         loop.call_soon(proxy.disconnect_all)
         return chunk
-
 
     proxy.set_content_processors(
         lambda chunk: chunk,
