@@ -449,21 +449,25 @@ async def test_channel_reconnect(
 
 @aiomisc.timeout(10)
 async def test_channel_reconnect_after_5kb(
-    connection: aio_pika.RobustConnection,
-    direct_connection: aio_pika.Connection,
+    amqp_url,
+    amqp_direct_url,
+    connection_fabric,
     loop: asyncio.AbstractEventLoop,
     proxy: TCPProxy,
     add_cleanup: Callable,
 ):
-    on_reconnect = asyncio.Event()
+    connection = await aio_pika.connect_robust(amqp_url, loop=loop)
+    direct_connection = await aio_pika.connect(amqp_direct_url, loop=loop)
 
+    on_reconnect = asyncio.Event()
     connection.reconnect_callbacks.add(
         lambda *_: on_reconnect.set(), weak=False,
     )
 
     num_bytes = 0
 
-    def write_processor(chunk: bytes) -> bytes:
+
+    def server_to_client(chunk: bytes) -> bytes:
         nonlocal num_bytes
 
         if num_bytes >= 0:
@@ -472,26 +476,34 @@ async def test_channel_reconnect_after_5kb(
             if num_bytes < 5000:
                 return chunk
 
-        num_bytes = -1
+        num_bytes = 0
         loop.call_soon(proxy.disconnect_all)
         return chunk
 
-    proxy.write_processor = write_processor
 
-    channel = await connection.channel()
-    queue = await channel.declare_queue(auto_delete=False)
+    proxy.set_content_processors(
+        lambda chunk: chunk,
+        server_to_client,
+    )
 
-    async with direct_connection.channel() as channel:
-        for _ in range(10):
-            await channel.default_exchange.publish(
-                aio_pika.Message(body=b"Hello world"),
-                routing_key=queue.name,
-            )
+    MESSAGES_TO_EXCHANGE = 50
+    async with connection.channel() as channel:
+        queue = await channel.declare_queue(auto_delete=False)
 
-    messages = []
-    async for message in queue.iterator():
-        if len(messages) == 10:
-            break
-        messages.append(message)
+        async with direct_connection.channel() as publish_channel:
+            for _ in range(MESSAGES_TO_EXCHANGE):
+                await publish_channel.default_exchange.publish(
+                    aio_pika.Message(body=b"Hello world" * 100),
+                    routing_key=queue.name,
+                )
 
-    assert messages
+        messages = []
+        async for message in queue.iterator():
+            messages.append(message)
+            if len(messages) == MESSAGES_TO_EXCHANGE:
+                break
+
+        assert messages
+
+    await connection.close()
+    await direct_connection.close()
