@@ -445,3 +445,63 @@ async def test_channel_reconnect(
             await on_reconnect.wait()
             await channel.set_qos(0)
             await channel.set_qos(1)
+
+
+@aiomisc.timeout(10)
+async def test_channel_reconnect_after_5kb(
+    amqp_url,
+    amqp_direct_url,
+    connection_fabric,
+    loop: asyncio.AbstractEventLoop,
+    proxy: TCPProxy,
+    add_cleanup: Callable,
+):
+    connection = await aio_pika.connect_robust(amqp_url, loop=loop)
+    direct_connection = await aio_pika.connect(amqp_direct_url, loop=loop)
+
+    on_reconnect = asyncio.Event()
+    connection.reconnect_callbacks.add(
+        lambda *_: on_reconnect.set(), weak=False,
+    )
+
+    num_bytes = 0
+
+    def server_to_client(chunk: bytes) -> bytes:
+        nonlocal num_bytes
+
+        if num_bytes >= 0:
+            num_bytes += len(chunk)
+
+            if num_bytes < 5000:
+                return chunk
+
+        num_bytes = 0
+        loop.call_soon(proxy.disconnect_all)
+        return chunk
+
+    proxy.set_content_processors(
+        lambda chunk: chunk,
+        server_to_client,
+    )
+
+    MESSAGES_TO_EXCHANGE = 50
+    async with connection.channel() as channel:
+        queue = await channel.declare_queue(auto_delete=False)
+
+        async with direct_connection.channel() as publish_channel:
+            for _ in range(MESSAGES_TO_EXCHANGE):
+                await publish_channel.default_exchange.publish(
+                    aio_pika.Message(body=b"Hello world" * 100),
+                    routing_key=queue.name,
+                )
+
+        messages = []
+        async for message in queue.iterator():
+            messages.append(message)
+            if len(messages) == MESSAGES_TO_EXCHANGE:
+                break
+
+        assert messages
+
+    await connection.close()
+    await direct_connection.close()

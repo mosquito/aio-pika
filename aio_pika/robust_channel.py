@@ -6,6 +6,7 @@ from typing import DefaultDict, Set, Type, Union
 from warnings import warn
 
 import aiormq
+from pamqp.exceptions import AMQPFrameError
 
 from .abc import (
     AbstractRobustChannel, AbstractRobustConnection, AbstractRobustExchange,
@@ -91,9 +92,13 @@ class RobustChannel(Channel, AbstractRobustChannel):
     def _on_channel_closed(self, closing: asyncio.Future) -> None:
         super()._on_channel_closed(closing)
 
-        if not self._is_closed_by_user and not self.connection.is_closed:
+        exc = closing.exception()
+        if (
+            not self._is_closed_by_user and
+            not self.connection.is_closed and
+            not isinstance(exc, AMQPFrameError)
+        ):
             create_task(self.reopen)
-            exc = closing.exception()
             if exc:
                 log.exception(
                     "Robust channel %r has been closed.",
