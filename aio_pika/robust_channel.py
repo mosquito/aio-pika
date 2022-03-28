@@ -6,7 +6,6 @@ from typing import DefaultDict, Set, Type, Union
 from warnings import warn
 
 import aiormq
-from pamqp.exceptions import AMQPFrameError
 
 from .abc import (
     AbstractRobustChannel, AbstractRobustConnection, AbstractRobustExchange,
@@ -96,7 +95,7 @@ class RobustChannel(Channel, AbstractRobustChannel):
         if (
             not self._is_closed_by_user and
             not self.connection.is_closed and
-            not isinstance(exc, AMQPFrameError)
+            self._channel.connection.is_opened
         ):
             create_task(self.reopen)
             if exc:
