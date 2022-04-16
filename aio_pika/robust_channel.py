@@ -71,17 +71,20 @@ class RobustChannel(Channel, AbstractRobustChannel):
 
     async def reopen(self) -> None:
         await super().reopen()
-        await self.ready.wait()
         await self.reopen_callbacks()
 
-    async def _on_open(self, channel: aiormq.abc.AbstractChannel) -> None:
-        await self.set_qos(
-            prefetch_count=self._prefetch_count,
-            prefetch_size=self._prefetch_size,
-            global_=self._global_qos,
-        )
-
+    async def restore(self) -> None:
         async with self._operation_lock:
+            await self.set_qos(
+                prefetch_count=self._prefetch_count,
+                prefetch_size=self._prefetch_size,
+                global_=self._global_qos,
+            )
+
+    async def _on_open(self, channel: aiormq.abc.AbstractChannel) -> None:
+        async with self._operation_lock:
+            await super()._on_open(channel)
+
             exchanges = tuple(chain(*self._exchanges.values()))
             queues = tuple(chain(*self._queues.values()))
 
@@ -103,18 +106,19 @@ class RobustChannel(Channel, AbstractRobustChannel):
             warn('Use "global_" instead of "all_channels"', DeprecationWarning)
             global_ = all_channels
 
-        await self._transport.ready()
+        async with self._operation_lock:
+            await self._transport.ready()
 
-        self._prefetch_count = prefetch_count
-        self._prefetch_size = prefetch_size
-        self._global_qos = global_
+            self._prefetch_count = prefetch_count
+            self._prefetch_size = prefetch_size
+            self._global_qos = global_
 
-        return await super().set_qos(
-            prefetch_count=prefetch_count,
-            prefetch_size=prefetch_size,
-            global_=global_,
-            timeout=timeout,
-        )
+            return await super().set_qos(
+                prefetch_count=prefetch_count,
+                prefetch_size=prefetch_size,
+                global_=global_,
+                timeout=timeout,
+            )
 
     async def declare_exchange(
         self,
@@ -128,25 +132,26 @@ class RobustChannel(Channel, AbstractRobustChannel):
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> AbstractRobustExchange:
-        await self._transport.ready()
-        exchange = (
-            await super().declare_exchange(
-                name=name,
-                type=type,
-                durable=durable,
-                auto_delete=auto_delete,
-                internal=internal,
-                passive=passive,
-                arguments=arguments,
-                timeout=timeout,
+        async with self._operation_lock:
+            await self._transport.ready()
+            exchange = (
+                await super().declare_exchange(
+                    name=name,
+                    type=type,
+                    durable=durable,
+                    auto_delete=auto_delete,
+                    internal=internal,
+                    passive=passive,
+                    arguments=arguments,
+                    timeout=timeout,
+                )
             )
-        )
 
-        if not internal and robust:
-            # noinspection PyTypeChecker
-            self._exchanges[name].add(exchange)     # type: ignore
+            if not internal and robust:
+                # noinspection PyTypeChecker
+                self._exchanges[name].add(exchange)     # type: ignore
 
-        return exchange     # type: ignore
+            return exchange     # type: ignore
 
     async def exchange_delete(
         self,
@@ -155,17 +160,16 @@ class RobustChannel(Channel, AbstractRobustChannel):
         if_unused: bool = False,
         nowait: bool = False,
     ) -> aiormq.spec.Exchange.DeleteOk:
-        await self._transport.ready()
-        result = await super().exchange_delete(
-            exchange_name=exchange_name,
-            timeout=timeout,
-            if_unused=if_unused,
-            nowait=nowait,
-        )
-
-        self._exchanges.pop(exchange_name, None)
-
-        return result
+        async with self._operation_lock:
+            await self._transport.ready()
+            result = await super().exchange_delete(
+                exchange_name=exchange_name,
+                timeout=timeout,
+                if_unused=if_unused,
+                nowait=nowait,
+            )
+            self._exchanges.pop(exchange_name, None)
+            return result
 
     async def declare_queue(
         self,
@@ -179,21 +183,20 @@ class RobustChannel(Channel, AbstractRobustChannel):
         timeout: TimeoutType = None,
         robust: bool = True
     ) -> AbstractRobustQueue:
-        await self._transport.ready()
-        queue: RobustQueue = await super().declare_queue(   # type: ignore
-            name=name,
-            durable=durable,
-            exclusive=exclusive,
-            passive=passive,
-            auto_delete=auto_delete,
-            arguments=arguments,
-            timeout=timeout,
-        )
-
-        if robust:
-            self._queues[queue.name].add(queue)
-
-        return queue
+        async with self._operation_lock:
+            await self._transport.ready()
+            queue: RobustQueue = await super().declare_queue(   # type: ignore
+                name=name,
+                durable=durable,
+                exclusive=exclusive,
+                passive=passive,
+                auto_delete=auto_delete,
+                arguments=arguments,
+                timeout=timeout,
+            )
+            if robust:
+                self._queues[queue.name].add(queue)
+            return queue
 
     async def queue_delete(
         self,
@@ -203,17 +206,17 @@ class RobustChannel(Channel, AbstractRobustChannel):
         if_empty: bool = False,
         nowait: bool = False,
     ) -> aiormq.spec.Queue.DeleteOk:
-        await self._transport.ready()
-        result = await super().queue_delete(
-            queue_name=queue_name,
-            timeout=timeout,
-            if_unused=if_unused,
-            if_empty=if_empty,
-            nowait=nowait,
-        )
-
-        self._queues.pop(queue_name, None)
-        return result
+        async with self._operation_lock:
+            await self._transport.ready()
+            result = await super().queue_delete(
+                queue_name=queue_name,
+                timeout=timeout,
+                if_unused=if_unused,
+                if_empty=if_empty,
+                nowait=nowait,
+            )
+            self._queues.pop(queue_name, None)
+            return result
 
 
 __all__ = ("RobustChannel",)

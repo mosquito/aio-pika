@@ -16,7 +16,8 @@ from .abc import (
 from .exceptions import QueueEmpty
 from .exchange import ExchangeParamType
 from .message import IncomingMessage
-from .tools import create_task, shield, task, CallbackCollection, RLock
+from .tools import CallbackCollection, RLock, create_task, shield, task
+
 
 log = getLogger(__name__)
 
@@ -402,8 +403,8 @@ class QueueIterator(AbstractQueueIterator):
         consumer_tag = self._consumer_tag
         del self._consumer_tag
 
-        await self._amqp_queue.cancel(consumer_tag)
         self._amqp_queue.close_callbacks.remove(self.close)
+        await self._amqp_queue.cancel(consumer_tag)
 
         log.debug("Queue iterator %r closed", self)
 
