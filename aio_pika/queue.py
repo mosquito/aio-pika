@@ -51,7 +51,6 @@ class Queue(AbstractQueue):
         self.declaration_result: aiormq.spec.Queue.DeclareOk
         self.loop = channel.loop
         self.channel = channel
-        self.connection = channel.connection
         self.name = name or ""
         self.durable = durable
         self.exclusive = exclusive

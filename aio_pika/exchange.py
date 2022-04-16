@@ -5,7 +5,7 @@ import aiormq
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractConnection, AbstractExchange, AbstractMessage,
+    AbstractChannel, AbstractExchange, AbstractMessage,
     ExchangeParamType, ExchangeType, TimeoutType,
 )
 
@@ -19,7 +19,6 @@ class Exchange(AbstractExchange):
 
     def __init__(
         self,
-        connection: AbstractConnection,
         channel: AbstractChannel,
         name: str,
         type: Union[ExchangeType, str] = ExchangeType.DIRECT,
@@ -33,7 +32,6 @@ class Exchange(AbstractExchange):
         if not arguments:
             arguments = {}
 
-        self.connection = connection
         self._channel = channel
         self.__type = type.value if isinstance(type, ExchangeType) else type
         self.name = name

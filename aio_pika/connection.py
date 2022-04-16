@@ -3,7 +3,6 @@ import logging
 from functools import partial
 from types import TracebackType
 from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
-from warnings import warn
 
 import aiormq
 import aiormq.abc
@@ -13,13 +12,12 @@ from yarl import URL
 
 # This needed only for migration from 6.x to 7.x
 # TODO: Remove this in 8.x release
-from .abc import ConnectionType  # noqa
 from .abc import (
     AbstractChannel, AbstractConnection, ConnectionCloseCallback, TimeoutType,
+    UnderlayConnection,
 )
 from .channel import Channel
-from .tools import CallbackCollection
-
+from .tools import CallbackCollection, OneShotCallback
 
 log = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -38,16 +36,18 @@ class Connection(AbstractConnection):
     async def close(
         self, exc: Optional[aiormq.abc.ExceptionType] = asyncio.CancelledError,
     ) -> None:
-        if not self.closing.done():
-            self.closing.set_result(exc)
+        async with self.__operation_lock:
+            if not self.closing.done():
+                self.closing.set_result(exc)
 
-        if not hasattr(self, "connection"):
-            return None
+            transport: Optional[UnderlayConnection] = getattr(
+                self, "transport", None
+            )
+            if not transport:
+                return
 
-        await self.connection.close(exc)
-
-        if hasattr(self, "connection"):
-            del self.connection
+            del self.transport
+            await asyncio.wait_for(transport.close(exc), timeout=1)
 
     @classmethod
     def _parse_kwargs(cls, kwargs: Dict[str, Any]) -> Dict[str, Any]:
@@ -60,16 +60,15 @@ class Connection(AbstractConnection):
         self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None,
         **kwargs: Any
     ):
-        super().__init__(url, loop, **kwargs)
-
         self.loop = loop or asyncio.get_event_loop()
+        self.__operation_lock = asyncio.Lock()
+
         self.url = URL(url)
 
         self.kwargs: Dict[str, Any] = self._parse_kwargs(
             kwargs or dict(self.url.query),
         )
 
-        self.connection: aiormq.abc.AbstractConnection
         self.close_callbacks = CallbackCollection(self)
         self.connected: asyncio.Event = asyncio.Event()
         self.closing: asyncio.Future = self.loop.create_future()
@@ -80,45 +79,16 @@ class Connection(AbstractConnection):
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}: "{self}">'
 
-    def add_close_callback(
-        self, callback: ConnectionCloseCallback, weak: bool = False,
-    ) -> None:
-        warn(
-            "This method will be removed from future release. "
-            f"Use {self.__class__.__name__}.close_callbacks.add instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.close_callbacks.add(callback, weak=weak)
-
-    def _on_connection_close(
-        self, connection: aiormq.abc.AbstractConnection,
-        closing: asyncio.Future,
-    ) -> None:
-        log.debug("Closing AMQP connection %r", connection)
+    async def _on_connection_close(self, closing: asyncio.Future) -> None:
         exc: Optional[BaseException] = closing.exception()
-        self.close_callbacks(exc)
-
+        self.connected.clear()
+        await self.close_callbacks(exc)
         if self.closing.done():
             return
-
         if exc is not None:
             self.closing.set_exception(exc)
-            return
-
-        self.closing.set_result(closing.result())
-
-    async def _make_connection(
-        self, *, timeout: TimeoutType = None, **kwargs: Any
-    ) -> aiormq.abc.AbstractConnection:
-        connection: aiormq.abc.AbstractConnection = await asyncio.wait_for(
-            aiormq.connect(self.url, **kwargs), timeout=timeout,
-        )
-        connection.closing.add_done_callback(
-            partial(self._on_connection_close, connection),
-        )
-        await connection.ready()
-        return connection
+        else:
+            self.closing.set_result(closing.result())
 
     async def connect(
         self, timeout: TimeoutType = None, **kwargs: Any
@@ -131,13 +101,11 @@ class Connection(AbstractConnection):
             You shouldn't call it explicitly.
 
         """
-        self.connection = (
-            await self._make_connection(timeout=timeout, **kwargs)
-        )
-        self.connected.set()
-        self.connection.closing.add_done_callback(
-            lambda _: self.connected.clear(),
-        )
+        async with self.__operation_lock:
+            self.transport = await UnderlayConnection.connect(
+                self.url, self._on_connection_close, timeout=timeout, **kwargs
+            )
+            self.connected.set()
 
     def channel(
         self,

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import typing
 from functools import wraps
 from itertools import chain
 from threading import Lock
@@ -81,12 +82,21 @@ def shield(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
     return wrap
 
 
-CallbackType = Callable[..., Any]
+CallbackType = Callable[..., Union[T, Awaitable[T]]]
 CallbackSetType = Union[AbstractSet[CallbackType]]
+
+
+class StubAwaitable:
+    __slots__ = ()
+
+    def __await__(self):
+        yield
 
 
 class CallbackCollection(MutableSet):
     __slots__ = "__sender", "__callbacks", "__weak_callbacks", "__lock"
+
+    STUB_AWAITABLE = StubAwaitable()
 
     def __init__(self, sender: Union[T, ReferenceType]):
         self.__sender: ReferenceType
@@ -99,9 +109,7 @@ class CallbackCollection(MutableSet):
         self.__weak_callbacks: MutableSet[CallbackType] = WeakSet()
         self.__lock: Lock = Lock()
 
-    def add(
-        self, callback: Callable[..., Any], weak: bool = False,
-    ) -> None:
+    def add(self, callback: CallbackType, weak: bool = False) -> None:
         if self.is_frozen:
             raise RuntimeError("Collection frozen")
         if not callable(callback):
@@ -113,7 +121,7 @@ class CallbackCollection(MutableSet):
             else:
                 self.__callbacks.add(callback)      # type: ignore
 
-    def discard(self, callback: Callable[..., Any]) -> None:
+    def discard(self, callback: CallbackType) -> None:
         if self.is_frozen:
             raise RuntimeError("Collection frozen")
 
@@ -178,22 +186,58 @@ class CallbackCollection(MutableSet):
 
         return instance
 
-    def __call__(self, *args: Any, **kwargs: Any) -> None:
+    def __call__(self, *args: Any, **kwargs: Any) -> typing.Awaitable[Any]:
+        futures: typing.List[asyncio.Future] = []
+
         with self.__lock:
             sender = self.__sender()
 
             for cb in self:
                 try:
-                    cb(sender, *args, **kwargs)
+                    result = cb(sender, *args, **kwargs)
+                    if hasattr(result, '__await__'):
+                        futures.append(asyncio.ensure_future(result))
                 except Exception:
                     log.exception("Callback %r error", cb)
+
+        if not futures:
+            return self.STUB_AWAITABLE
+        return asyncio.gather(*futures, return_exceptions=True)
 
     def __hash__(self) -> int:
         return id(self)
 
 
+class OneShotCallback:
+    __slots__ = ('loop', 'finished', '__lock', "callback")
+
+    def __init__(self, callback: Callable[..., Awaitable[T]]):
+        self.callback = callback
+        self.loop = asyncio.get_event_loop()
+        self.finished: asyncio.Event = asyncio.Event()
+        self.__lock: asyncio.Lock = asyncio.Lock()
+
+    def wait(self) -> Awaitable[Any]:
+        return self.finished.wait()
+
+    async def __closer(self, *args, **kwargs) -> None:
+        async with self.__lock:
+            if self.finished.is_set():
+                return
+            try:
+                return await self.callback(*args, **kwargs)
+            finally:
+                self.finished.set()
+
+    def __call__(self, *args, **kwargs) -> asyncio.Task:
+        return self.loop.create_task(self.__closer(*args, **kwargs))
+
+
 __all__ = (
     "CallbackCollection",
+    "CallbackType",
+    "CallbackSetType",
+    "OneShotCallback",
     "create_task",
     "iscoroutinepartial",
     "shield",

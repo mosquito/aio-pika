@@ -425,7 +425,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
             routing_key,
         )
 
-        if not channel._publisher_confirms:
+        if not channel.publisher_confirms:
             await asyncio.sleep(1)
 
         incoming_message: AbstractIncomingMessage = await queue.get(timeout=5)
@@ -507,7 +507,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
             routing_key,
         )
 
-        if not channel._publisher_confirms:
+        if not channel.publisher_confirms:
             await asyncio.sleep(1)
 
         incoming_message = await queue.get(timeout=5)
@@ -561,7 +561,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
             msg = Message(body)
             await exchange.publish(msg, routing_key)
 
-        if not channel._publisher_confirms:
+        if not channel.publisher_confirms:
             await asyncio.sleep(1)
 
         # ack 1 message out of 2
@@ -614,7 +614,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
             msg = Message(body)
             await exchange.publish(msg, routing_key)
 
-        if not channel._publisher_confirms:
+        if not channel.publisher_confirms:
             await asyncio.sleep(1)
 
         # ack only last mesage with multiple flag, first
@@ -1568,7 +1568,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         connection: AbstractConnection = await connection_fabric(url)
 
         async with connection:
-            assert connection.connection.connection_tune.heartbeat == 0
+            assert connection.transport.connection.connection_tune.heartbeat == 0
 
 
 class TestCaseAmqpNoConfirms(TestCaseAmqp):

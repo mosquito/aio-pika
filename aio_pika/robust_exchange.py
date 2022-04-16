@@ -5,7 +5,7 @@ import aiormq
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractConnection, AbstractExchange,
+    AbstractChannel, AbstractExchange,
     AbstractRobustChannel, AbstractRobustExchange, ExchangeParamType,
     TimeoutType,
 )
@@ -22,7 +22,6 @@ class RobustExchange(Exchange, AbstractRobustExchange):
 
     def __init__(
         self,
-        connection: AbstractConnection,
         channel: AbstractChannel,
         name: str,
         type: Union[ExchangeType, str] = ExchangeType.DIRECT,
@@ -35,7 +34,6 @@ class RobustExchange(Exchange, AbstractRobustExchange):
     ):
 
         super().__init__(
-            connection=connection,
             channel=channel,
             name=name,
             type=type,
@@ -68,7 +66,7 @@ class RobustExchange(Exchange, AbstractRobustExchange):
         timeout: TimeoutType = None,
         robust: bool = True
     ) -> aiormq.spec.Exchange.BindOk:
-        await self.connection.connected.wait()
+        await self.channel.ready.wait()
 
         result = await super().bind(
             exchange,
@@ -92,7 +90,7 @@ class RobustExchange(Exchange, AbstractRobustExchange):
         arguments: Arguments = None,
         timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.UnbindOk:
-        await self.connection.connected.wait()
+        await self.channel.ready.wait()
 
         result = await super().unbind(
             exchange, routing_key, arguments=arguments, timeout=timeout,

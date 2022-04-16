@@ -151,16 +151,16 @@ async def test_robust_reconnect(
     )
 
     assert isinstance(read_conn, aio_pika.RobustConnection)
+    write_channel = await direct_connection.channel()
 
-    async with read_conn, direct_connection:
+    async with read_conn:
         read_channel = await read_conn.channel()
-        write_channel = await direct_connection.channel()
 
         assert isinstance(read_channel, aio_pika.RobustChannel)
 
         qname = get_random_name("robust", "proxy", "shared")
 
-        async with read_channel, write_channel:
+        async with read_channel:
             shared = []
 
             # Declaring temporary queue
@@ -229,7 +229,10 @@ async def test_robust_reconnect(
                     await queue.get(timeout=0.5)
             finally:
                 await queue.purge()
-                await queue.delete()
+
+    # Waiting for rabbitmq queue not in use
+    await asyncio.sleep(1)
+    await queue.delete()
 
 
 async def test_channel_locked_resource2(connection: aio_pika.RobustConnection):
@@ -405,7 +408,7 @@ async def test_robust_duplicate_queue(
     await asyncio.wait_for(reconnect_event.wait(), timeout=5)
 
     logging.info("Waiting connections")
-    await channel.connection.ready()
+    await channel.ready.wait()
 
     async with shared_condition:
         await asyncio.wait_for(

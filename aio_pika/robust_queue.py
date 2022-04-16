@@ -76,7 +76,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
         timeout: TimeoutType = None,
         robust: bool = True
     ) -> aiormq.spec.Queue.BindOk:
-        await self.connection.connected.wait()
+        await self.channel.ready.wait()
         if routing_key is None:
             routing_key = self.name
 
@@ -99,7 +99,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
         arguments: Arguments = None,
         timeout: TimeoutType = None,
     ) -> aiormq.spec.Queue.UnbindOk:
-        await self.connection.connected.wait()
+        await self.channel.ready.wait()
         if routing_key is None:
             routing_key = self.name
 
@@ -120,7 +120,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> ConsumerTag:
-        await self.connection.connected.wait()
+        await self.channel.ready.wait()
         consumer_tag = await super().consume(
             consumer_tag=consumer_tag,
             timeout=timeout,
@@ -146,7 +146,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
         timeout: TimeoutType = None,
         nowait: bool = False,
     ) -> aiormq.spec.Basic.CancelOk:
-        await self.connection.connected.wait()
+        await self.channel.ready.wait()
         result = await super().cancel(consumer_tag, timeout, nowait)
         self._consumers.pop(consumer_tag, None)
         return result
