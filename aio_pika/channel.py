@@ -10,14 +10,13 @@ import aiormq.abc
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractConnection, AbstractExchange, AbstractQueue,
-    TimeoutType, UnderlayChannel,
+    AbstractChannel, AbstractExchange, AbstractQueue, TimeoutType,
+    UnderlayChannel, UnderlayConnection,
 )
 from .exchange import Exchange, ExchangeType
-from .message import ReturnCallback  # noqa
 from .message import IncomingMessage
 from .queue import Queue
-from .tools import CallbackCollection, task
+from .tools import CallbackCollection, RLock, task
 from .transaction import Transaction
 
 
@@ -49,11 +48,11 @@ class Channel(ChannelContext):
     QUEUE_CLASS = Queue
     EXCHANGE_CLASS = Exchange
 
-    _channel: UnderlayChannel
+    _channel: Optional[UnderlayChannel]
 
     def __init__(
         self,
-        connection: AbstractConnection,
+        transport: UnderlayConnection,
         channel_number: Optional[int] = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
@@ -74,43 +73,40 @@ class Channel(ChannelContext):
                 'without "publisher_confirms"',
             )
 
-        self.loop = connection.loop
-        self.ready = asyncio.Event()
-
-        self.__operation_lock = asyncio.Lock()
+        self._operation_lock = RLock()
+        self._transport: UnderlayConnection = transport
 
         # That's means user closed channel instance explicitly
-        self._is_closed_by_user: bool = False
+        self._closed: bool = False
 
         self._channel_number = channel_number
-        self._connection = connection
+        self._delivery_tag = 0
 
         self.close_callbacks = CallbackCollection(self)
         self.return_callbacks = CallbackCollection(self)
+
         self.publisher_confirms = publisher_confirms
-
-        self._on_return_raises = on_return_raises
-        self._delivery_tag = 0
-
-        self.default_exchange: Exchange
+        self.on_return_raises = on_return_raises
 
     @property
     def is_initialized(self) -> bool:
         """ Returns True when the channel has been opened
         and ready for interaction """
-        return self.ready.is_set()
+        return hasattr(self, "_channel")
 
     @property
     def is_closed(self) -> bool:
         """ Returns True when the channel has been closed from the broker
         side or after the close() method has been called. """
-        if not self.is_initialized or self._is_closed_by_user:
+        if not self.is_initialized or self._closed:
+            return True
+        if not self._channel:
             return True
         return self._channel.channel.is_closed
 
     @task
     async def close(self, exc: aiormq.abc.ExceptionType = None) -> None:
-        async with self.__operation_lock:
+        async with self._operation_lock:
             if not self.is_initialized:
                 log.warning("Channel not opened")
                 return
@@ -119,7 +115,7 @@ class Channel(ChannelContext):
             try:
                 await self._channel.close()
             finally:
-                self._is_closed_by_user = True
+                self._closed = True
 
     @property
     def channel(self) -> aiormq.abc.AbstractChannel:
@@ -155,43 +151,45 @@ class Channel(ChannelContext):
         return '<%s #%s "%s">' % (self.__class__.__name__, self.number, conn)
 
     async def _open(self) -> None:
-        await self._connection.connected.wait()
-        self._transport = self._connection.transport
-        self._channel = await UnderlayChannel.create_channel(
-            self._connection.transport, self.__on_close,
+        await self._transport.ready()
+
+        channel = await UnderlayChannel.create_channel(
+            self._transport, self._on_close,
             publisher_confirms=self.publisher_confirms,
-            on_return_raises=self._on_return_raises,
+            on_return_raises=self.on_return_raises,
             channel_number=self._channel_number,
         )
 
-        self._delivery_tag = 0
-        self.default_exchange = self.EXCHANGE_CLASS(
-            channel=self,
-            arguments=None,
-            auto_delete=False,
-            durable=False,
-            internal=False,
-            name="",
-            passive=False,
-            type=ExchangeType.DIRECT,
-        )
+        async with self._operation_lock:
+            await self._on_open(channel.channel)
+            self._channel = channel
+            self._delivery_tag = 0
 
     async def initialize(self, timeout: TimeoutType = None) -> None:
         if self.is_initialized:
             raise RuntimeError("Already initialized")
-        elif self._is_closed_by_user:
+        elif self._closed:
             raise RuntimeError("Can't initialize closed channel")
 
-        async with self.__operation_lock:
+        async with self._operation_lock:
             await self._open()
-            self.ready.set()
             self._on_initialized()
 
-    async def __on_close(self, closing: asyncio.Future) -> None:
-        try:
-            await self.close_callbacks(closing.exception())
-        finally:
-            self.ready.clear()
+    async def _on_open(self, channel: aiormq.abc.AbstractChannel):
+        async with self._operation_lock:
+            self.default_exchange: Exchange = self.EXCHANGE_CLASS(
+                channel=channel,
+                arguments=None,
+                auto_delete=False,
+                durable=False,
+                internal=False,
+                name="",
+                passive=False,
+                type=ExchangeType.DIRECT,
+            )
+
+    async def _on_close(self, closing: asyncio.Future) -> None:
+        await self.close_callbacks(closing.exception())
 
     def _on_initialized(self) -> None:
         self.channel.on_return_callbacks.add(self._on_return)
@@ -201,17 +199,10 @@ class Channel(ChannelContext):
 
     async def reopen(self) -> None:
         log.debug("Start reopening channel %r", self)
-        async with self.__operation_lock:
-            if hasattr(self, "_channel"):
-                del self._channel
-
-            if hasattr(self, "_transport_connection"):
-                del self._transport_connection
-
-            self._is_closed_by_user = False
+        async with self._operation_lock:
+            self._closed = False
             log.debug("Reopening channel %r", self)
             await self._open()
-            self.ready.set()
 
     def __del__(self) -> None:
         log.debug("%r deleted", self)
@@ -251,22 +242,23 @@ class Channel(ChannelContext):
         if auto_delete and durable is None:
             durable = False
 
-        exchange = self.EXCHANGE_CLASS(
-            channel=self,
-            name=name,
-            type=type,
-            durable=durable,
-            auto_delete=auto_delete,
-            internal=internal,
-            passive=passive,
-            arguments=arguments,
-        )
+        async with self._operation_lock:
+            exchange = self.EXCHANGE_CLASS(
+                channel=self.channel,
+                name=name,
+                type=type,
+                durable=durable,
+                auto_delete=auto_delete,
+                internal=internal,
+                passive=passive,
+                arguments=arguments,
+            )
 
-        await exchange.declare(timeout=timeout)
+            await exchange.declare(timeout=timeout)
 
-        log.debug("Exchange declared %r", exchange)
+            log.debug("Exchange declared %r", exchange)
 
-        return exchange
+            return exchange
 
     async def get_exchange(
         self, name: str, *, ensure: bool = True
@@ -288,18 +280,19 @@ class Channel(ChannelContext):
         :raises: :class:`aio_pika.exceptions.ChannelClosed` instance
         """
 
-        if ensure:
-            return await self.declare_exchange(name=name, passive=True)
-        else:
-            return self.EXCHANGE_CLASS(
-                channel=self,
-                name=name,
-                durable=False,
-                auto_delete=False,
-                internal=False,
-                passive=True,
-                arguments=None,
-            )
+        async with self._operation_lock:
+            if ensure:
+                return await self.declare_exchange(name=name, passive=True)
+            else:
+                return self.EXCHANGE_CLASS(
+                    channel=self.channel,
+                    name=name,
+                    durable=False,
+                    auto_delete=False,
+                    internal=False,
+                    passive=True,
+                    arguments=None,
+                )
 
     async def declare_queue(
         self,
@@ -331,18 +324,20 @@ class Channel(ChannelContext):
         :raises: :class:`aio_pika.exceptions.ChannelClosed` instance
         """
 
-        queue: AbstractQueue = self.QUEUE_CLASS(
-            channel=self,
-            name=name,
-            durable=durable,
-            exclusive=exclusive,
-            auto_delete=auto_delete,
-            arguments=arguments,
-            passive=passive,
-        )
+        async with self._operation_lock:
+            queue: AbstractQueue = self.QUEUE_CLASS(
+                channel=self.channel,
+                name=name,
+                durable=durable,
+                exclusive=exclusive,
+                auto_delete=auto_delete,
+                arguments=arguments,
+                passive=passive,
+            )
 
-        await queue.declare(timeout=timeout)
-        return queue
+            await queue.declare(timeout=timeout)
+            self.close_callbacks.add(queue.close_callbacks)
+            return queue
 
     async def get_queue(
         self, name: str, *, ensure: bool = True
@@ -364,18 +359,19 @@ class Channel(ChannelContext):
         :raises: :class:`aio_pika.exceptions.ChannelClosed` instance
         """
 
-        if ensure:
-            return await self.declare_queue(name=name, passive=True)
-        else:
-            return self.QUEUE_CLASS(
-                channel=self,
-                name=name,
-                durable=False,
-                exclusive=False,
-                auto_delete=False,
-                arguments=None,
-                passive=True,
-            )
+        async with self._operation_lock:
+            if ensure:
+                return await self.declare_queue(name=name, passive=True)
+            else:
+                return self.QUEUE_CLASS(
+                    channel=self.channel,
+                    name=name,
+                    durable=False,
+                    exclusive=False,
+                    auto_delete=False,
+                    arguments=None,
+                    passive=True,
+                )
 
     async def set_qos(
         self,
@@ -389,12 +385,13 @@ class Channel(ChannelContext):
             warn('Use "global_" instead of "all_channels"', DeprecationWarning)
             global_ = all_channels
 
-        return await self.channel.basic_qos(
-            prefetch_count=prefetch_count,
-            prefetch_size=prefetch_size,
-            global_=global_,
-            timeout=timeout,
-        )
+        async with self._operation_lock:
+            return await self.channel.basic_qos(
+                prefetch_count=prefetch_count,
+                prefetch_size=prefetch_size,
+                global_=global_,
+                timeout=timeout,
+            )
 
     async def queue_delete(
         self,
@@ -404,13 +401,14 @@ class Channel(ChannelContext):
         if_empty: bool = False,
         nowait: bool = False,
     ) -> aiormq.spec.Queue.DeleteOk:
-        return await self.channel.queue_delete(
-            queue=queue_name,
-            if_unused=if_unused,
-            if_empty=if_empty,
-            nowait=nowait,
-            timeout=timeout,
-        )
+        async with self._operation_lock:
+            return await self.channel.queue_delete(
+                queue=queue_name,
+                if_unused=if_unused,
+                if_empty=if_empty,
+                nowait=nowait,
+                timeout=timeout,
+            )
 
     async def exchange_delete(
         self,
@@ -419,12 +417,13 @@ class Channel(ChannelContext):
         if_unused: bool = False,
         nowait: bool = False,
     ) -> aiormq.spec.Exchange.DeleteOk:
-        return await self.channel.exchange_delete(
-            exchange=exchange_name,
-            if_unused=if_unused,
-            nowait=nowait,
-            timeout=timeout,
-        )
+        async with self._operation_lock:
+            return await self.channel.exchange_delete(
+                exchange=exchange_name,
+                if_unused=if_unused,
+                nowait=nowait,
+                timeout=timeout,
+            )
 
     def transaction(self) -> Transaction:
         if self.publisher_confirms:
@@ -436,7 +435,8 @@ class Channel(ChannelContext):
         return Transaction(self)
 
     async def flow(self, active: bool = True) -> aiormq.spec.Channel.FlowOk:
-        return await self.channel.flow(active=active)
+        async with self._operation_lock:
+            return await self.channel.flow(active=active)
 
 
 __all__ = ("Channel",)

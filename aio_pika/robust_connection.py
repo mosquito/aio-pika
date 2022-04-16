@@ -1,10 +1,8 @@
 import asyncio
 from logging import getLogger
-from typing import Any, Callable, Dict, Optional, Type, Union
-from warnings import warn
+from typing import Any, Dict, Optional, Type, Union
 from weakref import WeakSet
 
-import aiormq.abc
 from aiormq.connection import parse_bool, parse_int
 from pamqp.common import FieldTable
 from yarl import URL
@@ -16,7 +14,7 @@ from .abc import (
 from .connection import Connection, make_url
 from .exceptions import CONNECTION_EXCEPTIONS
 from .robust_channel import RobustChannel
-from .tools import CallbackCollection, task
+from .tools import CallbackCollection, RLock, task
 
 
 log = getLogger(__name__)
@@ -37,87 +35,45 @@ class RobustConnection(Connection, AbstractRobustConnection):
     ):
         super().__init__(url=url, loop=loop, **kwargs)
 
-        self.connect_kwargs: Dict[str, Any] = {}
-        self.reconnect_interval = self.kwargs["reconnect_interval"]
-        self.fail_fast = self.kwargs["fail_fast"]
+        self.reconnect_interval = self.kwargs.pop("reconnect_interval")
+        self.fail_fast = self.kwargs.pop("fail_fast")
 
         self.__channels: WeakSet[AbstractChannel] = WeakSet()
-        self._connect_lock = asyncio.Lock()
-        self._is_closed_by_user = False
+        self._reconnect_lock = RLock()
+
         self.reconnect_callbacks: CallbackCollection = CallbackCollection(self)
 
     @property
     def reconnecting(self) -> bool:
-        return self._connect_lock.locked()
+        return self._reconnect_lock.locked()
 
     def __repr__(self) -> str:
-        return '<{0}: "{1}" {2} channels>'.format(
-            self.__class__.__name__, str(self), len(self.__channels),
+        return (
+            f'<{self.__class__.__name__}: "{self}" '
+            f"{len(self.__channels)} channels>"
         )
 
-    def _on_connection_close(
-        self, connection: aiormq.abc.AbstractConnection,
-        closing: asyncio.Future,
-    ) -> None:
-        if self.reconnecting:
+    async def _on_connection_close(self, closing: asyncio.Future) -> None:
+        await super()._on_connection_close(closing)
+        if self._closed:
             return
-
-        self.connected.clear()
-        del self.connection
-
-        log.debug("Closing AMQP connection %r", connection)
-
-        if self.closing.done():
-            return
-
-        if connection.closing.exception() is None:
-            self.closing.set_result(None)
-            self.close_callbacks(None)
-            return
-
         log.info(
             "Connection to %s closed. Reconnecting after %r seconds.",
             self, self.reconnect_interval,
         )
-        self.loop.call_later(
-            self.reconnect_interval,
-            self.reconnect,
-        )
-
-    def add_reconnect_callback(
-        self, callback: Callable[["RobustConnection"], None],
-        weak: bool = False,
-    ) -> None:
-        """ Add callback which will be called after reconnect.
-
-        :return: None
-        """
-        warn(
-            "This method will be removed from future release. "
-            f"Use {self.__class__.__name__}.reconnect_callbacks.add instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.reconnect_callbacks.add(callback, weak=weak)
+        self.loop.call_later(self.reconnect_interval, self.reconnect)
 
     async def __cleanup_connection(self, exc: Optional[BaseException]) -> None:
-        if not hasattr(self, "connection"):
+        if not self.transport:
             return
-
+        transport, self.transport = self.transport, None
         await asyncio.gather(
-            self.connection.close(exc), return_exceptions=True,
+            transport.close(exc), return_exceptions=True,
         )
-        del self.connection
 
-    async def connect(
-        self, timeout: TimeoutType = None, **kwargs: Any
-    ) -> None:
+    async def connect(self, timeout: TimeoutType = None) -> None:
         if self.is_closed:
-            raise RuntimeError("{!r} connection closed".format(self))
-
-        if kwargs:
-            # Store connect kwargs for reconnects
-            self.connect_kwargs = kwargs
+            raise RuntimeError(f"{self!r} connection closed")
 
         if self.reconnecting:
             raise RuntimeError(
@@ -127,12 +83,10 @@ class RobustConnection(Connection, AbstractRobustConnection):
                 ), self,
             )
 
-        async with self._connect_lock:
-            while not self.closing.done():
+        async with self._reconnect_lock, self._operation_lock:
+            while not self.is_closed:
                 try:
-                    await super().connect(
-                        timeout=timeout, **self.connect_kwargs
-                    )
+                    await super().connect(timeout=timeout)
 
                     for channel in self.__channels:
                         await channel.reopen()
@@ -167,7 +121,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
     @task
     async def reconnect(self) -> None:
         await self.connect()
-        self.reconnect_callbacks(self)
+        await self.reconnect_callbacks()
 
     def channel(
         self,
@@ -183,31 +137,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
         )   # type: ignore
 
         self.__channels.add(channel)
-        self.close_callbacks.add(
-            lambda c, e: channel.close_callbacks(e),
-        )
-
         return channel
-
-    @property
-    def is_closed(self) -> bool:
-        """ Is this connection is closed """
-        return self._is_closed_by_user or super().is_closed
-
-    async def close(
-        self, exc: Optional[aiormq.abc.ExceptionType] = asyncio.CancelledError,
-    ) -> None:
-        if self.is_closed:
-            return
-
-        self._is_closed_by_user = True
-
-        if not hasattr(self, "connection"):
-            return
-
-        result = await super().close(exc)
-        self.close_callbacks(exc)
-        return result
 
 
 async def connect_robust(
@@ -317,17 +247,13 @@ async def connect_robust(
             virtualhost=virtualhost,
             ssl=ssl,
             ssl_options=ssl_options,
+            client_properties=client_properties,
             **kwargs
         ),
         loop=loop,
     )
 
-    await connection.connect(
-        timeout=timeout,
-        client_properties=client_properties,
-        loop=loop,
-    )
-
+    await connection.connect(timeout=timeout)
     return connection
 
 

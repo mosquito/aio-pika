@@ -2,6 +2,7 @@ import asyncio
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum, unique
+from functools import singledispatch
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
@@ -220,7 +221,7 @@ class AbstractProcessContext(AsyncContextManager):
 
 
 class AbstractQueue:
-    channel: "AbstractChannel"
+    channel: aiormq.abc.AbstractChannel
     name: str
     durable: bool
     exclusive: bool
@@ -228,11 +229,12 @@ class AbstractQueue:
     arguments: Arguments
     passive: bool
     declaration_result: aiormq.spec.Queue.DeclareOk
+    close_callbacks: CallbackCollection
 
     @abstractmethod
     def __init__(
         self,
-        channel: "AbstractChannel",
+        channel: aiormq.abc.AbstractChannel,
         name: Optional[str],
         durable: bool,
         exclusive: bool,
@@ -355,10 +357,12 @@ class AbstractQueueIterator(AsyncIterable):
 
 
 class AbstractExchange(ABC):
+    name: str
+
     @abstractmethod
     def __init__(
         self,
-        channel: "AbstractChannel",
+        channel: aiormq.abc.AbstractChannel,
         name: str,
         type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         *,
@@ -368,11 +372,6 @@ class AbstractExchange(ABC):
         passive: bool = False,
         arguments: Arguments = None
     ):
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def channel(self) -> "AbstractChannel":
         raise NotImplementedError
 
     @abstractmethod
@@ -613,6 +612,9 @@ class UnderlayConnection(NamedTuple):
             close_callback=close_callback,
         )
 
+    def ready(self) -> Awaitable[Any]:
+        return self.connection.ready()
+
     async def close(self, exc: Optional[aiormq.abc.ExceptionType]):
         result, _ = await asyncio.gather(
             self.connection.close(exc), self.close_callback.wait(),
@@ -624,7 +626,7 @@ class AbstractConnection(PoolInstance, ABC):
     loop: asyncio.AbstractEventLoop
     close_callbacks: CallbackCollection
     connected: asyncio.Event
-    transport: UnderlayConnection
+    transport: Optional[UnderlayConnection]
 
     @abstractmethod
     def __init__(
@@ -645,9 +647,7 @@ class AbstractConnection(PoolInstance, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def connect(
-        self, timeout: TimeoutType = None, **kwargs: Any
-    ) -> None:
+    async def connect(self, timeout: TimeoutType = None) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -679,7 +679,7 @@ class AbstractConnection(PoolInstance, ABC):
 
 class AbstractRobustQueue(AbstractQueue):
     @abstractmethod
-    def restore(self, channel: "AbstractRobustChannel") -> Awaitable[None]:
+    def restore(self, channel: aiormq.abc.AbstractChannel) -> Awaitable[None]:
         raise NotImplementedError
 
     @abstractmethod
@@ -710,7 +710,7 @@ class AbstractRobustQueue(AbstractQueue):
 
 class AbstractRobustExchange(AbstractExchange):
     @abstractmethod
-    def restore(self, channel: "AbstractRobustChannel") -> Awaitable[None]:
+    def restore(self, channel: aiormq.abc.AbstractChannel) -> Awaitable[None]:
         raise NotImplementedError
 
     @abstractmethod
@@ -731,10 +731,6 @@ class AbstractRobustChannel(AbstractChannel):
 
     @abstractmethod
     def reopen(self) -> Awaitable[None]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def restore(self) -> Awaitable[None]:
         raise NotImplementedError
 
     @abstractmethod
@@ -800,6 +796,24 @@ ConnectionCloseCallback = Callable[
 ConnectionType = TypeVar("ConnectionType", bound=AbstractConnection)
 
 
+@singledispatch
+def get_exchange_name(value: Any) -> str:
+    raise ValueError(
+        f"exchange argument must be an exchange "
+        f"instance or str not {value!r}",
+    )
+
+
+@get_exchange_name.register(AbstractExchange)
+def _get_exchange_name_from_exchnage(value: AbstractExchange) -> str:
+    return value.name
+
+
+@get_exchange_name.register(str)
+def _get_exchange_name_from_str(value: str) -> str:
+    return value
+
+
 __all__ = (
     "AbstractChannel",
     "AbstractConnection",
@@ -833,4 +847,5 @@ __all__ = (
     "UnderlayChannel",
     "UnderlayConnection",
     "ZERO_TIME",
+    "get_exchange_name",
 )

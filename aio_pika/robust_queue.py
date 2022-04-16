@@ -5,16 +5,13 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
 import aiormq
 from pamqp.common import Arguments
 
-# This needed only for migration from 6.x to 7.x
-# TODO: Remove this in 8.x release
-from .abc import DeclarationResult  # noqa
 from .abc import (
     AbstractChannel, AbstractExchange, AbstractIncomingMessage,
     AbstractRobustChannel, AbstractRobustQueue, ConsumerTag, TimeoutType,
 )
 from .exchange import ExchangeParamType
 from .queue import Queue
-
+from .tools import RLock
 
 log = logging.getLogger(__name__)
 
@@ -53,19 +50,21 @@ class RobustQueue(Queue, AbstractRobustQueue):
 
         self._consumers = {}
         self._bindings = {}
+        self._operation_lock = RLock()
 
-    async def restore(self, channel: AbstractRobustChannel) -> None:
-        self.channel = channel
+    async def restore(self, channel: aiormq.abc.AbstractChannel) -> None:
+        async with self._operation_lock:
+            self.channel = channel
 
-        await self.declare()
-        bindings = tuple(self._bindings.items())
-        consumers = tuple(self._consumers.items())
+            await self.declare()
+            bindings = tuple(self._bindings.items())
+            consumers = tuple(self._consumers.items())
 
-        for (exchange, routing_key), kwargs in bindings:
-            await self.bind(exchange, routing_key, **kwargs)
+            for (exchange, routing_key), kwargs in bindings:
+                await self.bind(exchange, routing_key, **kwargs)
 
-        for consumer_tag, kwargs in consumers:
-            await self.consume(consumer_tag=consumer_tag, **kwargs)
+            for consumer_tag, kwargs in consumers:
+                await self.consume(consumer_tag=consumer_tag, **kwargs)
 
     async def bind(
         self,
@@ -76,7 +75,6 @@ class RobustQueue(Queue, AbstractRobustQueue):
         timeout: TimeoutType = None,
         robust: bool = True
     ) -> aiormq.spec.Queue.BindOk:
-        await self.channel.ready.wait()
         if routing_key is None:
             routing_key = self.name
 
@@ -99,7 +97,6 @@ class RobustQueue(Queue, AbstractRobustQueue):
         arguments: Arguments = None,
         timeout: TimeoutType = None,
     ) -> aiormq.spec.Queue.UnbindOk:
-        await self.channel.ready.wait()
         if routing_key is None:
             routing_key = self.name
 
@@ -120,7 +117,6 @@ class RobustQueue(Queue, AbstractRobustQueue):
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> ConsumerTag:
-        await self.channel.ready.wait()
         consumer_tag = await super().consume(
             consumer_tag=consumer_tag,
             timeout=timeout,
@@ -146,7 +142,6 @@ class RobustQueue(Queue, AbstractRobustQueue):
         timeout: TimeoutType = None,
         nowait: bool = False,
     ) -> aiormq.spec.Basic.CancelOk:
-        await self.channel.ready.wait()
         result = await super().cancel(consumer_tag, timeout, nowait)
         self._consumers.pop(consumer_tag, None)
         return result

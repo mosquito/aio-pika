@@ -215,7 +215,7 @@ class OneShotCallback:
         self.callback = callback
         self.loop = asyncio.get_event_loop()
         self.finished: asyncio.Event = asyncio.Event()
-        self.__lock: asyncio.Lock = asyncio.Lock()
+        self.__lock: asyncio.Lock = RLock()
 
     def wait(self) -> Awaitable[Any]:
         return self.finished.wait()
@@ -233,11 +233,45 @@ class OneShotCallback:
         return self.loop.create_task(self.__closer(*args, **kwargs))
 
 
+class RLock(asyncio.Lock):
+    """ RLock like threading.RLock but use asyncio tasks as an ident """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.loop = asyncio.get_event_loop()
+        self._owner: Optional[asyncio.Task] = None
+        self._count: int = 0
+
+    def __get_ident(self) -> int:
+        return id(asyncio.current_task(self.loop))
+
+    async def acquire(self) -> bool:
+        me = self.__get_ident()
+        if self._owner == me:
+            self._count += 1
+            return True
+
+        await super().acquire()
+        self._owner = me
+        self._count = 1
+        return True
+
+    def release(self) -> None:
+        me = self.__get_ident()
+        if self._owner != me:
+            raise RuntimeError("cannot release un-acquired lock")
+
+        self._count = count = self._count - 1
+        if not count:
+            self._owner = None
+            super().release()
+
+
 __all__ = (
     "CallbackCollection",
     "CallbackType",
     "CallbackSetType",
     "OneShotCallback",
+    "RLock",
     "create_task",
     "iscoroutinepartial",
     "shield",

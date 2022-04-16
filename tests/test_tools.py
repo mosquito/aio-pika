@@ -5,7 +5,7 @@ from unittest import mock
 
 import pytest
 
-from aio_pika.tools import CallbackCollection
+from aio_pika.tools import CallbackCollection, RLock
 
 
 log = logging.getLogger(__name__)
@@ -142,3 +142,35 @@ class TestCase:
         await asyncio.wait_for(collection(), timeout=2)
 
         assert [c.counter for c in callables] == [1] * 100
+
+
+async def test_rlock_simple():
+    lock = RLock()
+
+    async with lock:
+        async with lock:
+            async with lock:
+                pass
+
+
+async def test_rlock_concurrent():
+    lock = RLock()
+
+    shared = []
+
+    async def go(lock):
+        nonlocal shared
+
+        async with lock:
+            shared.append(1)
+            async with lock:
+                shared.append(2)
+                async with lock:
+                    shared.append(3)
+
+    await asyncio.gather(
+        asyncio.create_task(go(lock)),
+        asyncio.create_task(go(lock)),
+        asyncio.create_task(go(lock)),
+    )
+    assert shared == [1, 2, 3] * 3
