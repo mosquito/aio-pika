@@ -195,7 +195,7 @@ class CallbackCollection(MutableSet):
             for cb in self:
                 try:
                     result = cb(sender, *args, **kwargs)
-                    if hasattr(result, '__await__'):
+                    if hasattr(result, "__await__"):
                         futures.append(asyncio.ensure_future(result))
                 except Exception:
                     log.exception("Callback %r error", cb)
@@ -209,7 +209,7 @@ class CallbackCollection(MutableSet):
 
 
 class OneShotCallback:
-    __slots__ = ('loop', 'finished', '__lock', "callback")
+    __slots__ = ("loop", "finished", "__lock", "callback")
 
     def __init__(self, callback: Callable[..., Awaitable[T]]):
         self.callback = callback

@@ -2,9 +2,7 @@ import asyncio
 from abc import ABC
 from logging import getLogger
 from types import TracebackType
-from typing import (
-    Any, Generator, Optional, Type, Union, AsyncContextManager, NamedTuple
-)
+from typing import Any, AsyncContextManager, Generator, Optional, Type, Union
 from warnings import warn
 
 import aiormq
@@ -13,7 +11,7 @@ from pamqp.common import Arguments
 
 from .abc import (
     AbstractChannel, AbstractConnection, AbstractExchange, AbstractQueue,
-    TimeoutType, UnderlayConnection, UnderlayChannel,
+    TimeoutType, UnderlayChannel,
 )
 from .exchange import Exchange, ExchangeType
 from .message import ReturnCallback  # noqa

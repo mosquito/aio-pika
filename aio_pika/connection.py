@@ -19,6 +19,7 @@ from .abc import (
 from .channel import Channel
 from .tools import CallbackCollection, OneShotCallback
 
+
 log = logging.getLogger(__name__)
 T = TypeVar("T")
 
@@ -41,7 +42,7 @@ class Connection(AbstractConnection):
                 self.closing.set_result(exc)
 
             transport: Optional[UnderlayConnection] = getattr(
-                self, "transport", None
+                self, "transport", None,
             )
             if not transport:
                 return

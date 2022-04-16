@@ -5,9 +5,8 @@ import aiormq
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractExchange,
-    AbstractRobustChannel, AbstractRobustExchange, ExchangeParamType,
-    TimeoutType,
+    AbstractChannel, AbstractExchange, AbstractRobustChannel,
+    AbstractRobustExchange, ExchangeParamType, TimeoutType,
 )
 from .exchange import Exchange, ExchangeType
 

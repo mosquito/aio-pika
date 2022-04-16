@@ -5,8 +5,8 @@ from enum import Enum, IntEnum, unique
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
-    FrozenSet, Iterator, MutableMapping, NamedTuple, Optional, Set,
-    Tuple, Type, TypeVar, Union,
+    FrozenSet, Iterator, MutableMapping, NamedTuple, Optional, Set, Tuple, Type,
+    TypeVar, Union,
 )
 
 import aiormq.abc
@@ -16,8 +16,9 @@ from yarl import URL
 
 from .pool import PoolInstance
 from .tools import (
-    CallbackCollection, CallbackSetType, CallbackType, OneShotCallback
+    CallbackCollection, CallbackSetType, CallbackType, OneShotCallback,
 )
+
 
 TimeoutType = Optional[Union[int, float]]
 
@@ -444,7 +445,7 @@ class UnderlayChannel(NamedTuple):
     async def close(self, exc: Optional[ExceptionType] = None) -> Any:
         result: Any
         result, _ = await asyncio.gather(
-            self.channel.close(exc), self.close_callback.wait()
+            self.channel.close(exc), self.close_callback.wait(),
         )
         return result
 
@@ -609,12 +610,12 @@ class UnderlayConnection(NamedTuple):
         await connection.ready()
         return cls(
             connection=connection,
-            close_callback=close_callback
+            close_callback=close_callback,
         )
 
     async def close(self, exc: Optional[aiormq.abc.ExceptionType]):
         result, _ = await asyncio.gather(
-            self.connection.close(exc), self.close_callback.wait()
+            self.connection.close(exc), self.close_callback.wait(),
         )
         return result
 
