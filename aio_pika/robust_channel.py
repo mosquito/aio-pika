@@ -1,7 +1,7 @@
 from collections import defaultdict
 from itertools import chain
 from logging import getLogger
-from typing import DefaultDict, Set, Type, Union
+from typing import DefaultDict, Set, Type, Union, Any
 from warnings import warn
 
 import aiormq
@@ -21,7 +21,7 @@ from .tools import CallbackCollection
 log = getLogger(__name__)
 
 
-class RobustChannel(Channel, AbstractRobustChannel):
+class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
     """ Channel abstraction """
 
     QUEUE_CLASS: Type[Queue] = RobustQueue
@@ -64,7 +64,7 @@ class RobustChannel(Channel, AbstractRobustChannel):
         self.reopen_callbacks: CallbackCollection = CallbackCollection(self)
         self.close_callbacks.add(self.__close_callback)
 
-    async def __close_callback(self, *_) -> None:
+    async def __close_callback(self, *_: Any) -> None:
         if self._closed or not self.ready.is_set():
             return
         await self.reopen()
@@ -89,10 +89,10 @@ class RobustChannel(Channel, AbstractRobustChannel):
             queues = tuple(chain(*self._queues.values()))
 
             for exchange in exchanges:
-                await exchange.restore(self)
+                await exchange.restore(self)    # type: ignore
 
             for queue in queues:
-                await queue.restore(self)
+                await queue.restore(self)       # type: ignore
 
     async def set_qos(
         self,

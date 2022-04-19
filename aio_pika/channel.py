@@ -37,7 +37,7 @@ class ChannelContext(AsyncContextManager, AbstractChannel, ABC):
     ) -> None:
         return await self.close(exc_val)
 
-    def __await__(self) -> Generator[Any, Any, "AbstractChannel"]:
+    def __await__(self) -> Generator[Any, Any, AbstractChannel]:
         yield from self.initialize().__await__()
         return self
 
@@ -111,6 +111,9 @@ class Channel(ChannelContext):
                 log.warning("Channel not opened")
                 return
 
+            if not self._channel:
+                return
+
             log.debug("Closing channel %r", self)
             try:
                 await self._channel.close()
@@ -120,7 +123,7 @@ class Channel(ChannelContext):
     @property
     def channel(self) -> aiormq.abc.AbstractChannel:
 
-        if not self.is_initialized:
+        if not self.is_initialized or not self._channel:
             raise aiormq.exceptions.ChannelInvalidStateError(
                 "Channel was not opened",
             )
@@ -175,7 +178,7 @@ class Channel(ChannelContext):
             await self._open()
             self._on_initialized()
 
-    async def _on_open(self, channel: aiormq.abc.AbstractChannel):
+    async def _on_open(self, channel: aiormq.abc.AbstractChannel) -> None:
         async with self._operation_lock:
             self.default_exchange: Exchange = self.EXCHANGE_CLASS(
                 channel=channel,

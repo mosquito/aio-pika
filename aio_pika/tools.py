@@ -1,12 +1,11 @@
 import asyncio
 import logging
-import typing
 from functools import wraps
 from itertools import chain
 from threading import Lock
 from typing import (
-    AbstractSet, Any, Awaitable, Callable, Coroutine, Iterator, MutableSet,
-    Optional, TypeVar, Union,
+    AbstractSet, Any, Awaitable, Callable, Coroutine, Generator, Iterator, List,
+    MutableSet, Optional, TypeVar, Union,
 )
 from weakref import ReferenceType, WeakSet, ref
 
@@ -89,7 +88,7 @@ CallbackSetType = Union[AbstractSet[CallbackType]]
 class StubAwaitable:
     __slots__ = ()
 
-    def __await__(self):
+    def __await__(self) -> Generator[Any, Any, None]:
         yield
 
 
@@ -186,8 +185,8 @@ class CallbackCollection(MutableSet):
 
         return instance
 
-    def __call__(self, *args: Any, **kwargs: Any) -> typing.Awaitable[Any]:
-        futures: typing.List[asyncio.Future] = []
+    def __call__(self, *args: Any, **kwargs: Any) -> Awaitable[Any]:
+        futures: List[asyncio.Future] = []
 
         with self.__lock:
             sender = self.__sender()
@@ -212,33 +211,35 @@ class OneShotCallback:
     __slots__ = ("loop", "finished", "__lock", "callback")
 
     def __init__(self, callback: Callable[..., Awaitable[T]]):
-        self.callback = callback
+        self.callback: Callable[..., Awaitable[T]] = callback
         self.loop = asyncio.get_event_loop()
         self.finished: asyncio.Event = asyncio.Event()
-        self.__lock: asyncio.Lock = RLock()
+        self.__lock: RLock = RLock()
 
     def wait(self) -> Awaitable[Any]:
         return self.finished.wait()
 
-    async def __closer(self, *args, **kwargs) -> None:
+    async def __closer(self, *args: Any, **kwargs: Any) -> None:
         async with self.__lock:
             if self.finished.is_set():
                 return
             try:
-                return await self.callback(*args, **kwargs)
+                await self.callback(*args, **kwargs)
             finally:
                 self.finished.set()
 
-    def __call__(self, *args, **kwargs) -> asyncio.Task:
+    def __call__(self, *args: Any, **kwargs: Any) -> asyncio.Task:
         return self.loop.create_task(self.__closer(*args, **kwargs))
 
 
 class RLock(asyncio.Lock):
+    FAKE_OWNER = -1
+
     """ RLock like threading.RLock but use asyncio tasks as an ident """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.loop = asyncio.get_event_loop()
-        self._owner: Optional[asyncio.Task] = None
+        self._owner: int = self.FAKE_OWNER
         self._count: int = 0
 
     def __get_ident(self) -> int:
@@ -262,7 +263,7 @@ class RLock(asyncio.Lock):
 
         self._count = count = self._count - 1
         if not count:
-            self._owner = None
+            self._owner = self.FAKE_OWNER
             super().release()
 
 

@@ -30,7 +30,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
 
     def __init__(
         self,
-        channel: AbstractChannel,
+        channel: aiormq.abc.AbstractChannel,
         name: Optional[str],
         durable: bool = False,
         exclusive: bool = False,

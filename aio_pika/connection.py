@@ -25,6 +25,8 @@ class Connection(AbstractConnection):
     CHANNEL_CLASS: Type[Channel] = Channel
     KWARGS_TYPES: Tuple[Tuple[str, Callable[[str], Any], str], ...] = ()
 
+    _closed: bool
+
     @property
     def is_closed(self) -> bool:
         return self._closed
@@ -147,6 +149,9 @@ class Connection(AbstractConnection):
             raise an :class:`aio_pika.exceptions.DeliveryError`
             when mandatory message will be returned
         """
+
+        if not self.transport:
+            raise RuntimeError("Connection was not opened")
 
         log.debug("Creating AMQP channel for connection: %r", self)
 
@@ -334,4 +339,4 @@ async def connect(
     return connection
 
 
-__all__ = ("connect", "Connection")
+__all__ = ("connect", "Connection", "make_url")

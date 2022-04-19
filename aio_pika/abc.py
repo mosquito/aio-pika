@@ -7,7 +7,7 @@ from types import TracebackType
 from typing import (
     Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
     FrozenSet, Iterator, MutableMapping, NamedTuple, Optional, Set, Tuple, Type,
-    TypeVar, Union,
+    TypeVar, Union, Generator,
 )
 
 import aiormq.abc
@@ -588,7 +588,7 @@ class AbstractChannel(PoolInstance, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def __await__(self) -> Awaitable["AbstractChannel"]:
+    def __await__(self) -> Generator[Any, Any, "AbstractChannel"]:
         raise NotImplementedError
 
 
@@ -615,7 +615,7 @@ class UnderlayConnection(NamedTuple):
     def ready(self) -> Awaitable[Any]:
         return self.connection.ready()
 
-    async def close(self, exc: Optional[aiormq.abc.ExceptionType]):
+    async def close(self, exc: Optional[aiormq.abc.ExceptionType]) -> Any:
         result, _ = await asyncio.gather(
             self.connection.close(exc), self.close_callback.wait(),
         )
