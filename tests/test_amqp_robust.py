@@ -1,4 +1,5 @@
 import asyncio
+import gc
 from functools import partial
 
 import pytest
@@ -75,10 +76,6 @@ class TestCaseNoRobust(TestCaseAmqp):
             await channel.declare_queue(queue_name, passive=True)
 
         await close_event.wait()
-
-        with pytest.raises(RuntimeError):
-            await channel.channel.closing
-
         assert channel.is_closed
 
         # Ensure close callback has been called

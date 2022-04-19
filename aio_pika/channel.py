@@ -112,13 +112,12 @@ class Channel(ChannelContext):
                 return
 
             if not self._channel:
+                log.warning("Transport is not ready")
                 return
 
             log.debug("Closing channel %r", self)
-            try:
-                await self._channel.close()
-            finally:
-                self._closed = True
+            self._closed = True
+            await self._channel.close()
 
     @property
     def channel(self) -> aiormq.abc.AbstractChannel:
@@ -145,13 +144,6 @@ class Channel(ChannelContext):
 
     def __str__(self) -> str:
         return "{}".format(self.number or "Not initialized channel")
-
-    def __repr__(self) -> str:
-        channel = getattr(self, "_channel", None)
-        conn = None
-        if channel is not None:
-            conn = channel.channel.connection
-        return '<%s #%s "%s">' % (self.__class__.__name__, self.number, conn)
 
     async def _open(self) -> None:
         await self._transport.ready()
@@ -203,12 +195,17 @@ class Channel(ChannelContext):
     async def reopen(self) -> None:
         log.debug("Start reopening channel %r", self)
         async with self._operation_lock:
+            if not self._closed and self._closed:
+                channel, self._channel = self._channel, None
+                await channel.close()
+
             self._closed = False
             log.debug("Reopening channel %r", self)
             await self._open()
 
     def __del__(self) -> None:
-        log.debug("%r deleted", self)
+        self._closed = True
+        self._channel = None
 
     async def declare_exchange(
         self,

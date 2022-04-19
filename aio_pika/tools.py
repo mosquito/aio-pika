@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import traceback
 from functools import wraps
 from itertools import chain
 from threading import Lock
@@ -92,10 +93,11 @@ class StubAwaitable:
         yield
 
 
+STUB_AWAITABLE = StubAwaitable()
+
+
 class CallbackCollection(MutableSet):
     __slots__ = "__sender", "__callbacks", "__weak_callbacks", "__lock"
-
-    STUB_AWAITABLE = StubAwaitable()
 
     def __init__(self, sender: Union[T, ReferenceType]):
         self.__sender: ReferenceType
@@ -200,7 +202,7 @@ class CallbackCollection(MutableSet):
                     log.exception("Callback %r error", cb)
 
         if not futures:
-            return self.STUB_AWAITABLE
+            return STUB_AWAITABLE
         return asyncio.gather(*futures, return_exceptions=True)
 
     def __hash__(self) -> int:
@@ -214,7 +216,10 @@ class OneShotCallback:
         self.callback: Callable[..., Awaitable[T]] = callback
         self.loop = asyncio.get_event_loop()
         self.finished: asyncio.Event = asyncio.Event()
-        self.__lock: RLock = RLock()
+        self.__lock: asyncio.Lock = asyncio.Lock()
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}: cb={self.callback!r}>"
 
     def wait(self) -> Awaitable[Any]:
         return self.finished.wait()
@@ -222,13 +227,17 @@ class OneShotCallback:
     async def __closer(self, *args: Any, **kwargs: Any) -> None:
         async with self.__lock:
             if self.finished.is_set():
+                await self.finished.wait()
                 return
             try:
                 await self.callback(*args, **kwargs)
             finally:
+                del self.callback
                 self.finished.set()
 
-    def __call__(self, *args: Any, **kwargs: Any) -> asyncio.Task:
+    def __call__(self, *args: Any, **kwargs: Any) -> Awaitable[Any]:
+        if self.finished.is_set():
+            return STUB_AWAITABLE
         return self.loop.create_task(self.__closer(*args, **kwargs))
 
 

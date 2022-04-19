@@ -62,10 +62,11 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         self._prefetch_size: int = 0
         self._global_qos: bool = False
         self.reopen_callbacks: CallbackCollection = CallbackCollection(self)
+
         self.close_callbacks.add(self.__close_callback)
 
     async def __close_callback(self, *_: Any) -> None:
-        if self._closed or not self.ready.is_set():
+        if self._closed or self._transport.connection.is_closed:
             return
         await self.reopen()
 

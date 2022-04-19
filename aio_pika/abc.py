@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum, unique
@@ -442,6 +443,9 @@ class UnderlayChannel(NamedTuple):
         )
 
     async def close(self, exc: Optional[ExceptionType] = None) -> Any:
+        if self.close_callback.finished.is_set():
+            return
+
         result: Any
         result, _ = await asyncio.gather(
             self.channel.close(exc), self.close_callback.wait(),
