@@ -179,7 +179,7 @@ unacknowledged messages will be redelivered.
 .. note::
     **Forgotten acknowledgment**
 
-    It's a common mistake to miss the basic_ack. It's an easy error, but the
+    It's a common mistake to miss the ack. It's an easy error, but the
     consequences are serious. Messages will be redelivered when your client quits
     (which may look like random redelivery), but RabbitMQ will eat more and more
     memory as it won't be able to release any unacked messages.
