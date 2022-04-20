@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import pickle
 import time
 import uuid
 from enum import Enum
@@ -250,7 +249,7 @@ class RPC(Base):
             payload = await self.deserialize_message(message)
             func = self.routes[method_name]
 
-            result = await self.execute(func, payload)
+            result: Any = await self.execute(func, payload)
             message_type = RPCMessageType.RESULT
         except Exception as e:
             result = self.serialize_exception(e)
@@ -301,8 +300,9 @@ class RPC(Base):
         return self.deserialize(message.body)
 
     async def serialize_message(
-        self, payload: Any, message_type: RPCMessageType, correlation_id: str,
-        delivery_mode: DeliveryMode, **kwargs: Any
+        self, payload: Any, message_type: RPCMessageType,
+        correlation_id: Optional[str], delivery_mode: DeliveryMode,
+        **kwargs: Any
     ) -> Message:
         return Message(
             self.serialize(payload),
