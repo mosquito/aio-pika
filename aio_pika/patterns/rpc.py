@@ -80,12 +80,13 @@ class RPC(Base):
 
     """
 
+    result_queue: AbstractQueue
+    result_consumer_tag: ConsumerTag
+    dlx_exchange: AbstractExchange
+
     def __init__(self, channel: AbstractChannel):
-        self.result_queue: AbstractQueue
-        self.result_consumer_tag: ConsumerTag
-        self.dlx_exchange: AbstractExchange
         self.channel = channel
-        self.loop = self.channel.loop
+        self.loop = asyncio.get_event_loop()
         self.proxy = Proxy(self.call)
         self.futures: Dict[str, asyncio.Future] = {}
         self.routes: Dict[str, Callable[..., Any]] = {}
@@ -219,7 +220,7 @@ class RPC(Base):
             return
 
         try:
-            payload = self.deserialize(message.body)
+            payload = await self.deserialize_message(message)
         except Exception as e:
             log.error("Failed to deserialize response on message: %r", message)
             future.set_exception(e)
@@ -246,14 +247,14 @@ class RPC(Base):
             return
 
         try:
-            payload = self.deserialize(message.body)
+            payload = await self.deserialize_message(message)
             func = self.routes[method_name]
 
-            result = self.serialize(await self.execute(func, payload))
-            message_type = RPCMessageType.RESULT.value
+            result = await self.execute(func, payload)
+            message_type = RPCMessageType.RESULT
         except Exception as e:
             result = self.serialize_exception(e)
-            message_type = RPCMessageType.ERROR.value
+            message_type = RPCMessageType.ERROR
 
         if not message.reply_to:
             log.info(
@@ -264,13 +265,11 @@ class RPC(Base):
             await message.ack()
             return
 
-        result_message = Message(
-            result,
-            content_type=self.CONTENT_TYPE,
+        result_message = await self.serialize_message(
+            payload=result,
+            message_type=message_type,
             correlation_id=message.correlation_id,
             delivery_mode=message.delivery_mode,
-            timestamp=time.time(),
-            type=message_type,
         )
 
         try:
@@ -288,37 +287,32 @@ class RPC(Base):
 
         await message.ack()
 
-    def serialize(self, data: Any) -> bytes:
-        """ Serialize data to the bytes.
-        Uses `pickle` by default.
-        You should overlap this method when you want to change serializer
-
-        :param data: Data which will be serialized
-        :returns: bytes
-        """
-        return super().serialize(data)
-
-    def deserialize(self, data: bytes) -> Any:
-        """ Deserialize data from bytes.
-        Uses `pickle` by default.
-        You should overlap this method when you want to change serializer
-
-        :param data: Data which will be deserialized
-        :returns: :class:`Any`
-        """
-        return super().deserialize(data)
-
-    def serialize_exception(self, exception: Exception) -> bytes:
-        """ Serialize python exception to bytes
-
-        :param exception: :class:`Exception`
-        :return: bytes
-        """
-        return pickle.dumps(exception)
+    def serialize_exception(self, exception: Exception) -> Any:
+        """ Serialize python exception to bytes """
+        return exception
 
     async def execute(self, func: CallbackType, payload: Dict[str, Any]) -> T:
         """ Executes rpc call. Might be overlapped. """
         return await func(**payload)
+
+    async def deserialize_message(
+        self, message: AbstractIncomingMessage
+    ) -> Any:
+        return self.deserialize(message.body)
+
+    async def serialize_message(
+        self, payload: Any, message_type: RPCMessageType, correlation_id: str,
+        delivery_mode: DeliveryMode, **kwargs: Any
+    ) -> Message:
+        return Message(
+            self.serialize(payload),
+            content_type=self.CONTENT_TYPE,
+            correlation_id=correlation_id,
+            delivery_mode=delivery_mode,
+            timestamp=time.time(),
+            type=message_type.value,
+            **kwargs
+        )
 
     async def call(
         self,
@@ -345,15 +339,14 @@ class RPC(Base):
 
         future, correlation_id = self.create_future()
 
-        message = Message(
-            body=self.serialize(kwargs or {}),
-            type=RPCMessageType.CALL.value,
-            timestamp=time.time(),
-            priority=priority,
+        message = await self.serialize_message(
+            payload=kwargs or {},
+            message_type=RPCMessageType.CALL,
             correlation_id=correlation_id,
             delivery_mode=delivery_mode,
             reply_to=self.result_queue.name,
             headers={"From": self.result_queue.name},
+            priority=priority,
         )
 
         if expiration is not None:
@@ -419,6 +412,10 @@ class RPC(Base):
         self.routes.pop(queue.name)
 
 
+class JsonRPCError(RuntimeError):
+    pass
+
+
 class JsonRPC(RPC):
     SERIALIZER = json
     CONTENT_TYPE = "application/json"
@@ -428,16 +425,22 @@ class JsonRPC(RPC):
             data, ensure_ascii=False, default=repr,
         ).encode()
 
-    def serialize_exception(self, exception: Exception) -> bytes:
-        return self.serialize(
-            {
-                "error": {
-                    "type": exception.__class__.__name__,
-                    "message": repr(exception),
-                    "args": exception.args,
-                },
+    def serialize_exception(self, exception: Exception) -> Any:
+        return {
+            "error": {
+                "type": exception.__class__.__name__,
+                "message": repr(exception),
+                "args": exception.args,
             },
-        )
+        }
+
+    async def deserialize_message(
+        self, message: AbstractIncomingMessage
+    ) -> Any:
+        payload = await super().deserialize_message(message)
+        if message.type == RPCMessageType.ERROR:
+            payload = JsonRPCError("RPC exception", payload)
+        return payload
 
 
 __all__ = (

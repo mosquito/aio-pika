@@ -99,7 +99,7 @@ class Master(Base):
         :param channel: Initialized instance of :class:`aio_pika.Channel`
         """
         self.channel: AbstractChannel = channel
-        self.loop: asyncio.AbstractEventLoop = self.channel.loop
+        self.loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
         self.proxy = Proxy(self.create_task)
 
         self.channel.return_callbacks.add(self.on_message_returned)
