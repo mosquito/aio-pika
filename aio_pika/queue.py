@@ -391,7 +391,7 @@ class QueueIterator(AbstractQueueIterator):
 
     @property
     def consumer_tag(self) -> Optional[ConsumerTag]:
-        return getattr(self, '_consumer_tag', None)
+        return getattr(self, "_consumer_tag", None)
 
     @task
     async def close(self, *_: Any) -> Any:

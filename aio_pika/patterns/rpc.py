@@ -295,7 +295,7 @@ class RPC(Base):
         return await func(**payload)
 
     async def deserialize_message(
-        self, message: AbstractIncomingMessage
+        self, message: AbstractIncomingMessage,
     ) -> Any:
         return self.deserialize(message.body)
 
@@ -435,7 +435,7 @@ class JsonRPC(RPC):
         }
 
     async def deserialize_message(
-        self, message: AbstractIncomingMessage
+        self, message: AbstractIncomingMessage,
     ) -> Any:
         payload = await super().deserialize_message(message)
         if message.type == RPCMessageType.ERROR:
