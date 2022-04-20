@@ -1,14 +1,15 @@
+import asyncio
 from collections import defaultdict
 from itertools import chain
 from logging import getLogger
-from typing import DefaultDict, Set, Type, Union, Any
+from typing import Any, DefaultDict, Set, Type, Union
 from warnings import warn
 
 import aiormq
 
 from .abc import (
     AbstractRobustChannel, AbstractRobustExchange, AbstractRobustQueue,
-    TimeoutType, UnderlayConnection,
+    TimeoutType,
 )
 from .channel import Channel
 from .exchange import Exchange, ExchangeType
@@ -33,7 +34,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
 
     def __init__(
         self,
-        transport: UnderlayConnection,
+        connection: aiormq.abc.AbstractConnection,
         channel_number: int = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
@@ -50,7 +51,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         """
 
         super().__init__(
-            transport=transport,
+            connection=connection,
             channel_number=channel_number,
             publisher_confirms=publisher_confirms,
             on_return_raises=on_return_raises,
@@ -62,38 +63,44 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         self._prefetch_size: int = 0
         self._global_qos: bool = False
         self.reopen_callbacks: CallbackCollection = CallbackCollection(self)
-
         self.close_callbacks.add(self.__close_callback)
+        self.__restore_lock = asyncio.Lock()
 
     async def __close_callback(self, *_: Any) -> None:
-        if self._closed or self._transport.connection.is_closed:
+        if self._closed or self._connection.is_closed:
             return
         await self.reopen()
 
     async def reopen(self) -> None:
         await super().reopen()
-        await self.reopen_callbacks()
 
-    async def restore(self) -> None:
-        async with self._operation_lock:
-            await self.set_qos(
-                prefetch_count=self._prefetch_count,
-                prefetch_size=self._prefetch_size,
-                global_=self._global_qos,
-            )
+    async def restore(self, connection: aiormq.abc.AbstractConnection) -> None:
+        async with self.__restore_lock:
+            self._connection = connection
+            await self.reopen()
 
     async def _on_open(self, channel: aiormq.abc.AbstractChannel) -> None:
-        async with self._operation_lock:
+        if not hasattr(self, "default_exchange"):
             await super()._on_open(channel)
 
-            exchanges = tuple(chain(*self._exchanges.values()))
-            queues = tuple(chain(*self._queues.values()))
+        exchanges = tuple(chain(*self._exchanges.values()))
+        queues = tuple(chain(*self._queues.values()))
 
-            for exchange in exchanges:
-                await exchange.restore(self)    # type: ignore
+        await channel.basic_qos(
+            prefetch_count=self._prefetch_count,
+            prefetch_size=self._prefetch_size,
+        )
 
-            for queue in queues:
-                await queue.restore(self)       # type: ignore
+        for exchange in exchanges:
+            await exchange.restore(channel)
+
+        for queue in queues:
+            await queue.restore(channel)
+
+        if hasattr(self, "default_exchange"):
+            self.default_exchange.channel = channel
+
+        await self.reopen_callbacks()
 
     async def set_qos(
         self,
@@ -107,19 +114,18 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
             warn('Use "global_" instead of "all_channels"', DeprecationWarning)
             global_ = all_channels
 
-        async with self._operation_lock:
-            await self._transport.ready()
+        await self._connection.ready()
 
-            self._prefetch_count = prefetch_count
-            self._prefetch_size = prefetch_size
-            self._global_qos = global_
+        self._prefetch_count = prefetch_count
+        self._prefetch_size = prefetch_size
+        self._global_qos = global_
 
-            return await super().set_qos(
-                prefetch_count=prefetch_count,
-                prefetch_size=prefetch_size,
-                global_=global_,
-                timeout=timeout,
-            )
+        return await super().set_qos(
+            prefetch_count=prefetch_count,
+            prefetch_size=prefetch_size,
+            global_=global_,
+            timeout=timeout,
+        )
 
     async def declare_exchange(
         self,
@@ -133,26 +139,25 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> AbstractRobustExchange:
-        async with self._operation_lock:
-            await self._transport.ready()
-            exchange = (
-                await super().declare_exchange(
-                    name=name,
-                    type=type,
-                    durable=durable,
-                    auto_delete=auto_delete,
-                    internal=internal,
-                    passive=passive,
-                    arguments=arguments,
-                    timeout=timeout,
-                )
+        await self._connection.ready()
+        exchange = (
+            await super().declare_exchange(
+                name=name,
+                type=type,
+                durable=durable,
+                auto_delete=auto_delete,
+                internal=internal,
+                passive=passive,
+                arguments=arguments,
+                timeout=timeout,
             )
+        )
 
-            if not internal and robust:
-                # noinspection PyTypeChecker
-                self._exchanges[name].add(exchange)     # type: ignore
+        if not internal and robust:
+            # noinspection PyTypeChecker
+            self._exchanges[name].add(exchange)     # type: ignore
 
-            return exchange     # type: ignore
+        return exchange     # type: ignore
 
     async def exchange_delete(
         self,
@@ -161,16 +166,15 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         if_unused: bool = False,
         nowait: bool = False,
     ) -> aiormq.spec.Exchange.DeleteOk:
-        async with self._operation_lock:
-            await self._transport.ready()
-            result = await super().exchange_delete(
-                exchange_name=exchange_name,
-                timeout=timeout,
-                if_unused=if_unused,
-                nowait=nowait,
-            )
-            self._exchanges.pop(exchange_name, None)
-            return result
+        await self._connection.ready()
+        result = await super().exchange_delete(
+            exchange_name=exchange_name,
+            timeout=timeout,
+            if_unused=if_unused,
+            nowait=nowait,
+        )
+        self._exchanges.pop(exchange_name, None)
+        return result
 
     async def declare_queue(
         self,
@@ -184,20 +188,19 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         timeout: TimeoutType = None,
         robust: bool = True
     ) -> AbstractRobustQueue:
-        async with self._operation_lock:
-            await self._transport.ready()
-            queue: RobustQueue = await super().declare_queue(   # type: ignore
-                name=name,
-                durable=durable,
-                exclusive=exclusive,
-                passive=passive,
-                auto_delete=auto_delete,
-                arguments=arguments,
-                timeout=timeout,
-            )
-            if robust:
-                self._queues[queue.name].add(queue)
-            return queue
+        await self._connection.ready()
+        queue: RobustQueue = await super().declare_queue(   # type: ignore
+            name=name,
+            durable=durable,
+            exclusive=exclusive,
+            passive=passive,
+            auto_delete=auto_delete,
+            arguments=arguments,
+            timeout=timeout,
+        )
+        if robust:
+            self._queues[queue.name].add(queue)
+        return queue
 
     async def queue_delete(
         self,
@@ -207,17 +210,16 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         if_empty: bool = False,
         nowait: bool = False,
     ) -> aiormq.spec.Queue.DeleteOk:
-        async with self._operation_lock:
-            await self._transport.ready()
-            result = await super().queue_delete(
-                queue_name=queue_name,
-                timeout=timeout,
-                if_unused=if_unused,
-                if_empty=if_empty,
-                nowait=nowait,
-            )
-            self._queues.pop(queue_name, None)
-            return result
+        await self._connection.ready()
+        result = await super().queue_delete(
+            queue_name=queue_name,
+            timeout=timeout,
+            if_unused=if_unused,
+            if_empty=if_empty,
+            nowait=nowait,
+        )
+        self._queues.pop(queue_name, None)
+        return result
 
 
 __all__ = ("RobustChannel",)

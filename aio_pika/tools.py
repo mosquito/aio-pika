@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import traceback
 from functools import wraps
 from itertools import chain
 from threading import Lock
@@ -63,15 +62,6 @@ def create_task(
     future = loop.create_future()
     loop.call_soon(run, future)
     return future
-
-
-def task(
-    func: Callable[..., Coroutine[Any, Any, T]],
-) -> Callable[..., Awaitable[T]]:
-    @wraps(func)
-    def wrap(*args: Any, **kwargs: Any) -> Awaitable[T]:
-        return create_task(func, *args, **kwargs)
-    return wrap
 
 
 def shield(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
@@ -218,7 +208,7 @@ class OneShotCallback:
         self.finished: asyncio.Event = asyncio.Event()
         self.__lock: asyncio.Lock = asyncio.Lock()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<{self.__class__.__name__}: cb={self.callback!r}>"
 
     def wait(self) -> Awaitable[Any]:
@@ -232,8 +222,8 @@ class OneShotCallback:
             try:
                 await self.callback(*args, **kwargs)
             finally:
-                del self.callback
                 self.finished.set()
+                del self.callback
 
     def __call__(self, *args: Any, **kwargs: Any) -> Awaitable[Any]:
         if self.finished.is_set():
@@ -241,49 +231,12 @@ class OneShotCallback:
         return self.loop.create_task(self.__closer(*args, **kwargs))
 
 
-class RLock(asyncio.Lock):
-    FAKE_OWNER = -1
-
-    """ RLock like threading.RLock but use asyncio tasks as an ident """
-    def __init__(self, *args: Any, **kwargs: Any):
-        super().__init__(*args, **kwargs)
-        self.loop = asyncio.get_event_loop()
-        self._owner: int = self.FAKE_OWNER
-        self._count: int = 0
-
-    def __get_ident(self) -> int:
-        return id(asyncio.current_task(self.loop))
-
-    async def acquire(self) -> bool:
-        me = self.__get_ident()
-        if self._owner == me:
-            self._count += 1
-            return True
-
-        await super().acquire()
-        self._owner = me
-        self._count = 1
-        return True
-
-    def release(self) -> None:
-        me = self.__get_ident()
-        if self._owner != me:
-            raise RuntimeError("cannot release un-acquired lock")
-
-        self._count = count = self._count - 1
-        if not count:
-            self._owner = self.FAKE_OWNER
-            super().release()
-
-
 __all__ = (
     "CallbackCollection",
     "CallbackType",
     "CallbackSetType",
     "OneShotCallback",
-    "RLock",
     "create_task",
     "iscoroutinepartial",
     "shield",
-    "task",
 )

@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum, unique
@@ -7,8 +6,8 @@ from functools import singledispatch
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
-    FrozenSet, Iterator, MutableMapping, NamedTuple, Optional, Set, Tuple, Type,
-    TypeVar, Union, Generator,
+    FrozenSet, Generator, Iterator, MutableMapping, NamedTuple, Optional, Set,
+    Tuple, Type, TypeVar, Union,
 )
 
 import aiormq.abc
@@ -426,15 +425,15 @@ class UnderlayChannel(NamedTuple):
     close_callback: OneShotCallback
 
     @classmethod
-    async def create_channel(
-        cls, transport: "UnderlayConnection",
+    async def create(
+        cls, connection: aiormq.abc.AbstractConnection,
         close_callback: Callable[..., Awaitable[Any]], **kwargs: Any
     ) -> "UnderlayChannel":
         close_callback = OneShotCallback(close_callback)
 
-        await transport.connection.ready()
-        transport.connection.closing.add_done_callback(close_callback)
-        channel = await transport.connection.channel(**kwargs)
+        await connection.ready()
+        connection.closing.add_done_callback(close_callback)
+        channel = await connection.channel(**kwargs)
         channel.closing.add_done_callback(close_callback)
 
         return cls(
@@ -601,15 +600,30 @@ class UnderlayConnection(NamedTuple):
     close_callback: OneShotCallback
 
     @classmethod
+    async def make_connection(
+        cls, url: URL, timeout: TimeoutType = None, **kwargs: Any
+    ) -> aiormq.abc.AbstractConnection:
+        connection: aiormq.abc.AbstractConnection = await asyncio.wait_for(
+            aiormq.connect(url, **kwargs), timeout=timeout,
+        )
+        await connection.ready()
+        return connection
+
+    @classmethod
     async def connect(
         cls, url: URL, close_callback: Callable[..., Awaitable[Any]],
         timeout: TimeoutType = None, **kwargs: Any
     ) -> "UnderlayConnection":
-        connection: aiormq.abc.AbstractConnection = await asyncio.wait_for(
-            aiormq.connect(url, **kwargs), timeout=timeout,
-        )
-        close_callback = OneShotCallback(close_callback)
-        connection.closing.add_done_callback(close_callback)
+        try:
+            connection = await cls.make_connection(url, timeout=timeout, **kwargs)
+            close_callback = OneShotCallback(close_callback)
+            connection.closing.add_done_callback(close_callback)
+        except Exception as e:
+            closing = asyncio.get_event_loop().create_future()
+            closing.set_exception(e)
+            await close_callback(closing)
+            raise
+
         await connection.ready()
         return cls(
             connection=connection,
@@ -620,9 +634,10 @@ class UnderlayConnection(NamedTuple):
         return self.connection.ready()
 
     async def close(self, exc: Optional[aiormq.abc.ExceptionType]) -> Any:
-        result, _ = await asyncio.gather(
-            self.connection.close(exc), self.close_callback.wait(),
-        )
+        if self.close_callback.finished.is_set():
+            return
+        result = await self.connection.close(exc)
+        await self.close_callback.wait()
         return result
 
 
@@ -735,6 +750,10 @@ class AbstractRobustChannel(AbstractChannel):
 
     @abstractmethod
     def reopen(self) -> Awaitable[None]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def restore(self, connection: aiormq.abc.AbstractConnection):
         raise NotImplementedError
 
     @abstractmethod

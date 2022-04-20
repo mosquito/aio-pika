@@ -9,7 +9,7 @@ from typing import (
 
 from aiormq.tools import awaitable
 
-from aio_pika.tools import RLock, create_task
+from aio_pika.tools import create_task
 
 
 log = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ class Pool(Generic[T]):
         self.__created: int = 0
         self.__item_set: Set[PoolInstance] = set()
         self.__items: asyncio.Queue = asyncio.Queue()
-        self.__lock: RLock = RLock()
+        self.__lock: asyncio.Lock = asyncio.Lock()
         self.__max_size: Optional[int] = max_size
 
     @property

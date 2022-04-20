@@ -1,3 +1,4 @@
+import asyncio
 from logging import getLogger
 from typing import Any, Dict, Union
 
@@ -8,7 +9,6 @@ from .abc import (
     AbstractExchange, AbstractRobustExchange, ExchangeParamType, TimeoutType,
 )
 from .exchange import Exchange, ExchangeType
-from .tools import RLock
 
 
 log = getLogger(__name__)
@@ -43,19 +43,24 @@ class RobustExchange(Exchange, AbstractRobustExchange):
         )
 
         self._bindings = dict()
-        self._operation_lock = RLock()
+        self.__restore_lock = asyncio.Lock()
 
     async def restore(self, channel: aiormq.abc.AbstractChannel) -> None:
-        async with self._operation_lock:
-            self.channel = channel
+        async with self.__restore_lock:
+            try:
+                self.channel = channel
 
-            if self.name == "":
-                return
+                # special case for default exchange
+                if self.name == "":
+                    return
 
-            await self.declare()
+                await self.declare()
 
-            for exchange, kwargs in tuple(self._bindings.items()):
-                await self.bind(exchange, **kwargs)
+                for exchange, kwargs in tuple(self._bindings.items()):
+                    await self.bind(exchange, **kwargs)
+            except Exception:
+                del self.channel
+                raise
 
     async def bind(
         self,

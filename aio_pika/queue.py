@@ -16,7 +16,7 @@ from .abc import (
 from .exceptions import QueueEmpty
 from .exchange import ExchangeParamType
 from .message import IncomingMessage
-from .tools import CallbackCollection, RLock, create_task, shield, task
+from .tools import CallbackCollection, create_task, shield
 
 
 log = getLogger(__name__)
@@ -45,7 +45,6 @@ class Queue(AbstractQueue):
         passive: bool = False,
     ):
         self.__get_lock = asyncio.Lock()
-        self._operation_lock = RLock()
         self.close_callbacks = CallbackCollection(self)
         self.channel = channel
         self.name = name or ""
@@ -76,22 +75,21 @@ class Queue(AbstractQueue):
         :param passive: Only check to see if the queue exists.
         :return: :class:`None`
         """
-        async with self._operation_lock:
-            log.debug("Declaring queue: %r", self)
-            self.declaration_result = await self.channel.queue_declare(
-                queue=self.name,
-                durable=self.durable,
-                exclusive=self.exclusive,
-                auto_delete=self.auto_delete,
-                arguments=self.arguments,
-                passive=self.passive,
-                timeout=timeout,
-            )
+        log.debug("Declaring queue: %r", self)
+        self.declaration_result = await self.channel.queue_declare(
+            queue=self.name,
+            durable=self.durable,
+            exclusive=self.exclusive,
+            auto_delete=self.auto_delete,
+            arguments=self.arguments,
+            passive=self.passive,
+            timeout=timeout,
+        )
 
-            if self.declaration_result.queue is not None:
-                self.name = self.declaration_result.queue
-            else:
-                self.name = "<UNNAMED>"
+        if self.declaration_result.queue is not None:
+            self.name = self.declaration_result.queue
+        else:
+            self.name = "<UNNAMED>"
         return self.declaration_result
 
     async def bind(
@@ -123,22 +121,21 @@ class Queue(AbstractQueue):
         if routing_key is None:
             routing_key = self.name
 
-        async with self._operation_lock:
-            log.debug(
-                "Binding queue %r: exchange=%r, routing_key=%r, arguments=%r",
-                self,
-                exchange,
-                routing_key,
-                arguments,
-            )
+        log.debug(
+            "Binding queue %r: exchange=%r, routing_key=%r, arguments=%r",
+            self,
+            exchange,
+            routing_key,
+            arguments,
+        )
 
-            return await self.channel.queue_bind(
-                self.name,
-                exchange=get_exchange_name(exchange),
-                routing_key=routing_key,
-                arguments=arguments,
-                timeout=timeout,
-            )
+        return await self.channel.queue_bind(
+            self.name,
+            exchange=get_exchange_name(exchange),
+            routing_key=routing_key,
+            arguments=arguments,
+            timeout=timeout,
+        )
 
     async def unbind(
         self,
@@ -162,22 +159,21 @@ class Queue(AbstractQueue):
         if routing_key is None:
             routing_key = self.name
 
-        async with self._operation_lock:
-            log.debug(
-                "Unbinding queue %r: exchange=%r, routing_key=%r, arguments=%r",
-                self,
-                exchange,
-                routing_key,
-                arguments,
-            )
+        log.debug(
+            "Unbinding queue %r: exchange=%r, routing_key=%r, arguments=%r",
+            self,
+            exchange,
+            routing_key,
+            arguments,
+        )
 
-            return await self.channel.queue_unbind(
-                queue=self.name,
-                exchange=get_exchange_name(exchange),
-                routing_key=routing_key,
-                arguments=arguments,
-                timeout=timeout,
-            )
+        return await self.channel.queue_unbind(
+            queue=self.name,
+            exchange=get_exchange_name(exchange),
+            routing_key=routing_key,
+            arguments=arguments,
+            timeout=timeout,
+        )
 
     async def consume(
         self,
@@ -211,30 +207,29 @@ class Queue(AbstractQueue):
 
         """
 
-        async with self._operation_lock:
-            log.debug("Start to consuming queue: %r", self)
+        log.debug("Start to consuming queue: %r", self)
 
-            consume_result = await self.channel.basic_consume(
-                queue=self.name,
-                consumer_callback=partial(
-                    consumer,
-                    callback,
-                    no_ack=no_ack,
-                ),
-                exclusive=exclusive,
+        consume_result = await self.channel.basic_consume(
+            queue=self.name,
+            consumer_callback=partial(
+                consumer,
+                callback,
                 no_ack=no_ack,
-                arguments=arguments,
-                consumer_tag=consumer_tag,
-                timeout=timeout,
-            )
+            ),
+            exclusive=exclusive,
+            no_ack=no_ack,
+            arguments=arguments,
+            consumer_tag=consumer_tag,
+            timeout=timeout,
+        )
 
-            # consumer_tag property is Optional[str] in practice this check
-            # should never take place, however, it protects against the case
-            # if the `None` comes from pamqp
-            if consume_result.consumer_tag is None:
-                raise RuntimeError("Consumer tag is None")
+        # consumer_tag property is Optional[str] in practice this check
+        # should never take place, however, it protects against the case
+        # if the `None` comes from pamqp
+        if consume_result.consumer_tag is None:
+            raise RuntimeError("Consumer tag is None")
 
-            return consume_result.consumer_tag
+        return consume_result.consumer_tag
 
     async def cancel(
         self, consumer_tag: ConsumerTag,
@@ -258,10 +253,9 @@ class Queue(AbstractQueue):
         :return: Basic.CancelOk when operation completed successfully
         """
 
-        async with self._operation_lock:
-            return await self.channel.basic_cancel(
-                consumer_tag=consumer_tag, nowait=nowait, timeout=timeout,
-            )
+        return await self.channel.basic_cancel(
+            consumer_tag=consumer_tag, nowait=nowait, timeout=timeout,
+        )
 
     async def get(
         self, *, no_ack: bool = False,
@@ -278,10 +272,9 @@ class Queue(AbstractQueue):
         :return: :class:`aio_pika.message.IncomingMessage`
         """
 
-        async with self._operation_lock:
-            msg: DeliveredMessage = await self.channel.basic_get(
-                self.name, no_ack=no_ack, timeout=timeout,
-            )
+        msg: DeliveredMessage = await self.channel.basic_get(
+            self.name, no_ack=no_ack, timeout=timeout,
+        )
 
         if isinstance(msg.delivery, aiormq.spec.Basic.GetEmpty):
             if fail:
@@ -300,12 +293,11 @@ class Queue(AbstractQueue):
         :return: :class:`None`
         """
 
-        async with self._operation_lock:
-            log.info("Purging queue: %r", self)
+        log.info("Purging queue: %r", self)
 
-            return await self.channel.queue_purge(
-                self.name, nowait=no_wait, timeout=timeout,
-            )
+        return await self.channel.queue_purge(
+            self.name, nowait=no_wait, timeout=timeout,
+        )
 
     async def delete(
         self, *, if_unused: bool = True,
@@ -320,15 +312,14 @@ class Queue(AbstractQueue):
         :return: :class:`None`
         """
 
-        async with self._operation_lock:
-            log.info("Deleting %r", self)
+        log.info("Deleting %r", self)
 
-            return await self.channel.queue_delete(
-                self.name,
-                if_unused=if_unused,
-                if_empty=if_empty,
-                timeout=timeout,
-            )
+        return await self.channel.queue_delete(
+            self.name,
+            if_unused=if_unused,
+            if_empty=if_empty,
+            timeout=timeout,
+        )
 
     def __aiter__(self) -> "AbstractQueueIterator":
         return self.iterator()
@@ -387,7 +378,6 @@ class QueueIterator(AbstractQueueIterator):
     def consumer_tag(self) -> Optional[ConsumerTag]:
         return getattr(self, "_consumer_tag", None)
 
-    @task
     async def close(self, *_: Any) -> Any:
         log.debug("Cancelling queue iterator %r", self)
 

@@ -1,5 +1,4 @@
 import asyncio
-import gc
 from functools import partial
 
 import pytest

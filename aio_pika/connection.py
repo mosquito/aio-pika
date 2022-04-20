@@ -12,7 +12,7 @@ from .abc import (
     AbstractChannel, AbstractConnection, TimeoutType, UnderlayConnection,
 )
 from .channel import Channel
-from .tools import CallbackCollection, RLock
+from .tools import CallbackCollection
 
 
 log = logging.getLogger(__name__)
@@ -34,12 +34,12 @@ class Connection(AbstractConnection):
     async def close(
         self, exc: Optional[aiormq.abc.ExceptionType] = asyncio.CancelledError,
     ) -> None:
-        async with self._operation_lock:
-            self._closed = True
-            transport, self.transport = self.transport, None
-            if not transport:
-                return
-            await transport.close(exc)
+        transport, self.transport = self.transport, None
+        self._close_called = True
+        if not transport:
+            return
+        await transport.close(exc)
+        self._closed = True
 
     @classmethod
     def _parse_kwargs(cls, kwargs: Dict[str, Any]) -> Dict[str, Any]:
@@ -53,8 +53,9 @@ class Connection(AbstractConnection):
         **kwargs: Any
     ):
         self.loop = loop or asyncio.get_event_loop()
-        self._operation_lock = RLock()
+        self.transport = None
         self._closed = False
+        self._close_called = False
 
         self.url = URL(url)
 
@@ -75,6 +76,9 @@ class Connection(AbstractConnection):
         self.connected.clear()
         await self.close_callbacks(exc)
 
+    async def _on_connected(self, transport: UnderlayConnection) -> None:
+        self.connected.set()
+
     async def connect(self, timeout: TimeoutType = None) -> None:
         """ Connect to AMQP server. This method should be called after
         :func:`aio_pika.connection.Connection.__init__`
@@ -84,12 +88,12 @@ class Connection(AbstractConnection):
             You shouldn't call it explicitly.
 
         """
-        async with self._operation_lock:
-            self.transport = await UnderlayConnection.connect(
-                self.url, self._on_connection_close,
-                timeout=timeout, **self.kwargs
-            )
-            self.connected.set()
+        transport = await UnderlayConnection.connect(
+            self.url, self._on_connection_close,
+            timeout=timeout, **self.kwargs
+        )
+        await self._on_connected(transport)
+        self.transport = transport
 
     def channel(
         self,
@@ -156,7 +160,7 @@ class Connection(AbstractConnection):
         log.debug("Creating AMQP channel for connection: %r", self)
 
         channel = self.CHANNEL_CLASS(
-            transport=self.transport,
+            connection=self.transport.connection,
             channel_number=channel_number,
             publisher_confirms=publisher_confirms,
             on_return_raises=on_return_raises,
@@ -209,6 +213,9 @@ def make_url(
 
     kw = kwargs
     kw.update(ssl_options or {})
+
+    # sanitize keywords
+    kw = {k: v for k, v in kw.items() if v is not None}
 
     return URL.build(
         scheme="amqps" if ssl else "amqp",

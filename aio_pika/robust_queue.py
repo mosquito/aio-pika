@@ -6,12 +6,11 @@ import aiormq
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractExchange, AbstractIncomingMessage,
-    AbstractRobustChannel, AbstractRobustQueue, ConsumerTag, TimeoutType,
+    AbstractExchange, AbstractIncomingMessage, AbstractRobustQueue, ConsumerTag,
+    TimeoutType,
 )
 from .exchange import ExchangeParamType
 from .queue import Queue
-from .tools import RLock
 
 
 log = logging.getLogger(__name__)
@@ -51,10 +50,9 @@ class RobustQueue(Queue, AbstractRobustQueue):
 
         self._consumers = {}
         self._bindings = {}
-        self._operation_lock = RLock()
 
     async def restore(self, channel: aiormq.abc.AbstractChannel) -> None:
-        async with self._operation_lock:
+        try:
             self.channel = channel
 
             await self.declare()
@@ -66,6 +64,9 @@ class RobustQueue(Queue, AbstractRobustQueue):
 
             for consumer_tag, kwargs in consumers:
                 await self.consume(consumer_tag=consumer_tag, **kwargs)
+        except Exception:
+            del self.channel
+            raise
 
     async def bind(
         self,

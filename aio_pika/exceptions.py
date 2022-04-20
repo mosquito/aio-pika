@@ -16,6 +16,7 @@ CONNECTION_EXCEPTIONS = (
     ConnectionError,
     OSError,
     RuntimeError,
+    StopAsyncIteration,
     pamqp.exceptions.PAMQPException,
 )
 
