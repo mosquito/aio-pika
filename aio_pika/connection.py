@@ -166,8 +166,8 @@ class Connection(AbstractConnection):
                 await channel42.close()
 
                 # For working with transactions
-                channel_no_confirms = connection.channel(
-                    publisher_confirms=True
+                channel_no_confirms = await connection.channel(
+                    publisher_confirms=False
                 )
                 await channel_no_confirms.close()
 

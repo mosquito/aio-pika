@@ -389,6 +389,10 @@ class Queue(AbstractQueue):
 class QueueIterator(AbstractQueueIterator):
     DEFAULT_CLOSE_TIMEOUT = 5
 
+    @property
+    def consumer_tag(self) -> Optional[ConsumerTag]:
+        return getattr(self, "_consumer_tag", None)
+
     @task
     async def close(self, *_: Any) -> Any:
         log.debug("Cancelling queue iterator %r", self)
@@ -401,7 +405,7 @@ class QueueIterator(AbstractQueueIterator):
             log.debug("Queue iterator %r channel closed", self)
             return
 
-        log.debug("Basic.cancel for %r", self._consumer_tag)
+        log.debug("Basic.cancel for %r", self.consumer_tag)
         consumer_tag = self._consumer_tag
         del self._consumer_tag
 
@@ -430,7 +434,7 @@ class QueueIterator(AbstractQueueIterator):
         return (
             f"<{self.__class__.__name__}: "
             f"queue={self._amqp_queue.name!r} "
-            f"ctag={self._consumer_tag!r}>"
+            f"ctag={self.consumer_tag!r}>"
         )
 
     def __init__(self, queue: Queue, **kwargs: Any):
