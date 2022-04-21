@@ -287,7 +287,7 @@ class RPC(Base):
         await message.ack()
 
     def serialize_exception(self, exception: Exception) -> Any:
-        """ Serialize python exception to bytes """
+        """ Make python exception serializable """
         return exception
 
     async def execute(self, func: CallbackType, payload: Dict[str, Any]) -> T:
