@@ -39,7 +39,6 @@ class Base:
         You should overlap this method when you want to change serializer
 
         :param data: Data which will be serialized
-        :returns: bytes
         """
         return self.SERIALIZER.dumps(data)
 
@@ -49,6 +48,5 @@ class Base:
         You should overlap this method when you want to change serializer
 
         :param data: Data which will be deserialized
-        :returns: :class:`Any`
         """
         return self.SERIALIZER.loads(data)
