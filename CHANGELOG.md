@@ -1,3 +1,13 @@
+7.2.0
+-----
+
+* Make `aio_pika.patterns.rpc` more extedable.
+
+7.1.0
+-----
+
+* Fixes in documentation 
+
 7.0.0
 -----
 
