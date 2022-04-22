@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from functools import wraps
 from itertools import chain
 from threading import Lock
 from typing import (
@@ -62,14 +61,6 @@ def create_task(
     future = loop.create_future()
     loop.call_soon(run, future)
     return future
-
-
-def shield(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
-    @wraps(func)
-    def wrap(*args: Any, **kwargs: Any) -> Awaitable[T]:
-        return asyncio.shield(func(*args, **kwargs))
-
-    return wrap
 
 
 CallbackType = Callable[..., Union[T, Awaitable[T]]]
@@ -200,25 +191,30 @@ class CallbackCollection(MutableSet):
 
 
 class OneShotCallback:
-    __slots__ = ("loop", "finished", "__lock", "callback")
+    __slots__ = ("loop", "finished", "__lock", "callback", "__task")
 
     def __init__(self, callback: Callable[..., Awaitable[T]]):
         self.callback: Callable[..., Awaitable[T]] = callback
         self.loop = asyncio.get_event_loop()
         self.finished: asyncio.Event = asyncio.Event()
         self.__lock: asyncio.Lock = asyncio.Lock()
+        self.__task: asyncio.Future
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}: cb={self.callback!r}>"
 
     def wait(self) -> Awaitable[Any]:
-        return self.finished.wait()
+        try:
+            return self.finished.wait()
+        except asyncio.CancelledError:
+            self.__task.cancel()
+            raise
 
-    async def __closer(self, *args: Any, **kwargs: Any) -> None:
+    async def __task_inner(self, *args: Any, **kwargs: Any) -> None:
         async with self.__lock:
             if self.finished.is_set():
-                await self.finished.wait()
                 return
+
             try:
                 await self.callback(*args, **kwargs)
             finally:
@@ -228,7 +224,10 @@ class OneShotCallback:
     def __call__(self, *args: Any, **kwargs: Any) -> Awaitable[Any]:
         if self.finished.is_set():
             return STUB_AWAITABLE
-        return self.loop.create_task(self.__closer(*args, **kwargs))
+        self.__task = self.loop.create_task(
+            self.__task_inner(*args, **kwargs)
+        )
+        return self.__task
 
 
 __all__ = (
@@ -238,5 +237,4 @@ __all__ = (
     "OneShotCallback",
     "create_task",
     "iscoroutinepartial",
-    "shield",
 )

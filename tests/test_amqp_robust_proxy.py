@@ -451,7 +451,9 @@ async def test_channel_reconnect(
 
 
 @aiomisc.timeout(15)
-@pytest.mark.parametrize("reconnect_timeout", ["0", "1", "0.5", "0.1"])
+@pytest.mark.parametrize("reconnect_timeout", [
+    "0", "1", "0.5", "0.1", "0.05", "0.025"
+])
 async def test_channel_reconnect_after_5kb(
     reconnect_timeout,
     amqp_url,
@@ -519,7 +521,7 @@ async def test_channel_reconnect_after_5kb(
 @aiomisc.timeout(30)
 @pytest.mark.parametrize(
     "reconnect_timeout,stair",
-    list(itertools.product(["0.1", "0"], [64, 128, 256, 512]))
+    list(itertools.product(["0.1", "0"], [48, 64, 128, 256, 512]))
 )
 async def test_channel_reconnect_stairway(
     reconnect_timeout,

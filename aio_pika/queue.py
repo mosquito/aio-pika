@@ -16,7 +16,7 @@ from .abc import (
 from .exceptions import QueueEmpty
 from .exchange import ExchangeParamType
 from .message import IncomingMessage
-from .tools import CallbackCollection, create_task, shield
+from .tools import CallbackCollection, create_task
 
 
 log = getLogger(__name__)
@@ -440,7 +440,6 @@ class QueueIterator(AbstractQueueIterator):
     def __aiter__(self) -> "AbstractQueueIterator":
         return self
 
-    @shield
     async def __aenter__(self) -> "AbstractQueueIterator":
         if not hasattr(self, "_consumer_tag"):
             await self.consume()

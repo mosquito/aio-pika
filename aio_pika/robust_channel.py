@@ -69,10 +69,8 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
     async def __close_callback(self, *_: Any) -> None:
         if self._closed or self._connection.is_closed:
             return
-        await self.reopen()
 
-    async def reopen(self) -> None:
-        await super().reopen()
+        await self.reopen()
 
     async def restore(self, connection: aiormq.abc.AbstractConnection) -> None:
         async with self.__restore_lock:

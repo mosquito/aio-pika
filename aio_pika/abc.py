@@ -445,10 +445,8 @@ class UnderlayChannel(NamedTuple):
         if self.close_callback.finished.is_set():
             return
 
-        result: Any
-        result, _ = await asyncio.gather(
-            self.channel.close(exc), self.close_callback.wait(),
-        )
+        result: Any = await self.channel.close(exc)
+        await self.close_callback.wait()
         return result
 
 
@@ -458,8 +456,6 @@ class AbstractChannel(PoolInstance, ABC):
 
     close_callbacks: CallbackCollection
     return_callbacks: CallbackCollection
-    ready: asyncio.Event
-    loop: asyncio.AbstractEventLoop
     default_exchange: AbstractExchange
 
     publisher_confirms: bool
@@ -615,7 +611,9 @@ class UnderlayConnection(NamedTuple):
         timeout: TimeoutType = None, **kwargs: Any
     ) -> "UnderlayConnection":
         try:
-            connection = await cls.make_connection(url, timeout=timeout, **kwargs)
+            connection = await cls.make_connection(
+                url, timeout=timeout, **kwargs
+            )
             close_callback = OneShotCallback(close_callback)
             connection.closing.add_done_callback(close_callback)
         except Exception as e:
@@ -636,13 +634,15 @@ class UnderlayConnection(NamedTuple):
     async def close(self, exc: Optional[aiormq.abc.ExceptionType]) -> Any:
         if self.close_callback.finished.is_set():
             return
-        result = await self.connection.close(exc)
-        await self.close_callback.wait()
-        return result
+        try:
+            return await self.connection.close(exc)
+        except asyncio.CancelledError:
+            raise
+        finally:
+            await self.close_callback.wait()
 
 
 class AbstractConnection(PoolInstance, ABC):
-    loop: asyncio.AbstractEventLoop
     close_callbacks: CallbackCollection
     connected: asyncio.Event
     transport: Optional[UnderlayConnection]

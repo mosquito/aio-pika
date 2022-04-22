@@ -81,10 +81,12 @@ class RobustConnection(Connection, AbstractRobustConnection):
                 except Exception:
                     log.exception("Failed to reopen channel")
                     raise
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             closing = self.loop.create_future()
             closing.set_exception(e)
-            await self._on_connection_close(closing)
+            await self.close_callbacks(closing)
             await connection.close(e)
             raise
         return connection

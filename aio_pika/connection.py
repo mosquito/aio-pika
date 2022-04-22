@@ -180,7 +180,7 @@ class Connection(AbstractConnection):
         ):
             return
 
-        asyncio.shield(self.close())
+        asyncio.ensure_future(self.close())
 
     async def __aenter__(self) -> "Connection":
         return self
@@ -245,7 +245,6 @@ async def connect(
     connection_class: Type[AbstractConnection] = Connection,
     **kwargs: Any
 ) -> AbstractConnection:
-
     """ Make connection to the broker.
 
     Example:
