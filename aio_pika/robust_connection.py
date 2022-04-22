@@ -87,7 +87,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
             closing = self.loop.create_future()
             closing.set_exception(e)
             await self.close_callbacks(closing)
-            await connection.close(e)
+            await asyncio.gather(connection.close(e), return_exceptions=True)
             raise
         return connection
 

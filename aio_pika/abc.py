@@ -753,7 +753,7 @@ class AbstractRobustChannel(AbstractChannel):
         raise NotImplementedError
 
     @abstractmethod
-    def restore(self, connection: aiormq.abc.AbstractConnection):
+    async def restore(self, connection: aiormq.abc.AbstractConnection) -> None:
         raise NotImplementedError
 
     @abstractmethod
