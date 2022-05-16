@@ -7,11 +7,12 @@ from aiormq import ChannelInvalidStateError
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractExchange, AbstractIncomingMessage, AbstractRobustQueue, ConsumerTag,
-    TimeoutType, AbstractQueueIterator,
+    AbstractExchange, AbstractIncomingMessage, AbstractQueueIterator,
+    AbstractRobustQueue, ConsumerTag, TimeoutType,
 )
 from .exchange import ExchangeParamType
 from .queue import Queue, QueueIterator
+
 
 log = logging.getLogger(__name__)
 

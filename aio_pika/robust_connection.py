@@ -68,7 +68,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
         await self.reconnect()
 
     async def __connection_attempt(
-        self, timeout: TimeoutType = None
+        self, timeout: TimeoutType = None,
     ) -> aiormq.abc.AbstractConnection:
         connection = await UnderlayConnection.make_connection(
             self.url, timeout=timeout, **self.kwargs

@@ -445,15 +445,17 @@ async def test_channel_reconnect(
                 with proxy.slowdown(1, 1):
                     await channel.set_qos(0, timeout=0.5)
 
-            await on_reconnect.wait()
+            await asyncio.sleep(1)
             await channel.set_qos(0)
             await channel.set_qos(1)
 
 
 @aiomisc.timeout(15)
-@pytest.mark.parametrize("reconnect_timeout", [
-    "0", "1", "0.5", "0.1", "0.05", "0.025"
-])
+@pytest.mark.parametrize(
+    "reconnect_timeout", [
+        "0", "1", "0.5", "0.1", "0.05", "0.025",
+    ],
+)
 async def test_channel_reconnect_after_5kb(
     reconnect_timeout,
     amqp_url,
@@ -521,7 +523,7 @@ async def test_channel_reconnect_after_5kb(
 @aiomisc.timeout(30)
 @pytest.mark.parametrize(
     "reconnect_timeout,stair",
-    list(itertools.product(["0.1", "0"], [48, 64, 128, 256, 512]))
+    list(itertools.product(["0.1", "0"], [48, 64, 128, 256, 512])),
 )
 async def test_channel_reconnect_stairway(
     reconnect_timeout,

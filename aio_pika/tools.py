@@ -225,7 +225,7 @@ class OneShotCallback:
         if self.finished.is_set():
             return STUB_AWAITABLE
         self.__task = self.loop.create_task(
-            self.__task_inner(*args, **kwargs)
+            self.__task_inner(*args, **kwargs),
         )
         return self.__task
 
