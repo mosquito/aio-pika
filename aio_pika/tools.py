@@ -45,7 +45,7 @@ def create_task(
     loop = loop or asyncio.get_event_loop()
 
     if iscoroutinepartial(func):
-        return loop.create_task(func(*args, **kwargs))
+        return loop.create_task(func(*args, **kwargs))      # type: ignore
 
     def run(future: asyncio.Future) -> Optional[asyncio.Future]:
         if future.done():

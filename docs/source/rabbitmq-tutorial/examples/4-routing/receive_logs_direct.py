@@ -5,7 +5,7 @@ from aio_pika import ExchangeType, connect
 from aio_pika.abc import AbstractIncomingMessage
 
 
-def on_message(message: AbstractIncomingMessage) -> None:
+async def on_message(message: AbstractIncomingMessage) -> None:
     async with message.process():
         print(" [x] %r:%r" % (message.routing_key, message.body))
 
