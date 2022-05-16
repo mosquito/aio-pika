@@ -154,6 +154,7 @@ class Channel(ChannelContext):
 
         await self._on_open(channel.channel)
         self._channel = channel
+        self._closed = False
 
     async def initialize(self, timeout: TimeoutType = None) -> None:
         if self.is_initialized:
@@ -187,8 +188,6 @@ class Channel(ChannelContext):
 
     async def reopen(self) -> None:
         log.debug("Start reopening channel %r", self)
-        self._closed = False
-        log.debug("Reopening channel %r", self)
         await self._open()
 
     def __del__(self) -> None:

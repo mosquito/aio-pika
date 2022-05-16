@@ -420,12 +420,39 @@ async def test_robust_duplicate_queue(
 
 
 @aiomisc.timeout(10)
+async def test_channel_restore(
+    connection_fabric, loop, amqp_url, proxy: TCPProxy, add_cleanup: Callable,
+):
+    heartbeat = 10
+    amqp_url = amqp_url.update_query(heartbeat=heartbeat)
+
+    on_reopen = asyncio.Event()
+
+    conn = await connection_fabric(amqp_url, loop=loop)
+    assert isinstance(conn, aio_pika.RobustConnection)
+
+    async with conn:
+        channel = await conn.channel()
+        channel.reopen_callbacks.add(lambda *_: on_reopen.set(), weak=False)
+        assert isinstance(channel, aio_pika.RobustChannel)
+
+        async with channel:
+            await channel.set_qos(0)
+            await channel.set_qos(1)
+
+            with pytest.raises(asyncio.TimeoutError):
+                with proxy.slowdown(1, 1):
+                    await channel.set_qos(0, timeout=0.5)
+
+            await on_reopen.wait()
+            await channel.set_qos(0)
+            await channel.set_qos(1)
+
+
+@aiomisc.timeout(20)
 async def test_channel_reconnect(
     connection_fabric, loop, amqp_url, proxy: TCPProxy, add_cleanup: Callable,
 ):
-    heartbeat = 2
-    amqp_url = amqp_url.update_query(heartbeat=heartbeat)
-
     on_reconnect = asyncio.Event()
 
     conn = await connection_fabric(amqp_url, loop=loop)
@@ -441,11 +468,9 @@ async def test_channel_reconnect(
             await channel.set_qos(0)
             await channel.set_qos(1)
 
-            with pytest.raises(asyncio.TimeoutError):
-                with proxy.slowdown(1, 1):
-                    await channel.set_qos(0, timeout=0.5)
+            await proxy.disconnect_all()
 
-            await asyncio.sleep(1)
+            await on_reconnect.wait()
             await channel.set_qos(0)
             await channel.set_qos(1)
 

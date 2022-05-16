@@ -77,6 +77,10 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
             self._connection = connection
             await self.reopen()
 
+    async def _open(self) -> None:
+        await super()._open()
+        await self.reopen_callbacks()
+
     async def _on_open(self, channel: aiormq.abc.AbstractChannel) -> None:
         if not hasattr(self, "default_exchange"):
             await super()._on_open(channel)
@@ -97,8 +101,6 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
 
         if hasattr(self, "default_exchange"):
             self.default_exchange.channel = channel
-
-        await self.reopen_callbacks()
 
     async def set_qos(
         self,
