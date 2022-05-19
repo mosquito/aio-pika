@@ -82,6 +82,8 @@ class RobustConnection(Connection, AbstractRobustConnection):
                     log.exception("Failed to reopen channel")
                     raise
         except asyncio.CancelledError:
+            # In python 3.7 asyncio.CancelledError inherited
+            # from Exception and this needed for catch it first
             raise
         except Exception as e:
             closing = self.loop.create_future()
@@ -136,8 +138,6 @@ class RobustConnection(Connection, AbstractRobustConnection):
                         e,
                         self.reconnect_interval,
                     )
-                except asyncio.CancelledError:
-                    raise
 
                 log.info(
                     "Reconnect attempt failed %s. Retrying after %r seconds.",

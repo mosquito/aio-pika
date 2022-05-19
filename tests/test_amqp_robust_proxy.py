@@ -544,7 +544,6 @@ async def test_channel_reconnect_after_5kb(
     await direct_connection.close()
 
 
-# @pytest.mark.skip(reason="Temporary skip")
 @aiomisc.timeout(30)
 @pytest.mark.parametrize(
     "reconnect_timeout,stair",
