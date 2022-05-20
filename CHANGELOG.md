@@ -36,14 +36,14 @@ recovery after network failures.
 * Removed explicit relations between `aio_pika.Channel`
   and `aio_pika.Connection`. Now you can't get a `aio_pika.Connection`
   instance from the `aio_pika.Channel` instance.
-* Fixed an error in which the whole connection was closed when a timeout
+* Fixed a bug that caused the whole connection was closed when a timeout
   occurred in one of the channels, in case the channel was waiting for a
   response frame to an amqp-rpc call.
 * Removed deprecated `add_close_callback` and `remove_close_callback` methods
   in `aio_pika.Channel`.
   Use `aio_pika.Channel.close_callbacks.add(callback, ...)` and
   `aio_pika.Channel.close_callbacks.remove(callback, ...)` instead.
-* Fixed a bug in `aio_pika.RobustChannel` where `default_exchane` could be
+* Fixed a bug in `aio_pika.RobustChannel` that caused `default_exchane`
   broken after reconnecting.
 * The `publisher_confirms` property of `aio_pika.Channel` is public now.
 * Function `get_exchange_name` is public now.
