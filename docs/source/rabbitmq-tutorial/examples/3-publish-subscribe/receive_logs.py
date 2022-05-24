@@ -28,7 +28,7 @@ async def main() -> None:
         # Binding the queue to the exchange
         await queue.bind(logs_exchange)
 
-        # Start listening the queue with name 'task_queue'
+        # Start listening the queue
         await queue.consume(on_message)
 
         print(" [*] Waiting for logs. To exit press CTRL+C")
