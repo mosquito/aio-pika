@@ -140,7 +140,7 @@ class Pool(Generic[T]):
         if self.__closed:
             return
 
-        await asyncio.shield(self.close())
+        await asyncio.ensure_future(self.close())
 
 
 class PoolItemContextManager(Generic[T], AsyncContextManager):

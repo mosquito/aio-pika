@@ -16,6 +16,7 @@ CONNECTION_EXCEPTIONS = (
     ConnectionError,
     OSError,
     RuntimeError,
+    StopAsyncIteration,
     pamqp.exceptions.PAMQPException,
 )
 
@@ -34,11 +35,13 @@ __all__ = (
     "AMQPError",
     "AMQPException",
     "AuthenticationError",
+    "CONNECTION_EXCEPTIONS",
     "ChannelClosed",
     "ChannelInvalidStateError",
+    "ChannelNotFoundEntity",
+    "ChannelPreconditionFailed",
     "ConnectionClosed",
     "DeliveryError",
-    "PublishError",
     "DuplicateConsumerTag",
     "IncompatibleProtocolError",
     "InvalidFrameError",
@@ -46,7 +49,6 @@ __all__ = (
     "MethodNotImplemented",
     "ProbableAuthenticationError",
     "ProtocolSyntaxError",
+    "PublishError",
     "QueueEmpty",
-    "ChannelPreconditionFailed",
-    "ChannelNotFoundEntity",
 )

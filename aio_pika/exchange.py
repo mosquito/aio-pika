@@ -5,8 +5,8 @@ import aiormq
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractConnection, AbstractExchange, AbstractMessage,
-    ExchangeParamType, ExchangeType, TimeoutType,
+    AbstractExchange, AbstractMessage, ExchangeParamType, ExchangeType,
+    TimeoutType, get_exchange_name,
 )
 
 
@@ -15,12 +15,11 @@ log = getLogger(__name__)
 
 class Exchange(AbstractExchange):
     """ Exchange abstraction """
-    _channel: AbstractChannel
+    channel: aiormq.abc.AbstractChannel
 
     def __init__(
         self,
-        connection: AbstractConnection,
-        channel: AbstractChannel,
+        channel: aiormq.abc.AbstractChannel,
         name: str,
         type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         *,
@@ -30,25 +29,14 @@ class Exchange(AbstractExchange):
         passive: bool = False,
         arguments: Arguments = None
     ):
-        if not arguments:
-            arguments = {}
-
-        self.connection = connection
-        self._channel = channel
-        self.__type = type.value if isinstance(type, ExchangeType) else type
+        self._type = type.value if isinstance(type, ExchangeType) else type
+        self.channel = channel
         self.name = name
         self.auto_delete = auto_delete
         self.durable = durable
         self.internal = internal
         self.passive = passive
-        self.arguments = arguments
-
-    @property
-    def channel(self) -> AbstractChannel:
-        if self._channel is None:
-            raise RuntimeError("Channel not opened")
-
-        return self._channel
+        self.arguments = arguments or {}
 
     def __str__(self) -> str:
         return self.name
@@ -64,9 +52,9 @@ class Exchange(AbstractExchange):
     async def declare(
         self, timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.DeclareOk:
-        return await self.channel.channel.exchange_declare(
+        return await self.channel.exchange_declare(
             self.name,
-            exchange_type=self.__type,
+            exchange_type=self._type,
             durable=self.durable,
             auto_delete=self.auto_delete,
             internal=self.internal,
@@ -74,17 +62,6 @@ class Exchange(AbstractExchange):
             arguments=self.arguments,
             timeout=timeout,
         )
-
-    @staticmethod
-    def _get_exchange_name(exchange: ExchangeParamType) -> str:
-        if isinstance(exchange, Exchange):
-            return exchange.name
-        elif isinstance(exchange, str):
-            return exchange
-        else:
-            raise ValueError(
-                "exchange argument must be an exchange instance or str",
-            )
 
     async def bind(
         self,
@@ -137,11 +114,11 @@ class Exchange(AbstractExchange):
             arguments,
         )
 
-        return await self.channel.channel.exchange_bind(
+        return await self.channel.exchange_bind(
             arguments=arguments,
             destination=self.name,
             routing_key=routing_key,
-            source=self._get_exchange_name(exchange),
+            source=get_exchange_name(exchange),
             timeout=timeout,
         )
 
@@ -172,11 +149,11 @@ class Exchange(AbstractExchange):
             arguments,
         )
 
-        return await self.channel.channel.exchange_unbind(
+        return await self.channel.exchange_unbind(
             arguments=arguments,
             destination=self.name,
             routing_key=routing_key,
-            source=self._get_exchange_name(exchange),
+            source=get_exchange_name(exchange),
             timeout=timeout,
         )
 
@@ -210,7 +187,7 @@ class Exchange(AbstractExchange):
                 "Can not publish to internal exchange: '%s'!" % self.name,
             )
 
-        return await self.channel.channel.basic_publish(
+        return await self.channel.basic_publish(
             exchange=self.name,
             routing_key=routing_key,
             body=message.body,
@@ -231,7 +208,7 @@ class Exchange(AbstractExchange):
         """
 
         log.info("Deleting %r", self)
-        return await self.channel.channel.exchange_delete(
+        return await self.channel.exchange_delete(
             self.name, if_unused=if_unused, timeout=timeout,
         )
 

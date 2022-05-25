@@ -1,21 +1,15 @@
 import asyncio
 import logging
-from functools import partial
 from types import TracebackType
 from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
-from warnings import warn
 
-import aiormq
 import aiormq.abc
 from aiormq.tools import censor_url
 from pamqp.common import FieldTable
 from yarl import URL
 
-# This needed only for migration from 6.x to 7.x
-# TODO: Remove this in 8.x release
-from .abc import ConnectionType  # noqa
 from .abc import (
-    AbstractChannel, AbstractConnection, ConnectionCloseCallback, TimeoutType,
+    AbstractChannel, AbstractConnection, TimeoutType, UnderlayConnection,
 )
 from .channel import Channel
 from .tools import CallbackCollection
@@ -31,23 +25,21 @@ class Connection(AbstractConnection):
     CHANNEL_CLASS: Type[Channel] = Channel
     KWARGS_TYPES: Tuple[Tuple[str, Callable[[str], Any], str], ...] = ()
 
+    _closed: bool
+
     @property
     def is_closed(self) -> bool:
-        return self.closing.done()
+        return self._closed
 
     async def close(
         self, exc: Optional[aiormq.abc.ExceptionType] = asyncio.CancelledError,
     ) -> None:
-        if not self.closing.done():
-            self.closing.set_result(exc)
-
-        if not hasattr(self, "connection"):
-            return None
-
-        await self.connection.close(exc)
-
-        if hasattr(self, "connection"):
-            del self.connection
+        transport, self.transport = self.transport, None
+        self._close_called = True
+        if not transport:
+            return
+        await transport.close(exc)
+        self._closed = True
 
     @classmethod
     def _parse_kwargs(cls, kwargs: Dict[str, Any]) -> Dict[str, Any]:
@@ -60,19 +52,18 @@ class Connection(AbstractConnection):
         self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None,
         **kwargs: Any
     ):
-        super().__init__(url, loop, **kwargs)
-
         self.loop = loop or asyncio.get_event_loop()
+        self.transport = None
+        self._closed = False
+        self._close_called = False
+
         self.url = URL(url)
 
         self.kwargs: Dict[str, Any] = self._parse_kwargs(
             kwargs or dict(self.url.query),
         )
-
-        self.connection: aiormq.abc.AbstractConnection
         self.close_callbacks = CallbackCollection(self)
         self.connected: asyncio.Event = asyncio.Event()
-        self.closing: asyncio.Future = self.loop.create_future()
 
     def __str__(self) -> str:
         return str(censor_url(self.url))
@@ -80,49 +71,15 @@ class Connection(AbstractConnection):
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}: "{self}">'
 
-    def add_close_callback(
-        self, callback: ConnectionCloseCallback, weak: bool = False,
-    ) -> None:
-        warn(
-            "This method will be removed from future release. "
-            f"Use {self.__class__.__name__}.close_callbacks.add instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.close_callbacks.add(callback, weak=weak)
-
-    def _on_connection_close(
-        self, connection: aiormq.abc.AbstractConnection,
-        closing: asyncio.Future,
-    ) -> None:
-        log.debug("Closing AMQP connection %r", connection)
+    async def _on_connection_close(self, closing: asyncio.Future) -> None:
         exc: Optional[BaseException] = closing.exception()
-        self.close_callbacks(exc)
+        self.connected.clear()
+        await self.close_callbacks(exc)
 
-        if self.closing.done():
-            return
+    async def _on_connected(self, transport: UnderlayConnection) -> None:
+        self.connected.set()
 
-        if exc is not None:
-            self.closing.set_exception(exc)
-            return
-
-        self.closing.set_result(closing.result())
-
-    async def _make_connection(
-        self, *, timeout: TimeoutType = None, **kwargs: Any
-    ) -> aiormq.abc.AbstractConnection:
-        connection: aiormq.abc.AbstractConnection = await asyncio.wait_for(
-            aiormq.connect(self.url, **kwargs), timeout=timeout,
-        )
-        connection.closing.add_done_callback(
-            partial(self._on_connection_close, connection),
-        )
-        await connection.ready()
-        return connection
-
-    async def connect(
-        self, timeout: TimeoutType = None, **kwargs: Any
-    ) -> None:
+    async def connect(self, timeout: TimeoutType = None) -> None:
         """ Connect to AMQP server. This method should be called after
         :func:`aio_pika.connection.Connection.__init__`
 
@@ -131,13 +88,12 @@ class Connection(AbstractConnection):
             You shouldn't call it explicitly.
 
         """
-        self.connection = (
-            await self._make_connection(timeout=timeout, **kwargs)
+        transport = await UnderlayConnection.connect(
+            self.url, self._on_connection_close,
+            timeout=timeout, **self.kwargs
         )
-        self.connected.set()
-        self.connection.closing.add_done_callback(
-            lambda _: self.connected.clear(),
-        )
+        await self._on_connected(transport)
+        self.transport = transport
 
     def channel(
         self,
@@ -198,10 +154,13 @@ class Connection(AbstractConnection):
             when mandatory message will be returned
         """
 
+        if not self.transport:
+            raise RuntimeError("Connection was not opened")
+
         log.debug("Creating AMQP channel for connection: %r", self)
 
         channel = self.CHANNEL_CLASS(
-            connection=self,
+            connection=self.transport.connection,
             channel_number=channel_number,
             publisher_confirms=publisher_confirms,
             on_return_raises=on_return_raises,
@@ -221,7 +180,7 @@ class Connection(AbstractConnection):
         ):
             return
 
-        asyncio.shield(self.close())
+        asyncio.ensure_future(self.close())
 
     async def __aenter__(self) -> "Connection":
         return self
@@ -255,6 +214,9 @@ def make_url(
     kw = kwargs
     kw.update(ssl_options or {})
 
+    # sanitize keywords
+    kw = {k: v for k, v in kw.items() if v is not None}
+
     return URL.build(
         scheme="amqps" if ssl else "amqp",
         host=host,
@@ -283,7 +245,6 @@ async def connect(
     connection_class: Type[AbstractConnection] = Connection,
     **kwargs: Any
 ) -> AbstractConnection:
-
     """ Make connection to the broker.
 
     Example:
@@ -374,18 +335,14 @@ async def connect(
             virtualhost=virtualhost,
             ssl=ssl,
             ssl_options=ssl_options,
+            client_properties=client_properties,
             **kwargs
         ),
         loop=loop,
     )
 
-    await connection.connect(
-        timeout=timeout,
-        client_properties=client_properties,
-        loop=loop,
-    )
-
+    await connection.connect(timeout=timeout)
     return connection
 
 
-__all__ = ("connect", "Connection")
+__all__ = ("connect", "Connection", "make_url")

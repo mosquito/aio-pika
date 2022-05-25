@@ -3,17 +3,15 @@ from random import getrandbits
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import aiormq
+from aiormq import ChannelInvalidStateError
 from pamqp.common import Arguments
 
-# This needed only for migration from 6.x to 7.x
-# TODO: Remove this in 8.x release
-from .abc import DeclarationResult  # noqa
 from .abc import (
-    AbstractChannel, AbstractExchange, AbstractIncomingMessage,
-    AbstractRobustChannel, AbstractRobustQueue, ConsumerTag, TimeoutType,
+    AbstractExchange, AbstractIncomingMessage, AbstractQueueIterator,
+    AbstractRobustQueue, ConsumerTag, TimeoutType,
 )
 from .exchange import ExchangeParamType
-from .queue import Queue
+from .queue import Queue, QueueIterator
 
 
 log = logging.getLogger(__name__)
@@ -32,7 +30,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
 
     def __init__(
         self,
-        channel: AbstractChannel,
+        channel: aiormq.abc.AbstractChannel,
         name: Optional[str],
         durable: bool = False,
         exclusive: bool = False,
@@ -54,9 +52,8 @@ class RobustQueue(Queue, AbstractRobustQueue):
         self._consumers = {}
         self._bindings = {}
 
-    async def restore(self, channel: AbstractRobustChannel) -> None:
+    async def restore(self, channel: aiormq.abc.AbstractChannel) -> None:
         self.channel = channel
-
         await self.declare()
         bindings = tuple(self._bindings.items())
         consumers = tuple(self._consumers.items())
@@ -76,7 +73,6 @@ class RobustQueue(Queue, AbstractRobustQueue):
         timeout: TimeoutType = None,
         robust: bool = True
     ) -> aiormq.spec.Queue.BindOk:
-        await self.connection.connected.wait()
         if routing_key is None:
             routing_key = self.name
 
@@ -99,7 +95,6 @@ class RobustQueue(Queue, AbstractRobustQueue):
         arguments: Arguments = None,
         timeout: TimeoutType = None,
     ) -> aiormq.spec.Queue.UnbindOk:
-        await self.connection.connected.wait()
         if routing_key is None:
             routing_key = self.name
 
@@ -120,7 +115,6 @@ class RobustQueue(Queue, AbstractRobustQueue):
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> ConsumerTag:
-        await self.connection.connected.wait()
         consumer_tag = await super().consume(
             consumer_tag=consumer_tag,
             timeout=timeout,
@@ -146,10 +140,21 @@ class RobustQueue(Queue, AbstractRobustQueue):
         timeout: TimeoutType = None,
         nowait: bool = False,
     ) -> aiormq.spec.Basic.CancelOk:
-        await self.connection.connected.wait()
         result = await super().cancel(consumer_tag, timeout, nowait)
         self._consumers.pop(consumer_tag, None)
         return result
+
+    def iterator(self, **kwargs: Any) -> AbstractQueueIterator:
+        return RobustQueueIterator(self, **kwargs)
+
+
+class RobustQueueIterator(QueueIterator):
+    async def consume(self) -> None:
+        while True:
+            try:
+                return await super().consume()
+            except ChannelInvalidStateError:
+                await self._amqp_queue.channel.connection.ready()
 
 
 __all__ = ("RobustQueue",)

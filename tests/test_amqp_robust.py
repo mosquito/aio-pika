@@ -1,11 +1,12 @@
 import asyncio
-import time
 from functools import partial
 
 import pytest
+from aiormq import ChannelNotFoundEntity
 
 import aio_pika
 from aio_pika import RobustChannel
+from tests import get_random_name
 from tests.test_amqp import (
     TestCaseAmqp, TestCaseAmqpNoConfirms, TestCaseAmqpWithConfirms,
 )
@@ -61,6 +62,8 @@ class TestCaseNoRobust(TestCaseAmqp):
         reopen_event = asyncio.Event()
         channel.reopen_callbacks.add(lambda _: reopen_event.set())
 
+        queue_name = get_random_name("test_channel_blocking_timeout_reopen")
+
         def on_done(*args):
             close_reasons.append(args)
             close_event.set()
@@ -68,27 +71,17 @@ class TestCaseNoRobust(TestCaseAmqp):
 
         channel.close_callbacks.add(on_done)
 
-        async def run(sleep_time=1):
-            await channel.set_qos(1)
-            if sleep_time:
-                time.sleep(sleep_time)
-            await channel.set_qos(0)
-
-        with pytest.raises(asyncio.TimeoutError):
-            await asyncio.wait_for(run(), timeout=0.2)
+        with pytest.raises(ChannelNotFoundEntity):
+            await channel.declare_queue(queue_name, passive=True)
 
         await close_event.wait()
-
-        with pytest.raises(RuntimeError):
-            await channel.channel.closing
-
         assert channel.is_closed
 
         # Ensure close callback has been called
         assert close_reasons
 
-        await asyncio.wait_for(reopen_event.wait(), timeout=2)
-        await asyncio.wait_for(run(sleep_time=0), timeout=2)
+        await asyncio.wait_for(reopen_event.wait(), timeout=60)
+        await channel.declare_queue(queue_name, auto_delete=True)
 
 
 class TestCaseAmqpNoConfirmsRobust(TestCaseAmqpNoConfirms):

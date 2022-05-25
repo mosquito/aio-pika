@@ -17,7 +17,6 @@ from aio_pika.abc import (
 from aio_pika.exceptions import MessageProcessError
 from aio_pika.exchange import ExchangeType
 from aio_pika.message import IncomingMessage, Message, ReturnedMessage
-from aio_pika.tools import shield
 
 from .base import Base, Proxy
 
@@ -104,7 +103,6 @@ class RPC(Base):
         future.add_done_callback(self.__remove_future)
         return future, correlation_id
 
-    @shield
     async def close(self) -> None:
         if not hasattr(self, "result_queue"):
             log.warning("RPC already closed")
@@ -132,7 +130,6 @@ class RPC(Base):
         del self.result_queue
         del self.dlx_exchange
 
-    @shield
     async def initialize(
         self, auto_delete: bool = True,
         durable: bool = False, **kwargs: Any

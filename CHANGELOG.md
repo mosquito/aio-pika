@@ -1,12 +1,68 @@
+8.0.0
+-----
+
+***Release notes***
+
+In this release, there are many changes to the internal API and bug fixes
+related to sudden disconnection and correct recovery after reconnection.
+
+Unfortunately, the behavior that was in version 7.x was slightly affected.
+It's the reason the major version has been updated.
+
+The entire set of existing tests passes with minimal changes, therefore,
+except for some minor changes in behavior, the user code should
+work either without any modifications or with minimal changes,
+such as replacing removed deprecated functions with alternatives.
+
+This release has been already tested in a working environment, and now it seems
+that we have completely resolved all the known issues related to
+recovery after network failures.
+
+***Changes***:
+
+* Added tests for unexpected network connection resets and fixed
+  many related problems.
+* Added `UnderlayChannel` and `UnderlayConneciton`, this is `NamedTuple`s
+  contains all connection and channel related properties.
+  The `aiormq.Connection` and `aiormq.Channel` objects
+  are now packaged in this `NamedTuple`s and can be atomically assigned
+  to `aio_pika.Connection` and `aio_pika.Channel` objects.
+  The main benefit is the not needed to add locks during the connection,
+  in the best case, the container object is assigned to callee as usual,
+  however, if something goes wrong during the connection, there is no need to
+  clear something in `aio_pika.RobustConnection` or `aio_pika.RobustChannel`.
+* An `__init__` method is now a part of abstract classes for most
+  `aio_pika` entities.
+* Removed explicit relations between `aio_pika.Channel`
+  and `aio_pika.Connection`. Now you can't get a `aio_pika.Connection`
+  instance from the `aio_pika.Channel` instance.
+* Fixed a bug that caused the whole connection was closed when a timeout
+  occurred in one of the channels, in case the channel was waiting for a
+  response frame to an amqp-rpc call.
+* Removed deprecated `add_close_callback` and `remove_close_callback` methods
+  in `aio_pika.Channel`.
+  Use `aio_pika.Channel.close_callbacks.add(callback, ...)` and
+  `aio_pika.Channel.close_callbacks.remove(callback, ...)` instead.
+* Fixed a bug in `aio_pika.RobustChannel` that caused `default_exchane`
+  broken after reconnecting.
+* The `publisher_confirms` property of `aio_pika.Channel` is public now.
+* Function `get_exchange_name` is public now.
+* Fixed an error in which the queue iterator could enter a deadlock state, with
+  a sudden disconnection.
+* The new entity `OneShotCallback` helps, for example, to call all the closing
+  callbacks at the channel if the `Connection` was unexpectedly closed, and
+  the channel closing frame did not come explicitly.
+
+
 7.2.0
 -----
 
-* Make `aio_pika.patterns.rpc` more extedable.
+* Make `aio_pika.patterns.rpc` more extendable.
 
 7.1.0
 -----
 
-* Fixes in documentation 
+* Fixes in documentation
 
 7.0.0
 -----

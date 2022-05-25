@@ -2,6 +2,7 @@ import asyncio
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum, unique
+from functools import singledispatch
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
@@ -9,13 +10,15 @@ from typing import (
     Tuple, Type, TypeVar, Union,
 )
 
-import aiormq
+import aiormq.abc
 from aiormq.abc import ExceptionType
 from pamqp.common import Arguments
 from yarl import URL
 
 from .pool import PoolInstance
-from .tools import CallbackCollection, CallbackSetType, CallbackType
+from .tools import (
+    CallbackCollection, CallbackSetType, CallbackType, OneShotCallback,
+)
 
 
 TimeoutType = Optional[Union[int, float]]
@@ -218,8 +221,7 @@ class AbstractProcessContext(AsyncContextManager):
 
 
 class AbstractQueue:
-    channel: "AbstractChannel"
-    connection: "AbstractConnection"
+    channel: aiormq.abc.AbstractChannel
     name: str
     durable: bool
     exclusive: bool
@@ -227,6 +229,20 @@ class AbstractQueue:
     arguments: Arguments
     passive: bool
     declaration_result: aiormq.spec.Queue.DeclareOk
+    close_callbacks: CallbackCollection
+
+    @abstractmethod
+    def __init__(
+        self,
+        channel: aiormq.abc.AbstractChannel,
+        name: Optional[str],
+        durable: bool,
+        exclusive: bool,
+        auto_delete: bool,
+        arguments: Arguments,
+        passive: bool = False,
+    ):
+        raise NotImplementedError
 
     @abstractmethod
     async def declare(
@@ -341,9 +357,21 @@ class AbstractQueueIterator(AsyncIterable):
 
 
 class AbstractExchange(ABC):
-    @property
+    name: str
+
     @abstractmethod
-    def channel(self) -> "AbstractChannel":
+    def __init__(
+        self,
+        channel: aiormq.abc.AbstractChannel,
+        name: str,
+        type: Union[ExchangeType, str] = ExchangeType.DIRECT,
+        *,
+        auto_delete: bool = False,
+        durable: bool = False,
+        internal: bool = False,
+        passive: bool = False,
+        arguments: Arguments = None
+    ):
         raise NotImplementedError
 
     @abstractmethod
@@ -392,20 +420,45 @@ class AbstractExchange(ABC):
         raise NotImplementedError
 
 
+class UnderlayChannel(NamedTuple):
+    channel: aiormq.abc.AbstractChannel
+    close_callback: OneShotCallback
+
+    @classmethod
+    async def create(
+        cls, connection: aiormq.abc.AbstractConnection,
+        close_callback: Callable[..., Awaitable[Any]], **kwargs: Any
+    ) -> "UnderlayChannel":
+        close_callback = OneShotCallback(close_callback)
+
+        await connection.ready()
+        connection.closing.add_done_callback(close_callback)
+        channel = await connection.channel(**kwargs)
+        channel.closing.add_done_callback(close_callback)
+
+        return cls(
+            channel=channel,
+            close_callback=close_callback,
+        )
+
+    async def close(self, exc: Optional[ExceptionType] = None) -> Any:
+        if self.close_callback.finished.is_set():
+            return
+
+        result: Any = await self.channel.close(exc)
+        await self.close_callback.wait()
+        return result
+
+
 class AbstractChannel(PoolInstance, ABC):
     QUEUE_CLASS: Type[AbstractQueue]
     EXCHANGE_CLASS: Type[AbstractExchange]
 
     close_callbacks: CallbackCollection
     return_callbacks: CallbackCollection
-    connection: "AbstractConnection"
-    loop: asyncio.AbstractEventLoop
     default_exchange: AbstractExchange
 
-    @property
-    @abstractmethod
-    def done_callbacks(self) -> CallbackCollection:
-        raise NotImplementedError
+    publisher_confirms: bool
 
     @property
     @abstractmethod
@@ -429,10 +482,6 @@ class AbstractChannel(PoolInstance, ABC):
     @property
     @abstractmethod
     def number(self) -> Optional[int]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def __await__(self) -> Generator[Any, Any, "AbstractChannel"]:
         raise NotImplementedError
 
     @abstractmethod
@@ -537,19 +586,73 @@ class AbstractChannel(PoolInstance, ABC):
     async def flow(self, active: bool = True) -> aiormq.spec.Channel.FlowOk:
         raise NotImplementedError
 
+    @abstractmethod
+    def __await__(self) -> Generator[Any, Any, "AbstractChannel"]:
+        raise NotImplementedError
+
+
+class UnderlayConnection(NamedTuple):
+    connection: aiormq.abc.AbstractConnection
+    close_callback: OneShotCallback
+
+    @classmethod
+    async def make_connection(
+        cls, url: URL, timeout: TimeoutType = None, **kwargs: Any
+    ) -> aiormq.abc.AbstractConnection:
+        connection: aiormq.abc.AbstractConnection = await asyncio.wait_for(
+            aiormq.connect(url, **kwargs), timeout=timeout,
+        )
+        await connection.ready()
+        return connection
+
+    @classmethod
+    async def connect(
+        cls, url: URL, close_callback: Callable[..., Awaitable[Any]],
+        timeout: TimeoutType = None, **kwargs: Any
+    ) -> "UnderlayConnection":
+        try:
+            connection = await cls.make_connection(
+                url, timeout=timeout, **kwargs
+            )
+            close_callback = OneShotCallback(close_callback)
+            connection.closing.add_done_callback(close_callback)
+        except Exception as e:
+            closing = asyncio.get_event_loop().create_future()
+            closing.set_exception(e)
+            await close_callback(closing)
+            raise
+
+        await connection.ready()
+        return cls(
+            connection=connection,
+            close_callback=close_callback,
+        )
+
+    def ready(self) -> Awaitable[Any]:
+        return self.connection.ready()
+
+    async def close(self, exc: Optional[aiormq.abc.ExceptionType]) -> Any:
+        if self.close_callback.finished.is_set():
+            return
+        try:
+            return await self.connection.close(exc)
+        except asyncio.CancelledError:
+            raise
+        finally:
+            await self.close_callback.wait()
+
 
 class AbstractConnection(PoolInstance, ABC):
-    loop: asyncio.AbstractEventLoop
     close_callbacks: CallbackCollection
     connected: asyncio.Event
-    connection: aiormq.abc.AbstractConnection
+    transport: Optional[UnderlayConnection]
 
     @abstractmethod
     def __init__(
         self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None,
         **kwargs: Any
     ):
-        NotImplementedError(
+        raise NotImplementedError(
             f"Method not implemented, passed: url={url}, loop={loop!r}",
         )
 
@@ -563,9 +666,7 @@ class AbstractConnection(PoolInstance, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def connect(
-        self, timeout: TimeoutType = None, **kwargs: Any
-    ) -> None:
+    async def connect(self, timeout: TimeoutType = None) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -597,7 +698,7 @@ class AbstractConnection(PoolInstance, ABC):
 
 class AbstractRobustQueue(AbstractQueue):
     @abstractmethod
-    def restore(self, channel: "AbstractRobustChannel") -> Awaitable[None]:
+    def restore(self, channel: aiormq.abc.AbstractChannel) -> Awaitable[None]:
         raise NotImplementedError
 
     @abstractmethod
@@ -628,7 +729,7 @@ class AbstractRobustQueue(AbstractQueue):
 
 class AbstractRobustExchange(AbstractExchange):
     @abstractmethod
-    def restore(self, channel: "AbstractRobustChannel") -> Awaitable[None]:
+    def restore(self, channel: aiormq.abc.AbstractChannel) -> Awaitable[None]:
         raise NotImplementedError
 
     @abstractmethod
@@ -652,7 +753,7 @@ class AbstractRobustChannel(AbstractChannel):
         raise NotImplementedError
 
     @abstractmethod
-    def restore(self) -> Awaitable[None]:
+    async def restore(self, connection: aiormq.abc.AbstractConnection) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -718,6 +819,24 @@ ConnectionCloseCallback = Callable[
 ConnectionType = TypeVar("ConnectionType", bound=AbstractConnection)
 
 
+@singledispatch
+def get_exchange_name(value: Any) -> str:
+    raise ValueError(
+        f"exchange argument must be an exchange "
+        f"instance or str not {value!r}",
+    )
+
+
+@get_exchange_name.register(AbstractExchange)
+def _get_exchange_name_from_exchnage(value: AbstractExchange) -> str:
+    return value.name
+
+
+@get_exchange_name.register(str)
+def _get_exchange_name_from_str(value: str) -> str:
+    return value
+
+
 __all__ = (
     "AbstractChannel",
     "AbstractConnection",
@@ -748,5 +867,8 @@ __all__ = (
     "MILLISECONDS",
     "TimeoutType",
     "TransactionState",
+    "UnderlayChannel",
+    "UnderlayConnection",
     "ZERO_TIME",
+    "get_exchange_name",
 )

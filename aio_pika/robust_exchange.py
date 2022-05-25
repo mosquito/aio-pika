@@ -1,3 +1,4 @@
+import asyncio
 from logging import getLogger
 from typing import Any, Dict, Union
 
@@ -5,9 +6,7 @@ import aiormq
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractConnection, AbstractExchange,
-    AbstractRobustChannel, AbstractRobustExchange, ExchangeParamType,
-    TimeoutType,
+    AbstractExchange, AbstractRobustExchange, ExchangeParamType, TimeoutType,
 )
 from .exchange import Exchange, ExchangeType
 
@@ -22,8 +21,7 @@ class RobustExchange(Exchange, AbstractRobustExchange):
 
     def __init__(
         self,
-        connection: AbstractConnection,
-        channel: AbstractChannel,
+        channel: aiormq.abc.AbstractChannel,
         name: str,
         type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         *,
@@ -33,9 +31,7 @@ class RobustExchange(Exchange, AbstractRobustExchange):
         passive: bool = False,
         arguments: Arguments = None
     ):
-
         super().__init__(
-            connection=connection,
             channel=channel,
             name=name,
             type=type,
@@ -47,17 +43,24 @@ class RobustExchange(Exchange, AbstractRobustExchange):
         )
 
         self._bindings = dict()
+        self.__restore_lock = asyncio.Lock()
 
-    async def restore(self, channel: AbstractRobustChannel) -> None:
-        self._channel = channel
+    async def restore(self, channel: aiormq.abc.AbstractChannel) -> None:
+        async with self.__restore_lock:
+            try:
+                self.channel = channel
 
-        if self.name == "":
-            return
+                # special case for default exchange
+                if self.name == "":
+                    return
 
-        await self.declare()
+                await self.declare()
 
-        for exchange, kwargs in tuple(self._bindings.items()):
-            await self.bind(exchange, **kwargs)
+                for exchange, kwargs in tuple(self._bindings.items()):
+                    await self.bind(exchange, **kwargs)
+            except Exception:
+                del self.channel
+                raise
 
     async def bind(
         self,
@@ -68,8 +71,6 @@ class RobustExchange(Exchange, AbstractRobustExchange):
         timeout: TimeoutType = None,
         robust: bool = True
     ) -> aiormq.spec.Exchange.BindOk:
-        await self.connection.connected.wait()
-
         result = await super().bind(
             exchange,
             routing_key=routing_key,
@@ -92,8 +93,6 @@ class RobustExchange(Exchange, AbstractRobustExchange):
         arguments: Arguments = None,
         timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.UnbindOk:
-        await self.connection.connected.wait()
-
         result = await super().unbind(
             exchange, routing_key, arguments=arguments, timeout=timeout,
         )

@@ -1,4 +1,5 @@
 import asyncio
+import itertools
 import logging
 from contextlib import suppress
 from functools import partial
@@ -102,7 +103,7 @@ async def test_revive_passive_queue_on_reconnect(
     reconnect_event = asyncio.Event()
     reconnect_count = 0
 
-    def reconnect_callback(sender, conn):
+    def reconnect_callback(conn):
         nonlocal reconnect_count
         reconnect_count += 1
         reconnect_event.set()
@@ -151,16 +152,16 @@ async def test_robust_reconnect(
     )
 
     assert isinstance(read_conn, aio_pika.RobustConnection)
+    write_channel = await direct_connection.channel()
 
-    async with read_conn, direct_connection:
+    async with read_conn:
         read_channel = await read_conn.channel()
-        write_channel = await direct_connection.channel()
 
         assert isinstance(read_channel, aio_pika.RobustChannel)
 
         qname = get_random_name("robust", "proxy", "shared")
 
-        async with read_channel, write_channel:
+        async with read_channel:
             shared = []
 
             # Declaring temporary queue
@@ -229,7 +230,10 @@ async def test_robust_reconnect(
                     await queue.get(timeout=0.5)
             finally:
                 await queue.purge()
-                await queue.delete()
+
+    # Waiting for rabbitmq queue not in use
+    await asyncio.sleep(1)
+    await queue.delete()
 
 
 async def test_channel_locked_resource2(connection: aio_pika.RobustConnection):
@@ -405,7 +409,6 @@ async def test_robust_duplicate_queue(
     await asyncio.wait_for(reconnect_event.wait(), timeout=5)
 
     logging.info("Waiting connections")
-    await channel.connection.ready()
 
     async with shared_condition:
         await asyncio.wait_for(
@@ -417,12 +420,39 @@ async def test_robust_duplicate_queue(
 
 
 @aiomisc.timeout(10)
+async def test_channel_restore(
+    connection_fabric, loop, amqp_url, proxy: TCPProxy, add_cleanup: Callable,
+):
+    heartbeat = 10
+    amqp_url = amqp_url.update_query(heartbeat=heartbeat)
+
+    on_reopen = asyncio.Event()
+
+    conn = await connection_fabric(amqp_url, loop=loop)
+    assert isinstance(conn, aio_pika.RobustConnection)
+
+    async with conn:
+        channel = await conn.channel()
+        channel.reopen_callbacks.add(lambda *_: on_reopen.set(), weak=False)
+        assert isinstance(channel, aio_pika.RobustChannel)
+
+        async with channel:
+            await channel.set_qos(0)
+            await channel.set_qos(1)
+
+            with pytest.raises(asyncio.TimeoutError):
+                with proxy.slowdown(1, 1):
+                    await channel.set_qos(0, timeout=0.5)
+
+            await on_reopen.wait()
+            await channel.set_qos(0)
+            await channel.set_qos(1)
+
+
+@aiomisc.timeout(20)
 async def test_channel_reconnect(
     connection_fabric, loop, amqp_url, proxy: TCPProxy, add_cleanup: Callable,
 ):
-    heartbeat = 2
-    amqp_url = amqp_url.update_query(heartbeat=heartbeat)
-
     on_reconnect = asyncio.Event()
 
     conn = await connection_fabric(amqp_url, loop=loop)
@@ -438,17 +468,21 @@ async def test_channel_reconnect(
             await channel.set_qos(0)
             await channel.set_qos(1)
 
-            with pytest.raises(asyncio.TimeoutError):
-                with proxy.slowdown(1, 1):
-                    await channel.set_qos(0, timeout=0.5)
+            await proxy.disconnect_all()
 
             await on_reconnect.wait()
             await channel.set_qos(0)
             await channel.set_qos(1)
 
 
-@aiomisc.timeout(10)
+@aiomisc.timeout(15)
+@pytest.mark.parametrize(
+    "reconnect_timeout", [
+        "0", "1", "0.5", "0.1", "0.05", "0.025",
+    ],
+)
 async def test_channel_reconnect_after_5kb(
+    reconnect_timeout,
     amqp_url,
     amqp_direct_url,
     connection_fabric,
@@ -456,7 +490,10 @@ async def test_channel_reconnect_after_5kb(
     proxy: TCPProxy,
     add_cleanup: Callable,
 ):
-    connection = await aio_pika.connect_robust(amqp_url, loop=loop)
+    connection = await aio_pika.connect_robust(
+        amqp_url.update_query(reconnect_interval=reconnect_timeout),
+        loop=loop,
+    )
     direct_connection = await aio_pika.connect(amqp_direct_url, loop=loop)
 
     on_reconnect = asyncio.Event()
@@ -477,6 +514,76 @@ async def test_channel_reconnect_after_5kb(
 
         num_bytes = 0
         loop.call_soon(proxy.disconnect_all)
+        return chunk
+
+    proxy.set_content_processors(
+        lambda chunk: chunk,
+        server_to_client,
+    )
+
+    MESSAGES_TO_EXCHANGE = 50
+    async with connection.channel() as channel:
+        queue = await channel.declare_queue(auto_delete=False)
+
+        async with direct_connection.channel() as publish_channel:
+            for _ in range(MESSAGES_TO_EXCHANGE):
+                await publish_channel.default_exchange.publish(
+                    aio_pika.Message(body=b"Hello world" * 100),
+                    routing_key=queue.name,
+                )
+
+        messages = []
+        async for message in queue.iterator():
+            messages.append(message)
+            if len(messages) == MESSAGES_TO_EXCHANGE:
+                break
+
+        assert messages
+
+    await connection.close()
+    await direct_connection.close()
+
+
+@aiomisc.timeout(30)
+@pytest.mark.parametrize(
+    "reconnect_timeout,stair",
+    list(itertools.product(["0.1", "0"], [48, 64, 128, 256, 512])),
+)
+async def test_channel_reconnect_stairway(
+    reconnect_timeout,
+    stair,
+    amqp_url,
+    amqp_direct_url,
+    connection_fabric,
+    loop: asyncio.AbstractEventLoop,
+    proxy: TCPProxy,
+    add_cleanup: Callable,
+):
+    connection = await aio_pika.connect_robust(
+        amqp_url.update_query(reconnect_interval=reconnect_timeout),
+        loop=loop,
+    )
+    direct_connection = await aio_pika.connect(amqp_direct_url, loop=loop)
+
+    on_reconnect = asyncio.Event()
+    connection.reconnect_callbacks.add(
+        lambda *_: on_reconnect.set(), weak=False,
+    )
+
+    num_bytes = 0
+
+    def server_to_client(chunk: bytes) -> bytes:
+        nonlocal num_bytes, stair
+
+        if num_bytes >= 0:
+            num_bytes += len(chunk)
+
+            if num_bytes < stair:
+                return chunk
+
+        num_bytes = 0
+        loop.call_soon(proxy.disconnect_all)
+        stair += stair
         return chunk
 
     proxy.set_content_processors(

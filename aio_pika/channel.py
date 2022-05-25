@@ -1,7 +1,8 @@
 import asyncio
+from abc import ABC
 from logging import getLogger
 from types import TracebackType
-from typing import Any, Awaitable, Generator, Optional, Type, Union
+from typing import Any, AsyncContextManager, Generator, Optional, Type, Union
 from warnings import warn
 
 import aiormq
@@ -9,31 +10,49 @@ import aiormq.abc
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractConnection, AbstractExchange, AbstractQueue,
-    ChannelCloseCallback, TimeoutType,
+    AbstractChannel, AbstractExchange, AbstractQueue, TimeoutType,
+    UnderlayChannel,
 )
 from .exchange import Exchange, ExchangeType
-from .message import ReturnCallback  # noqa
 from .message import IncomingMessage
 from .queue import Queue
-from .tools import CallbackCollection, task
+from .tools import CallbackCollection
 from .transaction import Transaction
 
 
 log = getLogger(__name__)
 
 
-class Channel(AbstractChannel):
+class ChannelContext(AsyncContextManager, AbstractChannel, ABC):
+    async def __aenter__(self) -> "AbstractChannel":
+        if not self.is_initialized:
+            await self.initialize()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        return await self.close(exc_val)
+
+    def __await__(self) -> Generator[Any, Any, AbstractChannel]:
+        yield from self.initialize().__await__()
+        return self
+
+
+class Channel(ChannelContext):
     """ Channel abstraction """
 
     QUEUE_CLASS = Queue
     EXCHANGE_CLASS = Exchange
 
-    _channel: aiormq.abc.AbstractChannel
+    _channel: Optional[UnderlayChannel]
 
     def __init__(
         self,
-        connection: AbstractConnection,
+        connection: aiormq.abc.AbstractConnection,
         channel_number: Optional[int] = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
@@ -54,59 +73,53 @@ class Channel(AbstractChannel):
                 'without "publisher_confirms"',
             )
 
-        self.loop = connection.loop
+        self._connection: aiormq.abc.AbstractConnection = connection
 
-        self._channel: aiormq.abc.AbstractChannel
+        # That's means user closed channel instance explicitly
+        self._closed: bool = False
+
+        self._channel = None
         self._channel_number = channel_number
 
-        self.connection = connection
         self.close_callbacks = CallbackCollection(self)
         self.return_callbacks = CallbackCollection(self)
 
-        self._on_return_raises = on_return_raises
-        self._publisher_confirms = publisher_confirms
-
-        self._delivery_tag = 0
-
-        # That's means user closed channel instance explicitly
-        self._is_closed_by_user: bool = False
-
-        self.default_exchange: Exchange
-
-    @property
-    def done_callbacks(self) -> CallbackCollection:
-        return self.close_callbacks
+        self.publisher_confirms = publisher_confirms
+        self.on_return_raises = on_return_raises
 
     @property
     def is_initialized(self) -> bool:
         """ Returns True when the channel has been opened
         and ready for interaction """
-        return hasattr(self, "_channel")
+        return self._channel is not None
 
     @property
     def is_closed(self) -> bool:
         """ Returns True when the channel has been closed from the broker
         side or after the close() method has been called. """
-        if not self.is_initialized or self._is_closed_by_user:
+        if not self.is_initialized or self._closed:
             return True
-        return (
-            self._channel.is_closed or not self._channel.connection.is_opened
-        )
+        if not self._channel:
+            return True
+        return self._channel.channel.is_closed
 
-    @task
     async def close(self, exc: aiormq.abc.ExceptionType = None) -> None:
         if not self.is_initialized:
             log.warning("Channel not opened")
             return
 
-        channel: aiormq.abc.AbstractChannel = self._channel
-        del self._channel
-        self._is_closed_by_user = True
-        await channel.close()
+        if not self._channel:
+            log.warning("Transport is not ready")
+            return
+
+        log.debug("Closing channel %r", self)
+        self._closed = True
+        await self._channel.close()
 
     @property
     def channel(self) -> aiormq.abc.AbstractChannel:
-        if not self.is_initialized:
+
+        if not self.is_initialized or not self._channel:
             raise aiormq.exceptions.ChannelInvalidStateError(
                 "Channel was not opened",
             )
@@ -116,110 +129,45 @@ class Channel(AbstractChannel):
                 "Channel has been closed",
             )
 
-        return self._channel
+        return self._channel.channel
 
     @property
     def number(self) -> Optional[int]:
-        return self._channel.number if self.is_initialized else None
+        return (
+            self.channel.number
+            if self.is_initialized
+            else self._channel_number
+        )
 
     def __str__(self) -> str:
         return "{}".format(self.number or "Not initialized channel")
 
-    def __repr__(self) -> str:
-        conn = None
+    async def _open(self) -> None:
+        await self._connection.ready()
 
-        if self.is_initialized:
-            conn = self._channel.connection
-
-        return '<%s #%s "%s">' % (self.__class__.__name__, self, conn)
-
-    def __await__(self) -> Generator[Any, Any, "AbstractChannel"]:
-        yield from self.initialize().__await__()
-        return self
-
-    async def __aenter__(self) -> "AbstractChannel":
-        if not self.is_initialized:
-            await self.initialize()
-        return self
-
-    def __aexit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
-    ) -> Awaitable[Any]:
-        return self.close()
-
-    def add_close_callback(
-        self, callback: ChannelCloseCallback, weak: bool = False,
-    ) -> None:
-        warn(
-            "This method will be removed from future release. "
-            f"Use {self.__class__.__name__}.close_callbacks.add instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.close_callbacks.add(callback, weak=weak)
-
-    def remove_close_callback(
-        self, callback: ChannelCloseCallback,
-    ) -> None:
-        warn(
-            "This method will be removed from future release. "
-            f"Use {self.__class__.__name__}.close_callbacks.remove instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.close_callbacks.remove(callback)
-
-    def add_on_return_callback(
-        self, callback: ReturnCallback, weak: bool = False,
-    ) -> None:
-        warn(
-            "This method will be removed from future release. "
-            f"Use {self.__class__.__name__}.return_callbacks.add instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.return_callbacks.add(callback, weak=weak)
-
-    def remove_on_return_callback(self, callback: ReturnCallback) -> None:
-        warn(
-            "This method will be removed from future release. "
-            f"Use {self.__class__.__name__}.return_callbacks.remove instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.return_callbacks.remove(callback)
-
-    async def _create_channel(
-        self, timeout: TimeoutType = None,
-    ) -> aiormq.abc.AbstractChannel:
-        await self.connection.ready()
-
-        return await self.connection.connection.channel(
-            publisher_confirms=self._publisher_confirms,
-            on_return_raises=self._on_return_raises,
+        channel = await UnderlayChannel.create(
+            self._connection, self._on_close,
+            publisher_confirms=self.publisher_confirms,
+            on_return_raises=self.on_return_raises,
             channel_number=self._channel_number,
-            timeout=timeout,
         )
+
+        await self._on_open(channel.channel)
+        self._channel = channel
+        self._closed = False
 
     async def initialize(self, timeout: TimeoutType = None) -> None:
         if self.is_initialized:
             raise RuntimeError("Already initialized")
-        elif self._is_closed_by_user:
+        elif self._closed:
             raise RuntimeError("Can't initialize closed channel")
 
-        channel: aiormq.abc.AbstractChannel = await self._create_channel(
-            timeout=timeout,
-        )
+        await self._open()
+        await self._on_initialized()
 
-        self._channel = channel
-        self._delivery_tag = 0
-
-        self.default_exchange = self.EXCHANGE_CLASS(
-            connection=self.connection,
-            channel=self,
+    async def _on_open(self, channel: aiormq.abc.AbstractChannel) -> None:
+        self.default_exchange: Exchange = self.EXCHANGE_CLASS(
+            channel=channel,
             arguments=None,
             auto_delete=False,
             durable=False,
@@ -229,24 +177,22 @@ class Channel(AbstractChannel):
             type=ExchangeType.DIRECT,
         )
 
-        self._on_initialized()
+    async def _on_close(self, closing: asyncio.Future) -> None:
+        await self.close_callbacks(closing.exception())
 
-    def _on_channel_closed(self, closing: asyncio.Future) -> None:
-        self.close_callbacks(closing.exception())
-
-    def _on_initialized(self) -> None:
+    async def _on_initialized(self) -> None:
         self.channel.on_return_callbacks.add(self._on_return)
-        self.channel.closing.add_done_callback(self._on_channel_closed)
 
     def _on_return(self, message: aiormq.abc.DeliveredMessage) -> None:
         self.return_callbacks(IncomingMessage(message, no_ack=True))
 
     async def reopen(self) -> None:
-        if hasattr(self, "_channel"):
-            del self._channel
+        log.debug("Start reopening channel %r", self)
+        await self._open()
 
-        self._is_closed_by_user = False
-        await self.initialize()
+    def __del__(self) -> None:
+        self._closed = True
+        self._channel = None
 
     async def declare_exchange(
         self,
@@ -284,8 +230,7 @@ class Channel(AbstractChannel):
             durable = False
 
         exchange = self.EXCHANGE_CLASS(
-            connection=self.connection,
-            channel=self,
+            channel=self.channel,
             name=name,
             type=type,
             durable=durable,
@@ -325,8 +270,7 @@ class Channel(AbstractChannel):
             return await self.declare_exchange(name=name, passive=True)
         else:
             return self.EXCHANGE_CLASS(
-                connection=self.connection,
-                channel=self,
+                channel=self.channel,
                 name=name,
                 durable=False,
                 auto_delete=False,
@@ -366,7 +310,7 @@ class Channel(AbstractChannel):
         """
 
         queue: AbstractQueue = self.QUEUE_CLASS(
-            channel=self,
+            channel=self.channel,
             name=name,
             durable=durable,
             exclusive=exclusive,
@@ -376,6 +320,7 @@ class Channel(AbstractChannel):
         )
 
         await queue.declare(timeout=timeout)
+        self.close_callbacks.add(queue.close_callbacks)
         return queue
 
     async def get_queue(
@@ -402,7 +347,7 @@ class Channel(AbstractChannel):
             return await self.declare_queue(name=name, passive=True)
         else:
             return self.QUEUE_CLASS(
-                channel=self,
+                channel=self.channel,
                 name=name,
                 durable=False,
                 exclusive=False,
@@ -461,7 +406,7 @@ class Channel(AbstractChannel):
         )
 
     def transaction(self) -> Transaction:
-        if self._publisher_confirms:
+        if self.publisher_confirms:
             raise RuntimeError(
                 "Cannot create transaction when publisher "
                 "confirms are enabled",
@@ -471,9 +416,6 @@ class Channel(AbstractChannel):
 
     async def flow(self, active: bool = True) -> aiormq.spec.Channel.FlowOk:
         return await self.channel.flow(active=active)
-
-    def __del__(self) -> None:
-        log.debug("%r deleted", self)
 
 
 __all__ = ("Channel",)
