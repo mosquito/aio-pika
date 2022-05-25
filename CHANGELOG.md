@@ -12,7 +12,7 @@ It's the reason the major version has been updated.
 The entire set of existing tests passes with minimal changes, therefore,
 except for some minor changes in behavior, the user code should
 work either without any modifications or with minimal changes,
-such as replacing with removed deprecated functions to the alternatives.
+such as replacing removed deprecated functions with alternatives.
 
 This release has been already tested in a working environment, and now it seems
 that we have completely resolved all the known issues related to
