@@ -1,3 +1,8 @@
+8.0.2
+-----
+
+* linter fixes in `aio_pika.rpc.__all__`
+
 8.0.1
 -----
 
