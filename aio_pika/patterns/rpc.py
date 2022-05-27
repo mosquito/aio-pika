@@ -450,6 +450,6 @@ __all__ = (
     "CallbackType",
     "JsonRPC",
     "RPC",
-    "RPCException"
+    "RPCException",
     "RPCMessageType",
 )
