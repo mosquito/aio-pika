@@ -27,6 +27,10 @@ T = TypeVar("T")
 CallbackType = Callable[..., T]
 
 
+class RPCException(RuntimeError):
+    pass
+
+
 class RPCMessageType(str, Enum):
     ERROR = "error"
     RESULT = "result"
@@ -225,6 +229,8 @@ class RPC(Base):
         if message.type == RPCMessageType.RESULT.value:
             future.set_result(payload)
         elif message.type == RPCMessageType.ERROR.value:
+            if not isinstance(payload, Exception):
+                payload = RPCException("Wrapped non-exception object", payload)
             future.set_exception(payload)
         elif message.type == RPCMessageType.CALL.value:
             future.set_exception(
@@ -444,5 +450,6 @@ __all__ = (
     "CallbackType",
     "JsonRPC",
     "RPC",
+    "RPCException"
     "RPCMessageType",
 )
