@@ -1,3 +1,8 @@
+8.0.1
+-----
+
+* aio_pika.rpc fix for `TypeError: invalid exception object` for future
+
 8.0.0
 -----
 
