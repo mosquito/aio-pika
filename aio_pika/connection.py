@@ -204,6 +204,7 @@ def make_url(
     virtualhost: str = "/",
     ssl: bool = False,
     ssl_options: dict = None,
+    client_properties: FieldTable = None,
     **kwargs: Any
 ) -> URL:
     if url is not None:
@@ -213,6 +214,7 @@ def make_url(
 
     kw = kwargs
     kw.update(ssl_options or {})
+    kw.update(client_properties or {})
 
     # sanitize keywords
     kw = {k: v for k, v in kw.items() if v is not None}
