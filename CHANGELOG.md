@@ -1,3 +1,8 @@
+8.0.3
+-----
+
+* cannot use client_properties issue #469
+
 8.0.2
 -----
 
