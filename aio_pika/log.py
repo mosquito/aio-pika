@@ -1,7 +1,7 @@
 import logging
 
 
-logger = logging.getLogger("aio_pika")
+logger: logging.Logger = logging.getLogger("aio_pika")
 
 
 def get_logger(name: str) -> logging.Logger:
