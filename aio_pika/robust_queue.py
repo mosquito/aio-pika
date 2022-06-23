@@ -1,4 +1,3 @@
-import logging
 from random import getrandbits
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
@@ -11,10 +10,11 @@ from .abc import (
     AbstractRobustQueue, ConsumerTag, TimeoutType,
 )
 from .exchange import ExchangeParamType
+from .log import get_logger
 from .queue import Queue, QueueIterator
 
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 class RobustQueue(Queue, AbstractRobustQueue):

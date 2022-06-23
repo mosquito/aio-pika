@@ -2,7 +2,6 @@ import json
 import time
 from datetime import datetime, timedelta
 from functools import singledispatch
-from logging import getLogger
 from pprint import pformat
 from types import TracebackType
 from typing import (
@@ -20,9 +19,9 @@ from .abc import (
     HeadersPythonValues, HeadersType, NoneType,
 )
 from .exceptions import MessageProcessError
+from .log import get_logger
 
-
-log = getLogger(__name__)
+log = get_logger(__name__)
 
 
 def to_milliseconds(seconds: Union[float, int]) -> int:

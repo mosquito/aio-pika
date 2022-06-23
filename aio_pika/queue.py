@@ -1,7 +1,6 @@
 import asyncio
 import contextlib
 from functools import partial
-from logging import getLogger
 from types import TracebackType
 from typing import Any, Callable, Generator, Optional, Type
 
@@ -15,11 +14,12 @@ from .abc import (
 )
 from .exceptions import QueueEmpty
 from .exchange import ExchangeParamType
+from .log import get_logger
 from .message import IncomingMessage
 from .tools import CallbackCollection, create_task
 
 
-log = getLogger(__name__)
+log = get_logger(__name__)
 
 
 async def consumer(

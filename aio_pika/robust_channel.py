@@ -1,7 +1,6 @@
 import asyncio
 from collections import defaultdict
 from itertools import chain
-from logging import getLogger
 from typing import Any, DefaultDict, Set, Type, Union
 from warnings import warn
 
@@ -13,13 +12,14 @@ from .abc import (
 )
 from .channel import Channel
 from .exchange import Exchange, ExchangeType
+from .log import get_logger
 from .queue import Queue
 from .robust_exchange import RobustExchange
 from .robust_queue import RobustQueue
 from .tools import CallbackCollection
 
 
-log = getLogger(__name__)
+log = get_logger(__name__)
 
 
 class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore

@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from itertools import chain
 from threading import Lock
 from typing import (
@@ -8,8 +7,9 @@ from typing import (
 )
 from weakref import ReferenceType, WeakSet, ref
 
+from aio_pika.log import get_logger
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 T = TypeVar("T")
 
 

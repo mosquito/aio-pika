@@ -1,6 +1,5 @@
 import asyncio
 from abc import ABC
-from logging import getLogger
 from types import TracebackType
 from typing import Any, AsyncContextManager, Generator, Optional, Type, Union
 from warnings import warn
@@ -14,13 +13,14 @@ from .abc import (
     UnderlayChannel,
 )
 from .exchange import Exchange, ExchangeType
+from .log import get_logger
 from .message import IncomingMessage
 from .queue import Queue
 from .tools import CallbackCollection
 from .transaction import Transaction
 
 
-log = getLogger(__name__)
+log = get_logger(__name__)
 
 
 class ChannelContext(AsyncContextManager, AbstractChannel, ABC):

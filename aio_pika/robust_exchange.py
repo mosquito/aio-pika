@@ -1,5 +1,4 @@
 import asyncio
-from logging import getLogger
 from typing import Any, Dict, Union
 
 import aiormq
@@ -9,9 +8,9 @@ from .abc import (
     AbstractExchange, AbstractRobustExchange, ExchangeParamType, TimeoutType,
 )
 from .exchange import Exchange, ExchangeType
+from .log import get_logger
 
-
-log = getLogger(__name__)
+log = get_logger(__name__)
 
 
 class RobustExchange(Exchange, AbstractRobustExchange):
