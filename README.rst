@@ -86,6 +86,8 @@ Simple consumer:
 
 
     async def main(loop):
+        # Connect with the givien parameters is also valiable.
+        # aio_pika.connect_robust(host="host", login="login", password="password")
         connection = await aio_pika.connect_robust(
             "amqp://guest:guest@127.0.0.1/", loop=loop
         )
