@@ -17,10 +17,6 @@ from .version import (
 )
 
 
-def set_log_level(level: int) -> None:
-    logger.setLevel(level)
-
-
 __all__ = (
     "AMQPException",
     "Channel",
@@ -47,6 +43,5 @@ __all__ = (
     "package_license",
     "patterns",
     "pool",
-    "set_log_level",
     "version_info",
 )

@@ -5,6 +5,7 @@ logger: logging.Logger = logging.getLogger("aio_pika")
 
 
 def get_logger(name: str) -> logging.Logger:
-    name = name.lstrip(logger.name)
-    name = name.lstrip(".")
+    package, module = name.split(".", 1)
+    if package == logger.name:
+        name = module
     return logger.getChild(name)
