@@ -4,6 +4,7 @@ from .channel import Channel
 from .connection import Connection, connect
 from .exceptions import AMQPException, MessageProcessError
 from .exchange import Exchange, ExchangeType
+from .log import logger
 from .message import IncomingMessage, Message
 from .queue import Queue
 from .robust_channel import RobustChannel
@@ -37,6 +38,7 @@ __all__ = (
     "author_info",
     "connect",
     "connect_robust",
+    "logger",
     "package_info",
     "package_license",
     "patterns",

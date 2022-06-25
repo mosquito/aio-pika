@@ -1,6 +1,5 @@
 import abc
 import asyncio
-import logging
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, Awaitable, Callable, Coroutine, Generic, Optional,
@@ -9,10 +8,11 @@ from typing import (
 
 from aiormq.tools import awaitable
 
+from aio_pika.log import get_logger
 from aio_pika.tools import create_task
 
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 class PoolInstance(abc.ABC):

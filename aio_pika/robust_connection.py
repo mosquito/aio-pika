@@ -1,5 +1,4 @@
 import asyncio
-from logging import getLogger
 from typing import Any, Type, Union
 from weakref import WeakSet
 
@@ -14,11 +13,12 @@ from .abc import (
 )
 from .connection import Connection, make_url
 from .exceptions import CONNECTION_EXCEPTIONS
+from .log import get_logger
 from .robust_channel import RobustChannel
 from .tools import CallbackCollection, OneShotCallback
 
 
-log = getLogger(__name__)
+log = get_logger(__name__)
 
 
 class RobustConnection(Connection, AbstractRobustConnection):

@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from types import TracebackType
 from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
 
@@ -12,10 +11,11 @@ from .abc import (
     AbstractChannel, AbstractConnection, TimeoutType, UnderlayConnection,
 )
 from .channel import Channel
+from .log import get_logger
 from .tools import CallbackCollection
 
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 T = TypeVar("T")
 
 
