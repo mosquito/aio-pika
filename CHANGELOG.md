@@ -1,3 +1,10 @@
+8.2.0
+-----
+
+* allow passing ssl_context to the connection #474. A default parameter has
+  been added to the public API, this does not break anything unless your
+  code relies on the order of the arguments.
+
 8.1.1
 -----
 
