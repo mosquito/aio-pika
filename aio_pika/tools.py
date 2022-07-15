@@ -64,7 +64,7 @@ def create_task(
 
 
 CallbackType = Callable[..., Union[T, Awaitable[T]]]
-CallbackSetType = Union[AbstractSet[CallbackType]]
+CallbackSetType = AbstractSet[CallbackType]
 
 
 class StubAwaitable:

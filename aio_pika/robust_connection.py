@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Type, Union
+from typing import Any, Dict, Optional, Type, Union
 from weakref import WeakSet
 
 import aiormq.abc
@@ -32,7 +32,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
     )
 
     def __init__(
-        self, url: URL, loop: asyncio.AbstractEventLoop = None, **kwargs: Any
+        self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None, **kwargs: Any
     ):
         super().__init__(url=url, loop=loop, **kwargs)
 
@@ -151,7 +151,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
 
     def channel(
         self,
-        channel_number: int = None,
+        channel_number: Optional[int] = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
     ) -> AbstractRobustChannel:
@@ -167,7 +167,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
 
 
 async def connect_robust(
-    url: Union[str, URL] = None,
+    url: Union[str, URL, None] = None,
     *,
     host: str = "localhost",
     port: int = 5672,
@@ -175,10 +175,10 @@ async def connect_robust(
     password: str = "guest",
     virtualhost: str = "/",
     ssl: bool = False,
-    loop: asyncio.AbstractEventLoop = None,
-    ssl_options: dict = None,
+    loop: Optional[asyncio.AbstractEventLoop] = None,
+    ssl_options: Optional[Dict[str, Any]] = None,
     timeout: TimeoutType = None,
-    client_properties: FieldTable = None,
+    client_properties: Optional[FieldTable] = None,
     connection_class: Type[AbstractRobustConnection] = RobustConnection,
     **kwargs: Any
 ) -> AbstractRobustConnection:

@@ -1,7 +1,7 @@
 import asyncio
 from collections import defaultdict
 from itertools import chain
-from typing import Any, DefaultDict, Set, Type, Union
+from typing import Any, DefaultDict, Dict, Optional, Set, Type, Union
 from warnings import warn
 
 import aiormq
@@ -35,7 +35,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
     def __init__(
         self,
         connection: aiormq.abc.AbstractConnection,
-        channel_number: int = None,
+        channel_number: Optional[int] = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
     ):
@@ -108,7 +108,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         prefetch_size: int = 0,
         global_: bool = False,
         timeout: TimeoutType = None,
-        all_channels: bool = None,
+        all_channels: Optional[bool] = None,
     ) -> aiormq.spec.Basic.QosOk:
         if all_channels is not None:
             warn('Use "global_" instead of "all_channels"', DeprecationWarning)
@@ -135,7 +135,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         auto_delete: bool = False,
         internal: bool = False,
         passive: bool = False,
-        arguments: dict = None,
+        arguments: Optional[Dict[str, Any]] = None,
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> AbstractRobustExchange:
@@ -178,13 +178,13 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
 
     async def declare_queue(
         self,
-        name: str = None,
+        name: Optional[str] = None,
         *,
         durable: bool = False,
         exclusive: bool = False,
         passive: bool = False,
         auto_delete: bool = False,
-        arguments: dict = None,
+        arguments: Optional[Dict[str, Any]] = None,
         timeout: TimeoutType = None,
         robust: bool = True
     ) -> AbstractRobustQueue:
