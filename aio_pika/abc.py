@@ -254,7 +254,7 @@ class AbstractQueue:
     async def bind(
         self,
         exchange: ExchangeParamType,
-        routing_key: str = None,
+        routing_key: Optional[str] = None,
         *,
         arguments: Arguments = None,
         timeout: TimeoutType = None,
@@ -278,7 +278,7 @@ class AbstractQueue:
         no_ack: bool = False,
         exclusive: bool = False,
         arguments: Arguments = None,
-        consumer_tag: ConsumerTag = None,
+        consumer_tag: Optional[ConsumerTag] = None,
         timeout: TimeoutType = None,
     ) -> ConsumerTag:
         raise NotImplementedError
@@ -471,7 +471,7 @@ class AbstractChannel(PoolInstance, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def close(self, exc: ExceptionType = None) -> Awaitable[None]:
+    def close(self, exc: Optional[ExceptionType] = None) -> Awaitable[None]:
         raise NotImplementedError
 
     @property
@@ -529,7 +529,7 @@ class AbstractChannel(PoolInstance, ABC):
     @abstractmethod
     async def declare_queue(
         self,
-        name: str = None,
+        name: Optional[str] = None,
         *,
         durable: bool = False,
         exclusive: bool = False,
@@ -553,7 +553,7 @@ class AbstractChannel(PoolInstance, ABC):
         prefetch_size: int = 0,
         global_: bool = False,
         timeout: TimeoutType = None,
-        all_channels: bool = None,
+        all_channels: Optional[bool] = None,
     ) -> aiormq.spec.Basic.QosOk:
         raise NotImplementedError
 
@@ -672,7 +672,7 @@ class AbstractConnection(PoolInstance, ABC):
     @abstractmethod
     def channel(
         self,
-        channel_number: int = None,
+        channel_number: Optional[int] = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
     ) -> AbstractChannel:
@@ -705,7 +705,7 @@ class AbstractRobustQueue(AbstractQueue):
     async def bind(
         self,
         exchange: ExchangeParamType,
-        routing_key: str = None,
+        routing_key: Optional[str] = None,
         *,
         arguments: Arguments = None,
         timeout: TimeoutType = None,
@@ -720,7 +720,7 @@ class AbstractRobustQueue(AbstractQueue):
         no_ack: bool = False,
         exclusive: bool = False,
         arguments: Arguments = None,
-        consumer_tag: ConsumerTag = None,
+        consumer_tag: Optional[ConsumerTag] = None,
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> ConsumerTag:
@@ -775,13 +775,13 @@ class AbstractRobustChannel(AbstractChannel):
     @abstractmethod
     async def declare_queue(
         self,
-        name: str = None,
+        name: Optional[str] = None,
         *,
         durable: bool = False,
         exclusive: bool = False,
         passive: bool = False,
         auto_delete: bool = False,
-        arguments: dict = None,
+        arguments: Optional[Dict[str, Any]] = None,
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> AbstractRobustQueue:
@@ -803,7 +803,7 @@ class AbstractRobustConnection(AbstractConnection):
     @abstractmethod
     def channel(
         self,
-        channel_number: int = None,
+        channel_number: Optional[int] = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
     ) -> AbstractRobustChannel:

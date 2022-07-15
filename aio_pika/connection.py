@@ -97,7 +97,7 @@ class Connection(AbstractConnection):
 
     def channel(
         self,
-        channel_number: int = None,
+        channel_number: Optional[int] = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
     ) -> AbstractChannel:
@@ -195,7 +195,7 @@ class Connection(AbstractConnection):
 
 
 def make_url(
-    url: Union[str, URL] = None,
+    url: Union[str, URL, None] = None,
     *,
     host: str = "localhost",
     port: int = 5672,
@@ -203,9 +203,9 @@ def make_url(
     password: str = "guest",
     virtualhost: str = "/",
     ssl: bool = False,
-    ssl_options: dict = None,
-    client_properties: FieldTable = None,
-    **kwargs: Any,
+    ssl_options: Optional[Dict[str, Any]] = None,
+    client_properties: Optional[FieldTable] = None,
+    **kwargs: Any
 ) -> URL:
     if url is not None:
         if not isinstance(url, URL):
@@ -232,7 +232,7 @@ def make_url(
 
 
 async def connect(
-    url: Union[str, URL] = None,
+    url: Union[str, URL, None] = None,
     *,
     host: str = "localhost",
     port: int = 5672,
@@ -240,10 +240,10 @@ async def connect(
     password: str = "guest",
     virtualhost: str = "/",
     ssl: bool = False,
-    loop: asyncio.AbstractEventLoop = None,
-    ssl_options: dict = None,
+    loop: Optional[asyncio.AbstractEventLoop] = None,
+    ssl_options: Optional[Dict[str, Any]] = None,
     timeout: TimeoutType = None,
-    client_properties: FieldTable = None,
+    client_properties: Optional[FieldTable] = None,
     connection_class: Type[AbstractConnection] = Connection,
     **kwargs: Any,
 ) -> AbstractConnection:

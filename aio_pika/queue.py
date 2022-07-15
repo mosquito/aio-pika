@@ -95,7 +95,7 @@ class Queue(AbstractQueue):
     async def bind(
         self,
         exchange: ExchangeParamType,
-        routing_key: str = None,
+        routing_key: Optional[str] = None,
         *,
         arguments: Arguments = None,
         timeout: TimeoutType = None,
@@ -140,7 +140,7 @@ class Queue(AbstractQueue):
     async def unbind(
         self,
         exchange: ExchangeParamType,
-        routing_key: str = None,
+        routing_key: Optional[str] = None,
         arguments: Arguments = None,
         timeout: TimeoutType = None,
     ) -> aiormq.spec.Queue.UnbindOk:
@@ -181,7 +181,7 @@ class Queue(AbstractQueue):
         no_ack: bool = False,
         exclusive: bool = False,
         arguments: Arguments = None,
-        consumer_tag: ConsumerTag = None,
+        consumer_tag: Optional[ConsumerTag] = None,
         timeout: TimeoutType = None,
     ) -> ConsumerTag:
 

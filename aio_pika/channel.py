@@ -103,7 +103,7 @@ class Channel(ChannelContext):
             return True
         return self._channel.channel.is_closed
 
-    async def close(self, exc: aiormq.abc.ExceptionType = None) -> None:
+    async def close(self, exc: Optional[aiormq.abc.ExceptionType] = None) -> None:
         if not self.is_initialized:
             log.warning("Channel not opened")
             return
@@ -281,7 +281,7 @@ class Channel(ChannelContext):
 
     async def declare_queue(
         self,
-        name: str = None,
+        name: Optional[str] = None,
         *,
         durable: bool = False,
         exclusive: bool = False,
@@ -362,7 +362,7 @@ class Channel(ChannelContext):
         prefetch_size: int = 0,
         global_: bool = False,
         timeout: TimeoutType = None,
-        all_channels: bool = None,
+        all_channels: Optional[bool] = None,
     ) -> aiormq.spec.Basic.QosOk:
         if all_channels is not None:
             warn('Use "global_" instead of "all_channels"', DeprecationWarning)
