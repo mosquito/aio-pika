@@ -26,7 +26,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
     @staticmethod
     def _get_random_queue_name() -> str:
         rnd = getrandbits(128)
-        return "amq_%s" % hex(rnd).lower()
+        return f"amq_{hex(rnd).lower()}"
 
     def __init__(
         self,
@@ -71,7 +71,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
         *,
         arguments: Arguments = None,
         timeout: TimeoutType = None,
-        robust: bool = True
+        robust: bool = True,
     ) -> aiormq.spec.Queue.BindOk:
         if routing_key is None:
             routing_key = self.name

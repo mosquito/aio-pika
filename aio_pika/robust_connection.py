@@ -8,9 +8,7 @@ from pamqp.common import FieldTable
 from yarl import URL
 
 from .abc import (
-    AbstractRobustChannel,
-    AbstractRobustConnection,
-    TimeoutType,
+    AbstractRobustChannel, AbstractRobustConnection, TimeoutType,
     UnderlayConnection,
 )
 from .connection import Connection, make_url
@@ -34,7 +32,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
     )
 
     def __init__(
-        self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None, **kwargs: Any
+        self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None, **kwargs: Any,
     ):
         super().__init__(url=url, loop=loop, **kwargs)
 
@@ -74,7 +72,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
         timeout: TimeoutType = None,
     ) -> aiormq.abc.AbstractConnection:
         connection = await UnderlayConnection.make_connection(
-            self.url, timeout=timeout, **self.kwargs
+            self.url, timeout=timeout, **self.kwargs,
         )
 
         try:
@@ -103,7 +101,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
         if self.reconnecting:
             raise RuntimeError(
                 (
-                    f"Connect method called but connection "
+                    "Connect method called but connection "
                     f"{self!r} is reconnecting right now."
                 ),
                 self,

@@ -9,10 +9,7 @@ import aiormq.abc
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel,
-    AbstractExchange,
-    AbstractQueue,
-    TimeoutType,
+    AbstractChannel, AbstractExchange, AbstractQueue, TimeoutType,
     UnderlayChannel,
 )
 from .exchange import Exchange, ExchangeType
