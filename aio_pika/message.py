@@ -171,8 +171,7 @@ class HeaderProxy(MutableMapping):
         return len(self._headers)
 
     def __iter__(self) -> Iterator[str]:
-        for key in self._headers:
-            yield key
+        yield from self._headers
 
 
 @singledispatch
@@ -636,7 +635,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
     def info(self) -> dict:
         """ Method returns dict representation of the message """
 
-        info = super(IncomingMessage, self).info()
+        info = super().info()
         info["cluster_id"] = self.cluster_id
         info["consumer_tag"] = self.consumer_tag
         info["delivery_tag"] = self.delivery_tag

@@ -55,7 +55,7 @@ class Queue(AbstractQueue):
         self.passive = passive
 
     def __str__(self) -> str:
-        return "%s" % self.name
+        return f"{self.name}"
 
     def __repr__(self) -> str:
         return (

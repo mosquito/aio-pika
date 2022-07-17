@@ -205,7 +205,7 @@ def make_url(
     ssl: bool = False,
     ssl_options: Optional[Dict[str, Any]] = None,
     client_properties: Optional[FieldTable] = None,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> URL:
     if url is not None:
         if not isinstance(url, URL):

@@ -822,7 +822,7 @@ ConnectionType = TypeVar("ConnectionType", bound=AbstractConnection)
 @singledispatch
 def get_exchange_name(value: Any) -> str:
     raise ValueError(
-        f"exchange argument must be an exchange "
+        "exchange argument must be an exchange "
         f"instance or str not {value!r}",
     )
 

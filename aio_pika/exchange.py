@@ -42,7 +42,7 @@ class Exchange(AbstractExchange):
         return self.name
 
     def __repr__(self) -> str:
-        return "<Exchange(%s): auto_delete=%s, durable=%s, arguments=%r)>" % (
+        return "<Exchange({}): auto_delete={}, durable={}, arguments={!r})>".format(
             self,
             self.auto_delete,
             self.durable,
@@ -184,7 +184,7 @@ class Exchange(AbstractExchange):
         if self.internal:
             # Caught on the client side to prevent channel closure
             raise ValueError(
-                "Can not publish to internal exchange: '%s'!" % self.name,
+                f"Can not publish to internal exchange: '{self.name}'!",
             )
 
         return await self.channel.basic_publish(

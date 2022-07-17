@@ -26,7 +26,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
     @staticmethod
     def _get_random_queue_name() -> str:
         rnd = getrandbits(128)
-        return "amq_%s" % hex(rnd).lower()
+        return f"amq_{hex(rnd).lower()}"
 
     def __init__(
         self,

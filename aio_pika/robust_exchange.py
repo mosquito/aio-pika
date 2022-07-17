@@ -42,7 +42,7 @@ class RobustExchange(Exchange, AbstractRobustExchange):
             arguments=arguments,
         )
 
-        self._bindings = dict()
+        self._bindings = {}
         self.__restore_lock = asyncio.Lock()
 
     async def restore(self, channel: aiormq.abc.AbstractChannel) -> None:
