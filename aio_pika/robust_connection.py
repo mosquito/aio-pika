@@ -8,7 +8,9 @@ from pamqp.common import FieldTable
 from yarl import URL
 
 from .abc import (
-    AbstractRobustChannel, AbstractRobustConnection, TimeoutType,
+    AbstractRobustChannel,
+    AbstractRobustConnection,
+    TimeoutType,
     UnderlayConnection,
 )
 from .connection import Connection, make_url
@@ -22,7 +24,7 @@ log = get_logger(__name__)
 
 
 class RobustConnection(Connection, AbstractRobustConnection):
-    """ Robust connection """
+    """Robust connection"""
 
     CHANNEL_REOPEN_PAUSE = 1
     CHANNEL_CLASS: Type[RobustChannel] = RobustChannel
@@ -50,8 +52,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
 
     def __repr__(self) -> str:
         return (
-            f'<{self.__class__.__name__}: "{self}" '
-            f"{len(self.__channels)} channels>"
+            f'<{self.__class__.__name__}: "{self}" ' f"{len(self.__channels)} channels>"
         )
 
     async def _on_connection_close(self, closing: asyncio.Future) -> None:
@@ -62,13 +63,15 @@ class RobustConnection(Connection, AbstractRobustConnection):
 
         log.info(
             "Connection to %s closed. Reconnecting after %r seconds.",
-            self, self.reconnect_interval,
+            self,
+            self.reconnect_interval,
         )
         await asyncio.sleep(self.reconnect_interval)
         await self.reconnect()
 
     async def __connection_attempt(
-        self, timeout: TimeoutType = None,
+        self,
+        timeout: TimeoutType = None,
     ) -> aiormq.abc.AbstractConnection:
         connection = await UnderlayConnection.make_connection(
             self.url, timeout=timeout, **self.kwargs,
@@ -102,7 +105,8 @@ class RobustConnection(Connection, AbstractRobustConnection):
                 (
                     f"Connect method called but connection "
                     f"{self!r} is reconnecting right now."
-                ), self,
+                ),
+                self,
             )
 
         async with self._reconnect_lock:
@@ -141,7 +145,8 @@ class RobustConnection(Connection, AbstractRobustConnection):
 
                 log.info(
                     "Reconnect attempt failed %s. Retrying after %r seconds.",
-                    self, self.reconnect_interval,
+                    self,
+                    self.reconnect_interval,
                 )
                 await asyncio.sleep(self.reconnect_interval)
 
@@ -160,7 +165,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
             channel_number=channel_number,
             publisher_confirms=publisher_confirms,
             on_return_raises=on_return_raises,
-        )   # type: ignore
+        )  # type: ignore
 
         self.__channels.add(channel)
         return channel
@@ -183,7 +188,7 @@ async def connect_robust(
     **kwargs: Any,
 ) -> AbstractRobustConnection:
 
-    """ Make connection to the broker.
+    """Make connection to the broker.
 
     Example:
 

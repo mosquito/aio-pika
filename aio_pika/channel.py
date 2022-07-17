@@ -9,7 +9,10 @@ import aiormq.abc
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractExchange, AbstractQueue, TimeoutType,
+    AbstractChannel,
+    AbstractExchange,
+    AbstractQueue,
+    TimeoutType,
     UnderlayChannel,
 )
 from .exchange import Exchange, ExchangeType
@@ -43,7 +46,7 @@ class ChannelContext(AsyncContextManager, AbstractChannel, ABC):
 
 
 class Channel(ChannelContext):
-    """ Channel abstraction """
+    """Channel abstraction"""
 
     QUEUE_CLASS = Queue
     EXCHANGE_CLASS = Exchange
@@ -69,8 +72,7 @@ class Channel(ChannelContext):
 
         if not publisher_confirms and on_return_raises:
             raise RuntimeError(
-                '"on_return_raises" not applicable '
-                'without "publisher_confirms"',
+                '"on_return_raises" not applicable ' 'without "publisher_confirms"',
             )
 
         self._connection: aiormq.abc.AbstractConnection = connection
@@ -89,14 +91,14 @@ class Channel(ChannelContext):
 
     @property
     def is_initialized(self) -> bool:
-        """ Returns True when the channel has been opened
-        and ready for interaction """
+        """Returns True when the channel has been opened
+        and ready for interaction"""
         return self._channel is not None
 
     @property
     def is_closed(self) -> bool:
-        """ Returns True when the channel has been closed from the broker
-        side or after the close() method has been called. """
+        """Returns True when the channel has been closed from the broker
+        side or after the close() method has been called."""
         if not self.is_initialized or self._closed:
             return True
         if not self._channel:
@@ -133,11 +135,7 @@ class Channel(ChannelContext):
 
     @property
     def number(self) -> Optional[int]:
-        return (
-            self.channel.number
-            if self.is_initialized
-            else self._channel_number
-        )
+        return self.channel.number if self.is_initialized else self._channel_number
 
     def __str__(self) -> str:
         return "{}".format(self.number or "Not initialized channel")
@@ -146,7 +144,8 @@ class Channel(ChannelContext):
         await self._connection.ready()
 
         channel = await UnderlayChannel.create(
-            self._connection, self._on_close,
+            self._connection,
+            self._on_close,
             publisher_confirms=self.publisher_confirms,
             on_return_raises=self.on_return_raises,
             channel_number=self._channel_number,
@@ -246,9 +245,7 @@ class Channel(ChannelContext):
 
         return exchange
 
-    async def get_exchange(
-        self, name: str, *, ensure: bool = True,
-    ) -> AbstractExchange:
+    async def get_exchange(self, name: str, *, ensure: bool = True) -> AbstractExchange:
         """
         With ``ensure=True``, it's a shortcut for
         ``.declare_exchange(..., passive=True)``; otherwise, it returns an
@@ -323,9 +320,7 @@ class Channel(ChannelContext):
         self.close_callbacks.add(queue.close_callbacks)
         return queue
 
-    async def get_queue(
-        self, name: str, *, ensure: bool = True,
-    ) -> AbstractQueue:
+    async def get_queue(self, name: str, *, ensure: bool = True) -> AbstractQueue:
         """
         With ``ensure=True``, it's a shortcut for
         ``.declare_queue(..., passive=True)``; otherwise, it returns a
@@ -408,8 +403,7 @@ class Channel(ChannelContext):
     def transaction(self) -> Transaction:
         if self.publisher_confirms:
             raise RuntimeError(
-                "Cannot create transaction when publisher "
-                "confirms are enabled",
+                "Cannot create transaction when publisher " "confirms are enabled",
             )
 
         return Transaction(self)
