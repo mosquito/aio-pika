@@ -133,7 +133,7 @@ def declare_queue(connection, channel, add_cleanup):
     ch = channel
 
     async def fabric(
-        *args, cleanup=True, channel=None, **kwargs,
+        *args, cleanup=True, channel=None, **kwargs
     ) -> aio_pika.Queue:
         nonlocal ch, add_cleanup
 
@@ -155,7 +155,7 @@ def declare_exchange(connection, channel, add_cleanup):
     ch = channel
 
     async def fabric(
-        *args, channel=None, cleanup=True, **kwargs,
+        *args, channel=None, cleanup=True, **kwargs
     ) -> aio_pika.Exchange:
         nonlocal ch, add_cleanup
 
