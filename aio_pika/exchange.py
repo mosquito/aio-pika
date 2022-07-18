@@ -42,7 +42,7 @@ class Exchange(AbstractExchange):
         return self.name
 
     def __repr__(self) -> str:
-        return "<Exchange({}): auto_delete={}, durable={}, arguments={!r})>".format(
+        return "<Exchange(%s): auto_delete=%s, durable=%s, arguments=%r)>" % (
             self,
             self.auto_delete,
             self.durable,

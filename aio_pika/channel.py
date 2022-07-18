@@ -69,7 +69,8 @@ class Channel(ChannelContext):
 
         if not publisher_confirms and on_return_raises:
             raise RuntimeError(
-                '"on_return_raises" not applicable ' 'without "publisher_confirms"',
+                '"on_return_raises" not applicable '
+                'without "publisher_confirms"',
             )
 
         self._connection: aiormq.abc.AbstractConnection = connection
@@ -102,7 +103,10 @@ class Channel(ChannelContext):
             return True
         return self._channel.channel.is_closed
 
-    async def close(self, exc: Optional[aiormq.abc.ExceptionType] = None) -> None:
+    async def close(
+        self,
+        exc: Optional[aiormq.abc.ExceptionType] = None,
+    ) -> None:
         if not self.is_initialized:
             log.warning("Channel not opened")
             return
@@ -132,7 +136,11 @@ class Channel(ChannelContext):
 
     @property
     def number(self) -> Optional[int]:
-        return self.channel.number if self.is_initialized else self._channel_number
+        return (
+            self.channel.number
+            if self.is_initialized
+            else self._channel_number
+        )
 
     def __str__(self) -> str:
         return "{}".format(self.number or "Not initialized channel")
@@ -242,7 +250,12 @@ class Channel(ChannelContext):
 
         return exchange
 
-    async def get_exchange(self, name: str, *, ensure: bool = True) -> AbstractExchange:
+    async def get_exchange(
+        self,
+        name: str,
+        *,
+        ensure: bool = True,
+    ) -> AbstractExchange:
         """
         With ``ensure=True``, it's a shortcut for
         ``.declare_exchange(..., passive=True)``; otherwise, it returns an
@@ -317,7 +330,12 @@ class Channel(ChannelContext):
         self.close_callbacks.add(queue.close_callbacks)
         return queue
 
-    async def get_queue(self, name: str, *, ensure: bool = True) -> AbstractQueue:
+    async def get_queue(
+        self,
+        name: str,
+        *,
+        ensure: bool = True,
+    ) -> AbstractQueue:
         """
         With ``ensure=True``, it's a shortcut for
         ``.declare_queue(..., passive=True)``; otherwise, it returns a
@@ -400,7 +418,8 @@ class Channel(ChannelContext):
     def transaction(self) -> Transaction:
         if self.publisher_confirms:
             raise RuntimeError(
-                "Cannot create transaction when publisher " "confirms are enabled",
+                "Cannot create transaction when publisher "
+                "confirms are enabled",
             )
 
         return Transaction(self)

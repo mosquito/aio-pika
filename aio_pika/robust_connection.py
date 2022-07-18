@@ -32,7 +32,10 @@ class RobustConnection(Connection, AbstractRobustConnection):
     )
 
     def __init__(
-        self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None, **kwargs: Any,
+        self,
+        url: URL,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
+        **kwargs: Any,
     ):
         super().__init__(url=url, loop=loop, **kwargs)
 
@@ -50,7 +53,8 @@ class RobustConnection(Connection, AbstractRobustConnection):
 
     def __repr__(self) -> str:
         return (
-            f'<{self.__class__.__name__}: "{self}" ' f"{len(self.__channels)} channels>"
+            f'<{self.__class__.__name__}: "{self}" '
+            f"{len(self.__channels)} channels>"
         )
 
     async def _on_connection_close(self, closing: asyncio.Future) -> None:
