@@ -54,7 +54,7 @@ class Pool(Generic[T]):
         constructor: ConstructorType,
         *args: Any,
         max_size: int = None,
-        loop: Optional[asyncio.AbstractEventLoop] = None
+        loop: Optional[asyncio.AbstractEventLoop] = None,
     ):
         self.loop = loop or asyncio.get_event_loop()
         self.__closed = False

@@ -247,7 +247,7 @@ class Channel(ChannelContext):
         return exchange
 
     async def get_exchange(
-        self, name: str, *, ensure: bool = True
+        self, name: str, *, ensure: bool = True,
     ) -> AbstractExchange:
         """
         With ``ensure=True``, it's a shortcut for
@@ -288,7 +288,7 @@ class Channel(ChannelContext):
         passive: bool = False,
         auto_delete: bool = False,
         arguments: Arguments = None,
-        timeout: TimeoutType = None
+        timeout: TimeoutType = None,
     ) -> AbstractQueue:
         """
 
@@ -324,7 +324,7 @@ class Channel(ChannelContext):
         return queue
 
     async def get_queue(
-        self, name: str, *, ensure: bool = True
+        self, name: str, *, ensure: bool = True,
     ) -> AbstractQueue:
         """
         With ``ensure=True``, it's a shortcut for
