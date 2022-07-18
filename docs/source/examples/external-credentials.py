@@ -14,7 +14,7 @@ async def main() -> None:
     """
     connection = await aio_pika.connect_robust(
         host="127.0.0.1",
-        auth='external',
+        auth="external",
         ssl=True,
         ssl_options=dict(
             ca_certs="cacert.pem",

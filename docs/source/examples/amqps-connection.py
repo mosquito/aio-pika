@@ -1,12 +1,11 @@
 import asyncio
 
-
 import aio_pika
 
 
 async def main() -> None:
     connection = await aio_pika.connect_robust(
-        "amqps://guest:secret@amqp.example.com/?name=SSL%20client"
+        "amqps://guest:secret@amqp.example.com/?name=SSL%20client",
     )
 
     async with connection:
