@@ -186,7 +186,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         auto_delete: bool = False,
         arguments: Optional[Dict[str, Any]] = None,
         timeout: TimeoutType = None,
-        robust: bool = True,
+        robust: bool = True
     ) -> AbstractRobustQueue:
         await self._connection.ready()
         queue: RobustQueue = await super().declare_queue(   # type: ignore

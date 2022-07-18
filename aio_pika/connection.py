@@ -50,7 +50,7 @@ class Connection(AbstractConnection):
 
     def __init__(
         self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None,
-        **kwargs: Any,
+        **kwargs: Any
     ):
         self.loop = loop or asyncio.get_event_loop()
         self.transport = None
@@ -90,7 +90,7 @@ class Connection(AbstractConnection):
         """
         transport = await UnderlayConnection.connect(
             self.url, self._on_connection_close,
-            timeout=timeout, **self.kwargs,
+            timeout=timeout, **self.kwargs
         )
         await self._on_connected(transport)
         self.transport = transport
@@ -245,7 +245,7 @@ async def connect(
     timeout: TimeoutType = None,
     client_properties: Optional[FieldTable] = None,
     connection_class: Type[AbstractConnection] = Connection,
-    **kwargs: Any,
+    **kwargs: Any
 ) -> AbstractConnection:
     """ Make connection to the broker.
 
@@ -338,7 +338,7 @@ async def connect(
             ssl=ssl,
             ssl_options=ssl_options,
             client_properties=client_properties,
-            **kwargs,
+            **kwargs
         ),
         loop=loop,
     )

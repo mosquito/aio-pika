@@ -21,7 +21,6 @@ from .abc import (
 from .exceptions import MessageProcessError
 from .log import get_logger
 
-
 log = get_logger(__name__)
 
 
@@ -259,7 +258,7 @@ class Message(AbstractMessage):
         timestamp: Optional[DateType] = None,
         type: Optional[str] = None,
         user_id: Optional[str] = None,
-        app_id: Optional[str] = None,
+        app_id: Optional[str] = None
     ):
 
         """ Creates a new instance of Message
@@ -663,7 +662,7 @@ class ProcessContext(AbstractProcessContext):
         *,
         requeue: bool,
         reject_on_redelivered: bool,
-        ignore_processed: bool,
+        ignore_processed: bool
     ):
         self.message = message
         self.requeue = requeue

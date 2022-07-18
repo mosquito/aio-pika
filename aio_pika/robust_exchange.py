@@ -10,7 +10,6 @@ from .abc import (
 from .exchange import Exchange, ExchangeType
 from .log import get_logger
 
-
 log = get_logger(__name__)
 
 
@@ -29,7 +28,7 @@ class RobustExchange(Exchange, AbstractRobustExchange):
         durable: bool = False,
         internal: bool = False,
         passive: bool = False,
-        arguments: Arguments = None,
+        arguments: Arguments = None
     ):
         super().__init__(
             channel=channel,
@@ -69,7 +68,7 @@ class RobustExchange(Exchange, AbstractRobustExchange):
         *,
         arguments: Arguments = None,
         timeout: TimeoutType = None,
-        robust: bool = True,
+        robust: bool = True
     ) -> aiormq.spec.Exchange.BindOk:
         result = await super().bind(
             exchange,
