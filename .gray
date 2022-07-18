@@ -1,0 +1,4 @@
+formatters = add-trailing-comma,isort,unify
+min-python-version = 3.3
+log-level = error
+black-line-length = 79
