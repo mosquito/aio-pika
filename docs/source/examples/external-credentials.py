@@ -2,6 +2,7 @@ import asyncio
 import ssl
 
 import aio_pika
+from aio_pika.abc import SSLOptions
 
 
 async def main() -> None:
@@ -9,11 +10,13 @@ async def main() -> None:
         host="127.0.0.1",
         login="",
         ssl=True,
-        ssl_options=dict(
-            ca_certs="cacert.pem",
+        ssl_options=SSLOptions(
+            cafile="cacert.pem",
+            capath=None,
+            cadata=None,
             certfile="cert.pem",
             keyfile="key.pem",
-            cert_reqs=ssl.CERT_REQUIRED,
+            no_verify_ssl=ssl.CERT_REQUIRED,
         ),
         client_properties={"connection_name": "aio-pika external credentials"},
     )

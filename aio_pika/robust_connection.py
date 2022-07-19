@@ -8,7 +8,7 @@ from pamqp.common import FieldTable
 from yarl import URL
 
 from .abc import (
-    AbstractRobustChannel, AbstractRobustConnection, TimeoutType,
+    AbstractRobustChannel, AbstractRobustConnection, SSLOptions, TimeoutType,
     UnderlayConnection,
 )
 from .connection import Connection, make_url
@@ -183,7 +183,7 @@ async def connect_robust(
     virtualhost: str = "/",
     ssl: bool = False,
     loop: Optional[asyncio.AbstractEventLoop] = None,
-    ssl_options: Optional[Dict[str, Any]] = None,
+    ssl_options: Optional[SSLOptions] = None,
     timeout: TimeoutType = None,
     client_properties: Optional[FieldTable] = None,
     connection_class: Type[AbstractRobustConnection] = RobustConnection,

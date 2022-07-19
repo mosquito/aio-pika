@@ -7,7 +7,7 @@ from types import TracebackType
 from typing import (
     Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
     FrozenSet, Generator, Iterator, MutableMapping, NamedTuple, Optional, Set,
-    Tuple, Type, TypeVar, Union,
+    Tuple, Type, TypeVar, Union, TypedDict
 )
 
 import aiormq.abc
@@ -30,6 +30,15 @@ ConsumerTag = str
 
 MILLISECONDS = 1000
 ZERO_TIME = datetime.utcfromtimestamp(0)
+
+
+class SSLOptions(TypedDict):
+    cafile: Optional[str]
+    capath: Optional[str]
+    cadata: Optional[str]
+    keyfile: Optional[str]
+    certfile: Optional[str]
+    no_verify_ssl: Optional[int]
 
 
 @unique

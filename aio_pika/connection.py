@@ -8,7 +8,7 @@ from pamqp.common import FieldTable
 from yarl import URL
 
 from .abc import (
-    AbstractChannel, AbstractConnection, TimeoutType, UnderlayConnection,
+    AbstractChannel, AbstractConnection, SSLOptions, TimeoutType, UnderlayConnection,
 )
 from .channel import Channel
 from .log import get_logger
@@ -203,7 +203,7 @@ def make_url(
     password: str = "guest",
     virtualhost: str = "/",
     ssl: bool = False,
-    ssl_options: Optional[Dict[str, Any]] = None,
+    ssl_options: Optional[SSLOptions] = None,
     client_properties: Optional[FieldTable] = None,
     **kwargs: Any,
 ) -> URL:
@@ -241,7 +241,7 @@ async def connect(
     virtualhost: str = "/",
     ssl: bool = False,
     loop: Optional[asyncio.AbstractEventLoop] = None,
-    ssl_options: Optional[Dict[str, Any]] = None,
+    ssl_options: Optional[SSLOptions] = None,
     timeout: TimeoutType = None,
     client_properties: Optional[FieldTable] = None,
     connection_class: Type[AbstractConnection] = Connection,
