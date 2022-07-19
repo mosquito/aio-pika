@@ -8,7 +8,8 @@ from pamqp.common import FieldTable
 from yarl import URL
 
 from .abc import (
-    AbstractChannel, AbstractConnection, SSLOptions, TimeoutType, UnderlayConnection,
+    AbstractChannel, AbstractConnection, SSLOptions, TimeoutType,
+    UnderlayConnection,
 )
 from .channel import Channel
 from .log import get_logger
