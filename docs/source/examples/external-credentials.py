@@ -12,8 +12,6 @@ async def main() -> None:
         ssl=True,
         ssl_options=SSLOptions(
             cafile="cacert.pem",
-            capath=None,
-            cadata=None,
             certfile="cert.pem",
             keyfile="key.pem",
             no_verify_ssl=ssl.CERT_REQUIRED,

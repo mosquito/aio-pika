@@ -32,13 +32,13 @@ MILLISECONDS = 1000
 ZERO_TIME = datetime.utcfromtimestamp(0)
 
 
-class SSLOptions(TypedDict):
-    cafile: Optional[str]
-    capath: Optional[str]
-    cadata: Optional[str]
-    keyfile: Optional[str]
-    certfile: Optional[str]
-    no_verify_ssl: Optional[int]
+class SSLOptions(TypedDict, total=False):
+    cafile: str
+    capath: str
+    cadata: str
+    keyfile: str
+    certfile: str
+    no_verify_ssl: int
 
 
 @unique
@@ -874,6 +874,7 @@ __all__ = (
     "HeadersType",
     "HeadersValue",
     "MILLISECONDS",
+    "SSLOptions",
     "TimeoutType",
     "TransactionState",
     "UnderlayChannel",
