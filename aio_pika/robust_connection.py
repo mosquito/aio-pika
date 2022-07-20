@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any, Optional, Type, Union
 from weakref import WeakSet
 
 import aiormq.abc
