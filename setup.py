@@ -38,7 +38,7 @@ setup(
     ],
     packages=find_packages(exclude=["tests"]),
     package_data={"aio_pika": ["py.typed"]},
-    install_requires=["aiormq~=6.3.2", "yarl"],
+    install_requires=["aiormq~=6.4.0", "yarl"],
     python_requires=">3.6, <4",
     extras_require={
         "develop": [
