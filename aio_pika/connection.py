@@ -193,6 +193,16 @@ class Connection(AbstractConnection):
     ) -> None:
         await self.close()
 
+    async def update_secret(
+        self, new_secret: str, *,
+        reason: str = '', timeout: TimeoutType = None,
+    ) -> aiormq.spec.Connection.UpdateSecretOk:
+        result = await self.transport.connection.update_secret(
+            new_secret=new_secret, reason=reason, timeout=timeout
+        )
+        self.url = self.url.with_password(new_secret)
+        return result
+
 
 def make_url(
     url: Union[str, URL] = None,

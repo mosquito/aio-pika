@@ -695,6 +695,13 @@ class AbstractConnection(PoolInstance, ABC):
     ) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    async def update_secret(
+        self, new_secret: str, *,
+        reason: str = '', timeout: TimeoutType = None,
+    ) -> aiormq.spec.Connection.UpdateSecretOk:
+        raise NotImplementedError
+
 
 class AbstractRobustQueue(AbstractQueue):
     @abstractmethod
