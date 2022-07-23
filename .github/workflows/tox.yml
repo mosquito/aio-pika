@@ -50,9 +50,9 @@ jobs:
           - py38
           - py39
           - py310
-          - py37-uvloop
-          - py38-uvloop
-          - py39-uvloop
+#          - py37-uvloop
+#          - py38-uvloop
+#          - py39-uvloop
 
     steps:
       - uses: actions/checkout@v2
