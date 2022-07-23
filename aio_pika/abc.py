@@ -444,10 +444,9 @@ class UnderlayChannel(NamedTuple):
     async def close(self, exc: Optional[ExceptionType] = None) -> Any:
         if self.close_callback.finished.is_set():
             return
-
-        result: Any = await self.channel.close(exc)
+        await self.channel.close(exc)
         await self.close_callback.wait()
-        return result
+        return
 
 
 class AbstractChannel(PoolInstance, ABC):
@@ -693,6 +692,13 @@ class AbstractConnection(PoolInstance, ABC):
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_secret(
+        self, new_secret: str, *,
+        reason: str = '', timeout: TimeoutType = None,
+    ) -> aiormq.spec.Connection.UpdateSecretOk:
         raise NotImplementedError
 
 
