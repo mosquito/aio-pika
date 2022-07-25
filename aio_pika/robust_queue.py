@@ -1,4 +1,4 @@
-from random import getrandbits, Random
+from random import Random
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import aiormq
