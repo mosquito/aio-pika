@@ -1,4 +1,4 @@
-from random import getrandbits
+from random import getrandbits, Random
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import aiormq
@@ -23,9 +23,11 @@ class RobustQueue(Queue, AbstractRobustQueue):
     _consumers: Dict[ConsumerTag, Dict[str, Any]]
     _bindings: Dict[Tuple[Union[AbstractExchange, str], str], Dict[str, Any]]
 
-    @staticmethod
-    def _get_random_queue_name() -> str:
-        rnd = getrandbits(128)
+    _rnd_gen: Random = Random()
+
+    @classmethod
+    def _get_random_queue_name(cls) -> str:
+        rnd = cls._rnd_gen.getrandbits(128)
         return "amq_%s" % hex(rnd).lower()
 
     def __init__(
