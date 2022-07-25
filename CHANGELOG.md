@@ -1,3 +1,9 @@
+8.1.0
+-----
+
+* Bump `aiormq~=6.4.0` with `connection blocking` feature
+* `Connection.update_secret` method (#481)
+
 8.0.3
 -----
 
