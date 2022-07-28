@@ -5,16 +5,16 @@ from enum import Enum, IntEnum, unique
 from functools import singledispatch
 from types import TracebackType
 from typing import (
-    TYPE_CHECKING, Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
+    Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
     FrozenSet, Generator, Iterator, MutableMapping, NamedTuple, Optional, Set,
     Tuple, Type, TypeVar, Union,
 )
+
+
 try:
     from typing import TypedDict
 except ImportError:
-    if not TYPE_CHECKING:
-        from typing_extensions import TypedDict
-
+    from typing_extensions import TypedDict
 
 import aiormq.abc
 from aiormq.abc import ExceptionType
@@ -272,7 +272,7 @@ class AbstractQueue:
         routing_key: Optional[str] = None,
         *,
         arguments: Arguments = None,
-        timeout: TimeoutType = None
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Queue.BindOk:
         raise NotImplementedError
 
@@ -309,7 +309,7 @@ class AbstractQueue:
     @abstractmethod
     async def get(
         self, *, no_ack: bool = False,
-        fail: bool = True, timeout: TimeoutType = 5
+        fail: bool = True, timeout: TimeoutType = 5,
     ) -> Optional[AbstractIncomingMessage]:
         raise NotImplementedError
 
@@ -322,7 +322,7 @@ class AbstractQueue:
     @abstractmethod
     async def delete(
         self, *, if_unused: bool = True, if_empty: bool = True,
-        timeout: TimeoutType = None
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Queue.DeleteOk:
         raise NotImplementedError
 
@@ -385,7 +385,7 @@ class AbstractExchange(ABC):
         durable: bool = False,
         internal: bool = False,
         passive: bool = False,
-        arguments: Arguments = None
+        arguments: Arguments = None,
     ):
         raise NotImplementedError
 
@@ -402,7 +402,7 @@ class AbstractExchange(ABC):
         routing_key: str = "",
         *,
         arguments: Arguments = None,
-        timeout: TimeoutType = None
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.BindOk:
         raise NotImplementedError
 
@@ -424,7 +424,7 @@ class AbstractExchange(ABC):
         *,
         mandatory: bool = True,
         immediate: bool = False,
-        timeout: TimeoutType = None
+        timeout: TimeoutType = None,
     ) -> Optional[aiormq.abc.ConfirmationFrameType]:
         raise NotImplementedError
 
@@ -442,7 +442,7 @@ class UnderlayChannel(NamedTuple):
     @classmethod
     async def create(
         cls, connection: aiormq.abc.AbstractConnection,
-        close_callback: Callable[..., Awaitable[Any]], **kwargs: Any
+        close_callback: Callable[..., Awaitable[Any]], **kwargs: Any,
     ) -> "UnderlayChannel":
         close_callback = OneShotCallback(close_callback)
 
@@ -536,7 +536,7 @@ class AbstractChannel(PoolInstance, ABC):
 
     @abstractmethod
     async def get_exchange(
-        self, name: str, *, ensure: bool = True
+        self, name: str, *, ensure: bool = True,
     ) -> AbstractExchange:
         raise NotImplementedError
 
@@ -550,13 +550,13 @@ class AbstractChannel(PoolInstance, ABC):
         passive: bool = False,
         auto_delete: bool = False,
         arguments: Arguments = None,
-        timeout: TimeoutType = None
+        timeout: TimeoutType = None,
     ) -> AbstractQueue:
         raise NotImplementedError
 
     @abstractmethod
     async def get_queue(
-        self, name: str, *, ensure: bool = True
+        self, name: str, *, ensure: bool = True,
     ) -> AbstractQueue:
         raise NotImplementedError
 
@@ -611,7 +611,7 @@ class UnderlayConnection(NamedTuple):
 
     @classmethod
     async def make_connection(
-        cls, url: URL, timeout: TimeoutType = None, **kwargs: Any
+        cls, url: URL, timeout: TimeoutType = None, **kwargs: Any,
     ) -> aiormq.abc.AbstractConnection:
         connection: aiormq.abc.AbstractConnection = await asyncio.wait_for(
             aiormq.connect(url, **kwargs), timeout=timeout,
@@ -622,11 +622,11 @@ class UnderlayConnection(NamedTuple):
     @classmethod
     async def connect(
         cls, url: URL, close_callback: Callable[..., Awaitable[Any]],
-        timeout: TimeoutType = None, **kwargs: Any
+        timeout: TimeoutType = None, **kwargs: Any,
     ) -> "UnderlayConnection":
         try:
             connection = await cls.make_connection(
-                url, timeout=timeout, **kwargs
+                url, timeout=timeout, **kwargs,
             )
             close_callback = OneShotCallback(close_callback)
             connection.closing.add_done_callback(close_callback)
@@ -664,7 +664,7 @@ class AbstractConnection(PoolInstance, ABC):
     @abstractmethod
     def __init__(
         self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ):
         raise NotImplementedError(
             f"Method not implemented, passed: url={url}, loop={loop!r}",
@@ -712,7 +712,7 @@ class AbstractConnection(PoolInstance, ABC):
     @abstractmethod
     async def update_secret(
         self, new_secret: str, *,
-        reason: str = '', timeout: TimeoutType = None,
+        reason: str = "", timeout: TimeoutType = None,
     ) -> aiormq.spec.Connection.UpdateSecretOk:
         raise NotImplementedError
 
@@ -730,7 +730,7 @@ class AbstractRobustQueue(AbstractQueue):
         *,
         arguments: Arguments = None,
         timeout: TimeoutType = None,
-        robust: bool = True
+        robust: bool = True,
     ) -> aiormq.spec.Queue.BindOk:
         raise NotImplementedError
 
@@ -761,7 +761,7 @@ class AbstractRobustExchange(AbstractExchange):
         *,
         arguments: Arguments = None,
         timeout: TimeoutType = None,
-        robust: bool = True
+        robust: bool = True,
     ) -> aiormq.spec.Exchange.BindOk:
         raise NotImplementedError
 
@@ -804,7 +804,7 @@ class AbstractRobustChannel(AbstractChannel):
         auto_delete: bool = False,
         arguments: Optional[Dict[str, Any]] = None,
         timeout: TimeoutType = None,
-        robust: bool = True
+        robust: bool = True,
     ) -> AbstractRobustQueue:
         raise NotImplementedError
 
