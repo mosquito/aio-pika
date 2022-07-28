@@ -5,10 +5,16 @@ from enum import Enum, IntEnum, unique
 from functools import singledispatch
 from types import TracebackType
 from typing import (
-    Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
+    TYPE_CHECKING, Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
     FrozenSet, Generator, Iterator, MutableMapping, NamedTuple, Optional, Set,
-    Tuple, Type, TypeVar, Union, TypedDict
+    Tuple, Type, TypeVar, Union,
 )
+try:
+    from typing import TypedDict
+except ImportError:
+    if not TYPE_CHECKING:
+        from typing_extensions import TypedDict
+
 
 import aiormq.abc
 from aiormq.abc import ExceptionType
