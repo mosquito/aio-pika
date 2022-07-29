@@ -1,3 +1,9 @@
+8.1.1
+-----
+
+* Generated anonymous queue name may conflict #486
+* improve typing in multiple library actors #478
+
 8.1.0
 -----
 
