@@ -43,7 +43,7 @@ class ChannelContext(AsyncContextManager, AbstractChannel, ABC):
 
 
 class Channel(ChannelContext):
-    """ Channel abstraction """
+    """Channel abstraction"""
 
     QUEUE_CLASS = Queue
     EXCHANGE_CLASS = Exchange
@@ -89,21 +89,24 @@ class Channel(ChannelContext):
 
     @property
     def is_initialized(self) -> bool:
-        """ Returns True when the channel has been opened
-        and ready for interaction """
+        """Returns True when the channel has been opened
+        and ready for interaction"""
         return self._channel is not None
 
     @property
     def is_closed(self) -> bool:
-        """ Returns True when the channel has been closed from the broker
-        side or after the close() method has been called. """
+        """Returns True when the channel has been closed from the broker
+        side or after the close() method has been called."""
         if not self.is_initialized or self._closed:
             return True
         if not self._channel:
             return True
         return self._channel.channel.is_closed
 
-    async def close(self, exc: aiormq.abc.ExceptionType = None) -> None:
+    async def close(
+        self,
+        exc: Optional[aiormq.abc.ExceptionType] = None,
+    ) -> None:
         if not self.is_initialized:
             log.warning("Channel not opened")
             return
@@ -146,7 +149,8 @@ class Channel(ChannelContext):
         await self._connection.ready()
 
         channel = await UnderlayChannel.create(
-            self._connection, self._on_close,
+            self._connection,
+            self._on_close,
             publisher_confirms=self.publisher_confirms,
             on_return_raises=self.on_return_raises,
             channel_number=self._channel_number,
@@ -247,7 +251,7 @@ class Channel(ChannelContext):
         return exchange
 
     async def get_exchange(
-        self, name: str, *, ensure: bool = True,
+        self, name: str, *, ensure: bool = True
     ) -> AbstractExchange:
         """
         With ``ensure=True``, it's a shortcut for
@@ -281,14 +285,14 @@ class Channel(ChannelContext):
 
     async def declare_queue(
         self,
-        name: str = None,
+        name: Optional[str] = None,
         *,
         durable: bool = False,
         exclusive: bool = False,
         passive: bool = False,
         auto_delete: bool = False,
         arguments: Arguments = None,
-        timeout: TimeoutType = None,
+        timeout: TimeoutType = None
     ) -> AbstractQueue:
         """
 
@@ -324,7 +328,7 @@ class Channel(ChannelContext):
         return queue
 
     async def get_queue(
-        self, name: str, *, ensure: bool = True,
+        self, name: str, *, ensure: bool = True
     ) -> AbstractQueue:
         """
         With ``ensure=True``, it's a shortcut for
@@ -362,7 +366,7 @@ class Channel(ChannelContext):
         prefetch_size: int = 0,
         global_: bool = False,
         timeout: TimeoutType = None,
-        all_channels: bool = None,
+        all_channels: Optional[bool] = None,
     ) -> aiormq.spec.Basic.QosOk:
         if all_channels is not None:
             warn('Use "global_" instead of "all_channels"', DeprecationWarning)

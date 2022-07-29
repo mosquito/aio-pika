@@ -9,7 +9,6 @@ from .abc import (
 )
 from .log import get_logger
 
-
 log = get_logger(__name__)
 
 
@@ -27,7 +26,7 @@ class Exchange(AbstractExchange):
         durable: bool = False,
         internal: bool = False,
         passive: bool = False,
-        arguments: Arguments = None,
+        arguments: Arguments = None
     ):
         self._type = type.value if isinstance(type, ExchangeType) else type
         self.channel = channel
@@ -69,7 +68,7 @@ class Exchange(AbstractExchange):
         routing_key: str = "",
         *,
         arguments: Arguments = None,
-        timeout: TimeoutType = None,
+        timeout: TimeoutType = None
     ) -> aiormq.spec.Exchange.BindOk:
 
         """ A binding can also be a relationship between two exchanges.
@@ -164,7 +163,7 @@ class Exchange(AbstractExchange):
         *,
         mandatory: bool = True,
         immediate: bool = False,
-        timeout: TimeoutType = None,
+        timeout: TimeoutType = None
     ) -> Optional[aiormq.abc.ConfirmationFrameType]:
 
         """ Publish the message to the queue. `aio-pika` uses
@@ -184,7 +183,7 @@ class Exchange(AbstractExchange):
         if self.internal:
             # Caught on the client side to prevent channel closure
             raise ValueError(
-                "Can not publish to internal exchange: '%s'!" % self.name,
+                f"Can not publish to internal exchange: '{self.name}'!",
             )
 
         return await self.channel.basic_publish(

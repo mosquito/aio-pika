@@ -136,13 +136,13 @@ class RPC(Base):
 
     async def initialize(
         self, auto_delete: bool = True,
-        durable: bool = False, **kwargs: Any,
+        durable: bool = False, **kwargs: Any
     ) -> None:
         if hasattr(self, "result_queue"):
             return
 
         self.result_queue = await self.channel.declare_queue(
-            None, auto_delete=auto_delete, durable=durable, **kwargs,
+            None, auto_delete=auto_delete, durable=durable, **kwargs
         )
 
         self.dlx_exchange = await self.channel.declare_exchange(
@@ -305,7 +305,7 @@ class RPC(Base):
     async def serialize_message(
         self, payload: Any, message_type: RPCMessageType,
         correlation_id: Optional[str], delivery_mode: DeliveryMode,
-        **kwargs: Any,
+        **kwargs: Any
     ) -> Message:
         return Message(
             self.serialize(payload),
@@ -314,7 +314,7 @@ class RPC(Base):
             delivery_mode=delivery_mode,
             timestamp=time.time(),
             type=message_type.value,
-            **kwargs,
+            **kwargs
         )
 
     async def call(
@@ -324,7 +324,7 @@ class RPC(Base):
         *,
         expiration: Optional[int] = None,
         priority: int = 5,
-        delivery_mode: DeliveryMode = DELIVERY_MODE,
+        delivery_mode: DeliveryMode = DELIVERY_MODE
     ) -> Any:
         """ Call remote method and awaiting result.
 
@@ -364,7 +364,7 @@ class RPC(Base):
         return await future
 
     async def register(
-        self, method_name: str, func: CallbackType, **kwargs: Any,
+        self, method_name: str, func: CallbackType, **kwargs: Any
     ) -> Any:
         """ Method creates a queue with name which equal of
         `method_name` argument. Then subscribes this queue.

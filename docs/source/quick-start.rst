@@ -51,12 +51,6 @@ Tornado example
 .. literalinclude:: examples/tornado-pubsub.py
    :language: python
 
-SSL connection example
-~~~~~~~~~~~~~~~~~~~~~~
-
-.. literalinclude:: examples/amqps-connection.py
-   :language: python
-
 External credentials example
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

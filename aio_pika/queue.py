@@ -25,7 +25,7 @@ log = get_logger(__name__)
 async def consumer(
     callback: Callable[[AbstractIncomingMessage], Any],
     msg: DeliveredMessage, *,
-    no_ack: bool,
+    no_ack: bool
 ) -> Any:
     message = IncomingMessage(msg, no_ack=no_ack)
     return await create_task(callback, message)
@@ -55,7 +55,7 @@ class Queue(AbstractQueue):
         self.passive = passive
 
     def __str__(self) -> str:
-        return "%s" % self.name
+        return f"{self.name}"
 
     def __repr__(self) -> str:
         return (
@@ -95,10 +95,10 @@ class Queue(AbstractQueue):
     async def bind(
         self,
         exchange: ExchangeParamType,
-        routing_key: str = None,
+        routing_key: Optional[str] = None,
         *,
         arguments: Arguments = None,
-        timeout: TimeoutType = None,
+        timeout: TimeoutType = None
     ) -> aiormq.spec.Queue.BindOk:
 
         """ A binding is a relationship between an exchange and a queue.
@@ -140,7 +140,7 @@ class Queue(AbstractQueue):
     async def unbind(
         self,
         exchange: ExchangeParamType,
-        routing_key: str = None,
+        routing_key: Optional[str] = None,
         arguments: Arguments = None,
         timeout: TimeoutType = None,
     ) -> aiormq.spec.Queue.UnbindOk:
@@ -181,7 +181,7 @@ class Queue(AbstractQueue):
         no_ack: bool = False,
         exclusive: bool = False,
         arguments: Arguments = None,
-        consumer_tag: ConsumerTag = None,
+        consumer_tag: Optional[ConsumerTag] = None,
         timeout: TimeoutType = None,
     ) -> ConsumerTag:
 
@@ -259,7 +259,7 @@ class Queue(AbstractQueue):
 
     async def get(
         self, *, no_ack: bool = False,
-        fail: bool = True, timeout: TimeoutType = 5,
+        fail: bool = True, timeout: TimeoutType = 5
     ) -> Optional[IncomingMessage]:
 
         """ Get message from the queue.
@@ -301,7 +301,7 @@ class Queue(AbstractQueue):
 
     async def delete(
         self, *, if_unused: bool = True,
-        if_empty: bool = True, timeout: TimeoutType = None,
+        if_empty: bool = True, timeout: TimeoutType = None
     ) -> aiormq.spec.Queue.DeleteOk:
 
         """ Delete the queue.
@@ -434,7 +434,7 @@ class QueueIterator(AbstractQueueIterator):
 
     async def consume(self) -> None:
         self._consumer_tag = await self._amqp_queue.consume(
-            self.on_message, **self._consume_kwargs,
+            self.on_message, **self._consume_kwargs
         )
 
     def __aiter__(self) -> "AbstractQueueIterator":

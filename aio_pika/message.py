@@ -21,7 +21,6 @@ from .abc import (
 from .exceptions import MessageProcessError
 from .log import get_logger
 
-
 log = get_logger(__name__)
 
 
@@ -171,8 +170,7 @@ class HeaderProxy(MutableMapping):
         return len(self._headers)
 
     def __iter__(self) -> Iterator[str]:
-        for key in self._headers:
-            yield key
+        yield from self._headers
 
 
 @singledispatch
@@ -248,10 +246,10 @@ class Message(AbstractMessage):
         self,
         body: bytes,
         *,
-        headers: HeadersType = None,
+        headers: Optional[HeadersType] = None,
         content_type: Optional[str] = None,
         content_encoding: Optional[str] = None,
-        delivery_mode: Union[DeliveryMode, int] = None,
+        delivery_mode: Union[DeliveryMode, int, None] = None,
         priority: Optional[int] = None,
         correlation_id: Optional[str] = None,
         reply_to: Optional[str] = None,
@@ -260,7 +258,7 @@ class Message(AbstractMessage):
         timestamp: Optional[DateType] = None,
         type: Optional[str] = None,
         user_id: Optional[str] = None,
-        app_id: Optional[str] = None,
+        app_id: Optional[str] = None
     ):
 
         """ Creates a new instance of Message
@@ -636,7 +634,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
     def info(self) -> dict:
         """ Method returns dict representation of the message """
 
-        info = super(IncomingMessage, self).info()
+        info = super().info()
         info["cluster_id"] = self.cluster_id
         info["consumer_tag"] = self.consumer_tag
         info["delivery_tag"] = self.delivery_tag
@@ -664,7 +662,7 @@ class ProcessContext(AbstractProcessContext):
         *,
         requeue: bool,
         reject_on_redelivered: bool,
-        ignore_processed: bool,
+        ignore_processed: bool
     ):
         self.message = message
         self.requeue = requeue

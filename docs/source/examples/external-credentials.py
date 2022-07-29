@@ -2,25 +2,19 @@ import asyncio
 import ssl
 
 import aio_pika
+from aio_pika.abc import SSLOptions
 
 
 async def main() -> None:
-    """
-    This example demonstrates connection to broker which configured to use
-    external authentication method, using ssl client certificate without
-    login or password.
-
-    More info: https://www.rabbitmq.com/ssl.html#peer-verification-clients
-    """
     connection = await aio_pika.connect_robust(
         host="127.0.0.1",
-        auth="external",
+        login="",
         ssl=True,
-        ssl_options=dict(
-            ca_certs="cacert.pem",
+        ssl_options=SSLOptions(
+            cafile="cacert.pem",
             certfile="cert.pem",
             keyfile="key.pem",
-            cert_reqs=ssl.CERT_REQUIRED,
+            no_verify_ssl=ssl.CERT_REQUIRED,
         ),
         client_properties={"connection_name": "aio-pika external credentials"},
     )

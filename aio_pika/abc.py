@@ -10,6 +10,12 @@ from typing import (
     Tuple, Type, TypeVar, Union,
 )
 
+
+try:
+    from typing import TypedDict
+except ImportError:
+    from typing_extensions import TypedDict
+
 import aiormq.abc
 from aiormq.abc import ExceptionType
 from pamqp.common import Arguments
@@ -30,6 +36,15 @@ ConsumerTag = str
 
 MILLISECONDS = 1000
 ZERO_TIME = datetime.utcfromtimestamp(0)
+
+
+class SSLOptions(TypedDict, total=False):
+    cafile: str
+    capath: str
+    cadata: str
+    keyfile: str
+    certfile: str
+    no_verify_ssl: int
 
 
 @unique
@@ -254,7 +269,7 @@ class AbstractQueue:
     async def bind(
         self,
         exchange: ExchangeParamType,
-        routing_key: str = None,
+        routing_key: Optional[str] = None,
         *,
         arguments: Arguments = None,
         timeout: TimeoutType = None,
@@ -278,7 +293,7 @@ class AbstractQueue:
         no_ack: bool = False,
         exclusive: bool = False,
         arguments: Arguments = None,
-        consumer_tag: ConsumerTag = None,
+        consumer_tag: Optional[ConsumerTag] = None,
         timeout: TimeoutType = None,
     ) -> ConsumerTag:
         raise NotImplementedError
@@ -470,7 +485,7 @@ class AbstractChannel(PoolInstance, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def close(self, exc: ExceptionType = None) -> Awaitable[None]:
+    def close(self, exc: Optional[ExceptionType] = None) -> Awaitable[None]:
         raise NotImplementedError
 
     @property
@@ -528,7 +543,7 @@ class AbstractChannel(PoolInstance, ABC):
     @abstractmethod
     async def declare_queue(
         self,
-        name: str = None,
+        name: Optional[str] = None,
         *,
         durable: bool = False,
         exclusive: bool = False,
@@ -552,7 +567,7 @@ class AbstractChannel(PoolInstance, ABC):
         prefetch_size: int = 0,
         global_: bool = False,
         timeout: TimeoutType = None,
-        all_channels: bool = None,
+        all_channels: Optional[bool] = None,
     ) -> aiormq.spec.Basic.QosOk:
         raise NotImplementedError
 
@@ -671,7 +686,7 @@ class AbstractConnection(PoolInstance, ABC):
     @abstractmethod
     def channel(
         self,
-        channel_number: int = None,
+        channel_number: Optional[int] = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
     ) -> AbstractChannel:
@@ -697,7 +712,7 @@ class AbstractConnection(PoolInstance, ABC):
     @abstractmethod
     async def update_secret(
         self, new_secret: str, *,
-        reason: str = '', timeout: TimeoutType = None,
+        reason: str = "", timeout: TimeoutType = None,
     ) -> aiormq.spec.Connection.UpdateSecretOk:
         raise NotImplementedError
 
@@ -711,7 +726,7 @@ class AbstractRobustQueue(AbstractQueue):
     async def bind(
         self,
         exchange: ExchangeParamType,
-        routing_key: str = None,
+        routing_key: Optional[str] = None,
         *,
         arguments: Arguments = None,
         timeout: TimeoutType = None,
@@ -726,7 +741,7 @@ class AbstractRobustQueue(AbstractQueue):
         no_ack: bool = False,
         exclusive: bool = False,
         arguments: Arguments = None,
-        consumer_tag: ConsumerTag = None,
+        consumer_tag: Optional[ConsumerTag] = None,
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> ConsumerTag:
@@ -781,13 +796,13 @@ class AbstractRobustChannel(AbstractChannel):
     @abstractmethod
     async def declare_queue(
         self,
-        name: str = None,
+        name: Optional[str] = None,
         *,
         durable: bool = False,
         exclusive: bool = False,
         passive: bool = False,
         auto_delete: bool = False,
-        arguments: dict = None,
+        arguments: Optional[Dict[str, Any]] = None,
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> AbstractRobustQueue:
@@ -809,7 +824,7 @@ class AbstractRobustConnection(AbstractConnection):
     @abstractmethod
     def channel(
         self,
-        channel_number: int = None,
+        channel_number: Optional[int] = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
     ) -> AbstractRobustChannel:
@@ -828,7 +843,7 @@ ConnectionType = TypeVar("ConnectionType", bound=AbstractConnection)
 @singledispatch
 def get_exchange_name(value: Any) -> str:
     raise ValueError(
-        f"exchange argument must be an exchange "
+        "exchange argument must be an exchange "
         f"instance or str not {value!r}",
     )
 
@@ -871,6 +886,7 @@ __all__ = (
     "HeadersType",
     "HeadersValue",
     "MILLISECONDS",
+    "SSLOptions",
     "TimeoutType",
     "TransactionState",
     "UnderlayChannel",

@@ -69,11 +69,11 @@ class RobustQueue(Queue, AbstractRobustQueue):
     async def bind(
         self,
         exchange: ExchangeParamType,
-        routing_key: str = None,
+        routing_key: Optional[str] = None,
         *,
         arguments: Arguments = None,
         timeout: TimeoutType = None,
-        robust: bool = True,
+        robust: bool = True
     ) -> aiormq.spec.Queue.BindOk:
         if routing_key is None:
             routing_key = self.name
@@ -93,7 +93,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
     async def unbind(
         self,
         exchange: ExchangeParamType,
-        routing_key: str = None,
+        routing_key: Optional[str] = None,
         arguments: Arguments = None,
         timeout: TimeoutType = None,
     ) -> aiormq.spec.Queue.UnbindOk:
@@ -113,7 +113,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
         no_ack: bool = False,
         exclusive: bool = False,
         arguments: Arguments = None,
-        consumer_tag: ConsumerTag = None,
+        consumer_tag: Optional[ConsumerTag] = None,
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> ConsumerTag:

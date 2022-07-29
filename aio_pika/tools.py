@@ -9,7 +9,6 @@ from weakref import ReferenceType, WeakSet, ref
 
 from aio_pika.log import get_logger
 
-
 log = get_logger(__name__)
 T = TypeVar("T")
 
@@ -41,7 +40,7 @@ def create_task(
     func: Callable[..., Union[Coroutine[Any, Any, T], Awaitable[T]]],
     *args: Any,
     loop: Optional[asyncio.AbstractEventLoop] = None,
-    **kwargs: Any,
+    **kwargs: Any
 ) -> Awaitable[T]:
     loop = loop or asyncio.get_event_loop()
 
@@ -65,7 +64,7 @@ def create_task(
 
 
 CallbackType = Callable[..., Union[T, Awaitable[T]]]
-CallbackSetType = Union[AbstractSet[CallbackType]]
+CallbackSetType = AbstractSet[CallbackType]
 
 
 class StubAwaitable:
