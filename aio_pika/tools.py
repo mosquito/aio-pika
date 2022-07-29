@@ -9,6 +9,7 @@ from weakref import ReferenceType, WeakSet, ref
 
 from aio_pika.log import get_logger
 
+
 log = get_logger(__name__)
 T = TypeVar("T")
 

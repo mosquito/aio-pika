@@ -10,6 +10,7 @@ from .abc import (
 from .exchange import Exchange, ExchangeType
 from .log import get_logger
 
+
 log = get_logger(__name__)
 
 

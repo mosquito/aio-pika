@@ -196,13 +196,13 @@ class Connection(AbstractConnection):
 
     async def update_secret(
         self, new_secret: str, *,
-        reason: str = '', timeout: TimeoutType = None,
+        reason: str = "", timeout: TimeoutType = None,
     ) -> aiormq.spec.Connection.UpdateSecretOk:
         if self.transport is None:
             raise RuntimeError("Connection is not ready")
 
         result = await self.transport.connection.update_secret(
-            new_secret=new_secret, reason=reason, timeout=timeout
+            new_secret=new_secret, reason=reason, timeout=timeout,
         )
         self.url = self.url.with_password(new_secret)
         return result
