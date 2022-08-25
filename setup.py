@@ -50,6 +50,7 @@ setup(
             "coverage!=4.3",
             "coveralls",
             "pylava",
+            "pyflakes<2.5",
             "pytest",
             "pytest-cov",
             "shortuuid",
