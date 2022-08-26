@@ -1,4 +1,5 @@
 import asyncio
+from ssl import SSLContext
 from typing import Any, Optional, Type, Union
 from weakref import WeakSet
 
@@ -184,6 +185,7 @@ async def connect_robust(
     ssl: bool = False,
     loop: Optional[asyncio.AbstractEventLoop] = None,
     ssl_options: Optional[SSLOptions] = None,
+    ssl_context: Optional[SSLContext] = None,
     timeout: TimeoutType = None,
     client_properties: Optional[FieldTable] = None,
     connection_class: Type[AbstractRobustConnection] = RobustConnection,
@@ -227,12 +229,12 @@ async def connect_robust(
 
     .. code-block:: python
 
+        # As URL parameter method
         read_connection = await connect(
-            client_properties={
-                'connection_name': 'Read connection'
-            }
+            "amqp://guest:guest@localhost/?name=Read%20connection"
         )
 
+        # keyword method
         write_connection = await connect(
             client_properties={
                 'connection_name': 'Write connection'
@@ -260,6 +262,7 @@ async def connect_robust(
     :param timeout: connection timeout in seconds
     :param loop:
         Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
+    :param ssl_context: ssl.SSLContext instance
     :param connection_class: Factory of a new connection
     :param kwargs: addition parameters which will be passed to the connection.
     :return: :class:`aio_pika.connection.Connection`
@@ -283,7 +286,7 @@ async def connect_robust(
             client_properties=client_properties,
             **kwargs
         ),
-        loop=loop,
+        loop=loop, ssl_context=ssl_context,
     )
 
     await connection.connect(timeout=timeout)

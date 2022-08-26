@@ -1,4 +1,5 @@
 import asyncio
+from ssl import SSLContext
 from types import TracebackType
 from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
 
@@ -51,7 +52,7 @@ class Connection(AbstractConnection):
 
     def __init__(
         self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None,
-        **kwargs: Any
+        ssl_context: Optional[SSLContext] = None, **kwargs: Any
     ):
         self.loop = loop or asyncio.get_event_loop()
         self.transport = None
@@ -63,6 +64,7 @@ class Connection(AbstractConnection):
         self.kwargs: Dict[str, Any] = self._parse_kwargs(
             kwargs or dict(self.url.query),
         )
+        self.kwargs["context"] = ssl_context
         self.close_callbacks = CallbackCollection(self)
         self.connected: asyncio.Event = asyncio.Event()
 
@@ -256,6 +258,7 @@ async def connect(
     ssl: bool = False,
     loop: Optional[asyncio.AbstractEventLoop] = None,
     ssl_options: Optional[SSLOptions] = None,
+    ssl_context: Optional[SSLContext] = None,
     timeout: TimeoutType = None,
     client_properties: Optional[FieldTable] = None,
     connection_class: Type[AbstractConnection] = Connection,
@@ -298,10 +301,9 @@ async def connect(
 
     .. code-block:: python
 
+        # As URL parameter method
         read_connection = await connect(
-            client_properties={
-                'connection_name': 'Read connection'
-            }
+            "amqp://guest:guest@localhost/?name=Read%20connection"
         )
 
         write_connection = await connect(
@@ -331,6 +333,7 @@ async def connect(
     :param timeout: connection timeout in seconds
     :param loop:
         Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
+    :param ssl_context: ssl.SSLContext instance
     :param connection_class: Factory of a new connection
     :param kwargs: addition parameters which will be passed to the connection.
     :return: :class:`aio_pika.connection.Connection`
@@ -354,7 +357,7 @@ async def connect(
             client_properties=client_properties,
             **kwargs
         ),
-        loop=loop,
+        loop=loop, ssl_context=ssl_context,
     )
 
     await connection.connect(timeout=timeout)
