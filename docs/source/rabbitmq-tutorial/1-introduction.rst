@@ -53,7 +53,7 @@ RabbitMQ, and messaging in general, uses some jargon.
 
 We'll draw it like that, with "P":
 
-.. image:: /_static/tutorial/producer.png
+.. image:: /_static/tutorial/producer.svg
    :align: center
 
 * A queue is the name for a mailbox. It lives inside RabbitMQ.
@@ -65,7 +65,7 @@ We'll draw it like that, with "P":
 
 A queue will be drawn as like that, with its name above it:
 
-.. image:: /_static/tutorial/queue.png
+.. image:: /_static/tutorial/queue.svg
    :align: center
 
 * Consuming has a similar meaning to receiving. A consumer is a
@@ -73,7 +73,7 @@ A queue will be drawn as like that, with its name above it:
 
 On our drawings it's shown with "C":
 
-.. image:: /_static/tutorial/consumer.png
+.. image:: /_static/tutorial/consumer.svg
    :align: center
 
 .. note::
@@ -93,7 +93,7 @@ message and one that receives and prints it.
 
 Our overall design will look like:
 
-.. image:: /_static/tutorial/python-one-overall.png
+.. image:: /_static/tutorial/python-one-overall.svg
    :align: center
 
 Producer sends messages to the "hello" queue. The consumer receives messages from that queue.
@@ -115,7 +115,7 @@ Producer sends messages to the "hello" queue. The consumer receives messages fro
 Sending
 +++++++
 
-.. image:: /_static/tutorial/sending.png
+.. image:: /_static/tutorial/sending.svg
    :align: center
 
 Our first program *send.py* will send a single message to the queue. The first
@@ -177,7 +177,7 @@ In this example async context manager has been used.
 Receiving
 +++++++++
 
-.. image:: /_static/tutorial/receiving.png
+.. image:: /_static/tutorial/receiving.svg
    :align: center
 
 Our second program *receive.py* will receive messages from the queue and print them on the screen.

@@ -35,7 +35,7 @@ Work Queues
 
    .. _contact us: https://groups.google.com/forum/#!forum/rabbitmq-users
 
-.. image:: /_static/tutorial/python-two.png
+.. image:: /_static/tutorial/python-two.svg
    :align: center
 
 In the :ref:`first tutorial <introduction>` we wrote programs to send and receive messages
@@ -261,7 +261,7 @@ the queue. It doesn't look at the number of unacknowledged messages for a consum
 It just blindly dispatches every n-th message to the n-th consumer.
 
 
-.. image:: /_static/tutorial/prefetch-count.png
+.. image:: /_static/tutorial/prefetch-count.svg
    :align: center
 
 
