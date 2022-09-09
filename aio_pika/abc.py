@@ -459,9 +459,18 @@ class UnderlayChannel(NamedTuple):
     async def close(self, exc: Optional[ExceptionType] = None) -> Any:
         if self.close_callback.finished.is_set():
             return
-        await self.channel.close(exc)
+
+        # close callbacks must be fired when closing
+        # and should be deleted later for prevent memory leaks
+        result: Any = await self.channel.close(exc)
         await self.close_callback.wait()
-        return
+
+        self.channel.closing.remove_done_callback(self.close_callback)
+        self.channel.connection.closing.remove_done_callback(
+            self.close_callback
+        )
+
+        return result
 
 
 class AbstractChannel(PoolInstance, ABC):
