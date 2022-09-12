@@ -461,7 +461,7 @@ class UnderlayChannel(NamedTuple):
             return
 
         # close callbacks must be fired when closing
-        # and should be deleted later for prevent memory leaks
+        # and should be deleted later to prevent memory leaks
         await self.channel.close(exc)
         await self.close_callback.wait()
 
