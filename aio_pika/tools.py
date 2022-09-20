@@ -42,6 +42,7 @@ def _task_done(future: asyncio.Future) -> None:
     if exc is not None:
         raise exc
 
+
 def create_task(
     func: Callable[..., Union[Coroutine[Any, Any, T], Awaitable[T]]],
     *args: Any,
