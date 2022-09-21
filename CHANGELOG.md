@@ -1,3 +1,13 @@
+8.2.2
+-----
+
+* Prevent "Task exception was never retrieved" on timeout #492
+
+8.2.1
+-----
+
+* Fix memory leaks on channel close #491
+
 8.2.0
 -----
 
