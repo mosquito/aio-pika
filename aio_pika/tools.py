@@ -37,6 +37,12 @@ def iscoroutinepartial(fn: Callable[..., Any]) -> bool:
     return asyncio.iscoroutinefunction(parent)
 
 
+def _task_done(future: asyncio.Future) -> None:
+    exc = future.exception()
+    if exc is not None:
+        raise exc
+
+
 def create_task(
     func: Callable[..., Union[Coroutine[Any, Any, T], Awaitable[T]]],
     *args: Any,
@@ -46,7 +52,9 @@ def create_task(
     loop = loop or asyncio.get_event_loop()
 
     if iscoroutinepartial(func):
-        return loop.create_task(func(*args, **kwargs))      # type: ignore
+        task = loop.create_task(func(*args, **kwargs))      # type: ignore
+        task.add_done_callback(_task_done)
+        return task
 
     def run(future: asyncio.Future) -> Optional[asyncio.Future]:
         if future.done():
@@ -60,6 +68,7 @@ def create_task(
         return future
 
     future = loop.create_future()
+    future.add_done_callback(_task_done)
     loop.call_soon(run, future)
     return future
 
