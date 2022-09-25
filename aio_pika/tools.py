@@ -46,13 +46,12 @@ def _task_done(future: asyncio.Future) -> None:
 def create_task(
     func: Callable[..., Union[Coroutine[Any, Any, T], Awaitable[T]]],
     *args: Any,
-    loop: Optional[asyncio.AbstractEventLoop] = None,
     **kwargs: Any
 ) -> Awaitable[T]:
-    loop = loop or asyncio.get_event_loop()
+    loop = asyncio.get_event_loop()
 
     if iscoroutinepartial(func):
-        task = loop.create_task(func(*args, **kwargs))      # type: ignore
+        task = asyncio.create_task(func(*args, **kwargs))      # type: ignore
         task.add_done_callback(_task_done)
         return task
 
@@ -201,11 +200,10 @@ class CallbackCollection(MutableSet):
 
 
 class OneShotCallback:
-    __slots__ = ("loop", "finished", "__lock", "callback", "__task")
+    __slots__ = ("finished", "__lock", "callback", "__task")
 
     def __init__(self, callback: Callable[..., Awaitable[T]]):
         self.callback: Callable[..., Awaitable[T]] = callback
-        self.loop = asyncio.get_event_loop()
         self.finished: asyncio.Event = asyncio.Event()
         self.__lock: asyncio.Lock = asyncio.Lock()
         self.__task: asyncio.Future
@@ -234,7 +232,7 @@ class OneShotCallback:
     def __call__(self, *args: Any, **kwargs: Any) -> Awaitable[Any]:
         if self.finished.is_set():
             return STUB_AWAITABLE
-        self.__task = self.loop.create_task(
+        self.__task = asyncio.create_task(
             self.__task_inner(*args, **kwargs),
         )
         return self.__task

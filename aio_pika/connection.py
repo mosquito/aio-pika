@@ -51,10 +51,12 @@ class Connection(AbstractConnection):
         return result
 
     def __init__(
-        self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None,
-        ssl_context: Optional[SSLContext] = None, **kwargs: Any
+        self,
+        url: URL,
+        ssl_context: Optional[SSLContext] = None,
+        **kwargs: Any,
     ):
-        self.loop = loop or asyncio.get_event_loop()
+        self._loop = asyncio.get_event_loop()
         self.transport = None
         self._closed = False
         self._close_called = False
@@ -112,7 +114,7 @@ class Connection(AbstractConnection):
 
             import aio_pika
 
-            async def main(loop):
+            async def main():
                 connection = await aio_pika.connect(
                     "amqp://guest:guest@127.0.0.1/"
                 )
@@ -136,7 +138,7 @@ class Connection(AbstractConnection):
 
             import aio_pika
 
-            async def main(loop):
+            async def main():
                 connection = await aio_pika.connect(
                     "amqp://guest:guest@127.0.0.1/"
                 )
@@ -178,7 +180,7 @@ class Connection(AbstractConnection):
     def __del__(self) -> None:
         if (
             self.is_closed or
-            self.loop.is_closed() or
+            self._loop.is_closed() or
             not hasattr(self, "connection")
         ):
             return
@@ -256,7 +258,6 @@ async def connect(
     password: str = "guest",
     virtualhost: str = "/",
     ssl: bool = False,
-    loop: Optional[asyncio.AbstractEventLoop] = None,
     ssl_options: Optional[SSLOptions] = None,
     ssl_context: Optional[SSLContext] = None,
     timeout: TimeoutType = None,
@@ -331,8 +332,6 @@ async def connect(
     :param ssl: use SSL for connection. Should be used with addition kwargs.
     :param ssl_options: A dict of values for the SSL connection.
     :param timeout: connection timeout in seconds
-    :param loop:
-        Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
     :param ssl_context: ssl.SSLContext instance
     :param connection_class: Factory of a new connection
     :param kwargs: addition parameters which will be passed to the connection.
@@ -357,7 +356,7 @@ async def connect(
             client_properties=client_properties,
             **kwargs
         ),
-        loop=loop, ssl_context=ssl_context,
+        ssl_context=ssl_context,
     )
 
     await connection.connect(timeout=timeout)

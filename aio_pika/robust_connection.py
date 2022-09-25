@@ -35,10 +35,9 @@ class RobustConnection(Connection, AbstractRobustConnection):
     def __init__(
         self,
         url: URL,
-        loop: Optional[asyncio.AbstractEventLoop] = None,
         **kwargs: Any,
     ):
-        super().__init__(url=url, loop=loop, **kwargs)
+        super().__init__(url=url, **kwargs)
 
         self.reconnect_interval = self.kwargs.pop("reconnect_interval")
         self.fail_fast = self.kwargs.pop("fail_fast")
@@ -92,7 +91,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
             # from Exception and this needed for catch it first
             raise
         except Exception as e:
-            closing = self.loop.create_future()
+            closing = self._loop.create_future()
             closing.set_exception(e)
             await self.close_callbacks(closing)
             await asyncio.gather(connection.close(e), return_exceptions=True)
@@ -183,7 +182,6 @@ async def connect_robust(
     password: str = "guest",
     virtualhost: str = "/",
     ssl: bool = False,
-    loop: Optional[asyncio.AbstractEventLoop] = None,
     ssl_options: Optional[SSLOptions] = None,
     ssl_context: Optional[SSLContext] = None,
     timeout: TimeoutType = None,
@@ -260,8 +258,6 @@ async def connect_robust(
     :param ssl: use SSL for connection. Should be used with addition kwargs.
     :param ssl_options: A dict of values for the SSL connection.
     :param timeout: connection timeout in seconds
-    :param loop:
-        Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
     :param ssl_context: ssl.SSLContext instance
     :param connection_class: Factory of a new connection
     :param kwargs: addition parameters which will be passed to the connection.
@@ -286,7 +282,7 @@ async def connect_robust(
             client_properties=client_properties,
             **kwargs
         ),
-        loop=loop, ssl_context=ssl_context,
+        ssl_context=ssl_context,
     )
 
     await connection.connect(timeout=timeout)

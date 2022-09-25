@@ -669,12 +669,9 @@ class AbstractConnection(PoolInstance, ABC):
     transport: Optional[UnderlayConnection]
 
     @abstractmethod
-    def __init__(
-        self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None,
-        **kwargs: Any,
-    ):
+    def __init__(self, url: URL, **kwargs: Any):
         raise NotImplementedError(
-            f"Method not implemented, passed: url={url}, loop={loop!r}",
+            f"Method not implemented, passed: url={url}",
         )
 
     @property

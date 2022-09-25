@@ -45,7 +45,7 @@ RPCMessageTypes = RPCMessageType    # noqa
 class RPC(Base):
     __slots__ = (
         "channel",
-        "loop",
+        "_loop",
         "proxy",
         "result_queue",
         "result_consumer_tag",
@@ -88,7 +88,7 @@ class RPC(Base):
 
     def __init__(self, channel: AbstractChannel):
         self.channel = channel
-        self.loop = asyncio.get_event_loop()
+        self._loop = asyncio.get_event_loop()
         self.proxy = Proxy(self.call)
         self.futures: Dict[str, asyncio.Future] = {}
         self.routes: Dict[str, Callable[..., Any]] = {}
@@ -100,7 +100,7 @@ class RPC(Base):
         self.futures.pop(str(id(future)), None)
 
     def create_future(self) -> Tuple[asyncio.Future, str]:
-        future = self.loop.create_future()
+        future = self._loop.create_future()
         log.debug("Create future for RPC call")
         correlation_id = str(uuid.uuid4())
         self.futures[correlation_id] = future
