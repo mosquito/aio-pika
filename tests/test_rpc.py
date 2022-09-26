@@ -137,7 +137,7 @@ class TestCase:
 
         await rpc.close()
 
-    async def test_close_cancelling(self, channel: aio_pika.Channel):
+    async def test_close_cancelling(self, channel: aio_pika.Channel, loop):
         rpc = await RPC.create(channel, auto_delete=True)
 
         async def sleeper():
@@ -150,7 +150,7 @@ class TestCase:
         tasks = set()
 
         for _ in range(10):
-            tasks.add(asyncio.create_task(rpc.call(method_name)))
+            tasks.add(loop.create_task(rpc.call(method_name)))
 
         await rpc.close()
 

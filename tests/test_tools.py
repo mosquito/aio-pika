@@ -100,7 +100,7 @@ class TestCase:
             shared.append(arg)
 
         def task_maker(arg):
-            return asyncio.create_task(coro(arg))
+            return loop.create_task(coro(arg))
 
         collection.add(future.set_result)
         collection.add(coro)

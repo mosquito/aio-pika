@@ -46,7 +46,7 @@ class TestCaseAmqpBase:
 
 
 class TestCaseAmqp(TestCaseAmqpBase):
-    async def test_properties(self, connection: aio_pika.Connection):
+    async def test_properties(self, loop, connection: aio_pika.Connection):
         assert not connection.is_closed
 
     async def test_channel_close(self, connection: aio_pika.Connection):
@@ -1205,7 +1205,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
                 async with channel.transaction():
                     raise ValueError
 
-    async def test_async_for_queue(self, connection, declare_queue):
+    async def test_async_for_queue(self, loop, connection, declare_queue):
         channel2 = await self.create_channel(connection)
 
         queue = await declare_queue(
@@ -1224,7 +1224,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
                     Message(body=str(i).encode()), routing_key=queue.name,
                 )
 
-        asyncio.create_task(publisher())
+        loop.create_task(publisher())
 
         count = 0
         data = list()
@@ -1240,7 +1240,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         assert data == list(map(lambda x: str(x).encode(), range(messages)))
 
     async def test_async_for_queue_context(
-        self, connection, declare_queue,
+        self, loop, connection, declare_queue,
     ):
         channel2 = await self.create_channel(connection)
 
@@ -1260,7 +1260,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
                     Message(body=str(i).encode()), routing_key=queue.name,
                 )
 
-        asyncio.create_task(publisher())
+        loop.create_task(publisher())
 
         count = 0
         data = list()
@@ -1277,7 +1277,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         assert data == list(map(lambda x: str(x).encode(), range(messages)))
 
     async def test_async_with_connection(
-        self, create_connection: Callable, connection, declare_queue,
+        self, create_connection: Callable, connection, loop, declare_queue,
     ):
         async with await create_connection() as connection:
 
@@ -1299,7 +1299,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
                         Message(body=str(i).encode()), routing_key=queue.name,
                     )
 
-            asyncio.create_task(publisher())
+            loop.create_task(publisher())
 
             count = 0
             data = list()
@@ -1401,7 +1401,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
                 future.set_exception(e)
                 raise
 
-        task = asyncio.create_task(task_inner())
+        task = loop.create_task(task_inner())
 
         await event.wait()
         loop.call_soon(task.cancel)
@@ -1415,6 +1415,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
     async def test_queue_iterator_close_with_noack(
         self,
         create_connection: Callable,
+        loop,
         add_cleanup: Callable,
         declare_queue,
     ):
@@ -1454,7 +1455,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
                     Message(body), routing_key=queue_name,
                 )
 
-                task = asyncio.create_task(task_inner())
+                task = loop.create_task(task_inner())
 
                 await task
 
@@ -1560,7 +1561,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
             await channel.set_qos(10)
 
     async def test_heartbeat_disabling(
-        self, amqp_url: URL, connection_fabric,
+        self, loop, amqp_url: URL, connection_fabric,
     ):
         url = amqp_url.update_query(heartbeat=0)
         connection: AbstractConnection = await connection_fabric(url)

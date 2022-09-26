@@ -18,8 +18,8 @@ def connection_fabric():
 
 
 @pytest.fixture
-def create_connection(connection_fabric, amqp_url):
-    return partial(connection_fabric, amqp_url)
+def create_connection(connection_fabric, loop, amqp_url):
+    return partial(connection_fabric, amqp_url, loop=loop)
 
 
 class TestCaseNoRobust(TestCaseAmqp):

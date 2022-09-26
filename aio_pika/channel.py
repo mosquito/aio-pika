@@ -60,6 +60,8 @@ class Channel(ChannelContext):
         """
 
         :param connection: :class:`aio_pika.adapter.AsyncioConnection` instance
+        :param loop: Event loop (:func:`asyncio.get_event_loop()`
+                when :class:`None`)
         :param future_store: :class:`aio_pika.common.FutureStore` instance
         :param publisher_confirms: False if you don't need delivery
                 confirmations (in pursuit of performance)

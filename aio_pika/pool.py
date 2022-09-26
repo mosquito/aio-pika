@@ -38,6 +38,7 @@ class PoolInvalidStateError(RuntimeError):
 
 class Pool(Generic[T]):
     __slots__ = (
+        "loop",
         "__max_size",
         "__items",
         "__constructor",
@@ -53,7 +54,9 @@ class Pool(Generic[T]):
         constructor: ConstructorType,
         *args: Any,
         max_size: Optional[int] = None,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
     ):
+        self.loop = loop or asyncio.get_event_loop()
         self.__closed = False
         self.__constructor: Callable[..., Awaitable[Any]] = awaitable(
             constructor,

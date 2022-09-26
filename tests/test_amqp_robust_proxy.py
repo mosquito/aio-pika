@@ -56,19 +56,20 @@ def connection_fabric():
 
 
 @pytest.fixture
-def create_direct_connection(amqp_direct_url):
+def create_direct_connection(loop, amqp_direct_url):
     return partial(
         aio_pika.connect,
         amqp_direct_url.update_query(
             name=amqp_direct_url.query["name"] + "::direct",
             heartbeat=30,
         ),
+        loop=loop,
     )
 
 
 @pytest.fixture
-def create_connection(connection_fabric, amqp_url):
-    return partial(connection_fabric, amqp_url)
+def create_connection(connection_fabric, loop, amqp_url):
+    return partial(connection_fabric, amqp_url, loop=loop)
 
 
 @pytest.fixture
@@ -143,7 +144,7 @@ async def test_robust_reconnect(
     create_connection, direct_connection,
     proxy: TCPProxy, loop, add_cleanup: Callable,
 ):
-    read_conn = await create_connection()  # type: aio_pika.RobustConnection
+    read_conn = await create_connection()   # type: aio_pika.RobustConnection
 
     reconnect_event = asyncio.Event()
     read_conn.reconnect_callbacks.add(
@@ -190,7 +191,7 @@ async def test_robust_reconnect(
                     logging.info("Exit reader task")
 
             try:
-                reader_task = asyncio.create_task(reader(queue.name))
+                reader_task = loop.create_task(reader(queue.name))
 
                 await consumer_event.wait()
                 logging.info("Disconnect all clients")
@@ -250,7 +251,7 @@ async def test_channel_locked_resource2(connection: aio_pika.RobustConnection):
 
 
 async def test_channel_close_when_exclusive_queue(
-    create_connection, create_direct_connection, proxy: TCPProxy,
+    create_connection, create_direct_connection, proxy: TCPProxy, loop,
 ):
     logging.info("Creating connections")
     direct_conn, proxy_conn = await asyncio.gather(
@@ -289,7 +290,7 @@ async def test_channel_close_when_exclusive_queue(
         await closer()
         logging.info("Closed")
 
-    await asyncio.create_task(close_after(5, direct_conn.close))
+    await loop.create_task(close_after(5, direct_conn.close))
 
     # reconnect fired
     await reconnect_event.wait()
@@ -420,14 +421,14 @@ async def test_robust_duplicate_queue(
 
 @aiomisc.timeout(10)
 async def test_channel_restore(
-    connection_fabric, amqp_url, proxy: TCPProxy, add_cleanup: Callable,
+    connection_fabric, loop, amqp_url, proxy: TCPProxy, add_cleanup: Callable,
 ):
     heartbeat = 10
     amqp_url = amqp_url.update_query(heartbeat=heartbeat)
 
     on_reopen = asyncio.Event()
 
-    conn = await connection_fabric(amqp_url)
+    conn = await connection_fabric(amqp_url, loop=loop)
     assert isinstance(conn, aio_pika.RobustConnection)
 
     async with conn:
@@ -450,11 +451,11 @@ async def test_channel_restore(
 
 @aiomisc.timeout(20)
 async def test_channel_reconnect(
-    connection_fabric, amqp_url, proxy: TCPProxy, add_cleanup: Callable,
+    connection_fabric, loop, amqp_url, proxy: TCPProxy, add_cleanup: Callable,
 ):
     on_reconnect = asyncio.Event()
 
-    conn = await connection_fabric(amqp_url)
+    conn = await connection_fabric(amqp_url, loop=loop)
     assert isinstance(conn, aio_pika.RobustConnection)
 
     conn.reconnect_callbacks.add(lambda *_: on_reconnect.set(), weak=False)
@@ -491,8 +492,9 @@ async def test_channel_reconnect_after_5kb(
 ):
     connection = await aio_pika.connect_robust(
         amqp_url.update_query(reconnect_interval=reconnect_timeout),
+        loop=loop,
     )
-    direct_connection = await aio_pika.connect(amqp_direct_url)
+    direct_connection = await aio_pika.connect(amqp_direct_url, loop=loop)
 
     on_reconnect = asyncio.Event()
     connection.reconnect_callbacks.add(
@@ -559,8 +561,9 @@ async def test_channel_reconnect_stairway(
 ):
     connection = await aio_pika.connect_robust(
         amqp_url.update_query(reconnect_interval=reconnect_timeout),
+        loop=loop,
     )
-    direct_connection = await aio_pika.connect(amqp_direct_url)
+    direct_connection = await aio_pika.connect(amqp_direct_url, loop=loop)
 
     on_reconnect = asyncio.Event()
     connection.reconnect_callbacks.add(

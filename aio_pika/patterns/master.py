@@ -1,3 +1,4 @@
+import asyncio
 import gzip
 import json
 import logging
@@ -13,8 +14,10 @@ from aio_pika.abc import (
     ConsumerTag, DeliveryMode,
 )
 from aio_pika.message import Message, ReturnedMessage
-from .base import Base, Proxy
+
 from ..tools import create_task
+from .base import Base, Proxy
+
 
 log = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -38,11 +41,16 @@ class Worker:
     __slots__ = (
         "queue",
         "consumer_tag",
+        "loop",
     )
 
-    def __init__(self, queue: AbstractQueue, consumer_tag: ConsumerTag):
+    def __init__(
+        self, queue: AbstractQueue, consumer_tag: ConsumerTag,
+        loop: asyncio.AbstractEventLoop,
+    ):
         self.queue = queue
         self.consumer_tag = consumer_tag
+        self.loop = loop
 
     def close(self) -> Awaitable[None]:
         """ Cancel subscription to the channel
@@ -59,6 +67,7 @@ class Worker:
 class Master(Base):
     __slots__ = (
         "channel",
+        "loop",
         "proxy",
     )
 
@@ -90,6 +99,7 @@ class Master(Base):
         :param channel: Initialized instance of :class:`aio_pika.Channel`
         """
         self.channel: AbstractChannel = channel
+        self.loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
         self.proxy = Proxy(self.create_task)
 
         self.channel.return_callbacks.add(self.on_message_returned)
@@ -176,7 +186,7 @@ class Master(Base):
             fn = awaitable(func)
         consumer_tag = await queue.consume(partial(self.on_message, fn))
 
-        return Worker(queue, consumer_tag)
+        return Worker(queue, consumer_tag, self.loop)
 
     async def create_task(
         self, channel_name: str,
