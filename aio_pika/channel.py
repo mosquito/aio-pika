@@ -324,7 +324,7 @@ class Channel(ChannelContext):
         )
 
         await queue.declare(timeout=timeout)
-        self.close_callbacks.add(queue.close_callbacks)
+        self.close_callbacks.add(queue.close_callbacks, weak=True)
         return queue
 
     async def get_queue(
