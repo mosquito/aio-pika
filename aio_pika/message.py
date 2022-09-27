@@ -266,7 +266,6 @@ class Message(AbstractMessage):
 
         :param body: message body
         :param headers: message headers
-        :param headers_raw: message raw headers
         :param content_type: content type
         :param content_encoding: content encoding
         :param delivery_mode: delivery mode
