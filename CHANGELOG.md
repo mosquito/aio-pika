@@ -1,3 +1,8 @@
+8.2.3
+-----
+
+* Fix memory leak when callback collections is chaining #495
+
 8.2.2
 -----
 
