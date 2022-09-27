@@ -88,7 +88,13 @@ STUB_AWAITABLE = StubAwaitable()
 
 
 class CallbackCollection(MutableSet):
-    __slots__ = "__sender", "__callbacks", "__weak_callbacks", "__lock"
+    __slots__ = (
+        "__weakref__",
+        "__sender",
+        "__callbacks",
+        "__weak_callbacks",
+        "__lock",
+    )
 
     def __init__(self, sender: Union[T, ReferenceType]):
         self.__sender: ReferenceType
