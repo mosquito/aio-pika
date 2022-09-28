@@ -12,16 +12,13 @@ class FibonacciRpcClient:
     connection: AbstractConnection
     channel: AbstractChannel
     callback_queue: AbstractQueue
-    loop: asyncio.AbstractEventLoop
 
     def __init__(self) -> None:
         self.futures: MutableMapping[str, asyncio.Future] = {}
-        self.loop = asyncio.get_running_loop()
+        self._loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
 
     async def connect(self) -> "FibonacciRpcClient":
-        self.connection = await connect(
-            "amqp://guest:guest@localhost/", loop=self.loop,
-        )
+        self.connection = await connect("amqp://guest:guest@localhost/")
         self.channel = await self.connection.channel()
         self.callback_queue = await self.channel.declare_queue(exclusive=True)
         await self.callback_queue.consume(self.on_response)
@@ -38,7 +35,7 @@ class FibonacciRpcClient:
 
     async def call(self, n: int) -> int:
         correlation_id = str(uuid.uuid4())
-        future = self.loop.create_future()
+        future = self._loop.create_future()
 
         self.futures[correlation_id] = future
 
