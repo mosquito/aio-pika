@@ -159,7 +159,7 @@ from the worker, once we're done with a task.
 
     async def on_message(message: IncomingMessage):
         print(" [x] Received %r" % message.body)
-        await asyncio.sleep(message.body.count(b'.'), loop=loop)
+        await asyncio.sleep(message.body.count(b'.'))
         print(" [x] Done")
         await message.ack()
 
