@@ -1,3 +1,9 @@
+8.2.4
+-----
+
+* Fix memory leaks around channel close callbacks #496
+* Fastest way to reject all messages when queue iterator is closing #498
+
 8.2.3
 -----
 
