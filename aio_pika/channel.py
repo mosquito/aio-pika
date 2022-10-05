@@ -184,6 +184,9 @@ class Channel(ChannelContext):
     async def _on_close(self, closing: asyncio.Future) -> None:
         await self.close_callbacks(closing.exception())
 
+        if self._channel and self._channel.channel:
+            self._channel.channel.on_return_callbacks.discard(self._on_return)
+
     async def _on_initialized(self) -> None:
         self.channel.on_return_callbacks.add(self._on_return)
 

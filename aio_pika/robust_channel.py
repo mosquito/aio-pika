@@ -68,6 +68,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
 
     async def __close_callback(self, *_: Any) -> None:
         if self._closed or self._connection.is_closed:
+            self.close_callbacks.discard(self.__close_callback)
             return
 
         await self.reopen()
