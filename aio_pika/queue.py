@@ -1,8 +1,7 @@
 import asyncio
-import contextlib
 from functools import partial
 from types import TracebackType
-from typing import Any, Callable, Generator, Optional, Type
+from typing import Any, Callable, Optional, Type
 
 import aiormq
 from aiormq.abc import DeliveredMessage
@@ -398,18 +397,14 @@ class QueueIterator(AbstractQueueIterator):
 
         log.debug("Queue iterator %r closed", self)
 
-        def queue_tail(
-            channel: aiormq.abc.AbstractChannel,
-        ) -> Generator[Any, AbstractIncomingMessage, None]:
-            while not channel.is_closed:
-                with contextlib.suppress(asyncio.QueueEmpty):
-                    yield self._queue.get_nowait()
-                return None
-
         # Reject all messages
-        msg: IncomingMessage
-        for msg in queue_tail(self._amqp_queue.channel):
-            await msg.reject(requeue=True)
+        msg: Optional[IncomingMessage] = None
+        try:
+            while True:
+                msg = self._queue.get_nowait()
+        except asyncio.QueueEmpty:
+            if msg is not None and not self._amqp_queue.channel.is_closed:
+                await msg.nack(requeue=True, multiple=True)
 
     def __str__(self) -> str:
         return f"queue[{self._amqp_queue}](...)"
