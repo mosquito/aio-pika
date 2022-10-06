@@ -1,9 +1,10 @@
 import abc
 import asyncio
+from contextlib import asynccontextmanager
 from types import TracebackType
 from typing import (
-    Any, AsyncContextManager, Awaitable, Callable, Coroutine, Generic, Optional,
-    Set, Tuple, Type, TypeVar, Union,
+    Any, AsyncIterator, Awaitable, Callable, Coroutine, Generic, Optional, Set,
+    Tuple, Type, TypeVar, Union,
 )
 
 from aiormq.tools import awaitable
@@ -72,11 +73,18 @@ class Pool(Generic[T]):
     def is_closed(self) -> bool:
         return self.__closed
 
-    def acquire(self) -> "PoolItemContextManager[T]":
+    @asynccontextmanager
+    async def acquire(self) -> AsyncIterator[T]:
         if self.__closed:
             raise PoolInvalidStateError("acquire operation on closed pool")
 
-        return PoolItemContextManager[T](self)
+        item: T = await self._get()
+
+        try:
+            yield item
+        finally:
+            if item is not None:
+                self.put(item)
 
     @property
     def _has_released(self) -> bool:
@@ -141,25 +149,3 @@ class Pool(Generic[T]):
             return
 
         await asyncio.ensure_future(self.close())
-
-
-class PoolItemContextManager(Generic[T], AsyncContextManager):
-    __slots__ = "pool", "item"
-
-    def __init__(self, pool: Pool):
-        self.pool = pool
-        self.item: T
-
-    async def __aenter__(self) -> T:
-        # noinspection PyProtectedMember
-        self.item = await self.pool._get()
-        return self.item
-
-    async def __aexit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
-    ) -> None:
-        if self.item is not None:
-            self.pool.put(self.item)
