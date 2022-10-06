@@ -15,7 +15,7 @@ from typing import (
 try:
     from typing import TypedDict
 except ImportError:
-    from typing_extensions import TypedDict, AsyncIterator
+    from typing_extensions import TypedDict
 
 import aiormq.abc
 from aiormq.abc import ExceptionType
