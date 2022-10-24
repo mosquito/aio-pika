@@ -62,7 +62,7 @@ class RPC(Base):
 
     Create an instance ::
 
-        rpc = await RPC.create(channel)
+        rpc = await RPC.create(channel, host_exceptions=False)
 
     Registering python function ::
 
@@ -80,13 +80,19 @@ class RPC(Base):
 
         assert await rpc.call('multiply', dict(x=2, y=3)) == 6
 
+    Show exceptions on remote side ::
+
+        rpc = await RPC.create(channel, host_exceptions=True)
     """
 
     result_queue: AbstractQueue
     result_consumer_tag: ConsumerTag
     dlx_exchange: AbstractExchange
 
-    def __init__(self, channel: AbstractChannel):
+    def __init__(
+        self, channel: AbstractChannel,
+        host_exceptions: bool = False,
+    ) -> None:
         self.channel = channel
         self.loop = asyncio.get_event_loop()
         self.proxy = Proxy(self.call)
@@ -94,6 +100,7 @@ class RPC(Base):
         self.routes: Dict[str, Callable[..., Any]] = {}
         self.queues: Dict[Callable[..., Any], AbstractQueue] = {}
         self.consumer_tags: Dict[Callable[..., Any], ConsumerTag] = {}
+        self.host_exceptions = host_exceptions
 
     def __remove_future(self, future: asyncio.Future) -> None:
         log.debug("Remove done future %r", future)
@@ -257,6 +264,9 @@ class RPC(Base):
         except Exception as e:
             result = self.serialize_exception(e)
             message_type = RPCMessageType.ERROR
+
+            if self.host_exceptions is True:
+                log.exception(e)
 
         if not message.reply_to:
             log.info(
