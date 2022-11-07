@@ -457,15 +457,15 @@ class QueueIterator(AbstractQueueIterator):
                 timeout=self._consume_kwargs.get("timeout"),
             )
         except asyncio.CancelledError:
+            timeout = self._consume_kwargs.get(
+                "timeout", 
+                self.DEFAULT_CLOSE_TIMEOUT,
+            )
             log.info(
                 "%r closing with timeout %d seconds",
-                self, self.DEFAULT_CLOSE_TIMEOUT,
+                self, timeout,
             )
-            await asyncio.wait_for(
-                self.close(), timeout=self._consume_kwargs.get(
-                    "timeout", self.DEFAULT_CLOSE_TIMEOUT,
-                ),
-            )
+            await asyncio.wait_for(self.close(), timeout=timeout)
             raise
 
 
