@@ -151,7 +151,7 @@ ideally be idempotent.
 Summary
 +++++++
 
-.. image:: /_static/tutorial/python-six.png
+.. image:: /_static/tutorial/python-six.svg
    :align: center
 
 Our RPC will work like this:

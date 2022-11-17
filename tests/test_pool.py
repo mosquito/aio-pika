@@ -23,13 +23,14 @@ async def test_simple(max_size, loop):
 
         async with pool.acquire() as instance:
             assert instance > 0
-            await asyncio.sleep(0.01)
-            return counter
+            await asyncio.sleep(1 if counter < max_size else 0)
+            return instance, counter
 
     results = await asyncio.gather(*[getter() for _ in range(200)])
 
-    for result in results:
-        assert result > -1
+    for instance, total in results:
+        assert instance > -1
+        assert total > -1
 
     assert counter == max_size
 

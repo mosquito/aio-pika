@@ -34,6 +34,17 @@ Get single message example
 .. literalinclude:: examples/main.py
    :language: python
 
+Set logging level
+~~~~~~~~~~~~~~~~~
+
+Sometimes you want to see only your debug logs, but when you just call
+`logging.basicConfig(logging.DEBUG)` you set the debug log level for all
+loggers, includes all aio_pika's modules. If you want to set logging level
+independently see following example:
+
+.. literalinclude:: examples/log-level-set.py
+   :language: python
+
 Tornado example
 ~~~~~~~~~~~~~~~
 

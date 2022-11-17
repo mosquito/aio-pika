@@ -41,10 +41,16 @@ Features
 
 * Completely asynchronous API.
 * Object oriented API.
-* Auto-reconnects with complete state recovery with `connect_robust`
+* Transparent auto-reconnects with complete state recovery with `connect_robust`
   (e.g. declared queues or exchanges, consuming state and bindings).
-* Python 3.4+ compatible (include 3.6).
+* Python 3.6+ compatible.
+* For python 3.5 users available `aio-pika<7`
+* Transparent `publisher confirms`_ support
+* `Transactions`_ support
+* Completely type-hints coverage.
 
+.. _publisher confirms: https://www.rabbitmq.com/confirms.html
+.. _Transactions: https://www.rabbitmq.com/semantics.html#tx
 
 Installation
 ++++++++++++
@@ -109,24 +115,78 @@ Thanks for contributing
 +++++++++++++++++++++++
 
 * `@mosquito`_ (author)
+* `@decaz`_ (steel persuasiveness while code review)
+* `@heckad`_ (bug fixes)
+* `@smagafurov`_ (bug fixes)
 * `@hellysmile`_ (bug fixes and ideas)
+* `@altvod`_ (bug fixes)
 * `@alternativehood`_ (bugfixes)
-* `@akhoronko`_
-* `@zyp`_
-* `@decaz`_
-* `@kajetanj`_
-* `@iselind`_
-* `@driverx`_
+* `@cprieto`_ (bug fixes)
+* `@akhoronko`_ (bug fixes)
+* `@iselind`_ (bug fixes)
+* `@DXist`_ (bug fixes)
+* `@blazewicz`_ (bug fixes)
+* `@chibby0ne`_ (bug fixes)
+* `@jmccarrell`_ (bug fixes)
+* `@taybin`_ (bug fixes)
+* `@ollamh`_ (bug fixes)
+* `@DriverX`_ (bug fixes)
+* `@brianmedigate`_ (bug fixes)
+* `@dan-stone`_ (bug fixes)
+* `@Kludex`_ (bug fixes)
+* `@bmario`_ (bug fixes)
+* `@tzoiker`_ (bug fixes)
+* `@Pehat`_ (bug fixes)
+* `@WindowGenerator`_ (bug fixes)
+* `@dhontecillas`_ (bug fixes)
+* `@tilsche`_ (bug fixes)
+* `@leenr`_ (bug fixes)
+* `@la0rg`_ (bug fixes)
+* `@SolovyovAlexander`_ (bug fixes)
+* `@kremius`_ (bug fixes)
+* `@zyp`_ (bug fixes)
+* `@kajetanj`_ (bug fixes)
+* `@Alviner`_ (moral support, debug sessions and good mood)
+* `@Pavkazzz`_ (composure, and patience while debug sessions)
+* `@bbrodriges`_ (supplying grammar while writing documentation)
+* `@dizballanze`_ (review, grammar)
 
 .. _@mosquito: https://github.com/mosquito
-.. _@hellysmile: https://github.com/hellysmile
-.. _@alternativehood: https://github.com/alternativehood
-.. _@akhoronko: https://github.com/akhoronko
-.. _@zyp: https://github.com/zyp
 .. _@decaz: https://github.com/decaz
-.. _@kajetanj: https://github.com/kajetanj
+.. _@heckad: https://github.com/heckad
+.. _@smagafurov: https://github.com/smagafurov
+.. _@hellysmile: https://github.com/hellysmile
+.. _@altvod: https://github.com/altvod
+.. _@alternativehood: https://github.com/alternativehood
+.. _@cprieto: https://github.com/cprieto
+.. _@akhoronko: https://github.com/akhoronko
 .. _@iselind: https://github.com/iselind
-.. _@driverx: https://github.com/DriverX
+.. _@DXist: https://github.com/DXist
+.. _@blazewicz: https://github.com/blazewicz
+.. _@chibby0ne: https://github.com/chibby0ne
+.. _@jmccarrell: https://github.com/jmccarrell
+.. _@taybin: https://github.com/taybin
+.. _@ollamh: https://github.com/ollamh
+.. _@DriverX: https://github.com/DriverX
+.. _@brianmedigate: https://github.com/brianmedigate
+.. _@dan-stone: https://github.com/dan-stone
+.. _@Kludex: https://github.com/Kludex
+.. _@bmario: https://github.com/bmario
+.. _@tzoiker: https://github.com/tzoiker
+.. _@Pehat: https://github.com/Pehat
+.. _@WindowGenerator: https://github.com/WindowGenerator
+.. _@dhontecillas: https://github.com/dhontecillas
+.. _@tilsche: https://github.com/tilsche
+.. _@leenr: https://github.com/leenr
+.. _@la0rg: https://github.com/la0rg
+.. _@SolovyovAlexander: https://github.com/SolovyovAlexander
+.. _@kremius: https://github.com/kremius
+.. _@zyp: https://github.com/zyp
+.. _@kajetanj: https://github.com/kajetanj
+.. _@Alviner: https://github.com/Alviner
+.. _@Pavkazzz: https://github.com/Pavkazzz
+.. _@bbrodriges: https://github.com/bbrodriges
+.. _@dizballanze: https://github.com/dizballanze
 
 
 Versioning

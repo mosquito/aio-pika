@@ -94,7 +94,7 @@ is simple — a message goes to the queues whose binding key exactly matches the
 
 To illustrate that, consider the following setup:
 
-.. image:: /_static/tutorial/direct-exchange.png
+.. image:: /_static/tutorial/direct-exchange.svg
    :align: center
 
 In this setup, we can see the *direct* exchange X with two queues bound to it. The first queue is
@@ -109,7 +109,7 @@ All other messages will be discarded.
 Multiple bindings
 +++++++++++++++++
 
-.. image:: /_static/tutorial/direct-exchange-multiple.png
+.. image:: /_static/tutorial/direct-exchange-multiple.svg
    :align: center
 
 It is perfectly legal to bind multiple queues with the same binding key. In our
@@ -177,12 +177,12 @@ going to create a new binding for each severity we're interested in.
 Putting it all together
 +++++++++++++++++++++++
 
-.. image:: /_static/tutorial/python-four.png
+.. image:: /_static/tutorial/python-four.svg
    :align: center
 
-The code for :download:`receive_logs_direct.py <examples/4-routing/receive_logs_direct.py>`:
+The simplified code for :download:`receive_logs_direct_somple.py <examples/4-routing/receive_logs_direct_simple.py>`:
 
-.. literalinclude:: examples/4-routing/receive_logs_direct.py
+.. literalinclude:: examples/4-routing/receive_logs_direct_simple.py
    :language: python
 
 The code for :download:`emit_log_direct.py <examples/4-routing/emit_log_direct.py>`:
@@ -190,10 +190,18 @@ The code for :download:`emit_log_direct.py <examples/4-routing/emit_log_direct.p
 .. literalinclude:: examples/4-routing/emit_log_direct.py
    :language: python
 
+.. note::
+
+   The callback-based code for :download:`receive_logs_direct.py <examples/4-routing/receive_logs_direct.py>`:
+
+   .. literalinclude:: examples/4-routing/receive_logs_direct.py
+      :language: python
+
+
 If you want to save only *'warning'* and *'error'* (and not *'info'*) log messages to a file,
 just open a console and type::
 
-    $ python receive_logs_direct.py warning error > logs_from_rabbit.log
+    $ python receive_logs_direct_simple.py warning error > logs_from_rabbit.log
 
 If you'd like to see all the log messages on your screen, open a new terminal and do::
 

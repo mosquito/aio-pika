@@ -1,16 +1,19 @@
 import asyncio
+
 import aio_pika
 
 
-async def process_message(message: aio_pika.IncomingMessage):
+async def process_message(
+    message: aio_pika.abc.AbstractIncomingMessage,
+) -> None:
     async with message.process():
         print(message.body)
         await asyncio.sleep(1)
 
 
-async def main(loop):
+async def main() -> None:
     connection = await aio_pika.connect_robust(
-        "amqp://guest:guest@127.0.0.1/", loop=loop
+        "amqp://guest:guest@127.0.0.1/",
     )
 
     queue_name = "test_queue"
@@ -18,8 +21,7 @@ async def main(loop):
     # Creating channel
     channel = await connection.channel()
 
-    # Maximum message count which will be
-    # processing at the same time.
+    # Maximum message count which will be processing at the same time.
     await channel.set_qos(prefetch_count=100)
 
     # Declaring queue
@@ -27,14 +29,12 @@ async def main(loop):
 
     await queue.consume(process_message)
 
-    return connection
+    try:
+        # Wait until terminate
+        await asyncio.Future()
+    finally:
+        await connection.close()
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    connection = loop.run_until_complete(main(loop))
-
-    try:
-        loop.run_forever()
-    finally:
-        loop.run_until_complete(connection.close())
+    asyncio.run(main())

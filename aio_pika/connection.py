@@ -1,114 +1,88 @@
 import asyncio
-import logging
-from functools import partial
-from typing import Optional, Type, TypeVar
+from ssl import SSLContext
+from types import TracebackType
+from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
 
-import aiormq
+import aiormq.abc
 from aiormq.tools import censor_url
+from pamqp.common import FieldTable
 from yarl import URL
 
+from .abc import (
+    AbstractChannel, AbstractConnection, SSLOptions, TimeoutType,
+    UnderlayConnection,
+)
 from .channel import Channel
-from .pool import PoolInstance
+from .log import get_logger
 from .tools import CallbackCollection
-from .types import CloseCallbackType, TimeoutType
 
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
+T = TypeVar("T")
 
 
-class Connection(PoolInstance):
+class Connection(AbstractConnection):
     """ Connection abstraction """
 
-    CHANNEL_CLASS = Channel
-    KWARGS_TYPES = ()
+    CHANNEL_CLASS: Type[Channel] = Channel
+    KWARGS_TYPES: Tuple[Tuple[str, Callable[[str], Any], str], ...] = ()
+
+    _closed: bool
 
     @property
-    def is_closed(self):
-        return self.closing.done()
+    def is_closed(self) -> bool:
+        return self._closed
 
-    async def close(self, exc=asyncio.CancelledError):
-        if not self.closing.done():
-            self.closing.set_result(exc)
-
-        return await self.connection.close(exc)
+    async def close(
+        self, exc: Optional[aiormq.abc.ExceptionType] = asyncio.CancelledError,
+    ) -> None:
+        transport, self.transport = self.transport, None
+        self._close_called = True
+        if not transport:
+            return
+        await transport.close(exc)
+        self._closed = True
 
     @classmethod
-    def _parse_kwargs(cls, kwargs):
+    def _parse_kwargs(cls, kwargs: Dict[str, Any]) -> Dict[str, Any]:
         result = {}
         for key, parser, default in cls.KWARGS_TYPES:
             result[key] = parser(kwargs.get(key, default))
         return result
 
     def __init__(
-        self, url, loop: Optional[asyncio.AbstractEventLoop] = None, **kwargs
+        self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None,
+        ssl_context: Optional[SSLContext] = None, **kwargs: Any
     ):
         self.loop = loop or asyncio.get_event_loop()
+        self.transport = None
+        self._closed = False
+        self._close_called = False
+
         self.url = URL(url)
 
-        self.kwargs = self._parse_kwargs(kwargs or self.url.query)
+        self.kwargs: Dict[str, Any] = self._parse_kwargs(
+            kwargs or dict(self.url.query),
+        )
+        self.kwargs["context"] = ssl_context
+        self.close_callbacks = CallbackCollection(self)
+        self.connected: asyncio.Event = asyncio.Event()
 
-        self._close_callbacks = CallbackCollection(self)
-        self.connection = None  # type: Optional[aiormq.Connection]
-        self.closing = self.loop.create_future()
-
-    @property
-    def close_callbacks(self) -> CallbackCollection:
-        return self._close_callbacks
-
-    @property
-    def heartbeat_last(self) -> float:
-        """ returns loop.time() value since last received heartbeat """
-        return self.connection.heartbeat_last_received
-
-    @property
-    def _channels(self) -> dict:
-        return self.connection.channels
-
-    def __str__(self):
+    def __str__(self) -> str:
         return str(censor_url(self.url))
 
-    def __repr__(self):
-        return '<{0}: "{1}">'.format(self.__class__.__name__, str(self))
+    def __repr__(self) -> str:
+        return f'<{self.__class__.__name__}: "{self}">'
 
-    def add_close_callback(
-        self, callback: CloseCallbackType, weak: bool = False
-    ):
-        """ Add callback which will be called after connection will be closed.
+    async def _on_connection_close(self, closing: asyncio.Future) -> None:
+        exc: Optional[BaseException] = closing.exception()
+        self.connected.clear()
+        await self.close_callbacks(exc)
 
-        :class:`BaseException` or None will be passed as a first argument.
+    async def _on_connected(self, transport: UnderlayConnection) -> None:
+        self.connected.set()
 
-        Example:
-
-        .. code-block:: python
-
-            import aio_pika
-
-            async def main():
-                connection = await aio_pika.connect(
-                    "amqp://guest:guest@127.0.0.1/"
-                )
-                connection.add_close_callback(print)
-                await connection.close()
-                # None
-
-
-        :return: None
-        """
-        self.close_callbacks.add(callback, weak=weak)
-
-    def _on_connection_close(self, connection, closing, *args, **kwargs):
-        exc = closing.exception()
-        self.close_callbacks(exc)
-        log.debug("Closing AMQP connection %r", connection)
-
-    async def _make_connection(self, **kwargs) -> aiormq.Connection:
-        connection = await aiormq.connect(self.url, **kwargs)
-        connection.closing.add_done_callback(
-            partial(self._on_connection_close, self.connection),
-        )
-        return connection
-
-    async def connect(self, timeout: TimeoutType = None, **kwargs):
+    async def connect(self, timeout: TimeoutType = None) -> None:
         """ Connect to AMQP server. This method should be called after
         :func:`aio_pika.connection.Connection.__init__`
 
@@ -117,16 +91,19 @@ class Connection(PoolInstance):
             You shouldn't call it explicitly.
 
         """
-        self.connection = await asyncio.wait_for(
-            self._make_connection(**kwargs), timeout=timeout,
+        transport = await UnderlayConnection.connect(
+            self.url, self._on_connection_close,
+            timeout=timeout, **self.kwargs
         )
+        await self._on_connected(transport)
+        self.transport = transport
 
     def channel(
         self,
-        channel_number: int = None,
+        channel_number: Optional[int] = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
-    ) -> Channel:
+    ) -> AbstractChannel:
         """ Coroutine which returns new instance of :class:`Channel`.
 
         Example:
@@ -148,8 +125,8 @@ class Connection(PoolInstance):
                 await channel42.close()
 
                 # For working with transactions
-                channel_no_confirms = connection.channel(
-                    publisher_confirms=True
+                channel_no_confirms = await connection.channel(
+                    publisher_confirms=False
                 )
                 await channel_no_confirms.close()
 
@@ -180,10 +157,13 @@ class Connection(PoolInstance):
             when mandatory message will be returned
         """
 
+        if not self.transport:
+            raise RuntimeError("Connection was not opened")
+
         log.debug("Creating AMQP channel for connection: %r", self)
 
         channel = self.CHANNEL_CLASS(
-            connection=self,
+            connection=self.transport.connection,
             channel_number=channel_number,
             publisher_confirms=publisher_confirms,
             on_return_raises=on_return_raises,
@@ -192,32 +172,46 @@ class Connection(PoolInstance):
         log.debug("Channel created: %r", channel)
         return channel
 
-    async def ready(self):
-        while self.connection is None:
-            await asyncio.sleep(0)
+    async def ready(self) -> None:
+        await self.connected.wait()
 
-    def __del__(self):
-        if any((self.is_closed, self.loop.is_closed(), not self.connection)):
+    def __del__(self) -> None:
+        if (
+            self.is_closed or
+            self.loop.is_closed() or
+            not hasattr(self, "connection")
+        ):
             return
 
-        asyncio.shield(self.close())
+        asyncio.ensure_future(self.close())
 
     async def __aenter__(self) -> "Connection":
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        for channel in tuple(self._channels.values()):  # can change size
-            if not channel.is_closed:
-                await channel.close()
-
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         await self.close()
 
+    async def update_secret(
+        self, new_secret: str, *,
+        reason: str = "", timeout: TimeoutType = None,
+    ) -> aiormq.spec.Connection.UpdateSecretOk:
+        if self.transport is None:
+            raise RuntimeError("Connection is not ready")
 
-ConnectionType = TypeVar("ConnectionType", bound=Connection)
+        result = await self.transport.connection.update_secret(
+            new_secret=new_secret, reason=reason, timeout=timeout,
+        )
+        self.url = self.url.with_password(new_secret)
+        return result
 
 
-async def connect(
-    url: str = None,
+def make_url(
+    url: Union[str, URL, None] = None,
     *,
     host: str = "localhost",
     port: int = 5672,
@@ -225,14 +219,51 @@ async def connect(
     password: str = "guest",
     virtualhost: str = "/",
     ssl: bool = False,
-    loop: asyncio.AbstractEventLoop = None,
-    ssl_options: dict = None,
-    timeout: TimeoutType = None,
-    connection_class: Type[ConnectionType] = Connection,
-    client_properties: dict = None,
-    **kwargs
-) -> ConnectionType:
+    ssl_options: Optional[SSLOptions] = None,
+    client_properties: Optional[FieldTable] = None,
+    **kwargs: Any,
+) -> URL:
+    if url is not None:
+        if not isinstance(url, URL):
+            return URL(url)
+        return url
 
+    kw = kwargs
+    kw.update(ssl_options or {})
+    kw.update(client_properties or {})
+
+    # sanitize keywords
+    kw = {k: v for k, v in kw.items() if v is not None}
+
+    return URL.build(
+        scheme="amqps" if ssl else "amqp",
+        host=host,
+        port=port,
+        user=login,
+        password=password,
+        # yarl >= 1.3.0 requires path beginning with slash
+        path="/" + virtualhost,
+        query=kw,
+    )
+
+
+async def connect(
+    url: Union[str, URL, None] = None,
+    *,
+    host: str = "localhost",
+    port: int = 5672,
+    login: str = "guest",
+    password: str = "guest",
+    virtualhost: str = "/",
+    ssl: bool = False,
+    loop: Optional[asyncio.AbstractEventLoop] = None,
+    ssl_options: Optional[SSLOptions] = None,
+    ssl_context: Optional[SSLContext] = None,
+    timeout: TimeoutType = None,
+    client_properties: Optional[FieldTable] = None,
+    connection_class: Type[AbstractConnection] = Connection,
+    **kwargs: Any
+) -> AbstractConnection:
     """ Make connection to the broker.
 
     Example:
@@ -270,10 +301,9 @@ async def connect(
 
     .. code-block:: python
 
+        # As URL parameter method
         read_connection = await connect(
-            client_properties={
-                'connection_name': 'Read connection'
-            }
+            "amqp://guest:guest@localhost/?name=Read%20connection"
         )
 
         write_connection = await connect(
@@ -303,6 +333,7 @@ async def connect(
     :param timeout: connection timeout in seconds
     :param loop:
         Event loop (:func:`asyncio.get_event_loop()` when :class:`None`)
+    :param ssl_context: ssl.SSLContext instance
     :param connection_class: Factory of a new connection
     :param kwargs: addition parameters which will be passed to the connection.
     :return: :class:`aio_pika.connection.Connection`
@@ -313,27 +344,24 @@ async def connect(
 
     """
 
-    if url is None:
-        kw = kwargs
-        kw.update(ssl_options or {})
-
-        url = URL.build(
-            scheme="amqps" if ssl else "amqp",
+    connection: AbstractConnection = connection_class(
+        make_url(
+            url,
             host=host,
             port=port,
-            user=login,
+            login=login,
             password=password,
-            # yarl >= 1.3.0 requires path beginning with slash
-            path="/" + virtualhost,
-            query=kw,
-        )
-
-    connection = connection_class(url, loop=loop)
-
-    await connection.connect(
-        timeout=timeout, client_properties=client_properties, loop=loop,
+            virtualhost=virtualhost,
+            ssl=ssl,
+            ssl_options=ssl_options,
+            client_properties=client_properties,
+            **kwargs
+        ),
+        loop=loop, ssl_context=ssl_context,
     )
+
+    await connection.connect(timeout=timeout)
     return connection
 
 
-__all__ = ("connect", "Connection")
+__all__ = ("connect", "Connection", "make_url")

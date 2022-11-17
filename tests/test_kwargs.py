@@ -1,4 +1,4 @@
-from aiormq.connection import parse_bool, parse_int
+from aiormq.connection import parse_bool, parse_int, parse_timeout
 
 from aio_pika import connect
 from aio_pika.connection import Connection
@@ -12,6 +12,8 @@ class MockConnection(Connection):
 
 class MockConnectionRobust(RobustConnection):
     async def connect(self, timeout=None, **kwargs):
+        self.kwargs["reconnect_interval"] = self.reconnect_interval
+        self.kwargs["fail_fast"] = self.fail_fast
         return self
 
 
@@ -30,6 +32,15 @@ VALUE_GENERATORS = {
         "no": False,
         "": False,
         None: False,
+    },
+    parse_timeout: {
+        "0": 0,
+        "Vasyan": 0,
+        "0.1": 0.1,
+        "0.54": 0.54,
+        "1": 1,
+        "100": 100,
+        "1000:": 0,
     },
 }
 

@@ -45,7 +45,7 @@ The caller creates tasks and awaiting results:
    :language: python
 
 
-One or multimple callees executing tasks:
+One or multiple callees executing tasks:
 
 .. literalinclude:: examples/rpc-callee.py
    :language: python

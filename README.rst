@@ -42,6 +42,10 @@ If you are a newcomer to RabbitMQ, please start with the `adopted official Rabbi
    Since version ``5.0.0`` this library doesn't use ``pika`` as AMQP connector.
    Versions below ``5.0.0`` contains or requires ``pika``'s source code.
 
+.. note::
+   The version 7.0.0 has breaking API changes, see CHANGELOG.md
+   for migration hints.
+
 
 Features
 --------
@@ -50,10 +54,11 @@ Features
 * Object oriented API.
 * Transparent auto-reconnects with complete state recovery with `connect_robust`
   (e.g. declared queues or exchanges, consuming state and bindings).
-* Python 3.5+ compatible.
-* For python 3.4 users available `aio-pika<4`
+* Python 3.7+ compatible.
+* For python 3.5 users available `aio-pika<7`
 * Transparent `publisher confirms`_ support
 * `Transactions`_ support
+* Completely type-hints coverage.
 
 
 .. _Transactions: https://www.rabbitmq.com/semantics.html
@@ -77,9 +82,13 @@ Simple consumer:
 
     import asyncio
     import aio_pika
+    import aio_pika.abc
 
 
     async def main(loop):
+        # Connect with the givien parameters is also valiable.
+        # aio_pika.connect_robust(host="host", login="login", password="password")
+        # You can only choose one option to create a connection, url or kw-based params.
         connection = await aio_pika.connect_robust(
             "amqp://guest:guest@127.0.0.1/", loop=loop
         )
@@ -88,13 +97,13 @@ Simple consumer:
             queue_name = "test_queue"
 
             # Creating channel
-            channel = await connection.channel()    # type: aio_pika.Channel
+            channel: aio_pika.abc.AbstractChannel = await connection.channel()
 
             # Declaring queue
-            queue = await channel.declare_queue(
+            queue: aio_pika.abc.AbstractQueue = await channel.declare_queue(
                 queue_name,
                 auto_delete=True
-            )   # type: aio_pika.Queue
+            )
 
             async with queue.iterator() as queue_iter:
                 # Cancel consuming after __aexit__
@@ -117,16 +126,18 @@ Simple publisher:
 
     import asyncio
     import aio_pika
+    import aio_pika.abc
 
 
     async def main(loop):
-        connection = await aio_pika.connect_robust(
+        # Explicit type annotation
+        connection: aio_pika.RobustConnection = await aio_pika.connect_robust(
             "amqp://guest:guest@127.0.0.1/", loop=loop
         )
 
         routing_key = "test_queue"
 
-        channel = await connection.channel()    # type: aio_pika.Channel
+        channel: aio_pika.abc.AbstractChannel = await connection.channel()
 
         await channel.default_exchange.publish(
             aio_pika.Message(
@@ -243,7 +254,7 @@ _____________
 
 .. code-block:: bash
 
-    docker run -d -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+    docker run -d -p 5671:5671 -p 5672:5672 -p 15671:15671 -p 15672:15672 mosquito/aiormq-rabbitmq
 
 To test just run:
 

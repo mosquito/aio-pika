@@ -67,7 +67,7 @@ pushes them to queues. The exchange must know exactly what to do with a message 
 Should it be appended to a particular queue? Should it be appended to many queues?
 Or should it get discarded. The rules for that are defined by the exchange type.
 
-.. image:: /_static/tutorial/exchanges.png
+.. image:: /_static/tutorial/exchanges.svg
    :align: center
 
 There are a few exchange types available: `DIRECT`, `TOPIC`, `HEADERS` and `FANOUT`
@@ -123,7 +123,7 @@ Now, we can publish to our named exchange instead:
 
 .. literalinclude:: examples/3-publish-subscribe/emit_log.py
    :language: python
-   :lines: 19-28
+   :lines: 19-29
 
 
 Temporary queues
@@ -150,12 +150,12 @@ Secondly, once we disconnect the consumer the queue should be deleted. There's a
 
 .. literalinclude:: examples/3-publish-subscribe/receive_logs.py
    :language: python
-   :lines: 27
+   :lines: 26
 
 Bindings
 ++++++++
 
-.. image:: /_static/tutorial/bindings.png
+.. image:: /_static/tutorial/bindings.svg
    :align: center
 
 We've already created a fanout exchange and a queue. Now we need to tell the exchange to
@@ -163,7 +163,7 @@ send messages to our queue. That relationship between exchange and a queue is ca
 
 .. literalinclude:: examples/3-publish-subscribe/receive_logs.py
    :language: python
-   :lines: 22-30
+   :lines: 21-29
 
 From now on the logs exchange will append messages to our queue.
 
@@ -178,7 +178,7 @@ From now on the logs exchange will append messages to our queue.
 Putting it all together
 +++++++++++++++++++++++
 
-.. image:: /_static/tutorial/python-three-overall.png
+.. image:: /_static/tutorial/python-three-overall.svg
    :align: center
 
 The producer program, which emits log messages, doesn't look much different from the previous tutorial.

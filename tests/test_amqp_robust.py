@@ -1,8 +1,12 @@
+import asyncio
 from functools import partial
 
 import pytest
+from aiormq import ChannelNotFoundEntity
 
 import aio_pika
+from aio_pika import RobustChannel
+from tests import get_random_name
 from tests.test_amqp import (
     TestCaseAmqp, TestCaseAmqpNoConfirms, TestCaseAmqpWithConfirms,
 )
@@ -46,10 +50,38 @@ class TestCaseNoRobust(TestCaseAmqp):
         def cb(*a, **kw):
             pass
 
-        connection.add_reconnect_callback(cb)
+        connection.reconnect_callbacks.add(cb)
 
         del cb
         assert len(connection.reconnect_callbacks) == 1
+
+    async def test_channel_blocking_timeout_reopen(self, connection):
+        channel: RobustChannel = await connection.channel()     # type: ignore
+        close_reasons = []
+        close_event = asyncio.Event()
+        reopen_event = asyncio.Event()
+        channel.reopen_callbacks.add(lambda _: reopen_event.set())
+
+        queue_name = get_random_name("test_channel_blocking_timeout_reopen")
+
+        def on_done(*args):
+            close_reasons.append(args)
+            close_event.set()
+            return
+
+        channel.close_callbacks.add(on_done)
+
+        with pytest.raises(ChannelNotFoundEntity):
+            await channel.declare_queue(queue_name, passive=True)
+
+        await close_event.wait()
+        assert channel.is_closed
+
+        # Ensure close callback has been called
+        assert close_reasons
+
+        await asyncio.wait_for(reopen_event.wait(), timeout=60)
+        await channel.declare_queue(queue_name, auto_delete=True)
 
 
 class TestCaseAmqpNoConfirmsRobust(TestCaseAmqpNoConfirms):

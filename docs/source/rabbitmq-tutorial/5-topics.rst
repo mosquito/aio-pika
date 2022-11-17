@@ -68,7 +68,7 @@ cases for binding keys:
 
 It's easiest to explain this in an example:
 
-.. image:: /_static/tutorial/python-five.png
+.. image:: /_static/tutorial/python-five.svg
    :align: center
 
 In this example, we're going to send messages which all describe animals. The messages will be sent

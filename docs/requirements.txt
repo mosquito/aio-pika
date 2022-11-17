@@ -1,3 +1,4 @@
 # ONLY FOR ReadTheDocs
 .[develop]
 autodoc
+furo

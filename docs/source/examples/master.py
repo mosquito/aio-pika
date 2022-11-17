@@ -1,10 +1,13 @@
 import asyncio
+
 from aio_pika import connect_robust
 from aio_pika.patterns import Master
 
 
-async def main():
-    connection = await connect_robust("amqp://guest:guest@127.0.0.1/")
+async def main() -> None:
+    connection = await connect_robust(
+        "amqp://guest:guest@127.0.0.1/?name=aio-pika%20master",
+    )
 
     async with connection:
         # Creating channel
@@ -19,7 +22,7 @@ async def main():
         # Or using create_task method
         for task_id in range(1000):
             await master.create_task(
-                "my_task_name", kwargs=dict(task_id=task_id)
+                "my_task_name", kwargs=dict(task_id=task_id),
             )
 
 

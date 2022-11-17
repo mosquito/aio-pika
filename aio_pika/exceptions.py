@@ -1,6 +1,6 @@
 import asyncio
 
-import pamqp
+import pamqp.exceptions
 from aiormq.exceptions import (
     AMQPChannelError, AMQPConnectionError, AMQPError, AMQPException,
     AuthenticationError, ChannelClosed, ChannelInvalidStateError,
@@ -11,20 +11,18 @@ from aiormq.exceptions import (
 )
 
 
-PAMQP_EXCEPTIONS = (pamqp.exceptions.PAMQPException,) + tuple(
-    pamqp.specification.ERRORS.values(),
-)
-
 CONNECTION_EXCEPTIONS = (
-    RuntimeError,
+    AMQPError,
     ConnectionError,
     OSError,
-    AMQPError,
-) + PAMQP_EXCEPTIONS
+    RuntimeError,
+    StopAsyncIteration,
+    pamqp.exceptions.PAMQPException,
+)
 
 
 class MessageProcessError(AMQPError):
-    pass
+    reason = "%s: %r"
 
 
 class QueueEmpty(AMQPError, asyncio.QueueEmpty):
@@ -37,11 +35,13 @@ __all__ = (
     "AMQPError",
     "AMQPException",
     "AuthenticationError",
+    "CONNECTION_EXCEPTIONS",
     "ChannelClosed",
     "ChannelInvalidStateError",
+    "ChannelNotFoundEntity",
+    "ChannelPreconditionFailed",
     "ConnectionClosed",
     "DeliveryError",
-    "PublishError",
     "DuplicateConsumerTag",
     "IncompatibleProtocolError",
     "InvalidFrameError",
@@ -49,7 +49,6 @@ __all__ = (
     "MethodNotImplemented",
     "ProbableAuthenticationError",
     "ProtocolSyntaxError",
+    "PublishError",
     "QueueEmpty",
-    "ChannelPreconditionFailed",
-    "ChannelNotFoundEntity",
 )

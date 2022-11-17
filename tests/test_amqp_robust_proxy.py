@@ -1,4 +1,5 @@
 import asyncio
+import itertools
 import logging
 from contextlib import suppress
 from functools import partial
@@ -9,11 +10,12 @@ import aiormq.exceptions
 import pytest
 import shortuuid
 from aiomisc_pytest.pytest_plugin import TCPProxy
-from async_generator import async_generator, yield_
+from pamqp.exceptions import AMQPFrameError
 from yarl import URL
 
 import aio_pika
-from aio_pika.message import Message
+from aio_pika.exceptions import QueueEmpty
+from aio_pika.message import IncomingMessage, Message
 from aio_pika.robust_channel import RobustChannel
 from aio_pika.robust_connection import RobustConnection
 from aio_pika.robust_queue import RobustQueue
@@ -21,30 +23,26 @@ from tests import get_random_name
 
 
 @pytest.fixture
-@async_generator
 async def proxy(tcp_proxy: Type[TCPProxy], amqp_direct_url: URL):
     p = tcp_proxy(amqp_direct_url.host, amqp_direct_url.port)
 
     await p.start()
     try:
-        await yield_(p)
+        yield p
     finally:
         await p.close()
 
 
 @pytest.fixture
 def amqp_url(amqp_direct_url, proxy: TCPProxy):
-    url = amqp_direct_url.with_host(
-        proxy.proxy_host
+    return amqp_direct_url.with_host(
+        proxy.proxy_host,
     ).with_port(
-        proxy.proxy_port
+        proxy.proxy_port,
     ).update_query(
-        reconnect_interval=1
+        reconnect_interval=1,
+        heartbeat=1,
     )
-
-    print(url)
-
-    return url
 
 
 @pytest.fixture
@@ -59,12 +57,25 @@ def connection_fabric():
 
 @pytest.fixture
 def create_direct_connection(loop, amqp_direct_url):
-    return partial(aio_pika.connect, amqp_direct_url, loop=loop)
+    return partial(
+        aio_pika.connect,
+        amqp_direct_url.update_query(
+            name=amqp_direct_url.query["name"] + "::direct",
+            heartbeat=30,
+        ),
+        loop=loop,
+    )
 
 
 @pytest.fixture
 def create_connection(connection_fabric, loop, amqp_url):
     return partial(connection_fabric, amqp_url, loop=loop)
+
+
+@pytest.fixture
+async def direct_connection(create_direct_connection) -> aio_pika.Connection:
+    async with await create_direct_connection() as conn:
+        yield conn
 
 
 async def test_channel_fixture(channel: aio_pika.RobustChannel):
@@ -83,126 +94,146 @@ async def test_set_qos(channel: aio_pika.Channel):
     await channel.set_qos(prefetch_count=1)
 
 
-async def test_revive_passive_queue_on_reconnect(create_connection):
-    client1 = await create_connection()
-    assert isinstance(client1, RobustConnection)
-
-    client2 = await create_connection()
-    assert isinstance(client2, RobustConnection)
+async def test_revive_passive_queue_on_reconnect(
+    create_connection, direct_connection, proxy: TCPProxy,
+):
+    client = await create_connection()
+    assert isinstance(client, RobustConnection)
 
     reconnect_event = asyncio.Event()
     reconnect_count = 0
 
-    def reconnect_callback(sender, conn):
+    def reconnect_callback(conn):
         nonlocal reconnect_count
         reconnect_count += 1
         reconnect_event.set()
         reconnect_event.clear()
 
-    client2.add_reconnect_callback(reconnect_callback)
+    client.reconnect_callbacks.add(reconnect_callback)
 
     queue_name = get_random_name()
-    channel1 = await client1.channel()
-    assert isinstance(channel1, RobustChannel)
+    channel = await client.channel()
+    assert isinstance(channel, RobustChannel)
 
-    channel2 = await client2.channel()
-    assert isinstance(channel2, RobustChannel)
+    direct_channel = await direct_connection.channel()
 
-    queue1 = await channel1.declare_queue(
-        queue_name, auto_delete=False, passive=False,
+    direct_queue = await direct_channel.declare_queue(
+        queue_name, auto_delete=True, passive=False,
     )
-    assert isinstance(queue1, RobustQueue)
 
-    queue2 = await channel2.declare_queue(queue_name, passive=True)
+    queue2 = await channel.declare_queue(
+        direct_queue.name, passive=True, auto_delete=False,
+    )
     assert isinstance(queue2, RobustQueue)
 
-    await client2.connection.close(aiormq.AMQPError(320, "Closed"))
-
+    await proxy.disconnect_all()
     await reconnect_event.wait()
 
     assert reconnect_count == 1
 
     with suppress(asyncio.TimeoutError):
         await asyncio.wait_for(
-            reconnect_event.wait(), client2.reconnect_interval * 2,
+            reconnect_event.wait(), client.reconnect_interval * 2,
         )
 
     assert reconnect_count == 1
 
 
-@pytest.mark.skip("Temporary skipped flapping test")
+@aiomisc.timeout(30)
 async def test_robust_reconnect(
-    create_connection, proxy: TCPProxy, loop, add_cleanup: Callable
+    create_connection, direct_connection,
+    proxy: TCPProxy, loop, add_cleanup: Callable,
 ):
-    conn1 = await create_connection()
-    conn2 = await create_connection()
+    read_conn = await create_connection()   # type: aio_pika.RobustConnection
 
-    assert isinstance(conn1, aio_pika.RobustConnection)
-    assert isinstance(conn2, aio_pika.RobustConnection)
+    reconnect_event = asyncio.Event()
+    read_conn.reconnect_callbacks.add(
+        lambda *_: reconnect_event.set(),
+    )
 
-    async with conn1, conn2:
+    assert isinstance(read_conn, aio_pika.RobustConnection)
+    write_channel = await direct_connection.channel()
 
-        channel1 = await conn1.channel()
-        channel2 = await conn2.channel()
+    async with read_conn:
+        read_channel = await read_conn.channel()
 
-        assert isinstance(channel1, aio_pika.RobustChannel)
-        assert isinstance(channel2, aio_pika.RobustChannel)
+        assert isinstance(read_channel, aio_pika.RobustChannel)
 
-        async with channel1, channel2:
+        qname = get_random_name("robust", "proxy", "shared")
+
+        async with read_channel:
             shared = []
 
             # Declaring temporary queue
-            queue = await channel1.declare_queue()
+            queue = await write_channel.declare_queue(
+                qname,
+                auto_delete=False,
+                durable=True,
+            )
+
+            consumer_event = asyncio.Event()
 
             async def reader(queue_name):
                 nonlocal shared
-                queue = await channel1.declare_queue(
-                    name=queue_name, passive=True,
-                )
-                async with queue.iterator() as q:
-                    async for message in q:
-                        shared.append(message)
-                        await message.ack()
 
-            reader_task = loop.create_task(reader(queue.name))
+                try:
+                    queue = await read_channel.declare_queue(
+                        name=queue_name, passive=True,
+                    )
 
-            for i in range(5):
-                await channel2.default_exchange.publish(
-                    Message(str(i).encode()), queue.name,
-                )
+                    async with queue.iterator() as q:
+                        loop.call_soon(consumer_event.set)
 
-            logging.info("Disconnect all clients")
-            with proxy.slowdown(1, 1):
-                task = proxy.disconnect_all()
+                        async for message in q:
+                            shared.append(message)
+                            await message.ack()
+                finally:
+                    logging.info("Exit reader task")
 
-                with pytest.raises((
-                    ConnectionResetError, ConnectionError,
-                    aiormq.exceptions.ChannelInvalidStateError
-                )):
-                    await asyncio.gather(conn1.channel(), conn2.channel())
+            try:
+                reader_task = loop.create_task(reader(queue.name))
 
-                await task
+                await consumer_event.wait()
+                logging.info("Disconnect all clients")
+                with proxy.slowdown(1, 1):
+                    for i in range(5):
+                        await write_channel.default_exchange.publish(
+                            Message(str(i).encode()), queue.name,
+                        )
 
-            logging.info("Waiting reconnect")
-            await asyncio.sleep(conn1.reconnect_interval * 2)
+                    await proxy.disconnect_all()
 
-            logging.info("Waiting connections")
-            await asyncio.wait_for(
-                asyncio.gather(conn1.ready(), conn2.ready()), timeout=20,
-            )
+                    # noinspection PyTypeChecker
+                    with pytest.raises(AMQPFrameError):
+                        await read_conn.channel()
 
-            for i in range(5, 10):
-                await channel2.default_exchange.publish(
-                    Message(str(i).encode()), queue.name,
-                )
+                logging.info("Waiting reconnect")
+                await reconnect_event.wait()
 
-            while len(shared) < 10:
-                await asyncio.sleep(0.1)
+                logging.info("Waiting connections")
+                await asyncio.wait_for(read_conn.ready(), timeout=20)
 
-            assert len(shared) == 10
+                for i in range(5, 10):
+                    await write_channel.default_exchange.publish(
+                        Message(str(i).encode()), queue.name,
+                    )
 
-            reader_task.cancel()
-            await asyncio.gather(reader_task, return_exceptions=True)
+                while len(shared) < 10:
+                    await asyncio.sleep(0.1)
+
+                assert len(shared) == 10
+
+                reader_task.cancel()
+                await asyncio.gather(reader_task, return_exceptions=True)
+
+                with pytest.raises(QueueEmpty):
+                    await queue.get(timeout=0.5)
+            finally:
+                await queue.purge()
+
+    # Waiting for rabbitmq queue not in use
+    await asyncio.sleep(1)
+    await queue.delete()
 
 
 async def test_channel_locked_resource2(connection: aio_pika.RobustConnection):
@@ -220,23 +251,26 @@ async def test_channel_locked_resource2(connection: aio_pika.RobustConnection):
 
 
 async def test_channel_close_when_exclusive_queue(
-    create_connection, create_direct_connection, proxy: TCPProxy, loop
+    create_connection, create_direct_connection, proxy: TCPProxy, loop,
 ):
+    logging.info("Creating connections")
     direct_conn, proxy_conn = await asyncio.gather(
         create_direct_connection(), create_connection(),
     )
 
+    logging.info("Creating channels")
     direct_channel, proxy_channel = await asyncio.gather(
         direct_conn.channel(), proxy_conn.channel(),
     )
 
     reconnect_event = asyncio.Event()
     proxy_conn.reconnect_callbacks.add(
-        lambda *_: reconnect_event.set(), weak=False
+        lambda *_: reconnect_event.set(), weak=False,
     )
 
     qname = get_random_name("robust", "exclusive", "queue")
 
+    logging.info("Declaring exclusing queue: %s", qname)
     proxy_queue = await proxy_channel.declare_queue(
         qname, exclusive=True, durable=True,
     )
@@ -246,10 +280,13 @@ async def test_channel_close_when_exclusive_queue(
     await asyncio.sleep(0.5)
 
     logging.info("Declaring exclusive queue through direct channel")
-    await direct_channel.declare_queue(qname, exclusive=True, durable=True)
+    await direct_channel.declare_queue(
+        qname, exclusive=True, durable=True,
+    )
 
     async def close_after(delay, closer):
         await asyncio.sleep(delay)
+        logging.info("Disconnecting direct connection")
         await closer()
         logging.info("Closed")
 
@@ -309,58 +346,269 @@ async def test_context_process_abrupt_channel_close(
 @aiomisc.timeout(10)
 async def test_robust_duplicate_queue(
     connection: aio_pika.RobustConnection,
+    direct_connection: aio_pika.Connection,
     declare_exchange: Callable,
     declare_queue: Callable,
-    loop: asyncio.AbstractEventLoop,
     proxy: TCPProxy,
     create_task: Callable,
 ):
-    queue_name = "test"
+    queue_name = get_random_name("test")
 
-    channel1 = await connection.channel()
-    channel2 = await connection.channel()
+    channel = await connection.channel()
+    direct_channel = await direct_connection.channel()
 
     reconnect_event = asyncio.Event()
+    shared_condition = asyncio.Condition()
+
     connection.reconnect_callbacks.add(
-        lambda *_: reconnect_event.set(), weak=False
+        lambda *_: reconnect_event.set(),
     )
 
-    shared = []
-    queue1 = await declare_queue(queue_name, channel=channel1, cleanup=False)
-    queue2 = await declare_queue(queue_name, channel=channel2, cleanup=False)
+    shared = {}
 
-    async def reader(queue):
+    # noinspection PyShadowingNames
+    async def reader(queue: aio_pika.Queue):
         nonlocal shared
+
         async with queue.iterator() as q:
             async for message in q:
-                shared.append(message)
-                await message.ack()
+                message: IncomingMessage
+                # https://www.rabbitmq.com/confirms.html#automatic-requeueing
+                async with shared_condition:
+                    shared[message.message_id] = message
+                    shared_condition.notify_all()
+                    await message.ack()
 
-    create_task(reader(queue1))
-    create_task(reader(queue2))
+    queue = await declare_queue(
+        queue_name, channel=channel, cleanup=False,
+    )
 
-    for _ in range(5):
-        await channel2.default_exchange.publish(
-            aio_pika.Message(b""), queue_name,
+    create_task(reader(queue))
+
+    for x in range(5):
+        await direct_channel.default_exchange.publish(
+            aio_pika.Message(b"1234567890", message_id=f"0-{x}"), queue_name,
+        )
+
+    async with shared_condition:
+        await asyncio.wait_for(
+            shared_condition.wait_for(lambda: len(shared) == 5),
+            timeout=5,
         )
 
     logging.info("Disconnect all clients")
     await proxy.disconnect_all()
 
-    await reconnect_event.wait()
+    assert len(shared) == 5, shared
 
-    logging.info("Waiting connections")
-    await asyncio.wait([
-        channel1._connection.ready(),
-        channel2._connection.ready(),
-    ])
-
-    for _ in range(5):
-        await channel2.default_exchange.publish(
-            Message(b""), queue_name,
+    for x in range(5):
+        await direct_channel.default_exchange.publish(
+            Message(b"1234567890", message_id=f"1-{x}"), queue_name,
         )
 
-    while len(shared) < 10:
-        await asyncio.sleep(0.1)
+    await asyncio.wait_for(reconnect_event.wait(), timeout=5)
+
+    logging.info("Waiting connections")
+
+    async with shared_condition:
+        await asyncio.wait_for(
+            shared_condition.wait_for(lambda: len(shared) == 10),
+            timeout=5,
+        )
 
     assert len(shared) == 10
+
+
+@aiomisc.timeout(10)
+async def test_channel_restore(
+    connection_fabric, loop, amqp_url, proxy: TCPProxy, add_cleanup: Callable,
+):
+    heartbeat = 10
+    amqp_url = amqp_url.update_query(heartbeat=heartbeat)
+
+    on_reopen = asyncio.Event()
+
+    conn = await connection_fabric(amqp_url, loop=loop)
+    assert isinstance(conn, aio_pika.RobustConnection)
+
+    async with conn:
+        channel = await conn.channel()
+        channel.reopen_callbacks.add(lambda *_: on_reopen.set(), weak=False)
+        assert isinstance(channel, aio_pika.RobustChannel)
+
+        async with channel:
+            await channel.set_qos(0)
+            await channel.set_qos(1)
+
+            with pytest.raises(asyncio.TimeoutError):
+                with proxy.slowdown(1, 1):
+                    await channel.set_qos(0, timeout=0.5)
+
+            await on_reopen.wait()
+            await channel.set_qos(0)
+            await channel.set_qos(1)
+
+
+@aiomisc.timeout(20)
+async def test_channel_reconnect(
+    connection_fabric, loop, amqp_url, proxy: TCPProxy, add_cleanup: Callable,
+):
+    on_reconnect = asyncio.Event()
+
+    conn = await connection_fabric(amqp_url, loop=loop)
+    assert isinstance(conn, aio_pika.RobustConnection)
+
+    conn.reconnect_callbacks.add(lambda *_: on_reconnect.set(), weak=False)
+
+    async with conn:
+        channel = await conn.channel()
+        assert isinstance(channel, aio_pika.RobustChannel)
+
+        async with channel:
+            await channel.set_qos(0)
+            await channel.set_qos(1)
+
+            await proxy.disconnect_all()
+
+            await on_reconnect.wait()
+            await channel.set_qos(0)
+            await channel.set_qos(1)
+
+
+@aiomisc.timeout(15)
+@pytest.mark.parametrize(
+    "reconnect_timeout", [
+        "0", "1", "0.5", "0.1", "0.05", "0.025",
+    ],
+)
+async def test_channel_reconnect_after_5kb(
+    reconnect_timeout,
+    amqp_url,
+    amqp_direct_url,
+    connection_fabric,
+    loop: asyncio.AbstractEventLoop,
+    proxy: TCPProxy,
+    add_cleanup: Callable,
+):
+    connection = await aio_pika.connect_robust(
+        amqp_url.update_query(reconnect_interval=reconnect_timeout),
+        loop=loop,
+    )
+    direct_connection = await aio_pika.connect(amqp_direct_url, loop=loop)
+
+    on_reconnect = asyncio.Event()
+    connection.reconnect_callbacks.add(
+        lambda *_: on_reconnect.set(), weak=False,
+    )
+
+    num_bytes = 0
+
+    def server_to_client(chunk: bytes) -> bytes:
+        nonlocal num_bytes
+
+        if num_bytes >= 0:
+            num_bytes += len(chunk)
+
+            if num_bytes < 5000:
+                return chunk
+
+        num_bytes = 0
+        loop.call_soon(proxy.disconnect_all)
+        return chunk
+
+    proxy.set_content_processors(
+        lambda chunk: chunk,
+        server_to_client,
+    )
+
+    MESSAGES_TO_EXCHANGE = 50
+    async with connection.channel() as channel:
+        queue = await channel.declare_queue(auto_delete=False)
+
+        async with direct_connection.channel() as publish_channel:
+            for _ in range(MESSAGES_TO_EXCHANGE):
+                await publish_channel.default_exchange.publish(
+                    aio_pika.Message(body=b"Hello world" * 100),
+                    routing_key=queue.name,
+                )
+
+        messages = []
+        async for message in queue.iterator():
+            messages.append(message)
+            if len(messages) == MESSAGES_TO_EXCHANGE:
+                break
+
+        assert messages
+
+    await connection.close()
+    await direct_connection.close()
+
+
+@aiomisc.timeout(30)
+@pytest.mark.parametrize(
+    "reconnect_timeout,stair",
+    list(itertools.product(["0.1", "0"], [48, 64, 128, 256, 512])),
+)
+async def test_channel_reconnect_stairway(
+    reconnect_timeout,
+    stair,
+    amqp_url,
+    amqp_direct_url,
+    connection_fabric,
+    loop: asyncio.AbstractEventLoop,
+    proxy: TCPProxy,
+    add_cleanup: Callable,
+):
+    connection = await aio_pika.connect_robust(
+        amqp_url.update_query(reconnect_interval=reconnect_timeout),
+        loop=loop,
+    )
+    direct_connection = await aio_pika.connect(amqp_direct_url, loop=loop)
+
+    on_reconnect = asyncio.Event()
+    connection.reconnect_callbacks.add(
+        lambda *_: on_reconnect.set(), weak=False,
+    )
+
+    num_bytes = 0
+
+    def server_to_client(chunk: bytes) -> bytes:
+        nonlocal num_bytes, stair
+
+        if num_bytes >= 0:
+            num_bytes += len(chunk)
+
+            if num_bytes < stair:
+                return chunk
+
+        num_bytes = 0
+        loop.call_soon(proxy.disconnect_all)
+        stair += stair
+        return chunk
+
+    proxy.set_content_processors(
+        lambda chunk: chunk,
+        server_to_client,
+    )
+
+    MESSAGES_TO_EXCHANGE = 50
+    async with connection.channel() as channel:
+        queue = await channel.declare_queue(auto_delete=False)
+
+        async with direct_connection.channel() as publish_channel:
+            for _ in range(MESSAGES_TO_EXCHANGE):
+                await publish_channel.default_exchange.publish(
+                    aio_pika.Message(body=b"Hello world" * 100),
+                    routing_key=queue.name,
+                )
+
+        messages = []
+        async for message in queue.iterator():
+            messages.append(message)
+            if len(messages) == MESSAGES_TO_EXCHANGE:
+                break
+
+        assert messages
+
+    await connection.close()
+    await direct_connection.close()

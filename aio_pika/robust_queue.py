@@ -1,46 +1,47 @@
-import os
-from base64 import b32encode
-from collections import namedtuple
-from logging import getLogger
-from types import FunctionType
+from random import Random
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import aiormq
+from aiormq import ChannelInvalidStateError
+from pamqp.common import Arguments
 
-from .channel import Channel
-from .exchange import ExchangeParamType
-from .queue import ConsumerTag, Queue
-
-
-log = getLogger(__name__)
-
-
-DeclarationResult = namedtuple(
-    "DeclarationResult", ("message_count", "consumer_count"),
+from .abc import (
+    AbstractExchange, AbstractIncomingMessage, AbstractQueueIterator,
+    AbstractRobustQueue, ConsumerTag, TimeoutType,
 )
+from .exchange import ExchangeParamType
+from .log import get_logger
+from .queue import Queue, QueueIterator
 
 
-class RobustQueue(Queue):
+log = get_logger(__name__)
+
+
+class RobustQueue(Queue, AbstractRobustQueue):
     __slots__ = ("_consumers", "_bindings")
 
-    @staticmethod
-    def _get_random_queue_name():
-        rb = os.urandom(16)
-        return "amq_%s" % b32encode(rb).decode().replace("=", "").lower()
+    _consumers: Dict[ConsumerTag, Dict[str, Any]]
+    _bindings: Dict[Tuple[Union[AbstractExchange, str], str], Dict[str, Any]]
+
+    _rnd_gen: Random = Random()
+
+    @classmethod
+    def _get_random_queue_name(cls) -> str:
+        rnd = cls._rnd_gen.getrandbits(128)
+        return "amq_%s" % hex(rnd).lower()
 
     def __init__(
         self,
-        connection,
-        channel: aiormq.Channel,
-        name,
-        durable,
-        exclusive,
-        auto_delete,
-        arguments,
+        channel: aiormq.abc.AbstractChannel,
+        name: Optional[str],
+        durable: bool = False,
+        exclusive: bool = False,
+        auto_delete: bool = False,
+        arguments: Arguments = None,
         passive: bool = False,
     ):
 
         super().__init__(
-            connection=connection,
             channel=channel,
             name=name or self._get_random_queue_name(),
             durable=durable,
@@ -53,49 +54,49 @@ class RobustQueue(Queue):
         self._consumers = {}
         self._bindings = {}
 
-    async def restore(self, channel: Channel):
-        self._channel = channel._channel
-
+    async def restore(self, channel: aiormq.abc.AbstractChannel) -> None:
+        self.channel = channel
         await self.declare()
+        bindings = tuple(self._bindings.items())
+        consumers = tuple(self._consumers.items())
 
-        for (exchange, routing_key), kwargs in self._bindings.items():
+        for (exchange, routing_key), kwargs in bindings:
             await self.bind(exchange, routing_key, **kwargs)
 
-        for consumer_tag, kwargs in tuple(self._consumers.items()):
+        for consumer_tag, kwargs in consumers:
             await self.consume(consumer_tag=consumer_tag, **kwargs)
 
     async def bind(
         self,
         exchange: ExchangeParamType,
-        routing_key: str = None,
+        routing_key: Optional[str] = None,
         *,
-        arguments=None,
-        timeout: int = None,
+        arguments: Arguments = None,
+        timeout: TimeoutType = None,
         robust: bool = True
-    ):
-
+    ) -> aiormq.spec.Queue.BindOk:
         if routing_key is None:
             routing_key = self.name
 
-        kwargs = dict(arguments=arguments, timeout=timeout)
-
         result = await super().bind(
-            exchange=exchange, routing_key=routing_key, **kwargs
+            exchange=exchange, routing_key=routing_key,
+            arguments=arguments, timeout=timeout,
         )
 
         if robust:
-            self._bindings[(exchange, routing_key)] = kwargs
+            self._bindings[(exchange, routing_key)] = dict(
+                arguments=arguments,
+            )
 
         return result
 
     async def unbind(
         self,
         exchange: ExchangeParamType,
-        routing_key: str = None,
-        arguments: dict = None,
-        timeout: int = None,
-    ):
-
+        routing_key: Optional[str] = None,
+        arguments: Arguments = None,
+        timeout: TimeoutType = None,
+    ) -> aiormq.spec.Queue.UnbindOk:
         if routing_key is None:
             routing_key = self.name
 
@@ -108,38 +109,54 @@ class RobustQueue(Queue):
 
     async def consume(
         self,
-        callback: FunctionType,
+        callback: Callable[[AbstractIncomingMessage], Any],
         no_ack: bool = False,
         exclusive: bool = False,
-        arguments: dict = None,
-        consumer_tag=None,
-        timeout=None,
+        arguments: Arguments = None,
+        consumer_tag: Optional[ConsumerTag] = None,
+        timeout: TimeoutType = None,
         robust: bool = True,
     ) -> ConsumerTag:
-
-        kwargs = dict(
+        consumer_tag = await super().consume(
+            consumer_tag=consumer_tag,
+            timeout=timeout,
             callback=callback,
             no_ack=no_ack,
             exclusive=exclusive,
             arguments=arguments,
         )
 
-        consumer_tag = await super().consume(
-            consumer_tag=consumer_tag, **kwargs
-        )
-
         if robust:
-            self._consumers[consumer_tag] = kwargs
+            self._consumers[consumer_tag] = dict(
+                callback=callback,
+                no_ack=no_ack,
+                exclusive=exclusive,
+                arguments=arguments,
+            )
 
         return consumer_tag
 
     async def cancel(
-        self, consumer_tag: ConsumerTag, timeout=None, nowait: bool = False
-    ):
-
+        self,
+        consumer_tag: ConsumerTag,
+        timeout: TimeoutType = None,
+        nowait: bool = False,
+    ) -> aiormq.spec.Basic.CancelOk:
         result = await super().cancel(consumer_tag, timeout, nowait)
         self._consumers.pop(consumer_tag, None)
         return result
+
+    def iterator(self, **kwargs: Any) -> AbstractQueueIterator:
+        return RobustQueueIterator(self, **kwargs)
+
+
+class RobustQueueIterator(QueueIterator):
+    async def consume(self) -> None:
+        while True:
+            try:
+                return await super().consume()
+            except ChannelInvalidStateError:
+                await self._amqp_queue.channel.connection.ready()
 
 
 __all__ = ("RobustQueue",)

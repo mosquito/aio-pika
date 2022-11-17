@@ -1,9 +1,11 @@
-from . import patterns, pool
+from . import abc, patterns, pool
+from .abc import DeliveryMode
 from .channel import Channel
 from .connection import Connection, connect
 from .exceptions import AMQPException, MessageProcessError
 from .exchange import Exchange, ExchangeType
-from .message import DeliveryMode, IncomingMessage, Message
+from .log import logger
+from .message import IncomingMessage, Message
 from .queue import Queue
 from .robust_channel import RobustChannel
 from .robust_connection import RobustConnection, connect_robust
@@ -16,16 +18,6 @@ from .version import (
 
 
 __all__ = (
-    "__author__",
-    "__version__",
-    "author_info",
-    "connect",
-    "connect_robust",
-    "package_info",
-    "package_license",
-    "patterns",
-    "pool",
-    "version_info",
     "AMQPException",
     "Channel",
     "Connection",
@@ -40,4 +32,16 @@ __all__ = (
     "RobustConnection",
     "RobustExchange",
     "RobustQueue",
+    "__author__",
+    "__version__",
+    "abc",
+    "author_info",
+    "connect",
+    "connect_robust",
+    "logger",
+    "package_info",
+    "package_license",
+    "patterns",
+    "pool",
+    "version_info",
 )

@@ -53,7 +53,7 @@ RabbitMQ, and messaging in general, uses some jargon.
 
 We'll draw it like that, with "P":
 
-.. image:: /_static/tutorial/producer.png
+.. image:: /_static/tutorial/producer.svg
    :align: center
 
 * A queue is the name for a mailbox. It lives inside RabbitMQ.
@@ -65,7 +65,7 @@ We'll draw it like that, with "P":
 
 A queue will be drawn as like that, with its name above it:
 
-.. image:: /_static/tutorial/queue.png
+.. image:: /_static/tutorial/queue.svg
    :align: center
 
 * Consuming has a similar meaning to receiving. A consumer is a
@@ -73,7 +73,7 @@ A queue will be drawn as like that, with its name above it:
 
 On our drawings it's shown with "C":
 
-.. image:: /_static/tutorial/consumer.png
+.. image:: /_static/tutorial/consumer.svg
    :align: center
 
 .. note::
@@ -93,7 +93,7 @@ message and one that receives and prints it.
 
 Our overall design will look like:
 
-.. image:: /_static/tutorial/python-one-overall.png
+.. image:: /_static/tutorial/python-one-overall.svg
    :align: center
 
 Producer sends messages to the "hello" queue. The consumer receives messages from that queue.
@@ -115,7 +115,7 @@ Producer sends messages to the "hello" queue. The consumer receives messages fro
 Sending
 +++++++
 
-.. image:: /_static/tutorial/sending.png
+.. image:: /_static/tutorial/sending.svg
    :align: center
 
 Our first program *send.py* will send a single message to the queue. The first
@@ -124,7 +124,7 @@ thing we need to do is to establish a connection with RabbitMQ server.
 
 .. literalinclude:: examples/1-introduction/send.py
    :language: python
-   :lines: 5-9
+   :lines: 5-8
 
 We're connected now, to a broker on the local machine - hence the localhost.
 If we wanted to connect to a broker on a different machine we'd simply specify
@@ -134,9 +134,9 @@ Next, before sending we need to make sure the recipient queue exists.
 If we send a message to non-existing location, RabbitMQ will just trash the message.
 Let's create a queue to which the message will be delivered, let's name it *hello*:
 
-.. literalinclude:: examples/1-introduction/receive.py
+.. literalinclude:: examples/1-introduction/send.py
    :language: python
-   :lines: 24-25
+   :lines: 14-15
 
 At that point we're ready to send a message. Our first message will just contain a
 string Hello World! and we want to send it to our hello queue.
@@ -150,14 +150,15 @@ message should go. The queue name needs to be specified in the *routing_key* par
 
 .. literalinclude:: examples/1-introduction/send.py
    :language: python
-   :lines: 11-20
+   :lines: 17-21
 
 Before exiting the program we need to make sure the network buffers were flushed and our
 message was actually delivered to RabbitMQ. We can do it by gently closing the connection.
+In this example async context manager has been used.
 
 .. literalinclude:: examples/1-introduction/send.py
    :language: python
-   :lines: 22
+   :lines: 10-12
 
 .. note::
 
@@ -176,7 +177,7 @@ message was actually delivered to RabbitMQ. We can do it by gently closing the c
 Receiving
 +++++++++
 
-.. image:: /_static/tutorial/receiving.png
+.. image:: /_static/tutorial/receiving.svg
    :align: center
 
 Our second program *receive.py* will receive messages from the queue and print them on the screen.
@@ -190,17 +191,7 @@ command as many times as we like, and only one will be created.
 
 .. literalinclude:: examples/1-introduction/receive.py
    :language: python
-   :lines: 18-28
-
-.. note::
-    This article contains adopted official examples only.
-    But `aio-pika` allows to use Python 3.5+ `async for` notation.
-
-    For example:
-
-    .. literalinclude:: ../examples/simple_consumer.py
-       :language: python
-       :lines: 12-25
+   :lines: 22-28
 
 You may ask why we declare the queue again ‒ we have already declared it in
 our previous code. We could avoid that if we were sure that the queue already exists.

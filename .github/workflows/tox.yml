@@ -46,13 +46,13 @@ jobs:
 
       matrix:
         toxenv:
-          - py36
           - py37
           - py38
           - py39
-          - py36-uvloop
-          - py37-uvloop
-          - py38-uvloop
+          - py310
+#          - py37-uvloop
+#          - py38-uvloop
+#          - py39-uvloop
 
     steps:
       - uses: actions/checkout@v2
@@ -60,6 +60,7 @@ jobs:
       - name: tox ${{ matrix.toxenv }}
         uses: docker://snakepacker/python:all
         env:
+          FORCE_COLOR: 1
           TOXENV: ${{ matrix.toxenv }}
           AMQP_URL: amqp://guest:guest@rabbitmq
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}

@@ -1,19 +1,20 @@
 import asyncio
-import logging
-from collections.abc import Set
-from functools import wraps
 from itertools import chain
 from threading import Lock
-from typing import Callable, Iterable
-from weakref import WeakSet, ref
+from typing import (
+    AbstractSet, Any, Awaitable, Callable, Coroutine, Generator, Iterator, List,
+    MutableSet, Optional, TypeVar, Union,
+)
+from weakref import ReferenceType, WeakSet, ref
+
+from aio_pika.log import get_logger
 
 
-__all__ = "create_task", "iscoroutinepartial", "shield", "CallbackCollection"
+log = get_logger(__name__)
+T = TypeVar("T")
 
-log = logging.getLogger(__name__)
 
-
-def iscoroutinepartial(fn):
+def iscoroutinepartial(fn: Callable[..., Any]) -> bool:
     """
     Function returns True if function is a partial instance of coroutine.
     See additional information here_.
@@ -28,7 +29,7 @@ def iscoroutinepartial(fn):
     while True:
         parent = fn
 
-        fn = getattr(parent, "func", None)
+        fn = getattr(parent, "func", None)  # type: ignore
 
         if fn is None:
             break
@@ -36,15 +37,28 @@ def iscoroutinepartial(fn):
     return asyncio.iscoroutinefunction(parent)
 
 
-def create_task(func, *args, loop=None, **kwargs):
+def _task_done(future: asyncio.Future) -> None:
+    exc = future.exception()
+    if exc is not None:
+        raise exc
+
+
+def create_task(
+    func: Callable[..., Union[Coroutine[Any, Any, T], Awaitable[T]]],
+    *args: Any,
+    loop: Optional[asyncio.AbstractEventLoop] = None,
+    **kwargs: Any
+) -> Awaitable[T]:
     loop = loop or asyncio.get_event_loop()
 
     if iscoroutinepartial(func):
-        return loop.create_task(func(*args, **kwargs))
+        task = loop.create_task(func(*args, **kwargs))      # type: ignore
+        task.add_done_callback(_task_done)
+        return task
 
-    def run(future):
+    def run(future: asyncio.Future) -> Optional[asyncio.Future]:
         if future.done():
-            return
+            return None
 
         try:
             future.set_result(func(*args, **kwargs))
@@ -54,35 +68,46 @@ def create_task(func, *args, loop=None, **kwargs):
         return future
 
     future = loop.create_future()
+    future.add_done_callback(_task_done)
     loop.call_soon(run, future)
     return future
 
 
-def shield(func):
-    """
-    Simple and useful decorator for wrap the coroutine to `asyncio.shield`.
-    """
-
-    async def awaiter(future):
-        return await future
-
-    @wraps(func)
-    def wrap(*args, **kwargs):
-        return wraps(func)(awaiter)(asyncio.shield(func(*args, **kwargs)))
-
-    return wrap
+CallbackType = Callable[..., Union[T, Awaitable[T]]]
+CallbackSetType = AbstractSet[CallbackType]
 
 
-class CallbackCollection(Set):
-    __slots__ = "__sender", "__callbacks", "__weak_callbacks", "__lock"
+class StubAwaitable:
+    __slots__ = ()
 
-    def __init__(self, sender):
-        self.__sender = ref(sender)
-        self.__callbacks = set()
-        self.__weak_callbacks = WeakSet()
-        self.__lock = Lock()
+    def __await__(self) -> Generator[Any, Any, None]:
+        yield
 
-    def add(self, callback: Callable, weak=True):
+
+STUB_AWAITABLE = StubAwaitable()
+
+
+class CallbackCollection(MutableSet):
+    __slots__ = (
+        "__weakref__",
+        "__sender",
+        "__callbacks",
+        "__weak_callbacks",
+        "__lock",
+    )
+
+    def __init__(self, sender: Union[T, ReferenceType]):
+        self.__sender: ReferenceType
+        if isinstance(sender, ReferenceType):
+            self.__sender = sender
+        else:
+            self.__sender = ref(sender)
+
+        self.__callbacks: CallbackSetType = set()
+        self.__weak_callbacks: MutableSet[CallbackType] = WeakSet()
+        self.__lock: Lock = Lock()
+
+    def add(self, callback: CallbackType, weak: bool = False) -> None:
         if self.is_frozen:
             raise RuntimeError("Collection frozen")
         if not callable(callback):
@@ -92,31 +117,31 @@ class CallbackCollection(Set):
             if weak:
                 self.__weak_callbacks.add(callback)
             else:
-                self.__callbacks.add(callback)
+                self.__callbacks.add(callback)      # type: ignore
 
-    def remove(self, callback: Callable):
+    def discard(self, callback: CallbackType) -> None:
         if self.is_frozen:
             raise RuntimeError("Collection frozen")
 
         with self.__lock:
-            try:
-                self.__callbacks.remove(callback)
-            except KeyError:
+            if callback in self.__callbacks:
+                self.__callbacks.remove(callback)    # type: ignore
+            elif callback in self.__weak_callbacks:
                 self.__weak_callbacks.remove(callback)
 
-    def clear(self):
+    def clear(self) -> None:
         if self.is_frozen:
             raise RuntimeError("Collection frozen")
 
         with self.__lock:
-            self.__callbacks.clear()
+            self.__callbacks.clear()        # type: ignore
             self.__weak_callbacks.clear()
 
     @property
     def is_frozen(self) -> bool:
         return isinstance(self.__callbacks, frozenset)
 
-    def freeze(self):
+    def freeze(self) -> None:
         if self.is_frozen:
             raise RuntimeError("Collection already frozen")
 
@@ -124,7 +149,7 @@ class CallbackCollection(Set):
             self.__callbacks = frozenset(self.__callbacks)
             self.__weak_callbacks = WeakSet(self.__weak_callbacks)
 
-    def unfreeze(self):
+    def unfreeze(self) -> None:
         if not self.is_frozen:
             raise RuntimeError("Collection is not frozen")
 
@@ -138,14 +163,14 @@ class CallbackCollection(Set):
     def __len__(self) -> int:
         return len(self.__callbacks) + len(self.__weak_callbacks)
 
-    def __iter__(self) -> Iterable[Callable]:
+    def __iter__(self) -> Iterator[CallbackType]:
         return iter(chain(self.__callbacks, self.__weak_callbacks))
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return bool(self.__callbacks) or bool(self.__weak_callbacks)
 
-    def __copy__(self):
-        instance = self.__class__(self.__sender())
+    def __copy__(self) -> "CallbackCollection":
+        instance = self.__class__(self.__sender)
 
         with self.__lock:
             for cb in self.__callbacks:
@@ -159,10 +184,73 @@ class CallbackCollection(Set):
 
         return instance
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Awaitable[Any]:
+        futures: List[asyncio.Future] = []
+
         with self.__lock:
+            sender = self.__sender()
+
             for cb in self:
                 try:
-                    cb(self.__sender(), *args, **kwargs)
+                    result = cb(sender, *args, **kwargs)
+                    if hasattr(result, "__await__"):
+                        futures.append(asyncio.ensure_future(result))
                 except Exception:
-                    log.exception("Callback error")
+                    log.exception("Callback %r error", cb)
+
+        if not futures:
+            return STUB_AWAITABLE
+        return asyncio.gather(*futures, return_exceptions=True)
+
+    def __hash__(self) -> int:
+        return id(self)
+
+
+class OneShotCallback:
+    __slots__ = ("loop", "finished", "__lock", "callback", "__task")
+
+    def __init__(self, callback: Callable[..., Awaitable[T]]):
+        self.callback: Callable[..., Awaitable[T]] = callback
+        self.loop = asyncio.get_event_loop()
+        self.finished: asyncio.Event = asyncio.Event()
+        self.__lock: asyncio.Lock = asyncio.Lock()
+        self.__task: asyncio.Future
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}: cb={self.callback!r}>"
+
+    def wait(self) -> Awaitable[Any]:
+        try:
+            return self.finished.wait()
+        except asyncio.CancelledError:
+            self.__task.cancel()
+            raise
+
+    async def __task_inner(self, *args: Any, **kwargs: Any) -> None:
+        async with self.__lock:
+            if self.finished.is_set():
+                return
+
+            try:
+                await self.callback(*args, **kwargs)
+            finally:
+                self.finished.set()
+                del self.callback
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Awaitable[Any]:
+        if self.finished.is_set():
+            return STUB_AWAITABLE
+        self.__task = self.loop.create_task(
+            self.__task_inner(*args, **kwargs),
+        )
+        return self.__task
+
+
+__all__ = (
+    "CallbackCollection",
+    "CallbackType",
+    "CallbackSetType",
+    "OneShotCallback",
+    "create_task",
+    "iscoroutinepartial",
+)

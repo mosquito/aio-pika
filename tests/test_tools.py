@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from copy import copy
 from unittest import mock
@@ -77,11 +78,67 @@ class TestCase:
 
         assert l1 == l2
 
-        collection.add(lambda sender, x: l1.append(x), weak=False)
-        collection.add(lambda sender, x: l2.append(x), weak=False)
+        collection.add(lambda sender, x: l1.append(x))
+        collection.add(lambda sender, x: l2.append(x))
 
         collection(1)
         collection(2)
 
         assert l1 == l2
         assert l1 == [1, 2]
+
+    async def test_blank_awaitable_callback(self, collection):
+        await collection()
+
+    async def test_awaitable_callback(self, loop, collection, instance):
+        future = loop.create_future()
+
+        shared = []
+
+        async def coro(arg):
+            nonlocal shared
+            shared.append(arg)
+
+        def task_maker(arg):
+            return loop.create_task(coro(arg))
+
+        collection.add(future.set_result)
+        collection.add(coro)
+        collection.add(task_maker)
+
+        await collection()
+
+        assert shared == [instance, instance]
+        assert await future == instance
+
+    async def test_collection_create_tasks(self, loop, collection, instance):
+        future = loop.create_future()
+
+        async def coro(arg):
+            await asyncio.sleep(0.5)
+            future.set_result(arg)
+
+        collection.add(coro)
+
+        # noinspection PyAsyncCall
+        collection()
+
+        assert await future == instance
+
+    async def test_collection_run_tasks_parallel(self, collection):
+        class Callable:
+            def __init__(self):
+                self.counter = 0
+
+            async def __call__(self, *args, **kwargs):
+                await asyncio.sleep(1)
+                self.counter += 1
+
+        callables = [Callable() for _ in range(100)]
+
+        for callable in callables:
+            collection.add(callable)
+
+        await asyncio.wait_for(collection(), timeout=2)
+
+        assert [c.counter for c in callables] == [1] * 100

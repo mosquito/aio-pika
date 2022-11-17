@@ -1,28 +1,34 @@
 import abc
 import asyncio
-import logging
+from types import TracebackType
 from typing import (
-    Any, AsyncContextManager, Awaitable, Callable, Coroutine, Generic, TypeVar,
-    Union,
+    Any, AsyncContextManager, Awaitable, Callable, Coroutine, Generic, Optional,
+    Set, Tuple, Type, TypeVar, Union,
 )
 
 from aiormq.tools import awaitable
 
+from aio_pika.log import get_logger
+from aio_pika.tools import create_task
 
-log = logging.getLogger(__name__)
+
+log = get_logger(__name__)
 
 
 class PoolInstance(abc.ABC):
-    @abc.abstractclassmethod
-    async def close(cls):
+    @abc.abstractmethod
+    def close(self) -> Awaitable[None]:
         raise NotImplementedError
 
 
 T = TypeVar("T")
-ConstructorType = Union[
-    Awaitable[PoolInstance],
-    Callable[..., PoolInstance],
-    Callable[..., Coroutine[Any, Any, PoolInstance]],
+ConstructorType = Callable[
+    ...,
+    Union[
+        Awaitable[PoolInstance],
+        PoolInstance,
+        Coroutine[Any, Any, PoolInstance],
+    ],
 ]
 
 
@@ -46,19 +52,21 @@ class Pool(Generic[T]):
     def __init__(
         self,
         constructor: ConstructorType,
-        *args,
-        max_size: int = None,
-        loop: asyncio.AbstractEventLoop = None
+        *args: Any,
+        max_size: Optional[int] = None,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
     ):
         self.loop = loop or asyncio.get_event_loop()
         self.__closed = False
-        self.__constructor = awaitable(constructor)
-        self.__constructor_args = args or ()
-        self.__created = 0
-        self.__item_set = set()
-        self.__items = asyncio.Queue()
-        self.__lock = asyncio.Lock()
-        self.__max_size = max_size
+        self.__constructor: Callable[..., Awaitable[Any]] = awaitable(
+            constructor,
+        )
+        self.__constructor_args: Tuple[Any, ...] = args or ()
+        self.__created: int = 0
+        self.__item_set: Set[PoolInstance] = set()
+        self.__items: asyncio.Queue = asyncio.Queue()
+        self.__lock: asyncio.Lock = asyncio.Lock()
+        self.__max_size: Optional[int] = max_size
 
     @property
     def is_closed(self) -> bool:
@@ -71,7 +79,7 @@ class Pool(Generic[T]):
         return PoolItemContextManager[T](self)
 
     @property
-    def _has_released(self):
+    def _has_released(self) -> bool:
         return self.__items.qsize() > 0
 
     @property
@@ -103,19 +111,19 @@ class Pool(Generic[T]):
 
         return await self._create_item()
 
-    def put(self, item: T):
+    def put(self, item: T) -> None:
         if self.__closed:
             raise PoolInvalidStateError("put operation on closed pool")
 
-        return self.__items.put_nowait(item)
+        self.__items.put_nowait(item)
 
-    async def close(self):
+    async def close(self) -> None:
         async with self.__lock:
             self.__closed = True
             tasks = []
 
             for item in self.__item_set:
-                tasks.append(self.loop.create_task(item.close()))
+                tasks.append(create_task(item.close))
 
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
@@ -123,11 +131,16 @@ class Pool(Generic[T]):
     async def __aenter__(self) -> "Pool":
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         if self.__closed:
             return
 
-        await asyncio.shield(self.close())
+        await asyncio.ensure_future(self.close())
 
 
 class PoolItemContextManager(Generic[T], AsyncContextManager):
@@ -135,13 +148,18 @@ class PoolItemContextManager(Generic[T], AsyncContextManager):
 
     def __init__(self, pool: Pool):
         self.pool = pool
-        self.item = None
+        self.item: T
 
     async def __aenter__(self) -> T:
         # noinspection PyProtectedMember
         self.item = await self.pool._get()
         return self.item
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         if self.item is not None:
             self.pool.put(self.item)

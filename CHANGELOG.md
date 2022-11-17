@@ -1,3 +1,193 @@
+8.2.4
+-----
+
+* Fix memory leaks around channel close callbacks #496
+* Fastest way to reject all messages when queue iterator is closing #498
+
+8.2.3
+-----
+
+* Fix memory leak when callback collections is chaining #495
+
+8.2.2
+-----
+
+* Prevent "Task exception was never retrieved" on timeout #492
+
+8.2.1
+-----
+
+* Fix memory leaks on channel close #491
+
+8.2.0
+-----
+
+* allow passing ssl_context to the connection #474. A default parameter has
+  been added to the public API, this does not break anything unless your
+  code relies on the order of the arguments.
+
+8.1.1
+-----
+
+* Generated anonymous queue name may conflict #486
+* improve typing in multiple library actors #478
+
+8.1.0
+-----
+
+* Bump `aiormq~=6.4.0` with `connection blocking` feature
+* `Connection.update_secret` method (#481)
+
+8.0.3
+-----
+
+* cannot use client_properties issue #469
+
+8.0.2
+-----
+
+* linter fixes in `aio_pika.rpc.__all__`
+
+8.0.1
+-----
+
+* aio_pika.rpc fix for `TypeError: invalid exception object` for future
+
+8.0.0
+-----
+
+***Release notes***
+
+In this release, there are many changes to the internal API and bug fixes
+related to sudden disconnection and correct recovery after reconnection.
+
+Unfortunately, the behavior that was in version 7.x was slightly affected.
+It's the reason the major version has been updated.
+
+The entire set of existing tests passes with minimal changes, therefore,
+except for some minor changes in behavior, the user code should
+work either without any modifications or with minimal changes,
+such as replacing removed deprecated functions with alternatives.
+
+This release has been already tested in a working environment, and now it seems
+that we have completely resolved all the known issues related to
+recovery after network failures.
+
+***Changes***:
+
+* Added tests for unexpected network connection resets and fixed
+  many related problems.
+* Added `UnderlayChannel` and `UnderlayConneciton`, this is `NamedTuple`s
+  contains all connection and channel related properties.
+  The `aiormq.Connection` and `aiormq.Channel` objects
+  are now packaged in this `NamedTuple`s and can be atomically assigned
+  to `aio_pika.Connection` and `aio_pika.Channel` objects.
+  The main benefit is the not needed to add locks during the connection,
+  in the best case, the container object is assigned to callee as usual,
+  however, if something goes wrong during the connection, there is no need to
+  clear something in `aio_pika.RobustConnection` or `aio_pika.RobustChannel`.
+* An `__init__` method is now a part of abstract classes for most
+  `aio_pika` entities.
+* Removed explicit relations between `aio_pika.Channel`
+  and `aio_pika.Connection`. Now you can't get a `aio_pika.Connection`
+  instance from the `aio_pika.Channel` instance.
+* Fixed a bug that caused the whole connection was closed when a timeout
+  occurred in one of the channels, in case the channel was waiting for a
+  response frame to an amqp-rpc call.
+* Removed deprecated `add_close_callback` and `remove_close_callback` methods
+  in `aio_pika.Channel`.
+  Use `aio_pika.Channel.close_callbacks.add(callback, ...)` and
+  `aio_pika.Channel.close_callbacks.remove(callback, ...)` instead.
+* Fixed a bug in `aio_pika.RobustChannel` that caused `default_exchane`
+  broken after reconnecting.
+* The `publisher_confirms` property of `aio_pika.Channel` is public now.
+* Function `get_exchange_name` is public now.
+* Fixed an error in which the queue iterator could enter a deadlock state, with
+  a sudden disconnection.
+* The new entity `OneShotCallback` helps, for example, to call all the closing
+  callbacks at the channel if the `Connection` was unexpectedly closed, and
+  the channel closing frame did not come explicitly.
+
+
+7.2.0
+-----
+
+* Make `aio_pika.patterns.rpc` more extendable.
+
+7.1.0
+-----
+
+* Fixes in documentation
+
+7.0.0
+-----
+
+This release brings support for a new version of `aiormq`, which is used as
+a low-level driver for working with AMQP.
+
+The release contains a huge number of changes in the internal structure of the
+library, mainly related to type inheritance and abstract types, as well
+as typehints checking via mypy.
+
+The biggest change to the user API is the violation of the inheritance order,
+due to the introduction of abstract types, so this release is a major one.
+
+### Changes
+
+* There are a lot of changes in the structure of the library,
+  due to the widespread use of typing.
+* `aio_pika.abc` module now contains all types and abstract class prototypes.
+* Modern `aiormq~=6.1.1` used.
+* Complete type checks coverage via mypy.
+* The interface of `aio_pika`'s classes has undergone minimal changes,
+  but you should double-check your code before migrating, at least because
+  almost all types are now in `aio_pika.abc`. Module `aio_pika.types`
+  still exists, but will produce a `DeprecationWarning`.
+* Default value for argument `weak` is changed to `False` in
+  `CallbackCollection.add(func, weak=False)`.
+
+
+### Known 6.x to 7.x migration issues
+
+* `pamqp.specification` module didn't exist in `pamqp==3.0.1` so you have to
+  change it:
+  * `pamqp.commands` for AMPQ-RPC–relates classes
+  * `pamqp.base` for `Frame` class
+  * `pamqp.body` for `ContentBody` class
+  * `pamqp.commands` for `Basic`, `Channel`, `Confirm`, `Exchange`,
+    `Queue`, `Tx` classes.
+  * `pamqp.common` for `FieldArray`, `FieldTable`, `FieldValue` classes
+  * `pamqp.constants` for constants like `REPLY_SUCCESS`.
+  * `pamqp.header` for `ContentHeader` class.
+  * `pamqp.heartbeat` for `Heartbeat` class.
+* Type definitions related to imports from `aio_pika` might throw warnings
+  like `'SomeType' is not declared in __all__ `. This is a normal situation,
+  since now it is necessary to import types from `aio_pika.abc`. In this
+  release, these are just warnings, but in the next major release, this will
+  stop working, so you should take care of changes in your code.
+
+  Just use `aio_pika.abc` in your imports.
+
+  The list of deprecated imports:
+  * `from aio_pika.message import ReturnCallback`
+  * `from aio_pika.patterns.rpc import RPCMessageType` - renamed to
+    `RPCMessageTypes`
+  * `import aio_pika.types` - module deprecated use `aio_pika.abc` instead
+  * `from aio_pika.connection import ConnectionType`
+
+6.8.2
+-----
+
+* explicit `Channel.is_user_closed` property
+* user-friendly exception when channel has been closed
+* reopen channels which are closed from the broker side
+
+6.8.1
+-----
+
+* Fix flapping test test_robust_duplicate_queue #424
+* Fixed callback on_close for rpc #424
+
 6.8.0
 -----
 
