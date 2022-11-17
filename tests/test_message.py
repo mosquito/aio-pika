@@ -91,6 +91,7 @@ def test_headers_set():
         ["header-1", 42,  42],
         ["header-2", b"foo", b"foo"],
         ["header-3", b"\00", b"\00"],
+        ["header-4", {"foo": "bar"}, {"foo": "bar"}],
     )
 
     for name, src, value in data:
