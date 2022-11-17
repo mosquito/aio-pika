@@ -192,6 +192,7 @@ def header_converter(value: Any) -> FieldValue:
 @header_converter.register(datetime)
 @header_converter.register(time.struct_time)
 @header_converter.register(list)
+@header_converter.register(dict)
 @header_converter.register(int)
 def header_converter_native(v: T) -> T:
     return v
