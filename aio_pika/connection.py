@@ -75,7 +75,10 @@ class Connection(AbstractConnection):
         return f'<{self.__class__.__name__}: "{self}">'
 
     async def _on_connection_close(self, closing: asyncio.Future) -> None:
-        exc: Optional[BaseException] = closing.exception()
+        try:
+            exc = closing.exception()
+        except asyncio.CancelledError as e:
+            exc = e
         self.connected.clear()
         await self.close_callbacks(exc)
 

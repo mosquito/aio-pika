@@ -182,7 +182,11 @@ class Channel(ChannelContext):
         )
 
     async def _on_close(self, closing: asyncio.Future) -> None:
-        await self.close_callbacks(closing.exception())
+        try:
+            exc = closing.exception()
+        except asyncio.CancelledError as e:
+            exc = e
+        await self.close_callbacks(exc)
 
         if self._channel and self._channel.channel:
             self._channel.channel.on_return_callbacks.discard(self._on_return)
