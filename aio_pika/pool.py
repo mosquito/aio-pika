@@ -142,6 +142,9 @@ class Pool(Generic[T]):
 
         await asyncio.ensure_future(self.close())
 
+    def __len__(self):
+        return len(self.__item_set)
+
 
 class PoolItemContextManager(Generic[T], AsyncContextManager):
     __slots__ = "pool", "item"
