@@ -142,7 +142,7 @@ class Pool(Generic[T]):
 
         await asyncio.ensure_future(self.close())
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.__item_set)
 
 
