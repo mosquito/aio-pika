@@ -4,7 +4,7 @@ from functools import partial
 import pytest
 
 import aio_pika
-import tests
+from tests import test_amqp as amqp
 
 
 @pytest.fixture(
@@ -44,5 +44,5 @@ async def test_default_context(connection_fabric, amqp_url):
         )
 
 
-class TestCaseAMQPS(tests.test_amqp.TestCaseAmqp):
+class TestCaseAMQPS(amqp.TestCaseAmqp):
     pass

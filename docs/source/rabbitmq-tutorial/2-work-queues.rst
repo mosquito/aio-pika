@@ -71,9 +71,9 @@ queue, so let's name it *new_task.py*:
 
 Our old receive.py script also requires some changes: it needs to fake a second of work
 for every dot in the message body. It will pop messages from the queue and perform the task,
-so let's call it *worker.py*:
+so let's call it *tasks_worker.py*:
 
-.. literalinclude:: examples/2-work-queues/worker.py
+.. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
    :pyobject: on_message
 
@@ -84,20 +84,20 @@ Round-robin dispatching
 One of the advantages of using a Task Queue is the ability to easily parallelise work.
 If we are building up a backlog of work, we can just add more workers and that way, scale easily.
 
-First, let's try to run two *worker.py* scripts at the same time. They will
+First, let's try to run two *tasks_worker.py* scripts at the same time. They will
 both get messages from the queue, but how exactly? Let's see.
 
-You need three consoles open. Two will run the worker.py script.
+You need three consoles open. Two will run the ``tasks_worker.py`` script.
 These consoles will be our two consumers - C1 and C2.
 
 ::
 
-    shell1$ python worker.py
+    shell1$ python tasks_worker.py
     [*] Waiting for messages. To exit press CTRL+C
 
 ::
 
-    shell2$ python worker.py
+    shell2$ python tasks_worker.py
     [*] Waiting for messages. To exit press CTRL+C
 
 In the third one we'll publish new tasks. Once you've started the consumers you can publish a few messages::
@@ -110,7 +110,7 @@ In the third one we'll publish new tasks. Once you've started the consumers you 
 
 Let's see what is delivered to our workers::
 
-    shell1$ python worker.py
+    shell1$ python tasks_worker.py
      [*] Waiting for messages. To exit press CTRL+C
      [x] Received 'First message.'
      [x] Received 'Third message...'
@@ -118,7 +118,7 @@ Let's see what is delivered to our workers::
 
 ::
 
-    shell2$ python worker.py
+    shell2$ python tasks_worker.py
      [*] Waiting for messages. To exit press CTRL+C
      [x] Received 'Second message..'
      [x] Received 'Fourth message....'
@@ -165,7 +165,7 @@ from the worker, once we're done with a task.
 
 or using special context processor:
 
-.. literalinclude:: examples/2-work-queues/worker.py
+.. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
    :lines: 8-10
 
@@ -205,7 +205,7 @@ Two things are required to make sure that messages aren't lost: we need to mark 
 First, we need to make sure that RabbitMQ will never lose our queue. In order to do so,
 we need to declare it as *durable*:
 
-.. literalinclude:: examples/2-work-queues/worker.py
+.. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
    :lines: 23-26
 
@@ -216,7 +216,7 @@ RabbitMQ doesn't allow you to redefine an existing queue with different paramete
 and will return an error to any program that tries to do that.
 But there is a quick workaround - let's declare a queue with different name, for example task_queue:
 
-.. literalinclude:: examples/2-work-queues/worker.py
+.. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
    :lines: 22-26
 
@@ -270,7 +270,7 @@ This tells RabbitMQ not to give more than one message to a worker at a time. Or,
 in other words, don't dispatch a new message to a worker until it has processed and
 acknowledged the previous one. Instead, it will dispatch it to the next worker that is not still busy.
 
-.. literalinclude:: examples/2-work-queues/worker.py
+.. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
    :lines: 17-20
 
@@ -290,9 +290,9 @@ Final code of our :download:`new_task.py <examples/2-work-queues/new_task.py>` s
 .. literalinclude:: examples/2-work-queues/new_task.py
    :language: python
 
-And our :download:`worker.py <examples/2-work-queues/worker.py>`:
+And our :download:`tasks_worker.py <examples/2-work-queues/tasks_worker.py>`:
 
-.. literalinclude:: examples/2-work-queues/worker.py
+.. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
 
 Using message acknowledgments and prefetch_count you can set up a work queue. The durability

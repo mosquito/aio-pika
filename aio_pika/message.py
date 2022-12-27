@@ -5,8 +5,8 @@ from functools import singledispatch
 from pprint import pformat
 from types import TracebackType
 from typing import (
-    Any, Callable, Dict, Iterable, Iterator, List, MutableMapping, Optional,
-    Type, TypeVar, Union,
+    Any, Callable, Dict, Iterable, Iterator, List, Optional, Type, TypeVar,
+    Union,
 )
 
 import aiormq
@@ -16,7 +16,7 @@ from pamqp.common import FieldValue
 from .abc import (
     MILLISECONDS, ZERO_TIME, AbstractChannel, AbstractIncomingMessage,
     AbstractMessage, AbstractProcessContext, DateType, DeliveryMode,
-    HeadersPythonValues, HeadersType, NoneType,
+    HeadersPythonValues, HeadersType, MessageInfo, NoneType,
 )
 from .exceptions import MessageProcessError
 from .log import get_logger
@@ -136,12 +136,12 @@ T = TypeVar("T")
 def optional(
     value: V,
     func: Union[Callable[[V], T], Type[T]],
-    default: D = None,
+    default: Optional[D] = None,
 ) -> Union[T, D]:
     return func(value) if value else default    # type: ignore
 
 
-class HeaderProxy(MutableMapping):
+class HeaderProxy(HeadersType):
     def __init__(self, headers: FieldTable):
         self._headers: FieldTable = headers
         self._cache: Dict[str, Any] = {}
@@ -163,7 +163,7 @@ class HeaderProxy(MutableMapping):
     def __delitem__(self, key: str) -> None:
         del self._headers[key]
 
-    def __setitem__(self, key: str, value: FieldValue) -> None:
+    def __setitem__(self, key: str, value: HeadersPythonValues) -> None:
         self._headers[key] = header_converter(value)
         self._cache.pop(key, None)
 
@@ -210,7 +210,7 @@ def header_converter_iterable(v: Iterable[T]) -> List[T]:
     return header_converter(list(v))        # type: ignore
 
 
-def format_headers(d: Optional[HeadersType]) -> FieldTable:
+def format_headers(d: Optional[Union[HeadersType, FieldTable]]) -> FieldTable:
     ret: FieldTable = {}
 
     if not d:
@@ -260,7 +260,7 @@ class Message(AbstractMessage):
         timestamp: Optional[DateType] = None,
         type: Optional[str] = None,
         user_id: Optional[str] = None,
-        app_id: Optional[str] = None
+        app_id: Optional[str] = None,
     ):
 
         """ Creates a new instance of Message
@@ -285,7 +285,7 @@ class Message(AbstractMessage):
         self.body = body if isinstance(body, bytes) else bytes(body)
         self.body_size = len(self.body) if self.body else 0
         self.headers_raw: FieldTable = format_headers(headers)
-        self._headers: HeadersType = HeaderProxy(self.headers_raw)
+        self._headers: HeaderProxy = HeaderProxy(self.headers_raw)
         self.content_type = content_type
         self.content_encoding = content_encoding
         self.delivery_mode: DeliveryMode = DeliveryMode(
@@ -308,7 +308,7 @@ class Message(AbstractMessage):
         return self._headers
 
     @headers.setter
-    def headers(self, value: Dict[str, HeadersPythonValues]) -> None:
+    def headers(self, value: HeadersType) -> None:
         self.headers_raw = format_headers(value)
 
     @staticmethod
@@ -322,46 +322,29 @@ class Message(AbstractMessage):
         else:
             return str(value).encode()
 
-    def info(self) -> dict:
-        """ Create a dict with message attributes
-
-        ::
-
-            {
-                "body_size": 100,
-                "headers": {},
-                "content_type": "text/plain",
-                "content_encoding": "",
-                "delivery_mode": DeliveryMode.NOT_PERSISTENT,
-                "priority": 0,
-                "correlation_id": "",
-                "reply_to": "",
-                "expiration": "",
-                "message_id": "",
-                "timestamp": "",
-                "type": "",
-                "user_id": "",
-                "app_id": "",
-            }
-
-        """
-
-        return {
-            "body_size": self.body_size,
-            "headers": self.headers_raw,
-            "content_type": self.content_type,
-            "content_encoding": self.content_encoding,
-            "delivery_mode": self.delivery_mode,
-            "priority": self.priority,
-            "correlation_id": self.correlation_id,
-            "reply_to": self.reply_to,
-            "expiration": self.expiration,
-            "message_id": self.message_id,
-            "timestamp": decode_timestamp(self.timestamp),
-            "type": str(self.type),
-            "user_id": self.user_id,
-            "app_id": self.app_id,
-        }
+    def info(self) -> MessageInfo:
+        return MessageInfo(
+            app_id=self.app_id,
+            body_size=self.body_size,
+            cluster_id=None,
+            consumer_tag=None,
+            content_encoding=self.content_encoding,
+            content_type=self.content_type,
+            correlation_id=self.correlation_id,
+            delivery_mode=self.delivery_mode,
+            delivery_tag=None,
+            exchange=None,
+            expiration=self.expiration,
+            headers=self.headers,
+            message_id=self.message_id,
+            priority=self.priority,
+            redelivered=None,
+            reply_to=self.reply_to,
+            routing_key=None,
+            timestamp=decode_timestamp(self.timestamp),
+            type=str(self.type),
+            user_id=self.user_id,
+        )
 
     @property
     def locked(self) -> bool:
@@ -375,19 +358,19 @@ class Message(AbstractMessage):
     def properties(self) -> aiormq.spec.Basic.Properties:
         """ Build :class:`aiormq.spec.Basic.Properties` object """
         return aiormq.spec.Basic.Properties(
-            content_type=self.content_type,
-            content_encoding=self.content_encoding,
-            headers=self.headers_raw,
-            delivery_mode=self.delivery_mode,
-            priority=self.priority,
-            correlation_id=self.correlation_id,
-            reply_to=self.reply_to,
-            expiration=encode_expiration(self.expiration),
-            message_id=self.message_id,
-            timestamp=self.timestamp,
-            message_type=self.type,
-            user_id=self.user_id,
             app_id=self.app_id,
+            content_encoding=self.content_encoding,
+            content_type=self.content_type,
+            correlation_id=self.correlation_id,
+            delivery_mode=self.delivery_mode,
+            expiration=encode_expiration(self.expiration),
+            headers=self.headers_raw,
+            message_id=self.message_id,
+            message_type=self.type,
+            priority=self.priority,
+            reply_to=self.reply_to,
+            timestamp=self.timestamp,
+            user_id=self.user_id,
         )
 
     def __repr__(self) -> str:
@@ -411,7 +394,7 @@ class Message(AbstractMessage):
     def __copy__(self) -> "Message":
         return Message(
             body=self.body,
-            headers=self.headers_raw,
+            headers=self.headers,
             content_encoding=self.content_encoding,
             content_type=self.content_type,
             delivery_mode=self.delivery_mode,
@@ -632,7 +615,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
         if not self.locked:
             self.lock()
 
-    def info(self) -> dict:
+    def info(self) -> MessageInfo:
         """ Method returns dict representation of the message """
 
         info = super().info()
@@ -663,7 +646,7 @@ class ProcessContext(AbstractProcessContext):
         *,
         requeue: bool,
         reject_on_redelivered: bool,
-        ignore_processed: bool
+        ignore_processed: bool,
     ):
         self.message = message
         self.requeue = requeue

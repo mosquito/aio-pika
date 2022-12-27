@@ -1,4 +1,5 @@
 import asyncio
+from typing import Optional
 
 from aio_pika import Message, connect_robust
 from aio_pika.abc import AbstractIncomingMessage
@@ -33,8 +34,11 @@ async def main() -> None:
         routing_key,
     )
 
-    # Receiving message
-    if incoming_message := await queue.get(timeout=5, fail=False):
+    # Receiving one message
+    incoming_message: Optional[AbstractIncomingMessage] = await queue.get(
+        timeout=5, fail=False
+    )
+    if incoming_message:
         # Confirm message
         await incoming_message.ack()
     else:

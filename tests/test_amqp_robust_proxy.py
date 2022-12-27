@@ -9,13 +9,14 @@ import aiomisc
 import aiormq.exceptions
 import pytest
 import shortuuid
-from aiomisc_pytest.pytest_plugin import TCPProxy
+from aiomisc_pytest.pytest_plugin import TCPProxy       # type: ignore
 from pamqp.exceptions import AMQPFrameError
 from yarl import URL
 
 import aio_pika
+from aio_pika.abc import AbstractRobustChannel
 from aio_pika.exceptions import QueueEmpty
-from aio_pika.message import IncomingMessage, Message
+from aio_pika.message import Message
 from aio_pika.robust_channel import RobustChannel
 from aio_pika.robust_connection import RobustConnection
 from aio_pika.robust_queue import RobustQueue
@@ -73,7 +74,9 @@ def create_connection(connection_fabric, loop, amqp_url):
 
 
 @pytest.fixture
-async def direct_connection(create_direct_connection) -> aio_pika.Connection:
+async def direct_connection(    # type: ignore
+    create_direct_connection
+) -> aio_pika.Connection:
     async with await create_direct_connection() as conn:
         yield conn
 
@@ -237,12 +240,15 @@ async def test_robust_reconnect(
 
 
 async def test_channel_locked_resource2(connection: aio_pika.RobustConnection):
-    ch1 = await connection.channel()
-    ch2 = await connection.channel()
+    ch1: AbstractRobustChannel = await connection.channel()     # type: ignore
+    ch2: AbstractRobustChannel = await connection.channel()     # type: ignore
 
     qname = get_random_name("channel", "locked", "resource")
 
-    q1 = await ch1.declare_queue(qname, exclusive=True, robust=False)
+    q1: aio_pika.abc.AbstractRobustQueue = await ch1.declare_queue(
+        qname, exclusive=True, robust=False
+    )
+
     await q1.consume(print, exclusive=True)
 
     with pytest.raises(aiormq.exceptions.ChannelAccessRefused):
@@ -330,7 +336,7 @@ async def test_context_process_abrupt_channel_close(
         async with incoming_message.process():
             # emulate some activity on closed channel
             await channel.channel.basic_publish(
-                "dummy", exchange="", routing_key="non_existent",
+                b"dummy", exchange="", routing_key="non_existent",
             )
 
     # emulate connection/channel restoration of connect_robust
@@ -372,7 +378,6 @@ async def test_robust_duplicate_queue(
 
         async with queue.iterator() as q:
             async for message in q:
-                message: IncomingMessage
                 # https://www.rabbitmq.com/confirms.html#automatic-requeueing
                 async with shared_condition:
                     shared[message.message_id] = message
@@ -432,8 +437,10 @@ async def test_channel_restore(
     assert isinstance(conn, aio_pika.RobustConnection)
 
     async with conn:
-        channel = await conn.channel()
-        channel.reopen_callbacks.add(lambda *_: on_reopen.set(), weak=False)
+        channel: AbstractRobustChannel = await conn.channel()   # type: ignore
+        channel.reopen_callbacks.add(
+            lambda *_: on_reopen.set(), weak=False
+        )
         assert isinstance(channel, aio_pika.RobustChannel)
 
         async with channel:

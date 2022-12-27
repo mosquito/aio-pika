@@ -77,7 +77,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
         timeout: TimeoutType = None,
     ) -> aiormq.abc.AbstractConnection:
         connection = await UnderlayConnection.make_connection(
-            self.url, timeout=timeout, **self.kwargs
+            self.url, timeout=timeout, **self.kwargs,
         )
 
         try:
@@ -189,7 +189,7 @@ async def connect_robust(
     timeout: TimeoutType = None,
     client_properties: Optional[FieldTable] = None,
     connection_class: Type[AbstractRobustConnection] = RobustConnection,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> AbstractRobustConnection:
 
     """Make connection to the broker.
@@ -284,7 +284,7 @@ async def connect_robust(
             ssl=ssl,
             ssl_options=ssl_options,
             client_properties=client_properties,
-            **kwargs
+            **kwargs,
         ),
         loop=loop, ssl_context=ssl_context,
     )

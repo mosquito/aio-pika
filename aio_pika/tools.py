@@ -48,7 +48,7 @@ def create_task(
     func: Callable[..., Union[Coroutine[Any, Any, T], Awaitable[T]]],
     *args: Any,
     loop: Optional[asyncio.AbstractEventLoop] = None,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> Awaitable[T]:
     loop = loop or asyncio.get_event_loop()
 

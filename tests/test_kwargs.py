@@ -60,8 +60,8 @@ class TestCase:
 
     async def test_kwargs_values(self):
         for key, parser, default in self.CONNECTION_CLASS.KWARGS_TYPES:
-            positives = VALUE_GENERATORS[parser]
-            for example, expected in positives.items():
+            positives = VALUE_GENERATORS[parser]         # type: ignore
+            for example, expected in positives.items():  # type: ignore
                 instance = await self.get_instance(
                     "amqp://localhost/?{}={}".format(key, example),
                 )
@@ -71,4 +71,4 @@ class TestCase:
 
 
 class TestCaseRobust(TestCase):
-    CONNECTION_CLASS = MockConnectionRobust
+    CONNECTION_CLASS = MockConnectionRobust     # type: ignore

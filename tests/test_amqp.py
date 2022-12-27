@@ -4,7 +4,7 @@ import os
 import time
 import uuid
 from datetime import datetime
-from typing import Awaitable, Callable, Optional
+from typing import Callable, Optional
 from unittest import mock
 
 import aiormq.exceptions
@@ -15,7 +15,8 @@ from yarl import URL
 import aio_pika
 import aio_pika.exceptions
 from aio_pika import Channel, DeliveryMode, Message
-from aio_pika.abc import AbstractConnection, AbstractIncomingMessage
+from aio_pika.abc import AbstractConnection, AbstractIncomingMessage, \
+    MessageInfo
 from aio_pika.exceptions import (
     DeliveryError, MessageProcessError, ProbableAuthenticationError,
 )
@@ -31,7 +32,7 @@ class TestCaseAmqpBase:
     @staticmethod
     def create_channel(
         connection: aio_pika.Connection,
-    ) -> Awaitable[aio_pika.Channel]:
+    ) -> aio_pika.abc.AbstractChannel:
         return connection.channel()
 
     @staticmethod
@@ -353,22 +354,22 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         body = bytes(shortuuid.uuid(), "utf-8")
 
-        info = {
-            "headers": {"foo": "bar"},
-            "content_type": "application/json",
-            "content_encoding": "text",
-            "delivery_mode": DeliveryMode.PERSISTENT.value,
-            "priority": 0,
-            "correlation_id": "1",
-            "reply_to": "test",
-            "expiration": 1.5,
-            "message_id": shortuuid.uuid(),
-            "timestamp": datetime.utcfromtimestamp(int(time.time())),
-            "type": "0",
-            "user_id": "guest",
-            "app_id": "test",
-            "body_size": len(body),
-        }
+        info = MessageInfo(
+            app_id="test",
+            body_size=len(body),
+            content_encoding="text",
+            content_type="application/json",
+            correlation_id="1",
+            delivery_mode=DeliveryMode.PERSISTENT,
+            expiration=1.5,
+            headers={"foo": "bar"},
+            message_id=shortuuid.uuid(),
+            priority=0,
+            reply_to="test",
+            timestamp=datetime.utcfromtimestamp(int(time.time())),
+            type="0",
+            user_id="guest",
+        )
 
         msg = Message(
             body=body,
@@ -377,7 +378,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
             content_encoding="text",
             delivery_mode=DeliveryMode.PERSISTENT,
             priority=0,
-            correlation_id=1,
+            correlation_id="1",
             reply_to="test",
             expiration=1.5,
             message_id=info["message_id"],
@@ -1566,10 +1567,12 @@ class TestCaseAmqp(TestCaseAmqpBase):
         url = amqp_url.update_query(heartbeat=0)
         connection: AbstractConnection = await connection_fabric(url)
 
+        transport = connection.transport
+        assert transport
+        heartbeat = transport.connection.connection_tune.heartbeat
+
         async with connection:
-            assert (
-                connection.transport.connection.connection_tune.heartbeat == 0
-            )
+            assert heartbeat == 0
 
 
 class TestCaseAmqpNoConfirms(TestCaseAmqp):
@@ -1597,7 +1600,7 @@ class TestCaseAmqpWithConfirms(TestCaseAmqpBase):
         try:
             with pytest.raises(aio_pika.exceptions.ChannelPreconditionFailed):
                 msg = Message(bytes(shortuuid.uuid(), "utf-8"))
-                msg.delivery_mode = 8
+                msg.delivery_mode = 8       # type: ignore
 
                 await exchange.publish(msg, routing_key)
 
@@ -1608,10 +1611,8 @@ class TestCaseAmqpWithConfirms(TestCaseAmqpBase):
         finally:
             await exchange.delete()
 
-    async def test_basic_return(self, connection: aio_pika.connection, loop):
-        channel = await self.create_channel(
-            connection,
-        )  # type: aio_pika.Channel
+    async def test_basic_return(self, connection: aio_pika.Connection, loop):
+        channel = await self.create_channel(connection)
 
         f = loop.create_future()
 
@@ -1636,9 +1637,7 @@ class TestCaseAmqpWithConfirms(TestCaseAmqpBase):
 
         await channel.close()
 
-        channel = await self.create_channel(
-            connection,
-        )  # type: aio_pika.Channel
+        channel = await self.create_channel(connection)
 
         def bad_handler(
             channel: aio_pika.abc.AbstractChannel,
