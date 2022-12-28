@@ -1,3 +1,21 @@
+9.0.0
+-----
+
+The main goal of this release is the migration to `poetry` and stronger type
+checking with mypy.
+
+User code should remain compatible, just test it with mypy. The tests still
+work the same, without public API changes, this indicates that your code
+should work without changes, but does not prove it.
+
+### Deprecations
+
+* `aio_pika.message.HeaderProxy` - removed
+* `aio_pika.message.header_converter` - removed
+* `aio_pika.message.format_headers` - removed
+* `aio_pika.message.Message.headers_raw` - prints deprecation warning
+* `aio_pika.abc.AbstractMessage.headers_raw` - removed
+
 8.3.0
 -----
 
