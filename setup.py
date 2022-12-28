@@ -39,7 +39,7 @@ setup(
     packages=find_packages(exclude=["tests"]),
     package_data={"aio_pika": ["py.typed"]},
     install_requires=[
-        "aiormq~=6.4.0",
+        "aiormq~=6.6.3",
         "yarl",
         'typing_extensions; python_version < "3.8.0"'
     ],
@@ -50,7 +50,6 @@ setup(
             "coverage!=4.3",
             "coveralls",
             "pylava",
-            "pyflakes<2.5",
             "pytest",
             "pytest-cov",
             "shortuuid",
