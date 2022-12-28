@@ -1,12 +1,12 @@
 import time
 from copy import copy
 from datetime import datetime
-from typing import Tuple, List
+from typing import List, Tuple
 
 import shortuuid
 
 from aio_pika import DeliveryMode, Message
-from aio_pika.abc import MessageInfo, HeadersType, FieldValue
+from aio_pika.abc import FieldValue, HeadersType, MessageInfo
 
 
 def test_message_copy():

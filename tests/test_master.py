@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Any
+from typing import Any, List
 
 import aio_pika
 from aio_pika.patterns.master import (

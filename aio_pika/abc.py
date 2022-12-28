@@ -6,8 +6,7 @@ from functools import singledispatch
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
-    Generator, Iterable, Iterator, NamedTuple, Optional, Type,
-    TypeVar, Union,
+    Generator, Iterator, NamedTuple, Optional, Type, TypeVar, Union,
 )
 
 
@@ -18,7 +17,7 @@ except ImportError:
 
 import aiormq.abc
 from aiormq.abc import ExceptionType
-from pamqp.common import Arguments, FieldTable, FieldValue
+from pamqp.common import Arguments, FieldValue
 from yarl import URL
 
 from .pool import PoolInstance
@@ -114,11 +113,6 @@ class AbstractTransaction:
         raise NotImplementedError
 
 
-HeadersValue = aiormq.abc.FieldValue
-HeadersPythonValues = Union[
-    HeadersValue,
-    Iterable[HeadersValue],
-]
 HeadersType = Dict[str, FieldValue]
 
 
@@ -148,7 +142,7 @@ class MessageInfo(TypedDict, total=False):
 class AbstractMessage(ABC):
     body: bytes
     body_size: int
-    headers_raw: FieldTable
+    headers: HeadersType
     content_type: Optional[str]
     content_encoding: Optional[str]
     delivery_mode: DeliveryMode
@@ -161,15 +155,6 @@ class AbstractMessage(ABC):
     type: Optional[str]
     user_id: Optional[str]
     app_id: Optional[str]
-
-    @property
-    @abstractmethod
-    def headers(self) -> HeadersType:
-        raise NotImplementedError
-
-    @headers.setter
-    def headers(self, value: HeadersType) -> None:
-        raise NotImplementedError
 
     @abstractmethod
     def info(self) -> MessageInfo:
@@ -911,11 +896,10 @@ __all__ = (
     "ExchangeParamType",
     "ExchangeType",
     "FieldValue",
-    "HeadersPythonValues",
     "HeadersType",
-    "HeadersValue",
     "MILLISECONDS",
     "MessageInfo",
+    "NoneType",
     "SSLOptions",
     "TimeoutType",
     "TransactionState",

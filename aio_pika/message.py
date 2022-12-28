@@ -1,22 +1,19 @@
-import json
 import time
+import warnings
 from datetime import datetime, timedelta
 from functools import singledispatch
 from pprint import pformat
 from types import TracebackType
-from typing import (
-    Any, Callable, Dict, Iterable, Iterator, List, Optional, Type, TypeVar,
-    Union,
-)
+from typing import Any, Callable, Iterator, Optional, Type, TypeVar, Union
 
 import aiormq
-from aiormq.abc import DeliveredMessage, FieldTable
+from aiormq.abc import DeliveredMessage
 from pamqp.common import FieldValue
 
 from .abc import (
     MILLISECONDS, ZERO_TIME, AbstractChannel, AbstractIncomingMessage,
     AbstractMessage, AbstractProcessContext, DateType, DeliveryMode,
-    HeadersPythonValues, HeadersType, MessageInfo, NoneType,
+    HeadersType, MessageInfo, NoneType,
 )
 from .exceptions import MessageProcessError
 from .log import get_logger
@@ -141,86 +138,6 @@ def optional(
     return func(value) if value else default    # type: ignore
 
 
-class HeaderProxy(HeadersType):
-    def __init__(self, headers: FieldTable):
-        self._headers: FieldTable = headers
-        self._cache: Dict[str, Any] = {}
-
-    def __getitem__(self, k: str) -> FieldValue:
-        if k not in self._headers:
-            raise KeyError(k)
-
-        if k not in self._cache:
-            value = self._headers[k]
-
-            if isinstance(value, bytes):
-                self._cache[k] = value.decode()
-            else:
-                self._cache[k] = value
-
-        return self._cache[k]
-
-    def __delitem__(self, key: str) -> None:
-        del self._headers[key]
-
-    def __setitem__(self, key: str, value: HeadersPythonValues) -> None:
-        self._headers[key] = header_converter(value)
-        self._cache.pop(key, None)
-
-    def __len__(self) -> int:
-        return len(self._headers)
-
-    def __iter__(self) -> Iterator[str]:
-        yield from self._headers
-
-
-@singledispatch
-def header_converter(value: Any) -> FieldValue:
-    return bytearray(
-        json.dumps(
-            value,
-            separators=(",", ":"),
-            ensure_ascii=False,
-            default=repr,
-        ).encode(),
-    )
-
-
-@header_converter.register(NoneType)        # type: ignore
-@header_converter.register(bytearray)
-@header_converter.register(str)
-@header_converter.register(datetime)
-@header_converter.register(time.struct_time)
-@header_converter.register(list)
-@header_converter.register(dict)
-@header_converter.register(int)
-def header_converter_native(v: T) -> T:
-    return v
-
-
-@header_converter.register(bytes)
-def header_converter_bytes(v: bytes) -> bytearray:
-    return bytearray(v)
-
-
-@header_converter.register(set)
-@header_converter.register(tuple)
-@header_converter.register(frozenset)
-def header_converter_iterable(v: Iterable[T]) -> List[T]:
-    return header_converter(list(v))        # type: ignore
-
-
-def format_headers(d: Optional[Union[HeadersType, FieldTable]]) -> FieldTable:
-    ret: FieldTable = {}
-
-    if not d:
-        return ret
-
-    for key, value in d.items():
-        ret[key] = header_converter(value)
-    return ret
-
-
 class Message(AbstractMessage):
     """ AMQP message abstraction """
 
@@ -234,7 +151,7 @@ class Message(AbstractMessage):
         "delivery_mode",
         "expiration",
         "_headers",
-        "headers_raw",
+        "headers",
         "message_id",
         "priority",
         "reply_to",
@@ -284,8 +201,7 @@ class Message(AbstractMessage):
         self.__lock = False
         self.body = body if isinstance(body, bytes) else bytes(body)
         self.body_size = len(self.body) if self.body else 0
-        self.headers_raw: FieldTable = format_headers(headers)
-        self._headers: HeaderProxy = HeaderProxy(self.headers_raw)
+        self.headers: HeadersType = headers or {}
         self.content_type = content_type
         self.content_encoding = content_encoding
         self.delivery_mode: DeliveryMode = DeliveryMode(
@@ -304,12 +220,13 @@ class Message(AbstractMessage):
         self.app_id = optional(app_id, str)
 
     @property
-    def headers(self) -> HeadersType:
-        return self._headers
-
-    @headers.setter
-    def headers(self, value: HeadersType) -> None:
-        self.headers_raw = format_headers(value)
+    def headers_raw(self) -> HeadersType:
+        warnings.warn(
+            f"{self.__class__.__name__}.headers_raw deprecated, please use "
+            f"{self.__class__.__name__}.headers instead.",
+            DeprecationWarning
+        )
+        return self.headers
 
     @staticmethod
     def _as_bytes(value: Any) -> bytes:
@@ -364,7 +281,7 @@ class Message(AbstractMessage):
             correlation_id=self.correlation_id,
             delivery_mode=self.delivery_mode,
             expiration=encode_expiration(self.expiration),
-            headers=self.headers_raw,
+            headers=self.headers,
             message_id=self.message_id,
             message_type=self.type,
             priority=self.priority,
@@ -423,7 +340,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
     * basic.ack is used for positive acknowledgements
     * basic.nack is used for negative acknowledgements (note: this is a RabbitMQ
       extension to AMQP 0-9-1)
-    * basic.reject is used for negative acknowledgements but has one limitations
+    * basic.reject is used for negative acknowledgements but has one limitation
       compared to basic.nack
 
     Positive acknowledgements simply instruct RabbitMQ to record a message as

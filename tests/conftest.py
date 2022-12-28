@@ -124,7 +124,7 @@ async def connection(create_connection) -> aio_pika.Connection:  # type: ignore
 # noinspection PyTypeChecker
 @pytest.fixture
 async def channel(      # type: ignore
-    connection: aio_pika.Connection
+    connection: aio_pika.Connection,
 ) -> aio_pika.Channel:
     async with connection.channel() as ch:
         yield ch

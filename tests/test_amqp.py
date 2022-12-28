@@ -15,8 +15,9 @@ from yarl import URL
 import aio_pika
 import aio_pika.exceptions
 from aio_pika import Channel, DeliveryMode, Message
-from aio_pika.abc import AbstractConnection, AbstractIncomingMessage, \
-    MessageInfo
+from aio_pika.abc import (
+    AbstractConnection, AbstractIncomingMessage, MessageInfo,
+)
 from aio_pika.exceptions import (
     DeliveryError, MessageProcessError, ProbableAuthenticationError,
 )

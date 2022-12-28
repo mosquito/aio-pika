@@ -9,7 +9,7 @@ import aiomisc
 import aiormq.exceptions
 import pytest
 import shortuuid
-from aiomisc_pytest.pytest_plugin import TCPProxy       # type: ignore
+from aiomisc_pytest.pytest_plugin import TCPProxy  # type: ignore
 from pamqp.exceptions import AMQPFrameError
 from yarl import URL
 
@@ -75,7 +75,7 @@ def create_connection(connection_fabric, loop, amqp_url):
 
 @pytest.fixture
 async def direct_connection(    # type: ignore
-    create_direct_connection
+    create_direct_connection,
 ) -> aio_pika.Connection:
     async with await create_direct_connection() as conn:
         yield conn
@@ -246,7 +246,7 @@ async def test_channel_locked_resource2(connection: aio_pika.RobustConnection):
     qname = get_random_name("channel", "locked", "resource")
 
     q1: aio_pika.abc.AbstractRobustQueue = await ch1.declare_queue(
-        qname, exclusive=True, robust=False
+        qname, exclusive=True, robust=False,
     )
 
     await q1.consume(print, exclusive=True)
@@ -439,7 +439,7 @@ async def test_channel_restore(
     async with conn:
         channel: AbstractRobustChannel = await conn.channel()   # type: ignore
         channel.reopen_callbacks.add(
-            lambda *_: on_reopen.set(), weak=False
+            lambda *_: on_reopen.set(), weak=False,
         )
         assert isinstance(channel, aio_pika.RobustChannel)
 
