@@ -1,3 +1,9 @@
+8.3.0
+-----
+
+* Update `aiormq~=6.6.3` #512
+* Fix getting futures exceptions #509
+
 8.2.4
 -----
 
