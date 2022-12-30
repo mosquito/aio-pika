@@ -1,12 +1,12 @@
 import json
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from functools import singledispatch
 from pprint import pformat
-from types import TracebackType
 from typing import (
-    Any, Callable, Dict, Iterable, Iterator, List, MutableMapping, Optional,
-    Type, TypeVar, Union,
+    Any, AsyncIterator, Callable, Dict, Iterable, Iterator, List,
+    MutableMapping, Optional, Type, TypeVar, Union,
 )
 
 import aiormq
@@ -15,8 +15,8 @@ from pamqp.common import FieldValue
 
 from .abc import (
     MILLISECONDS, ZERO_TIME, AbstractChannel, AbstractIncomingMessage,
-    AbstractMessage, AbstractProcessContext, DateType, DeliveryMode,
-    HeadersPythonValues, HeadersType, NoneType,
+    AbstractMessage, DateType, DeliveryMode, HeadersPythonValues, HeadersType,
+    NoneType,
 )
 from .exceptions import MessageProcessError
 from .log import get_logger
@@ -512,12 +512,13 @@ class IncomingMessage(Message, AbstractIncomingMessage):
     def channel(self) -> aiormq.abc.AbstractChannel:
         return self.__channel
 
-    def process(
+    @asynccontextmanager
+    async def process(
         self,
         requeue: bool = False,
         reject_on_redelivered: bool = False,
         ignore_processed: bool = False,
-    ) -> AbstractProcessContext:
+    ) -> AsyncIterator["Message"]:
         """ Context manager for processing the message
 
             >>> async def on_message_received(message: IncomingMessage):
@@ -543,15 +544,39 @@ class IncomingMessage(Message, AbstractIncomingMessage):
         :param ignore_processed: Do nothing if message already processed
 
         """
-        return ProcessContext(
-            self,
-            requeue=requeue,
-            reject_on_redelivered=reject_on_redelivered,
-            ignore_processed=ignore_processed,
-        )
+        # noinspection PyBroadException
+        try:
+            yield self
+        except BaseException:
+            if not ignore_processed or not self.processed:
+                if reject_on_redelivered and self.redelivered:
+                    if not self.channel.is_closed:
+                        log.info(
+                            "Message %r was redelivered and will be rejected",
+                            self,
+                        )
+                        await self.reject(requeue=False)
+                        raise
+
+                    log.warning(
+                        "Message %r was redelivered and reject is not sent "
+                        "since channel is closed",
+                        self,
+                    )
+                    raise
+
+                if not self.channel.is_closed:
+                    await self.reject(requeue=requeue)
+                    raise
+
+                log.warning("Reject is not sent since channel is closed")
+                raise
+        else:
+            if not ignore_processed or not self.processed:
+                await self.ack()
 
     async def ack(self, multiple: bool = False) -> None:
-        """ Send basic.ack is used for positive acknowledgements
+        """ Send Basic.Ack frame is used for positive acknowledgements
 
         .. note::
             This method looks like a blocking-method, but actually it just
@@ -582,7 +607,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
 
     async def reject(self, requeue: bool = False) -> None:
         """ When `requeue=True` the message will be returned to queue.
-        Otherwise message will be dropped.
+        Otherwise, message will be dropped.
 
         .. note::
             This method looks like a blocking-method, but actually it just
@@ -654,56 +679,6 @@ class ReturnedMessage(IncomingMessage):
 
 
 ReturnCallback = Callable[[AbstractChannel, ReturnedMessage], Any]
-
-
-class ProcessContext(AbstractProcessContext):
-    def __init__(
-        self,
-        message: IncomingMessage,
-        *,
-        requeue: bool,
-        reject_on_redelivered: bool,
-        ignore_processed: bool
-    ):
-        self.message = message
-        self.requeue = requeue
-        self.reject_on_redelivered = reject_on_redelivered
-        self.ignore_processed = ignore_processed
-
-    async def __aenter__(self) -> IncomingMessage:
-        return self.message
-
-    async def __aexit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
-    ) -> None:
-        if not exc_type:
-            if not self.ignore_processed or not self.message.processed:
-                await self.message.ack()
-
-            return
-
-        if not self.ignore_processed or not self.message.processed:
-            if self.reject_on_redelivered and self.message.redelivered:
-                if not self.message.channel.is_closed:
-                    log.info(
-                        "Message %r was redelivered and will be rejected",
-                        self.message,
-                    )
-                    await self.message.reject(requeue=False)
-                    return
-                log.warning(
-                    "Message %r was redelivered and reject is not sent "
-                    "since channel is closed",
-                    self.message,
-                )
-            else:
-                if not self.message.channel.is_closed:
-                    await self.message.reject(requeue=self.requeue)
-                    return
-                log.warning("Reject is not sent since channel is closed")
 
 
 __all__ = "Message", "IncomingMessage", "ReturnedMessage",

@@ -1,13 +1,14 @@
 import asyncio
 from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum, unique
 from functools import singledispatch
 from types import TracebackType
 from typing import (
-    Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
-    FrozenSet, Generator, Iterator, MutableMapping, NamedTuple, Optional, Set,
-    Tuple, Type, TypeVar, Union,
+    Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Dict, FrozenSet,
+    Generator, Iterator, MutableMapping, NamedTuple, Optional, Set, Tuple, Type,
+    TypeVar, Union,
 )
 
 
@@ -191,13 +192,14 @@ class AbstractIncomingMessage(AbstractMessage, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def process(
+    @asynccontextmanager
+    async def process(
         self,
         requeue: bool = False,
         reject_on_redelivered: bool = False,
         ignore_processed: bool = False,
-    ) -> "AbstractProcessContext":
-        raise NotImplementedError
+    ) -> AsyncIterator["AbstractMessage"]:
+        yield self
 
     @abstractmethod
     async def ack(self, multiple: bool = False) -> None:
@@ -217,21 +219,6 @@ class AbstractIncomingMessage(AbstractMessage, ABC):
     @property
     @abstractmethod
     def processed(self) -> bool:
-        raise NotImplementedError
-
-
-class AbstractProcessContext(AsyncContextManager):
-    @abstractmethod
-    async def __aenter__(self) -> AbstractIncomingMessage:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def __aexit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
-    ) -> None:
         raise NotImplementedError
 
 
@@ -467,7 +454,7 @@ class UnderlayChannel(NamedTuple):
 
         self.channel.closing.remove_done_callback(self.close_callback)
         self.channel.connection.closing.remove_done_callback(
-            self.close_callback
+            self.close_callback,
         )
 
 
@@ -871,7 +858,6 @@ __all__ = (
     "AbstractExchange",
     "AbstractIncomingMessage",
     "AbstractMessage",
-    "AbstractProcessContext",
     "AbstractQueue",
     "AbstractQueueIterator",
     "AbstractRobustChannel",
