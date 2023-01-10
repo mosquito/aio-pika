@@ -17,6 +17,7 @@ async def test_simple(max_size, loop):
         return counter
 
     pool = Pool(create_instance, max_size=max_size, loop=loop)
+    assert len(pool) == 0
 
     async def getter():
         nonlocal counter, pool
@@ -33,6 +34,8 @@ async def test_simple(max_size, loop):
         assert total > -1
 
     assert counter == max_size
+
+    assert len(pool) == max_size
 
 
 class TestInstanceBase:
