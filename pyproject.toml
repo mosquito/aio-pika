@@ -36,7 +36,7 @@ packages = [{ include = "aio_pika" }]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-aiormq= "6.6.3"
+aiormq= "^6.7.0"
 yarl = [{ version = '*'}]
 typing_extensions = [{ version = '*', python = "< 3.8" }]
 
