@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum, unique
@@ -6,7 +7,7 @@ from functools import singledispatch
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
-    Generator, Iterator, NamedTuple, Optional, Type, TypeVar, Union,
+    Generator, Iterator, Optional, Type, TypeVar, Union,
 )
 
 
@@ -71,7 +72,8 @@ class TransactionState(str, Enum):
     STARTED = "started"
 
 
-class DeclarationResult(NamedTuple):
+@dataclasses.dataclass(frozen=True)
+class DeclarationResult:
     message_count: int
     consumer_count: int
 
@@ -263,7 +265,15 @@ class AbstractQueue:
         arguments: Arguments,
         passive: bool = False,
     ):
-        raise NotImplementedError
+        raise NotImplementedError(dict(
+            channel=channel,
+            name=name,
+            durable=durable,
+            exclusive=exclusive,
+            auto_delete=auto_delete,
+            arguments=arguments,
+            passive=passive
+        ))
 
     @abstractmethod
     async def declare(
@@ -441,7 +451,8 @@ class AbstractExchange(ABC):
         raise NotImplementedError
 
 
-class UnderlayChannel(NamedTuple):
+@dataclasses.dataclass(frozen=True)
+class UnderlayChannel:
     channel: aiormq.abc.AbstractChannel
     close_callback: OneShotCallback
 
@@ -618,7 +629,8 @@ class AbstractChannel(PoolInstance, ABC):
         raise NotImplementedError
 
 
-class UnderlayConnection(NamedTuple):
+@dataclasses.dataclass(frozen=True)
+class UnderlayConnection:
     connection: aiormq.abc.AbstractConnection
     close_callback: OneShotCallback
 
