@@ -77,7 +77,7 @@ def test_headers_setter():
     msg = Message(b"", headers={"bar": "baz"})
     msg.headers = data
 
-    assert msg.headers_raw == data_expected
+    assert msg.headers == data_expected
 
 
 def test_headers_content():
