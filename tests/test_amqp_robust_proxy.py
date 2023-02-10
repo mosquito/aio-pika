@@ -512,19 +512,25 @@ async def test_channel_reconnect_after_5kb(
     )
 
     num_bytes = 0
+    disconnect_lock = asyncio.Lock()
 
-    def server_to_client(chunk: bytes) -> bytes:
+    async def disconnect():
+        async with disconnect_lock:
+            await proxy.disconnect_all()
+
+    async def server_to_client(chunk: bytes) -> bytes:
         nonlocal num_bytes
 
-        if num_bytes >= 0:
-            num_bytes += len(chunk)
+        async with disconnect_lock:
+            if num_bytes >= 0:
+                num_bytes += len(chunk)
 
-            if num_bytes < 5000:
-                return chunk
+                if num_bytes < 5000:
+                    return chunk
 
-        num_bytes = 0
-        loop.call_soon(proxy.disconnect_all)
-        return chunk
+            num_bytes = 0
+            loop.create_task(disconnect())
+            return chunk
 
     proxy.set_content_processors(
         lambda chunk: chunk,
@@ -674,6 +680,5 @@ async def test_channel_reconnect_stairway(
 
         assert messages
 
-    print("Done")
     await connection.close()
     await direct_connection.close()
