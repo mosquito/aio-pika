@@ -3,14 +3,13 @@ import itertools
 import logging
 from contextlib import suppress
 from functools import partial
-from typing import Callable, Type
+from typing import Callable, List, Type
 
 import aiomisc
 import aiormq.exceptions
 import pytest
 import shortuuid
 from aiomisc_pytest.pytest_plugin import TCPProxy  # type: ignore
-from pamqp.exceptions import AMQPFrameError
 from yarl import URL
 
 import aio_pika
@@ -25,7 +24,11 @@ from tests import get_random_name
 
 @pytest.fixture
 async def proxy(tcp_proxy: Type[TCPProxy], amqp_direct_url: URL):
-    p = tcp_proxy(amqp_direct_url.host, amqp_direct_url.port)
+    p = tcp_proxy(
+        amqp_direct_url.host,
+        amqp_direct_url.port,
+        buffered=False,
+    )
 
     await p.start()
     try:
@@ -207,7 +210,7 @@ async def test_robust_reconnect(
                     await proxy.disconnect_all()
 
                     # noinspection PyTypeChecker
-                    with pytest.raises(AMQPFrameError):
+                    with pytest.raises(aiormq.AMQPError):
                         await read_conn.channel()
 
                 logging.info("Waiting reconnect")
@@ -551,71 +554,126 @@ async def test_channel_reconnect_after_5kb(
     await direct_connection.close()
 
 
+class BadNetwork:
+    def __init__(self, proxy, stair: int, disconnect_time: float):
+        self.proxy = proxy
+        self.stair = stair
+        self.disconnect_time = disconnect_time
+        self.num_bytes = 0
+        self.loop = asyncio.get_event_loop()
+        self.lock = asyncio.Lock()
+
+        proxy.set_content_processors(
+            self.client_to_server,
+            self.server_to_client,
+        )
+
+    async def disconnect(self):
+        async with self.lock:
+            await asyncio.sleep(self.disconnect_time)
+            await self.proxy.disconnect_all()
+            self.stair *= 2
+            self.num_bytes = 0
+
+    async def server_to_client(self, chunk: bytes) -> bytes:
+        async with self.lock:
+            self.num_bytes += len(chunk)
+            if self.num_bytes < self.stair:
+                return chunk
+            self.loop.create_task(self.disconnect())
+            return chunk
+
+    @staticmethod
+    def client_to_server(chunk: bytes) -> bytes:
+        return chunk
+
+
+DISCONNECT_OFFSETS = [2 << i for i in range(5, 12)]
+STAIR_STEPS = list(itertools.product([0.1, 0.0], DISCONNECT_OFFSETS))
+STAIR_STEPS_IDS = [
+    f"[{i // len(DISCONNECT_OFFSETS)}] {t}-{s}"
+    for i, (t, s) in enumerate(STAIR_STEPS)
+]
+
+
 @aiomisc.timeout(30)
 @pytest.mark.parametrize(
-    "reconnect_timeout,stair",
-    list(itertools.product(["0.1", "0"], [48, 64, 128, 256, 512])),
+    "reconnect_timeout,stair", STAIR_STEPS,
+    ids=STAIR_STEPS_IDS,
 )
 async def test_channel_reconnect_stairway(
-    reconnect_timeout,
-    stair,
-    amqp_url,
-    amqp_direct_url,
+    reconnect_timeout: float,
+    stair: int,
+    amqp_url: URL,
+    amqp_direct_url: URL,
     connection_fabric,
     loop: asyncio.AbstractEventLoop,
     proxy: TCPProxy,
     add_cleanup: Callable,
 ):
+
+    loop.set_debug(True)
+
     connection = await aio_pika.connect_robust(
-        amqp_url.update_query(reconnect_interval=reconnect_timeout),
+        amqp_url.update_query(
+            reconnect_interval=f"{reconnect_timeout:.2f}",
+            name="proxy",
+        ),
         loop=loop,
     )
-    direct_connection = await aio_pika.connect(amqp_direct_url, loop=loop)
+    direct_connection = await aio_pika.connect(
+        amqp_direct_url.update_query("name=direct"), loop=loop,
+    )
 
     on_reconnect = asyncio.Event()
     connection.reconnect_callbacks.add(
         lambda *_: on_reconnect.set(), weak=False,
     )
 
-    num_bytes = 0
+    BadNetwork(proxy, stair, reconnect_timeout)
 
-    def server_to_client(chunk: bytes) -> bytes:
-        nonlocal num_bytes, stair
+    messages_to_exchange = 100
+    body = b"Hello world " * 1000
 
-        if num_bytes >= 0:
-            num_bytes += len(chunk)
-
-            if num_bytes < stair:
-                return chunk
-
-        num_bytes = 0
-        loop.call_soon(proxy.disconnect_all)
-        stair += stair
-        return chunk
-
-    proxy.set_content_processors(
-        lambda chunk: chunk,
-        server_to_client,
-    )
-
-    MESSAGES_TO_EXCHANGE = 50
     async with connection.channel() as channel:
         queue = await channel.declare_queue(auto_delete=False)
 
         async with direct_connection.channel() as publish_channel:
-            for _ in range(MESSAGES_TO_EXCHANGE):
+            for _ in range(messages_to_exchange):
                 await publish_channel.default_exchange.publish(
-                    aio_pika.Message(body=b"Hello world" * 100),
+                    aio_pika.Message(body=body),
                     routing_key=queue.name,
                 )
 
-        messages = []
-        async for message in queue.iterator():
-            messages.append(message)
-            if len(messages) == MESSAGES_TO_EXCHANGE:
+        messages: List[aio_pika.abc.AbstractIncomingMessage] = []
+
+        while True:
+            try:
+                await channel.set_qos(prefetch_count=1)
                 break
+            except aiormq.ChannelInvalidStateError:
+                await asyncio.sleep(0.1)
+                continue
+
+        while len(messages) < messages_to_exchange:
+            try:
+                message: aio_pika.abc.AbstractIncomingMessage
+                async for message in queue.iterator():
+                    # noinspection PyBroadException
+                    try:
+                        await message.ack()
+                    except Exception:
+                        continue
+
+                    messages.append(message)
+
+                    if len(messages) >= messages_to_exchange:
+                        break
+            except Exception:
+                continue
 
         assert messages
 
+    print("Done")
     await connection.close()
     await direct_connection.close()

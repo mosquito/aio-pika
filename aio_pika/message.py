@@ -224,7 +224,7 @@ class Message(AbstractMessage):
         warnings.warn(
             f"{self.__class__.__name__}.headers_raw deprecated, please use "
             f"{self.__class__.__name__}.headers instead.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         return self.headers
 

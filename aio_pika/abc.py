@@ -265,15 +265,17 @@ class AbstractQueue:
         arguments: Arguments,
         passive: bool = False,
     ):
-        raise NotImplementedError(dict(
-            channel=channel,
-            name=name,
-            durable=durable,
-            exclusive=exclusive,
-            auto_delete=auto_delete,
-            arguments=arguments,
-            passive=passive
-        ))
+        raise NotImplementedError(
+            dict(
+                channel=channel,
+                name=name,
+                durable=durable,
+                exclusive=exclusive,
+                auto_delete=auto_delete,
+                arguments=arguments,
+                passive=passive,
+            ),
+        )
 
     @abstractmethod
     async def declare(
