@@ -2,13 +2,14 @@ import asyncio
 import os
 import time
 from contextlib import contextmanager
+from typing import Generator, Any
 
 import aio_pika
 from aio_pika import connect_robust
 
 
 @contextmanager
-def timeit(message: str, iterations: int):
+def timeit(message: str, iterations: int) -> Generator[Any, Any, Any]:
     delay = -time.perf_counter()
     print(f"{message} started")
     try:
@@ -22,7 +23,7 @@ def timeit(message: str, iterations: int):
         )
 
 
-async def main():
+async def main() -> None:
     connect = await connect_robust(
         os.getenv("AMQP_URL", "amqp://guest:guest@localhost")
     )
@@ -31,6 +32,7 @@ async def main():
 
     async with connect:
         message = aio_pika.Message(b"test")
+        incoming_message: aio_pika.abc.AbstractIncomingMessage
 
         async with connect.channel() as channel:
             queue = await channel.declare_queue(auto_delete=True)
@@ -44,11 +46,9 @@ async def main():
                     )
 
             with timeit("Iterator consume no_ack=False", iterations=iterations):
-                message: aio_pika.abc.AbstractIncomingMessage
-
                 counter = 0
-                async for message in queue.iterator(no_ack=False):
-                    await message.ack()
+                async for incoming_message in queue.iterator(no_ack=False):
+                    await incoming_message.ack()
                     counter += 1
                     if counter >= iterations:
                         break
@@ -65,10 +65,8 @@ async def main():
                     )
 
             with timeit("Iterator consume no_ack=True", iterations=iterations):
-                message: aio_pika.abc.AbstractIncomingMessage
-
                 counter = 0
-                async for message in queue.iterator(no_ack=True):
+                async for _ in queue.iterator(no_ack=True):
                     counter += 1
                     if counter >= iterations:
                         break
