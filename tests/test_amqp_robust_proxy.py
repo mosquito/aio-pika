@@ -485,11 +485,39 @@ async def test_channel_reconnect(
             await channel.set_qos(1)
 
 
+class BadNetwork5KB:
+    def __init__(self, proxy):
+        self.proxy = proxy
+        self.num_bytes = 0
+        self.loop = asyncio.get_event_loop()
+        self.lock = asyncio.Lock()
+
+        proxy.set_content_processors(
+            self.client_to_server,
+            self.server_to_client,
+        )
+
+    async def disconnect(self):
+        async with self.lock:
+            await self.proxy.disconnect_all()
+            self.num_bytes = 0
+
+    async def server_to_client(self, chunk: bytes) -> bytes:
+        async with self.lock:
+            self.num_bytes += len(chunk)
+            if self.num_bytes < 5000:
+                return chunk
+            self.loop.create_task(self.disconnect())
+            return chunk
+
+    @staticmethod
+    def client_to_server(chunk: bytes) -> bytes:
+        return chunk
+
+
 @aiomisc.timeout(15)
 @pytest.mark.parametrize(
-    "reconnect_timeout", [
-        "0", "1", "0.5", "0.1", "0.05", "0.025",
-    ],
+    "reconnect_timeout", ["0", "1", "0.5", "0.1", "0.05", "0.025"],
 )
 async def test_channel_reconnect_after_5kb(
     reconnect_timeout,
@@ -511,47 +539,24 @@ async def test_channel_reconnect_after_5kb(
         lambda *_: on_reconnect.set(), weak=False,
     )
 
-    num_bytes = 0
-    disconnect_lock = asyncio.Lock()
+    BadNetwork5KB(proxy)
 
-    async def disconnect():
-        async with disconnect_lock:
-            await proxy.disconnect_all()
-
-    async def server_to_client(chunk: bytes) -> bytes:
-        nonlocal num_bytes
-
-        async with disconnect_lock:
-            if num_bytes >= 0:
-                num_bytes += len(chunk)
-
-                if num_bytes < 5000:
-                    return chunk
-
-            num_bytes = 0
-            loop.create_task(disconnect())
-            return chunk
-
-    proxy.set_content_processors(
-        lambda chunk: chunk,
-        server_to_client,
-    )
-
-    MESSAGES_TO_EXCHANGE = 50
+    messages_to_exchange = 50
     async with connection.channel() as channel:
+        await channel.set_qos(prefetch_count=5)
         queue = await channel.declare_queue(auto_delete=False)
 
         async with direct_connection.channel() as publish_channel:
-            for _ in range(MESSAGES_TO_EXCHANGE):
+            for _ in range(messages_to_exchange):
                 await publish_channel.default_exchange.publish(
-                    aio_pika.Message(body=b"Hello world" * 100),
+                    aio_pika.Message(body=b"Hello world " * 100),
                     routing_key=queue.name,
                 )
 
         messages = []
         async for message in queue.iterator():
             messages.append(message)
-            if len(messages) == MESSAGES_TO_EXCHANGE:
+            if len(messages) == messages_to_exchange:
                 break
 
         assert messages
