@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "aio-pika"
 version = "9.0.0"
-description = "Wrapper for the aiormq for asyncio and humans"
+description = "Wrapper around the aiormq for asyncio and humans"
 authors = ["Dmitry Orlov <me@mosquito.su>"]
 readme = "README.rst"
 license = "Apache-2.0"
