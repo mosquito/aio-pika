@@ -424,7 +424,6 @@ class QueueIterator(AbstractQueueIterator):
 
             await msg.nack(requeue=True, multiple=True)
 
-
     def __str__(self) -> str:
         return f"queue[{self._amqp_queue}](...)"
 
