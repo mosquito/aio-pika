@@ -48,7 +48,7 @@ def create_task(
     func: Callable[..., Union[Coroutine[Any, Any, T], Awaitable[T]]],
     *args: Any,
     loop: Optional[asyncio.AbstractEventLoop] = None,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> Awaitable[T]:
     loop = loop or asyncio.get_event_loop()
 
@@ -215,7 +215,7 @@ class OneShotCallback:
         self.loop = asyncio.get_event_loop()
         self.finished: asyncio.Event = asyncio.Event()
         self.__lock: asyncio.Lock = asyncio.Lock()
-        self.__task: asyncio.Future
+        self.__task: Optional[asyncio.Future] = None
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}: cb={self.callback!r}>"
@@ -224,7 +224,8 @@ class OneShotCallback:
         try:
             return self.finished.wait()
         except asyncio.CancelledError:
-            self.__task.cancel()
+            if self.__task is not None:
+                self.__task.cancel()
             raise
 
     async def __task_inner(self, *args: Any, **kwargs: Any) -> None:
@@ -235,12 +236,13 @@ class OneShotCallback:
             try:
                 await self.callback(*args, **kwargs)
             finally:
-                self.finished.set()
+                self.loop.call_soon(self.finished.set)
                 del self.callback
 
     def __call__(self, *args: Any, **kwargs: Any) -> Awaitable[Any]:
-        if self.finished.is_set():
+        if self.finished.is_set() or self.__task is not None:
             return STUB_AWAITABLE
+
         self.__task = self.loop.create_task(
             self.__task_inner(*args, **kwargs),
         )

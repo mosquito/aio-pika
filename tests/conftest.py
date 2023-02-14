@@ -116,14 +116,16 @@ def create_channel(connection: aio_pika.Connection, add_cleanup):
 
 # noinspection PyTypeChecker
 @pytest.fixture
-async def connection(create_connection) -> aio_pika.Connection:
+async def connection(create_connection) -> aio_pika.Connection:  # type: ignore
     async with await create_connection() as conn:
         yield conn
 
 
 # noinspection PyTypeChecker
 @pytest.fixture
-async def channel(connection: aio_pika.Connection) -> aio_pika.Channel:
+async def channel(      # type: ignore
+    connection: aio_pika.Connection,
+) -> aio_pika.Channel:
     async with connection.channel() as ch:
         yield ch
 
@@ -133,7 +135,7 @@ def declare_queue(connection, channel, add_cleanup):
     ch = channel
 
     async def fabric(
-        *args, cleanup=True, channel=None, **kwargs
+        *args, cleanup=True, channel=None, **kwargs,
     ) -> aio_pika.Queue:
         nonlocal ch, add_cleanup
 
@@ -155,7 +157,7 @@ def declare_exchange(connection, channel, add_cleanup):
     ch = channel
 
     async def fabric(
-        *args, channel=None, cleanup=True, **kwargs
+        *args, channel=None, cleanup=True, **kwargs,
     ) -> aio_pika.Exchange:
         nonlocal ch, add_cleanup
 

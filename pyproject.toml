@@ -1,0 +1,107 @@
+[tool.poetry]
+name = "aio-pika"
+version = "9.0.0"
+description = "Wrapper around the aiormq for asyncio and humans"
+authors = ["Dmitry Orlov <me@mosquito.su>"]
+readme = "README.rst"
+license = "Apache-2.0"
+keywords=["rabbitmq", "asyncio", "amqp", "amqp 0.9.1", "aiormq"]
+homepage = "https://github.com/mosquito/aio-pika"
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Topic :: Internet",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Libraries",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX",
+    "Operating System :: Microsoft",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+packages = [{ include = "aio_pika" }]
+
+[tool.poetry.urls]
+"Source" = "https://github.com/mosquito/aio-pika"
+"Tracker" = "https://github.com/mosquito/aio-pika/issues"
+"Documentation" = "https://aio-pika.readthedocs.org/"
+
+[tool.poetry.dependencies]
+python = "^3.7"
+aiormq= "~6.7.1"
+yarl = [{ version = '*'}]
+typing_extensions = [{ version = '*', python = "< 3.8" }]
+
+[tool.poetry.group.dev.dependencies]
+aiomisc = "^16.2"
+collective-checkdocs = "^0.2"
+coverage = "^6.5.0"
+coveralls = "^3.3.1"
+mypy = "^0.991"
+nox = "^2022.11.21"
+pylama = "^8.4.1"
+pytest = "^7.2.0"
+pytest-cov = "^4.0.0"
+pytest-rst = "^0.0.7"
+shortuuid = "^1.0.11"
+sphinx = "^5.3.0"
+sphinx-autobuild = "^2021.3.14"
+timeout-decorator = "^0.5.0"
+types-setuptools = "^65.6.0.2"
+
+[tool.poetry.group.uvloop.dependencies]
+uvloop = "^0.17.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+check_untyped_defs = true
+disallow_any_generics = false
+disallow_incomplete_defs = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
+follow_imports = "silent"
+no_implicit_reexport = true
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_configs = true
+warn_unused_ignores = true
+files = [
+    "aio_pika",
+    "tests",
+    "docs/source/examples",
+    "docs/source/rabbitmq-tutorial/examples/1-introduction",
+    "docs/source/rabbitmq-tutorial/examples/2-work-queues",
+    "docs/source/rabbitmq-tutorial/examples/3-publish-subscribe",
+    "docs/source/rabbitmq-tutorial/examples/4-routing",
+    "docs/source/rabbitmq-tutorial/examples/5-topics",
+    "docs/source/rabbitmq-tutorial/examples/6-rpc",
+]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+check_untyped_defs = true
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_untyped_decorators = false
+disallow_untyped_defs = false
+warn_unused_ignores = false
+
+[tool.pytest.ini_options]
+log_cli = true
+addopts = "-p no:asyncio"
+markers = [
+    "asyncio: asyncio"
+]

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from copy import copy
+from typing import Any, List
 from unittest import mock
 
 import pytest
@@ -14,7 +15,7 @@ log = logging.getLogger(__name__)
 # noinspection PyTypeChecker
 class TestCase:
     @pytest.fixture
-    def instance(self):
+    def instance(self) -> mock.MagicMock:
         return mock.MagicMock()
 
     @pytest.fixture
@@ -73,8 +74,8 @@ class TestCase:
         assert not collection
 
     def test_callback_call(self, collection):
-        l1 = list()
-        l2 = list()
+        l1: List[Any] = list()
+        l2: List[Any] = list()
 
         assert l1 == l2
 

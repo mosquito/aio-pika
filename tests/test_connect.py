@@ -36,9 +36,8 @@ class FakeConnection:
 @pytest.mark.parametrize("kwargs,expected", VARIANTS)
 def test_simple(kwargs, expected):
     loop = asyncio.get_event_loop()
-    # noinspection PyTypeChecker
-    conn = loop.run_until_complete(
-        connect(connection_class=FakeConnection, **kwargs),
+    conn: FakeConnection = loop.run_until_complete(
+        connect(connection_class=FakeConnection, **kwargs),  # type: ignore
     )
 
     assert conn.url == URL(expected)

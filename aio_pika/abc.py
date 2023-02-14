@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum, unique
@@ -6,8 +7,7 @@ from functools import singledispatch
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
-    FrozenSet, Generator, Iterator, MutableMapping, NamedTuple, Optional, Set,
-    Tuple, Type, TypeVar, Union,
+    Generator, Iterator, Optional, Type, TypeVar, Union,
 )
 
 
@@ -18,7 +18,7 @@ except ImportError:
 
 import aiormq.abc
 from aiormq.abc import ExceptionType
-from pamqp.common import Arguments
+from pamqp.common import Arguments, FieldValue
 from yarl import URL
 
 from .pool import PoolInstance
@@ -30,7 +30,7 @@ from .tools import (
 TimeoutType = Optional[Union[int, float]]
 
 NoneType = type(None)
-DateType = Union[int, datetime, float, timedelta, None]
+DateType = Optional[Union[int, datetime, float, timedelta]]
 ExchangeParamType = Union["AbstractExchange", str]
 ConsumerTag = str
 
@@ -72,7 +72,8 @@ class TransactionState(str, Enum):
     STARTED = "started"
 
 
-class DeclarationResult(NamedTuple):
+@dataclasses.dataclass(frozen=True)
+class DeclarationResult:
     message_count: int
     consumer_count: int
 
@@ -114,20 +115,36 @@ class AbstractTransaction:
         raise NotImplementedError
 
 
-HeadersValue = Union[aiormq.abc.FieldValue, bytes]
-HeadersPythonValues = Union[
-    HeadersValue,
-    Set[HeadersValue],
-    Tuple[HeadersValue, ...],
-    FrozenSet[HeadersValue],
-]
-HeadersType = MutableMapping[str, HeadersPythonValues]
+HeadersType = Dict[str, FieldValue]
+
+
+class MessageInfo(TypedDict, total=False):
+    app_id: Optional[str]
+    body_size: int
+    cluster_id: Optional[str]
+    consumer_tag: Optional[str]
+    content_encoding: Optional[str]
+    content_type: Optional[str]
+    correlation_id: Optional[str]
+    delivery_mode: DeliveryMode
+    delivery_tag: Optional[int]
+    exchange: Optional[str]
+    expiration: Optional[DateType]
+    headers: HeadersType
+    message_id: Optional[str]
+    priority: Optional[int]
+    redelivered: Optional[bool]
+    routing_key: Optional[str]
+    reply_to: Optional[str]
+    timestamp: Optional[datetime]
+    type: str
+    user_id: Optional[str]
 
 
 class AbstractMessage(ABC):
     body: bytes
     body_size: int
-    headers_raw: aiormq.abc.FieldTable
+    headers: HeadersType
     content_type: Optional[str]
     content_encoding: Optional[str]
     delivery_mode: DeliveryMode
@@ -141,17 +158,8 @@ class AbstractMessage(ABC):
     user_id: Optional[str]
     app_id: Optional[str]
 
-    @property
     @abstractmethod
-    def headers(self) -> HeadersType:
-        raise NotImplementedError
-
-    @headers.setter
-    def headers(self, value: HeadersType) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def info(self) -> Dict[str, HeadersValue]:
+    def info(self) -> MessageInfo:
         raise NotImplementedError
 
     @property
@@ -211,7 +219,7 @@ class AbstractIncomingMessage(AbstractMessage, ABC):
     async def nack(self, multiple: bool = False, requeue: bool = True) -> None:
         raise NotImplementedError
 
-    def info(self) -> Dict[str, Any]:
+    def info(self) -> MessageInfo:
         raise NotImplementedError
 
     @property
@@ -257,7 +265,17 @@ class AbstractQueue:
         arguments: Arguments,
         passive: bool = False,
     ):
-        raise NotImplementedError
+        raise NotImplementedError(
+            dict(
+                channel=channel,
+                name=name,
+                durable=durable,
+                exclusive=exclusive,
+                auto_delete=auto_delete,
+                arguments=arguments,
+                passive=passive,
+            ),
+        )
 
     @abstractmethod
     async def declare(
@@ -435,7 +453,8 @@ class AbstractExchange(ABC):
         raise NotImplementedError
 
 
-class UnderlayChannel(NamedTuple):
+@dataclasses.dataclass(frozen=True)
+class UnderlayChannel:
     channel: aiormq.abc.AbstractChannel
     close_callback: OneShotCallback
 
@@ -467,7 +486,7 @@ class UnderlayChannel(NamedTuple):
 
         self.channel.closing.remove_done_callback(self.close_callback)
         self.channel.connection.closing.remove_done_callback(
-            self.close_callback
+            self.close_callback,
         )
 
 
@@ -612,7 +631,8 @@ class AbstractChannel(PoolInstance, ABC):
         raise NotImplementedError
 
 
-class UnderlayConnection(NamedTuple):
+@dataclasses.dataclass(frozen=True)
+class UnderlayConnection:
     connection: aiormq.abc.AbstractConnection
     close_callback: OneShotCallback
 
@@ -889,10 +909,11 @@ __all__ = (
     "DeliveryMode",
     "ExchangeParamType",
     "ExchangeType",
-    "HeadersPythonValues",
+    "FieldValue",
     "HeadersType",
-    "HeadersValue",
     "MILLISECONDS",
+    "MessageInfo",
+    "NoneType",
     "SSLOptions",
     "TimeoutType",
     "TransactionState",

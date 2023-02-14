@@ -1,7 +1,6 @@
 import asyncio
 
 from aio_pika import connect_robust
-from aio_pika.abc import AbstractConnection
 from aio_pika.patterns import Master, NackMessage, RejectMessage
 
 

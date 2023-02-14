@@ -16,7 +16,7 @@ from .connection import Connection, make_url
 from .exceptions import CONNECTION_EXCEPTIONS
 from .log import get_logger
 from .robust_channel import RobustChannel
-from .tools import CallbackCollection, OneShotCallback
+from .tools import CallbackCollection
 
 
 log = get_logger(__name__)
@@ -41,12 +41,22 @@ class RobustConnection(Connection, AbstractRobustConnection):
         super().__init__(url=url, loop=loop, **kwargs)
 
         self.reconnect_interval = self.kwargs.pop("reconnect_interval")
-        self.fail_fast = self.kwargs.pop("fail_fast")
+        self.connection_attempt: int = 0
+
+        self.__fail_fast_future = self.loop.create_future()
+        self.fail_fast = self.kwargs.pop("fail_fast", True)
+        if not self.fail_fast:
+            self.__fail_fast_future.set_result(None)
 
         self.__channels: WeakSet[AbstractRobustChannel] = WeakSet()
-        self._reconnect_lock = asyncio.Lock()
+        self.__connection_close_event = asyncio.Event()
+        self.__connect_timeout: Optional[TimeoutType] = None
+        self.__reconnection_task: Optional[asyncio.Task] = None
 
+        self._reconnect_lock = asyncio.Lock()
         self.reconnect_callbacks: CallbackCollection = CallbackCollection(self)
+
+        self.__connection_close_event.set()
 
     @property
     def reconnecting(self) -> bool:
@@ -61,29 +71,21 @@ class RobustConnection(Connection, AbstractRobustConnection):
     async def _on_connection_close(self, closing: asyncio.Future) -> None:
         await super()._on_connection_close(closing)
 
-        if self._close_called:
+        if self._close_called or self.is_closed:
             return
 
         log.info(
             "Connection to %s closed. Reconnecting after %r seconds.",
-            self,
-            self.reconnect_interval,
-        )
-        await asyncio.sleep(self.reconnect_interval)
-        await self.reconnect()
-
-    async def __connection_attempt(
-        self,
-        timeout: TimeoutType = None,
-    ) -> aiormq.abc.AbstractConnection:
-        connection = await UnderlayConnection.make_connection(
-            self.url, timeout=timeout, **self.kwargs
+            self, self.reconnect_interval,
         )
 
+        self.__connection_close_event.set()
+
+    async def _on_connected(self, transport: UnderlayConnection) -> None:
         try:
             for channel in self.__channels:
                 try:
-                    await channel.restore(connection)
+                    await channel.restore(transport.connection)
                 except Exception:
                     log.exception("Failed to reopen channel")
                     raise
@@ -95,11 +97,62 @@ class RobustConnection(Connection, AbstractRobustConnection):
             closing = self.loop.create_future()
             closing.set_exception(e)
             await self.close_callbacks(closing)
-            await asyncio.gather(connection.close(e), return_exceptions=True)
+            await asyncio.gather(
+                transport.connection.close(e), return_exceptions=True,
+            )
             raise
-        return connection
+
+        await super()._on_connected(transport)
+
+        if self.connection_attempt:
+            await self.reconnect_callbacks()
+
+        self.connection_attempt += 1
+        self.__connection_close_event.clear()
+
+    async def __connection_factory(self) -> None:
+        log.debug("Starting connection factory for %r", self)
+        while not self.is_closed and not self._close_called:
+            log.debug("Waiting for connection close event for %r", self)
+            await self.__connection_close_event.wait()
+
+            if self.is_closed or self._close_called:
+                return
+
+            # noinspection PyBroadException
+            try:
+                self.transport = None
+                self.connected.clear()
+
+                log.debug("Connection attempt for %r", self)
+                await Connection.connect(self, self.__connect_timeout)
+
+                if not self.__fail_fast_future.done():
+                    self.__fail_fast_future.set_result(None)
+
+                log.debug("Connection made on %r", self)
+            except CONNECTION_EXCEPTIONS as e:
+                if not self.__fail_fast_future.done():
+                    self.__fail_fast_future.set_exception(e)
+                    return
+
+                log.warning(
+                    'Connection attempt to "%s" failed: %s. '
+                    "Reconnecting after %r seconds.",
+                    self, e, self.reconnect_interval,
+                )
+            except Exception:
+                log.exception(
+                    "Reconnect attempt failed %s. "
+                    "Retrying after %r seconds.",
+                    self, self.reconnect_interval,
+                )
+
+            await asyncio.sleep(self.reconnect_interval)
 
     async def connect(self, timeout: TimeoutType = None) -> None:
+        self.__connect_timeout = timeout
+
         if self.is_closed:
             raise RuntimeError(f"{self!r} connection closed")
 
@@ -112,48 +165,18 @@ class RobustConnection(Connection, AbstractRobustConnection):
                 self,
             )
 
-        async with self._reconnect_lock:
-            self.transport = None
-            self.connected.clear()
+        if not self.__reconnection_task:
+            self.__reconnection_task = self.loop.create_task(
+                self.__connection_factory(),
+            )
 
-            while not self.is_closed:
-                close_callback = OneShotCallback(
-                    self._on_connection_close,
-                )
-                try:
-                    connection = await self.__connection_attempt(timeout)
-                    self.connected.set()
-
-                    connection.closing.add_done_callback(close_callback)
-                    self.transport = UnderlayConnection(
-                        connection=connection,
-                        close_callback=close_callback,
-                    )
-
-                    self.fail_fast = False
-                    return
-                except CONNECTION_EXCEPTIONS as e:
-                    self.transport = None
-
-                    if self.fail_fast:
-                        raise
-
-                    log.warning(
-                        'Connection attempt to "%s" failed: %s. '
-                        "Reconnecting after %r seconds.",
-                        self,
-                        e,
-                        self.reconnect_interval,
-                    )
-
-                log.info(
-                    "Reconnect attempt failed %s. Retrying after %r seconds.",
-                    self,
-                    self.reconnect_interval,
-                )
-                await asyncio.sleep(self.reconnect_interval)
+        await self.__fail_fast_future
+        await self.connected.wait()
 
     async def reconnect(self) -> None:
+        if self.transport:
+            await self.transport.connection.close()
+
         await self.connect()
         await self.reconnect_callbacks()
 
@@ -173,6 +196,17 @@ class RobustConnection(Connection, AbstractRobustConnection):
         self.__channels.add(channel)
         return channel
 
+    async def close(
+        self, exc: Optional[aiormq.abc.ExceptionType] = asyncio.CancelledError,
+    ) -> None:
+        if self.__reconnection_task is not None:
+            self.__reconnection_task.cancel()
+            await asyncio.gather(
+                self.__reconnection_task, return_exceptions=True,
+            )
+            self.__reconnection_task = None
+        return await super().close(exc)
+
 
 async def connect_robust(
     url: Union[str, URL, None] = None,
@@ -189,7 +223,7 @@ async def connect_robust(
     timeout: TimeoutType = None,
     client_properties: Optional[FieldTable] = None,
     connection_class: Type[AbstractRobustConnection] = RobustConnection,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> AbstractRobustConnection:
 
     """Make connection to the broker.
@@ -284,7 +318,7 @@ async def connect_robust(
             ssl=ssl,
             ssl_options=ssl_options,
             client_properties=client_properties,
-            **kwargs
+            **kwargs,
         ),
         loop=loop, ssl_context=ssl_context,
     )

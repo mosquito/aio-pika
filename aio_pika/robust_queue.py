@@ -73,7 +73,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
         *,
         arguments: Arguments = None,
         timeout: TimeoutType = None,
-        robust: bool = True
+        robust: bool = True,
     ) -> aiormq.spec.Queue.BindOk:
         if routing_key is None:
             routing_key = self.name

@@ -1,3 +1,5 @@
+from pkg_resources import get_distribution
+
 from . import abc, patterns, pool
 from .abc import DeliveryMode
 from .channel import Channel
@@ -11,10 +13,9 @@ from .robust_channel import RobustChannel
 from .robust_connection import RobustConnection, connect_robust
 from .robust_exchange import RobustExchange
 from .robust_queue import RobustQueue
-from .version import (
-    __author__, __version__, author_info, package_info, package_license,
-    version_info,
-)
+
+
+__version__ = get_distribution("aio-pika").version
 
 
 __all__ = (
@@ -32,16 +33,11 @@ __all__ = (
     "RobustConnection",
     "RobustExchange",
     "RobustQueue",
-    "__author__",
     "__version__",
     "abc",
-    "author_info",
     "connect",
     "connect_robust",
     "logger",
-    "package_info",
-    "package_license",
     "patterns",
     "pool",
-    "version_info",
 )

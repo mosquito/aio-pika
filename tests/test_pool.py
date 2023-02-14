@@ -16,7 +16,7 @@ async def test_simple(max_size, loop):
         counter += 1
         return counter
 
-    pool = Pool(create_instance, max_size=max_size, loop=loop)
+    pool: Pool = Pool(create_instance, max_size=max_size, loop=loop)
 
     async def getter():
         nonlocal counter, pool
@@ -142,7 +142,7 @@ class TestCaseItemReuse(TestInstanceBase):
         return max_size * 5
 
     async def test_simple(self, pool, call_count, instances):
-        counter = Counter()
+        counter: Counter = Counter()
 
         async def getter():
             nonlocal counter

@@ -141,3 +141,4 @@ fabric.properties
 /temp
 .DS_Store
 .*cache
+.nox

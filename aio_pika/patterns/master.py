@@ -169,12 +169,12 @@ class Master(Base):
                 await message.nack(requeue=e.requeue)
 
     async def create_queue(
-        self, channel_name: str, **kwargs: Any
+        self, channel_name: str, **kwargs: Any,
     ) -> AbstractQueue:
         return await self.channel.declare_queue(channel_name, **kwargs)
 
     async def create_worker(
-        self, channel_name: str, func: Callable[..., Any], **kwargs: Any
+        self, channel_name: str, func: Callable[..., Any], **kwargs: Any,
     ) -> Worker:
         """ Creates a new :class:`Worker` instance. """
 
@@ -191,7 +191,7 @@ class Master(Base):
     async def create_task(
         self, channel_name: str,
         kwargs: Mapping[str, Any] = MappingProxyType({}),
-        **message_kwargs: Any
+        **message_kwargs: Any,
     ) -> Optional[aiormq.abc.ConfirmationFrameType]:
 
         """ Creates a new task for the worker """
@@ -199,7 +199,7 @@ class Master(Base):
             body=self.serialize(kwargs),
             content_type=self.CONTENT_TYPE,
             delivery_mode=self.DELIVERY_MODE,
-            **message_kwargs
+            **message_kwargs,
         )
 
         return await self.exchange.publish(

@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any, List
 
 import aio_pika
 from aio_pika.patterns.master import (
@@ -13,7 +14,7 @@ class TestMaster:
         master = self.MASTER_CLASS(channel)
         event = asyncio.Event()
 
-        self.state = []
+        self.state: List[Any] = []
 
         def worker_func(*, foo, bar):
             nonlocal event
