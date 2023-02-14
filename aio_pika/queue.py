@@ -403,7 +403,12 @@ class QueueIterator(AbstractQueueIterator):
             while True:
                 msg = self._queue.get_nowait()
         except asyncio.QueueEmpty:
-            if msg is not None and not self._amqp_queue.channel.is_closed:
+            nack_ok = (
+                msg is not None
+                and not self._amqp_queue.channel.is_closed
+                and not self._consume_kwargs.get("no_ack", False)
+            )
+            if nack_ok:
                 await msg.nack(requeue=True, multiple=True)
 
     def __str__(self) -> str:
