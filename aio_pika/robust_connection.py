@@ -141,14 +141,12 @@ class RobustConnection(Connection, AbstractRobustConnection):
                     "Reconnecting after %r seconds.",
                     self, e, self.reconnect_interval,
                 )
-                await asyncio.sleep(self.reconnect_interval)
             except Exception:
                 log.exception(
                     "Reconnect attempt failed %s. "
                     "Retrying after %r seconds.",
                     self, self.reconnect_interval,
                 )
-                await asyncio.sleep(self.reconnect_interval)
 
             await asyncio.sleep(self.reconnect_interval)
 
