@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aio-pika"
-version = "9.0.0"
+version = "9.0.1"
 description = "Wrapper around the aiormq for asyncio and humans"
 authors = ["Dmitry Orlov <me@mosquito.su>"]
 readme = "README.rst"
@@ -8,24 +8,25 @@ license = "Apache-2.0"
 keywords=["rabbitmq", "asyncio", "amqp", "amqp 0.9.1", "aiormq"]
 homepage = "https://github.com/mosquito/aio-pika"
 classifiers = [
-    "License :: OSI Approved :: Apache Software License",
-    "Topic :: Internet",
-    "Topic :: Software Development",
-    "Topic :: Software Development :: Libraries",
     "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: MacOS",
-    "Operating System :: POSIX",
     "Operating System :: Microsoft",
-    "Programming Language :: Python",
+    "Operating System :: POSIX",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: Implementation :: PyPy",
     "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Programming Language :: Python",
+    "Topic :: Internet",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development",
+    "Typing :: Typed",
 ]
 packages = [{ include = "aio_pika" }]
 
