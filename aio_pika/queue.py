@@ -416,7 +416,7 @@ class QueueIterator(AbstractQueueIterator):
 
             if self._consume_kwargs.get("no_ack", False):
                 log.warning(
-                    "Message %r lost for consumer with no_ack",
+                    "Message %r lost for consumer with no_ack %r",
                     msg,
                     self,
                 )
