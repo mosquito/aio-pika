@@ -1,5 +1,6 @@
 import asyncio
 from abc import ABC
+from datetime import timedelta
 from types import TracebackType
 from typing import Any, AsyncContextManager, Generator, Optional, Type, Union
 from warnings import warn
@@ -10,12 +11,13 @@ from pamqp.common import Arguments
 
 from .abc import (
     AbstractChannel, AbstractExchange, AbstractQueue, TimeoutType,
-    UnderlayChannel,
+    UnderlayChannel, AbstractStream,
 )
 from .exchange import Exchange, ExchangeType
 from .log import get_logger
 from .message import IncomingMessage
 from .queue import Queue
+from .stream import Stream
 from .tools import CallbackCollection
 from .transaction import Transaction
 
@@ -46,6 +48,7 @@ class Channel(ChannelContext):
     """Channel abstraction"""
 
     QUEUE_CLASS = Queue
+    STREAM_CLASS = Stream
     EXCHANGE_CLASS = Exchange
 
     _channel: Optional[UnderlayChannel]
@@ -364,6 +367,62 @@ class Channel(ChannelContext):
                 exclusive=False,
                 auto_delete=False,
                 arguments=None,
+                passive=True,
+            )
+
+    async def declare_stream(
+        self, name: Optional[str] = None, *,
+        durable: bool = False, exclusive: bool = False,
+        passive: bool = False, auto_delete: bool = False,
+        arguments: Arguments = None,
+        timeout: TimeoutType = None,
+        max_age: Optional[Union[str, timedelta]] = None,
+        max_length_bytes: Optional[int] = None,
+        max_segment_size_bytes: Optional[int] = None,
+    ) -> AbstractStream:
+        arguments = arguments or {}
+        arguments["x-queue-type"] = "stream"
+
+        if max_length_bytes is not None and max_length_bytes > 0:
+            arguments['x-max-length-bytes'] = int(max_length_bytes)
+
+        if max_age is not None:
+            if isinstance(max_age, timedelta):
+                max_age = f"{int(max_age.total_seconds())}s"
+            arguments['x-max-age'] = max_age
+
+        if max_segment_size_bytes is not None and max_segment_size_bytes > 0:
+            arguments['x-stream-max-segment-size-bytes'] = (
+                max_segment_size_bytes
+            )
+
+        stream: AbstractStream = self.STREAM_CLASS(
+            channel=self.channel,
+            name=name,
+            durable=durable,
+            exclusive=exclusive,
+            auto_delete=auto_delete,
+            arguments=arguments,
+            passive=passive,
+        )
+
+        await stream.declare(timeout=timeout)
+        self.close_callbacks.add(stream.close_callbacks, weak=True)
+        return stream
+
+    async def get_stream(
+        self, name: str, *, ensure: bool = True
+    ) -> AbstractStream:
+        if ensure:
+            return await self.declare_stream(name=name, passive=True)
+        else:
+            return self.STREAM_CLASS(
+                channel=self.channel,
+                name=name,
+                durable=False,
+                exclusive=False,
+                auto_delete=False,
+                arguments={"x-queue-type": "stream"},
                 passive=True,
             )
 

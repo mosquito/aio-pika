@@ -349,6 +349,25 @@ class AbstractQueue:
         raise NotImplementedError
 
 
+class AbstractStream(AbstractQueue, ABC):
+    async def consume(
+        self,
+        callback: Callable[[AbstractIncomingMessage], Any],
+        no_ack: bool = False,
+        exclusive: bool = False,
+        arguments: Arguments = None,
+        consumer_tag: Optional[ConsumerTag] = None,
+        timeout: TimeoutType = None,
+        *,
+        offset: Optional[Union[int, str]] = None,
+    ) -> ConsumerTag:
+        raise NotImplementedError
+
+    @abstractmethod
+    def iterator(self, **kwargs: Any) -> "AbstractStreamIterator":
+        raise NotImplementedError
+
+
 class AbstractQueueIterator(AsyncIterable):
     _amqp_queue: AbstractQueue
     _queue: asyncio.Queue
@@ -389,6 +408,10 @@ class AbstractQueueIterator(AsyncIterable):
         raise NotImplementedError
 
 
+class AbstractStreamIterator(AbstractQueueIterator, ABC):
+    pass
+
+
 class AbstractExchange(ABC):
     name: str
 
@@ -405,7 +428,18 @@ class AbstractExchange(ABC):
         passive: bool = False,
         arguments: Arguments = None,
     ):
-        raise NotImplementedError
+        raise NotImplementedError(
+            dict(
+                channel=channel,
+                name=name,
+                type=type,
+                auto_delete=auto_delete,
+                durable=durable,
+                internal=internal,
+                passive=passive,
+                arguments=arguments,
+            ),
+        )
 
     @abstractmethod
     async def declare(
@@ -492,6 +526,7 @@ class UnderlayChannel:
 
 class AbstractChannel(PoolInstance, ABC):
     QUEUE_CLASS: Type[AbstractQueue]
+    STREAM_CLASS: Type[AbstractStream]
     EXCHANGE_CLASS: Type[AbstractExchange]
 
     close_callbacks: CallbackCollection
@@ -584,6 +619,29 @@ class AbstractChannel(PoolInstance, ABC):
     async def get_queue(
         self, name: str, *, ensure: bool = True,
     ) -> AbstractQueue:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def declare_stream(
+        self,
+        name: Optional[str] = None,
+        *,
+        durable: bool = False,
+        exclusive: bool = False,
+        passive: bool = False,
+        auto_delete: bool = False,
+        arguments: Arguments = None,
+        timeout: TimeoutType = None,
+        max_age: Optional[str] = None,
+        max_length_bytes: Optional[int] = None,
+        max_segment_size_bytes: Optional[int] = None,
+    ) -> AbstractStream:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_stream(
+        self, name: str, *, ensure: bool = True,
+    ) -> AbstractStream:
         raise NotImplementedError
 
     @abstractmethod
@@ -898,6 +956,8 @@ __all__ = (
     "AbstractRobustConnection",
     "AbstractRobustExchange",
     "AbstractRobustQueue",
+    "AbstractStream",
+    "AbstractStreamIterator",
     "AbstractTransaction",
     "CallbackSetType",
     "CallbackType",
