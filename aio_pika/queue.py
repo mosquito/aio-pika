@@ -399,26 +399,28 @@ class QueueIterator(AbstractQueueIterator):
 
         # Reject all messages
         msg: Optional[IncomingMessage] = None
+        messages_count = 0
         try:
             while True:
                 msg = self._queue.get_nowait()
+                messages_count += 1
         except asyncio.QueueEmpty:
             if msg is None:
                 return
 
             if self._amqp_queue.channel.is_closed:
                 log.warning(
-                    "Message %r lost when queue iterator %r channel closed",
-                    msg,
-                    self,
+                    "Lost %d messages, the last one is %r "
+                    "because channel of queue iterator %r has been closed",
+                    messages_count, msg, self,
                 )
                 return
 
             if self._consume_kwargs.get("no_ack", False):
                 log.warning(
-                    "Message %r lost for consumer with no_ack %r",
-                    msg,
-                    self,
+                    "Lost %d messages, the last one is %r because "
+                    "%r consumes with no_ack flag",
+                    messages_count, msg, self,
                 )
                 return
 
