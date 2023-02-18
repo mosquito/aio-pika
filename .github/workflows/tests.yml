@@ -86,7 +86,7 @@ jobs:
         run: >-
           poetry run pytest \
             -vv \
-            --cov=aiormq \
+            --cov=aio_pika \
             --cov-report=term-missing \
             --doctest-modules \
             --aiomisc-test-timeout=120 \
