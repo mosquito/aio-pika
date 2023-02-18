@@ -1,3 +1,19 @@
+9.0.3
+-----
+
+* RPCs: Show exceptions on Host (remote side) #503
+* Fixed queue_name was set as channel_name for `patterns/master.py` #523
+
+9.0.2
+-----
+
+* Do not nack if consumer is no_ack in QueueIterator #521
+
+9.0.1
+-----
+
+* change classifiers in pyproject.toml
+
 9.0.0
 -----
 
