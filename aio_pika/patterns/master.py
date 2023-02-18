@@ -169,16 +169,16 @@ class Master(Base):
                 await message.nack(requeue=e.requeue)
 
     async def create_queue(
-        self, channel_name: str, **kwargs: Any,
+        self, queue_name: str, **kwargs: Any,
     ) -> AbstractQueue:
-        return await self.channel.declare_queue(channel_name, **kwargs)
+        return await self.channel.declare_queue(queue_name, **kwargs)
 
     async def create_worker(
-        self, channel_name: str, func: Callable[..., Any], **kwargs: Any,
+        self, queue_name: str, func: Callable[..., Any], **kwargs: Any,
     ) -> Worker:
         """ Creates a new :class:`Worker` instance. """
 
-        queue = await self.create_queue(channel_name, **kwargs)
+        queue = await self.create_queue(queue_name, **kwargs)
 
         if hasattr(func, "_is_coroutine"):
             fn = func
