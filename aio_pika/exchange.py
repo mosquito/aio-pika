@@ -42,11 +42,11 @@ class Exchange(AbstractExchange):
         return self.name
 
     def __repr__(self) -> str:
-        return "<Exchange(%s): auto_delete=%s, durable=%s, arguments=%r)>" % (
-            self,
-            self.auto_delete,
-            self.durable,
-            self.arguments,
+        return (
+            f"<{self.__class__.__name__}({self}):"
+            f" auto_delete={self.auto_delete},"
+            f" durable={self.durable},"
+            f" arguments={self.arguments!r})>"
         )
 
     async def declare(
