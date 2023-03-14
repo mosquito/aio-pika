@@ -91,7 +91,9 @@ class TestCase:
     async def test_blank_awaitable_callback(self, collection):
         await collection()
 
-    async def test_awaitable_callback(self, event_loop, collection, instance):
+    async def test_awaitable_callback(
+        self, event_loop, collection, instance
+    ):
         future = event_loop.create_future()
 
         shared = []
