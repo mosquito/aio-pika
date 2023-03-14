@@ -429,7 +429,8 @@ async def test_robust_duplicate_queue(
 
 @aiomisc.timeout(10)
 async def test_channel_restore(
-    connection_fabric, event_loop, amqp_url, proxy: TCPProxy, add_cleanup: Callable,
+    connection_fabric, event_loop, amqp_url, proxy: TCPProxy,
+    add_cleanup: Callable,
 ):
     heartbeat = 10
     amqp_url = amqp_url.update_query(heartbeat=heartbeat)
@@ -461,7 +462,8 @@ async def test_channel_restore(
 
 @aiomisc.timeout(20)
 async def test_channel_reconnect(
-    connection_fabric, event_loop, amqp_url, proxy: TCPProxy, add_cleanup: Callable,
+    connection_fabric, event_loop, amqp_url,
+    proxy: TCPProxy, add_cleanup: Callable,
 ):
     on_reconnect = asyncio.Event()
 
@@ -532,7 +534,9 @@ async def test_channel_reconnect_after_5kb(
         amqp_url.update_query(reconnect_interval=reconnect_timeout),
         loop=event_loop,
     )
-    direct_connection = await aio_pika.connect(amqp_direct_url, loop=event_loop)
+    direct_connection = await aio_pika.connect(
+        amqp_direct_url, loop=event_loop
+    )
 
     on_reconnect = asyncio.Event()
     connection.reconnect_callbacks.add(
