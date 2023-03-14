@@ -1,7 +1,7 @@
 import asyncio
 from collections import defaultdict
 from itertools import chain
-from typing import MutableSet, Any, DefaultDict, Dict, Optional, Type, Union
+from typing import Any, DefaultDict, Dict, MutableSet, Optional, Type, Union
 from warnings import warn
 from weakref import WeakSet
 
@@ -73,6 +73,10 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
             return
 
         await self.reopen()
+
+    async def get_underlay_channel(self) -> aiormq.abc.AbstractChannel:
+        await self._connection.ready()
+        return await super().get_underlay_channel()
 
     async def restore(self, connection: aiormq.abc.AbstractConnection) -> None:
         async with self.__restore_lock:
