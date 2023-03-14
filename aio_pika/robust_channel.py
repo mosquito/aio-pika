@@ -1,7 +1,7 @@
 import asyncio
 from collections import defaultdict
 from itertools import chain
-from typing import Any, DefaultDict, Dict, Optional, AbstractSet, Type, Union
+from typing import AbstractSet, Any, DefaultDict, Dict, Optional, Type, Union
 from warnings import warn
 from weakref import WeakSet
 
