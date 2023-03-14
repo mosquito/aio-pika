@@ -16,9 +16,7 @@ from .exceptions import QueueEmpty
 from .exchange import ExchangeParamType
 from .log import get_logger
 from .message import IncomingMessage
-from .tools import (
-    CallbackCollection, create_task,
-)
+from .tools import CallbackCollection, create_task
 
 
 if sys.version_info >= (3, 8):
