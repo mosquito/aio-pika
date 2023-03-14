@@ -1,7 +1,7 @@
 import asyncio
 from collections import defaultdict
 from itertools import chain
-from typing import AbstractSet, Any, DefaultDict, Dict, Optional, Type, Union
+from typing import MutableSet, Any, DefaultDict, Dict, Optional, Type, Union
 from warnings import warn
 from weakref import WeakSet
 
@@ -29,8 +29,8 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
     QUEUE_CLASS: Type[Queue] = RobustQueue
     EXCHANGE_CLASS: Type[Exchange] = RobustExchange
 
-    _exchanges: DefaultDict[str, AbstractSet[AbstractRobustExchange]]
-    _queues: DefaultDict[str, AbstractSet[RobustQueue]]
+    _exchanges: DefaultDict[str, MutableSet[AbstractRobustExchange]]
+    _queues: DefaultDict[str, MutableSet[RobustQueue]]
     default_exchange: RobustExchange
 
     def __init__(
