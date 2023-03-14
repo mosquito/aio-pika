@@ -91,8 +91,8 @@ class TestCase:
     async def test_blank_awaitable_callback(self, collection):
         await collection()
 
-    async def test_awaitable_callback(self, loop, collection, instance):
-        future = loop.create_future()
+    async def test_awaitable_callback(self, event_loop, collection, instance):
+        future = event_loop.create_future()
 
         shared = []
 
@@ -101,7 +101,7 @@ class TestCase:
             shared.append(arg)
 
         def task_maker(arg):
-            return loop.create_task(coro(arg))
+            return event_loop.create_task(coro(arg))
 
         collection.add(future.set_result)
         collection.add(coro)
@@ -112,8 +112,8 @@ class TestCase:
         assert shared == [instance, instance]
         assert await future == instance
 
-    async def test_collection_create_tasks(self, loop, collection, instance):
-        future = loop.create_future()
+    async def test_collection_create_tasks(self, event_loop, collection, instance):
+        future = event_loop.create_future()
 
         async def coro(arg):
             await asyncio.sleep(0.5)

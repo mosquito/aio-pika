@@ -16,7 +16,7 @@ import aio_pika
 
 
 @pytest.fixture
-async def add_cleanup(loop):
+async def add_cleanup(event_loop):
     entities = []
 
     def payload(func, *args, **kwargs):
@@ -34,12 +34,12 @@ async def add_cleanup(loop):
 
 
 @pytest.fixture
-async def create_task(loop):
+async def create_task(event_loop):
     tasks = []
 
     def payload(coroutine):
         nonlocal tasks
-        task = loop.create_task(coroutine)
+        task = event_loop.create_task(coroutine)
         tasks.append(task)
         return task
 
@@ -91,8 +91,8 @@ def connection_fabric(request):
 
 
 @pytest.fixture
-def create_connection(connection_fabric, loop, amqp_url):
-    return partial(connection_fabric, amqp_url, loop=loop)
+def create_connection(connection_fabric, event_loop, amqp_url):
+    return partial(connection_fabric, amqp_url, loop=event_loop)
 
 
 @pytest.fixture
