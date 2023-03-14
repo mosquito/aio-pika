@@ -1,8 +1,9 @@
 import asyncio
 from collections import defaultdict
 from itertools import chain
-from typing import Any, DefaultDict, Dict, Optional, Set, Type, Union
+from typing import Any, DefaultDict, Dict, Optional, AbstractSet, Type, Union
 from warnings import warn
+from weakref import WeakSet
 
 import aiormq
 
@@ -28,8 +29,8 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
     QUEUE_CLASS: Type[Queue] = RobustQueue
     EXCHANGE_CLASS: Type[Exchange] = RobustExchange
 
-    _exchanges: DefaultDict[str, Set[AbstractRobustExchange]]
-    _queues: DefaultDict[str, Set[RobustQueue]]
+    _exchanges: DefaultDict[str, AbstractSet[AbstractRobustExchange]]
+    _queues: DefaultDict[str, AbstractSet[RobustQueue]]
     default_exchange: RobustExchange
 
     def __init__(
@@ -57,8 +58,8 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
             on_return_raises=on_return_raises,
         )
 
-        self._exchanges = defaultdict(set)
-        self._queues = defaultdict(set)
+        self._exchanges = defaultdict(WeakSet)
+        self._queues = defaultdict(WeakSet)
         self._prefetch_count: int = 0
         self._prefetch_size: int = 0
         self._global_qos: bool = False
