@@ -24,7 +24,7 @@ class FibonacciRpcClient:
         )
         self.channel = await self.connection.channel()
         self.callback_queue = await self.channel.declare_queue(exclusive=True)
-        await self.callback_queue.consume(self.on_response)
+        await self.callback_queue.consume(self.on_response, no_ack=True)
 
         return self
 
