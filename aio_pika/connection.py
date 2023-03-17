@@ -360,7 +360,9 @@ async def connect(
             client_properties=client_properties,
             **kwargs,
         ),
-        loop=loop, ssl_context=ssl_context,
+        loop=loop,
+        ssl_context=ssl_context,
+        **kwargs,
     )
 
     await connection.connect(timeout=timeout)

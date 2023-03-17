@@ -2,7 +2,7 @@ from aiormq.connection import parse_bool, parse_int, parse_timeout
 
 from aio_pika import connect
 from aio_pika.connection import Connection
-from aio_pika.robust_connection import RobustConnection
+from aio_pika.robust_connection import RobustConnection, connect_robust
 
 
 class MockConnection(Connection):
@@ -12,8 +12,6 @@ class MockConnection(Connection):
 
 class MockConnectionRobust(RobustConnection):
     async def connect(self, timeout=None, **kwargs):
-        self.kwargs["reconnect_interval"] = self.reconnect_interval
-        self.kwargs["fail_fast"] = self.fail_fast
         return self
 
 
@@ -31,7 +29,6 @@ VALUE_GENERATORS = {
         "yes": True,
         "no": False,
         "": False,
-        None: False,
     },
     parse_timeout: {
         "0": 0,
@@ -48,27 +45,41 @@ VALUE_GENERATORS = {
 class TestCase:
     CONNECTION_CLASS = MockConnection
 
-    async def get_instance(self, url):
-        return await connect(url, connection_class=self.CONNECTION_CLASS)
+    async def get_instance(self, url, **kwargs):
+        return await connect(
+            url, connection_class=self.CONNECTION_CLASS, **kwargs
+        )
 
     async def test_kwargs(self):
         instance = await self.get_instance("amqp://localhost/")
 
         for key, parser, default in self.CONNECTION_CLASS.KWARGS_TYPES:
-            assert key in instance.kwargs
-            assert instance.kwargs[key] is parser(default)
+            assert hasattr(instance, key)
+            assert getattr(instance, key) is parser(default)
 
     async def test_kwargs_values(self):
         for key, parser, default in self.CONNECTION_CLASS.KWARGS_TYPES:
-            positives = VALUE_GENERATORS[parser]         # type: ignore
+            positives = VALUE_GENERATORS[parser]  # type: ignore
             for example, expected in positives.items():  # type: ignore
                 instance = await self.get_instance(
-                    "amqp://localhost/?{}={}".format(key, example),
+                    f"amqp://localhost/?{key}={example}"
                 )
+                assert hasattr(instance, key)
+                assert getattr(instance, key) == expected
 
-                assert key in instance.kwargs
-                assert instance.kwargs[key] == expected
+                instance = await self.get_instance(
+                    "amqp://localhost", **{key: example}
+                )
+                assert hasattr(instance, key)
+                assert getattr(instance, key) == expected
 
 
 class TestCaseRobust(TestCase):
-    CONNECTION_CLASS = MockConnectionRobust     # type: ignore
+    CONNECTION_CLASS = MockConnectionRobust  # type: ignore
+
+    async def get_instance(self, url, **kwargs):
+        return await connect_robust(
+            url,
+            connection_class=self.CONNECTION_CLASS,  # type: ignore
+            **kwargs,
+        )
