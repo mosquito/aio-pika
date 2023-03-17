@@ -79,5 +79,7 @@ class TestCaseRobust(TestCase):
 
     async def get_instance(self, url, **kwargs):
         return await connect_robust(
-            url, connection_class=self.CONNECTION_CLASS, **kwargs  # type: ignore
+            url,
+            connection_class=self.CONNECTION_CLASS,
+            **kwargs,  # type: ignore
         )
