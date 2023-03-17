@@ -1,6 +1,5 @@
 all: test
 
-RABBITMQ_CONTAINER_NAME:=aio_pika_rabbitmq
 RABBITMQ_IMAGE:=mosquito/aiormq-rabbitmq
 
 test:
@@ -8,10 +7,10 @@ test:
 	tox
 
 rabbitmq:
+	docker kill $(docker ps -f label=aio-pika.rabbitmq -q) || true
 	docker pull $(RABBITMQ_IMAGE)
-	docker kill $(RABBITMQ_CONTAINER_NAME) || true
 	docker run --rm -d \
-		--name $(RABBITMQ_CONTAINER_NAME) \
+		-l aio-pika.rabbitmq \
 		-p 5671:5671 \
 		-p 5672:5672 \
 		-p 15671:15671 \
