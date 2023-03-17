@@ -46,7 +46,9 @@ class TestCase:
     CONNECTION_CLASS = MockConnection
 
     async def get_instance(self, url, **kwargs):
-        return await connect(url, connection_class=self.CONNECTION_CLASS, **kwargs)
+        return await connect(
+            url, connection_class=self.CONNECTION_CLASS, **kwargs
+        )
 
     async def test_kwargs(self):
         instance = await self.get_instance("amqp://localhost/")
@@ -59,11 +61,15 @@ class TestCase:
         for key, parser, default in self.CONNECTION_CLASS.KWARGS_TYPES:
             positives = VALUE_GENERATORS[parser]  # type: ignore
             for example, expected in positives.items():  # type: ignore
-                instance = await self.get_instance(f"amqp://localhost/?{key}={example}")
+                instance = await self.get_instance(
+                    f"amqp://localhost/?{key}={example}"
+                )
                 assert hasattr(instance, key)
                 assert getattr(instance, key) == expected
 
-                instance = await self.get_instance("amqp://localhost", **{key: example})
+                instance = await self.get_instance(
+                    "amqp://localhost", **{key: example}
+                )
                 assert hasattr(instance, key)
                 assert getattr(instance, key) == expected
 
