@@ -1,6 +1,7 @@
 from aiormq.connection import parse_bool, parse_int, parse_timeout
 
 from aio_pika import connect
+from aio_pika.abc import AbstractConnection
 from aio_pika.connection import Connection
 from aio_pika.robust_connection import RobustConnection, connect_robust
 
@@ -79,5 +80,5 @@ class TestCaseRobust(TestCase):
 
     async def get_instance(self, url, **kwargs):
         return await connect_robust(
-            url, connection_class=self.CONNECTION_CLASS, **kwargs
+            url, connection_class=self.CONNECTION_CLASS, **kwargs  # type: ignore
         )
