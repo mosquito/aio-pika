@@ -81,11 +81,6 @@ class DeclarationResult:
 class AbstractTransaction:
     state: TransactionState
 
-    @property
-    @abstractmethod
-    def channel(self) -> "AbstractChannel":
-        raise NotImplementedError
-
     @abstractmethod
     async def select(
         self, timeout: TimeoutType = None,
@@ -514,9 +509,8 @@ class AbstractChannel(PoolInstance, ABC):
     def close(self, exc: Optional[ExceptionType] = None) -> Awaitable[None]:
         raise NotImplementedError
 
-    @property
     @abstractmethod
-    def channel(self) -> aiormq.abc.AbstractChannel:
+    async def get_underlay_channel(self) -> aiormq.abc.AbstractChannel:
         raise NotImplementedError
 
     @property

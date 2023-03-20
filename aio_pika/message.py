@@ -482,7 +482,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
 
     async def reject(self, requeue: bool = False) -> None:
         """ When `requeue=True` the message will be returned to queue.
-        Otherwise message will be dropped.
+        Otherwise, message will be dropped.
 
         .. note::
             This method looks like a blocking-method, but actually it just

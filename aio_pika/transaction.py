@@ -33,7 +33,8 @@ class Transaction(AbstractTransaction):
     async def select(
         self, timeout: TimeoutType = None,
     ) -> aiormq.spec.Tx.SelectOk:
-        result = await self.channel.channel.tx_select(timeout=timeout)
+        channel = await self.channel.get_underlay_channel()
+        result = await channel.tx_select(timeout=timeout)
 
         self.state = TransactionState.STARTED
         return result
@@ -41,14 +42,16 @@ class Transaction(AbstractTransaction):
     async def rollback(
         self, timeout: TimeoutType = None,
     ) -> commands.Tx.RollbackOk:
-        result = await self.channel.channel.tx_rollback(timeout=timeout)
+        channel = await self.channel.get_underlay_channel()
+        result = await channel.tx_rollback(timeout=timeout)
         self.state = TransactionState.ROLLED_BACK
         return result
 
     async def commit(
         self, timeout: TimeoutType = None,
     ) -> commands.Tx.CommitOk:
-        result = await self.channel.channel.tx_commit(timeout=timeout)
+        channel = await self.channel.get_underlay_channel()
+        result = await channel.tx_commit(timeout=timeout)
         self.state = TransactionState.COMMITED
         return result
 

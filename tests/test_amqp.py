@@ -48,7 +48,9 @@ class TestCaseAmqpBase:
 
 
 class TestCaseAmqp(TestCaseAmqpBase):
-    async def test_properties(self, loop, connection: aio_pika.Connection):
+    async def test_properties(
+        self, event_loop, connection: aio_pika.Connection
+    ):
         assert not connection.is_closed
 
     async def test_channel_close(self, connection: aio_pika.Connection):
@@ -704,7 +706,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
     async def test_consuming(
         self,
-        loop,
+        event_loop,
         channel: aio_pika.Channel,
         declare_exchange: Callable,
         declare_queue: Callable,
@@ -721,7 +723,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         body = bytes(shortuuid.uuid(), "utf-8")
 
-        f = loop.create_future()
+        f = event_loop.create_future()
 
         async def handle(message):
             await message.ack()
@@ -741,7 +743,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
     async def test_consuming_not_coroutine(
         self,
-        loop,
+        event_loop,
         channel: aio_pika.Channel,
         declare_exchange: Callable,
         declare_queue: Callable,
@@ -759,7 +761,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         body = bytes(shortuuid.uuid(), "utf-8")
 
-        f = loop.create_future()
+        f = event_loop.create_future()
 
         async def handle(message):
             await message.ack()
@@ -883,7 +885,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
     async def test_dlx(
         self,
-        loop,
+        event_loop,
         channel: aio_pika.Channel,
         declare_exchange: Callable,
         declare_queue: Callable,
@@ -893,7 +895,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         routing_key = "%s_routing_key" % suffix
         dlx_routing_key = "%s_dlx_routing_key" % suffix
 
-        f = loop.create_future()
+        f = event_loop.create_future()
 
         async def dlx_handle(message):
             await message.ack()
@@ -948,7 +950,8 @@ class TestCaseAmqp(TestCaseAmqpBase):
             await f
 
     async def test_expiration(
-        self, channel: aio_pika.Channel, loop, declare_exchange, declare_queue,
+        self, channel: aio_pika.Channel, event_loop,
+        declare_exchange, declare_queue,
     ):
 
         dlx_queue = await declare_queue(
@@ -982,7 +985,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
             queue.name,
         )
 
-        f = loop.create_future()
+        f = event_loop.create_future()
 
         await dlx_queue.consume(f.set_result, no_ack=True)
 
@@ -1207,42 +1210,8 @@ class TestCaseAmqp(TestCaseAmqpBase):
                 async with channel.transaction():
                     raise ValueError
 
-    async def test_async_for_queue(self, loop, connection, declare_queue):
-        channel2 = await self.create_channel(connection)
-
-        queue = await declare_queue(
-            get_random_name("queue", "is_async", "for"),
-            auto_delete=True,
-            channel=channel2,
-        )
-
-        messages = 100
-
-        async def publisher():
-            channel1 = await self.create_channel(connection)
-
-            for i in range(messages):
-                await channel1.default_exchange.publish(
-                    Message(body=str(i).encode()), routing_key=queue.name,
-                )
-
-        loop.create_task(publisher())
-
-        count = 0
-        data = list()
-
-        async for message in queue:
-            async with message.process():
-                count += 1
-                data.append(message.body)
-
-            if count >= messages:
-                break
-
-        assert data == list(map(lambda x: str(x).encode(), range(messages)))
-
-    async def test_async_for_queue_context(
-        self, loop, connection, declare_queue,
+    async def test_async_for_queue(
+        self, event_loop, connection, declare_queue
     ):
         channel2 = await self.create_channel(connection)
 
@@ -1262,7 +1231,43 @@ class TestCaseAmqp(TestCaseAmqpBase):
                     Message(body=str(i).encode()), routing_key=queue.name,
                 )
 
-        loop.create_task(publisher())
+        event_loop.create_task(publisher())
+
+        count = 0
+        data = list()
+
+        async for message in queue:
+            async with message.process():
+                count += 1
+                data.append(message.body)
+
+            if count >= messages:
+                break
+
+        assert data == list(map(lambda x: str(x).encode(), range(messages)))
+
+    async def test_async_for_queue_context(
+        self, event_loop, connection, declare_queue,
+    ):
+        channel2 = await self.create_channel(connection)
+
+        queue = await declare_queue(
+            get_random_name("queue", "is_async", "for"),
+            auto_delete=True,
+            channel=channel2,
+        )
+
+        messages = 100
+
+        async def publisher():
+            channel1 = await self.create_channel(connection)
+
+            for i in range(messages):
+                await channel1.default_exchange.publish(
+                    Message(body=str(i).encode()), routing_key=queue.name,
+                )
+
+        event_loop.create_task(publisher())
 
         count = 0
         data = list()
@@ -1279,7 +1284,8 @@ class TestCaseAmqp(TestCaseAmqpBase):
         assert data == list(map(lambda x: str(x).encode(), range(messages)))
 
     async def test_async_with_connection(
-        self, create_connection: Callable, connection, loop, declare_queue,
+        self, create_connection: Callable,
+        connection, event_loop, declare_queue,
     ):
         async with await create_connection() as connection:
 
@@ -1301,7 +1307,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
                         Message(body=str(i).encode()), routing_key=queue.name,
                     )
 
-            loop.create_task(publisher())
+            event_loop.create_task(publisher())
 
             count = 0
             data = list()
@@ -1370,9 +1376,9 @@ class TestCaseAmqp(TestCaseAmqpBase):
             await q2.consume(print, exclusive=True)
 
     async def test_queue_iterator_close_was_called_twice(
-        self, create_connection: Callable, loop, declare_queue,
+        self, create_connection: Callable, event_loop, declare_queue,
     ):
-        future = loop.create_future()
+        future = event_loop.create_future()
         event = asyncio.Event()
 
         queue_name = get_random_name()
@@ -1403,10 +1409,10 @@ class TestCaseAmqp(TestCaseAmqpBase):
                 future.set_exception(e)
                 raise
 
-        task = loop.create_task(task_inner())
+        task = event_loop.create_task(task_inner())
 
         await event.wait()
-        loop.call_soon(task.cancel)
+        event_loop.call_soon(task.cancel)
 
         with pytest.raises(asyncio.CancelledError):
             await task
@@ -1417,7 +1423,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
     async def test_queue_iterator_close_with_noack(
         self,
         create_connection: Callable,
-        loop,
+        event_loop,
         add_cleanup: Callable,
         declare_queue,
     ):
@@ -1457,7 +1463,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
                     Message(body), routing_key=queue_name,
                 )
 
-                task = loop.create_task(task_inner())
+                task = event_loop.create_task(task_inner())
 
                 await task
 
@@ -1563,7 +1569,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
             await channel.set_qos(10)
 
     async def test_heartbeat_disabling(
-        self, loop, amqp_url: URL, connection_fabric,
+        self, event_loop, amqp_url: URL, connection_fabric,
     ):
         url = amqp_url.update_query(heartbeat=0)
         connection: AbstractConnection = await connection_fabric(url)
@@ -1612,10 +1618,12 @@ class TestCaseAmqpWithConfirms(TestCaseAmqpBase):
         finally:
             await exchange.delete()
 
-    async def test_basic_return(self, connection: aio_pika.Connection, loop):
+    async def test_basic_return(
+        self, connection: aio_pika.Connection, event_loop
+    ):
         channel = await self.create_channel(connection)
 
-        f = loop.create_future()
+        f = event_loop.create_future()
 
         def handler(channel, message: ReturnedMessage):
             f.set_result(message)
@@ -1634,7 +1642,7 @@ class TestCaseAmqpWithConfirms(TestCaseAmqpBase):
         assert returned.body == body
 
         # handler with exception
-        f = loop.create_future()
+        f = event_loop.create_future()
 
         await channel.close()
 
