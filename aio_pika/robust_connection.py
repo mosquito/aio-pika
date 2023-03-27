@@ -84,6 +84,10 @@ class RobustConnection(Connection, AbstractRobustConnection):
     async def _on_connected(self) -> None:
         await super()._on_connected()
 
+        transport = self.transport
+        if transport is None:
+            raise RuntimeError("No active transport for connection %r", self)
+
         try:
             for channel in self.__channels:
                 try:
@@ -100,7 +104,8 @@ class RobustConnection(Connection, AbstractRobustConnection):
             closing.set_exception(e)
             await self.close_callbacks(closing)
             await asyncio.gather(
-                self.transport.connection.close(e), return_exceptions=True,
+                transport.connection.close(e),
+                return_exceptions=True,
             )
             raise
 
@@ -321,7 +326,7 @@ async def connect_robust(
             client_properties=client_properties,
             **kwargs,
         ),
-        loop=loop, ssl_context=ssl_context, **kwargs
+        loop=loop, ssl_context=ssl_context, **kwargs,
     )
 
     await connection.connect(timeout=timeout)

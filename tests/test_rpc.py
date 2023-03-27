@@ -138,7 +138,7 @@ class TestCase:
         await rpc.close()
 
     async def test_close_cancelling(
-        self, channel: aio_pika.Channel, event_loop
+        self, channel: aio_pika.Channel, event_loop,
     ):
         rpc = await RPC.create(channel, auto_delete=True)
 

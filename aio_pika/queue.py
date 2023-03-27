@@ -9,8 +9,8 @@ from aiormq.abc import DeliveredMessage
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractIncomingMessage, AbstractQueue, AbstractQueueIterator, ConsumerTag,
-    TimeoutType, get_exchange_name, AbstractChannel,
+    AbstractChannel, AbstractIncomingMessage, AbstractQueue,
+    AbstractQueueIterator, ConsumerTag, TimeoutType, get_exchange_name,
 )
 from .exceptions import QueueEmpty
 from .exchange import ExchangeParamType

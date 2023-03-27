@@ -10,9 +10,10 @@ import aiormq.abc
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractExchange, AbstractQueue, TimeoutType,
-    UnderlayChannel, AbstractConnection
+    AbstractChannel, AbstractConnection, AbstractExchange, AbstractQueue,
+    TimeoutType, UnderlayChannel,
 )
+from .exceptions import ChannelInvalidStateError
 from .exchange import Exchange, ExchangeType
 from .log import get_logger
 from .message import IncomingMessage
@@ -100,7 +101,7 @@ class Channel(ChannelContext):
         side or after the close() method has been called."""
         if not self.is_initialized or self._closed:
             return True
-        return self._channel.channel.is_closed
+        return self.channel.is_closed
 
     async def close(
         self,
@@ -128,7 +129,7 @@ class Channel(ChannelContext):
         return self._channel.channel
 
     @property
-    def channel(self) -> Optional[aiormq.abc.AbstractChannel]:
+    def channel(self) -> aiormq.abc.AbstractChannel:
         warnings.warn("This property is deprecated, do not use this anymore.")
         if self._channel is None:
             raise aiormq.exceptions.ChannelInvalidStateError
@@ -148,8 +149,12 @@ class Channel(ChannelContext):
     async def _open(self) -> None:
         await self._connection.ready()
 
+        transport = self._connection.transport
+        if transport is None:
+            raise ChannelInvalidStateError("No active transport in channel")
+
         channel = await UnderlayChannel.create(
-            self._connection.transport.connection,
+            transport.connection,
             self._on_close,
             publisher_confirms=self.publisher_confirms,
             on_return_raises=self.on_return_raises,

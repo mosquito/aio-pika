@@ -12,8 +12,8 @@ from .abc import (
     AbstractChannel, AbstractConnection, SSLOptions, TimeoutType,
     UnderlayConnection,
 )
-from .exceptions import ConnectionClosed
 from .channel import Channel
+from .exceptions import ConnectionClosed
 from .log import get_logger
 from .tools import CallbackCollection
 

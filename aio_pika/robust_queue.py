@@ -6,8 +6,8 @@ from aiormq import ChannelInvalidStateError
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractExchange, AbstractIncomingMessage, AbstractQueueIterator,
-    AbstractRobustQueue, ConsumerTag, TimeoutType,
+    AbstractChannel, AbstractExchange, AbstractIncomingMessage,
+    AbstractQueueIterator, AbstractRobustQueue, ConsumerTag, TimeoutType,
 )
 from .exchange import ExchangeParamType
 from .log import get_logger
@@ -32,7 +32,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
 
     def __init__(
         self,
-        channel: aiormq.abc.AbstractChannel,
+        channel: AbstractChannel,
         name: Optional[str],
         durable: bool = False,
         exclusive: bool = False,
@@ -155,7 +155,7 @@ class RobustQueueIterator(QueueIterator):
             try:
                 return await super().consume()
             except ChannelInvalidStateError:
-                await self._amqp_queue.channel.connection.ready()
+                await self._amqp_queue.channel.get_underlay_channel()
 
 
 __all__ = ("RobustQueue",)

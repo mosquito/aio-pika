@@ -92,7 +92,7 @@ class TestCase:
         await collection()
 
     async def test_awaitable_callback(
-        self, event_loop, collection, instance
+        self, event_loop, collection, instance,
     ):
         future = event_loop.create_future()
 

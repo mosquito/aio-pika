@@ -15,7 +15,7 @@ from .abc import (
     AbstractMessage, AbstractProcessContext, DateType, DeliveryMode,
     HeadersType, MessageInfo, NoneType,
 )
-from .exceptions import MessageProcessError, ChannelInvalidStateError
+from .exceptions import ChannelInvalidStateError, MessageProcessError
 from .log import get_logger
 
 

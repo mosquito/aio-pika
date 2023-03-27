@@ -5,7 +5,8 @@ import aiormq
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractExchange, AbstractRobustExchange, ExchangeParamType, TimeoutType,
+    AbstractChannel, AbstractExchange, AbstractRobustExchange,
+    ExchangeParamType, TimeoutType,
 )
 from .exchange import Exchange, ExchangeType
 from .log import get_logger
@@ -21,7 +22,7 @@ class RobustExchange(Exchange, AbstractRobustExchange):
 
     def __init__(
         self,
-        channel: aiormq.abc.AbstractChannel,
+        channel: AbstractChannel,
         name: str,
         type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         *,

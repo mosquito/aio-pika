@@ -8,8 +8,8 @@ from weakref import WeakSet
 import aiormq
 
 from .abc import (
-    AbstractRobustChannel, AbstractRobustExchange, AbstractRobustQueue,
-    TimeoutType,
+    AbstractConnection, AbstractRobustChannel, AbstractRobustExchange,
+    AbstractRobustQueue, TimeoutType,
 )
 from .channel import Channel
 from .exchange import Exchange, ExchangeType
@@ -37,7 +37,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
 
     def __init__(
         self,
-        connection: aiormq.abc.AbstractConnection,
+        connection: AbstractConnection,
         channel_number: Optional[int] = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
@@ -71,7 +71,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         self.__restored = True
         self.close_callbacks.add(self.__close_callback)
 
-    async def ready(self):
+    async def ready(self) -> None:
         while not self.__restored:
             await self.__ready.wait()
 

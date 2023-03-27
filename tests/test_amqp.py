@@ -49,7 +49,7 @@ class TestCaseAmqpBase:
 
 class TestCaseAmqp(TestCaseAmqpBase):
     async def test_properties(
-        self, event_loop, connection: aio_pika.Connection
+        self, event_loop, connection: aio_pika.Connection,
     ):
         assert not connection.is_closed
 
@@ -1211,7 +1211,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
                     raise ValueError
 
     async def test_async_for_queue(
-        self, event_loop, connection, declare_queue
+        self, event_loop, connection, declare_queue,
     ):
         channel2 = await self.create_channel(connection)
 
@@ -1619,7 +1619,7 @@ class TestCaseAmqpWithConfirms(TestCaseAmqpBase):
             await exchange.delete()
 
     async def test_basic_return(
-        self, connection: aio_pika.Connection, event_loop
+        self, connection: aio_pika.Connection, event_loop,
     ):
         channel = await self.create_channel(connection)
 

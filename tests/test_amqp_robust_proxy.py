@@ -535,7 +535,7 @@ async def test_channel_reconnect_after_5kb(
         loop=event_loop,
     )
     direct_connection = await aio_pika.connect(
-        amqp_direct_url, loop=event_loop
+        amqp_direct_url, loop=event_loop,
     )
 
     on_reconnect = asyncio.Event()
