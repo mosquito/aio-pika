@@ -114,7 +114,9 @@ class TestCase:
         assert shared == [instance, instance]
         assert await future == instance
 
-    async def test_collection_create_tasks(self, event_loop, collection, instance):
+    async def test_collection_create_tasks(
+        self, event_loop, collection, instance
+    ):
         future = event_loop.create_future()
 
         async def coro(arg):
