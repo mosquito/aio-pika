@@ -81,11 +81,13 @@ class RobustConnection(Connection, AbstractRobustConnection):
 
         self.__connection_close_event.set()
 
-    async def _on_connected(self, transport: UnderlayConnection) -> None:
+    async def _on_connected(self) -> None:
+        await super()._on_connected()
+
         try:
             for channel in self.__channels:
                 try:
-                    await channel.restore(transport.connection)
+                    await channel.restore()
                 except Exception:
                     log.exception("Failed to reopen channel")
                     raise
@@ -98,11 +100,9 @@ class RobustConnection(Connection, AbstractRobustConnection):
             closing.set_exception(e)
             await self.close_callbacks(closing)
             await asyncio.gather(
-                transport.connection.close(e), return_exceptions=True,
+                self.transport.connection.close(e), return_exceptions=True,
             )
             raise
-
-        await super()._on_connected(transport)
 
         if self.connection_attempt:
             await self.reconnect_callbacks()
@@ -205,6 +205,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
                 self.__reconnection_task, return_exceptions=True,
             )
             self.__reconnection_task = None
+
         return await super().close(exc)
 
 

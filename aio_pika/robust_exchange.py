@@ -45,11 +45,9 @@ class RobustExchange(Exchange, AbstractRobustExchange):
         self._bindings = {}
         self.__restore_lock = asyncio.Lock()
 
-    async def restore(self, channel: aiormq.abc.AbstractChannel) -> None:
+    async def restore(self) -> None:
         async with self.__restore_lock:
             try:
-                self.channel = channel
-
                 # special case for default exchange
                 if self.name == "":
                     return
@@ -59,7 +57,6 @@ class RobustExchange(Exchange, AbstractRobustExchange):
                 for exchange, kwargs in tuple(self._bindings.items()):
                     await self.bind(exchange, **kwargs)
             except Exception:
-                del self.channel
                 raise
 
     async def bind(

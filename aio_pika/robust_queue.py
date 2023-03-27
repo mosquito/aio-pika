@@ -54,8 +54,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
         self._consumers = {}
         self._bindings = {}
 
-    async def restore(self, channel: aiormq.abc.AbstractChannel) -> None:
-        self.channel = channel
+    async def restore(self) -> None:
         await self.declare()
         bindings = tuple(self._bindings.items())
         consumers = tuple(self._consumers.items())

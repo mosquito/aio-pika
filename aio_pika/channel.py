@@ -11,7 +11,7 @@ from pamqp.common import Arguments
 
 from .abc import (
     AbstractChannel, AbstractExchange, AbstractQueue, TimeoutType,
-    UnderlayChannel,
+    UnderlayChannel, AbstractConnection
 )
 from .exchange import Exchange, ExchangeType
 from .log import get_logger
@@ -53,7 +53,7 @@ class Channel(ChannelContext):
 
     def __init__(
         self,
-        connection: aiormq.abc.AbstractConnection,
+        connection: AbstractConnection,
         channel_number: Optional[int] = None,
         publisher_confirms: bool = True,
         on_return_raises: bool = False,
@@ -74,7 +74,7 @@ class Channel(ChannelContext):
                 'without "publisher_confirms"',
             )
 
-        self._connection: aiormq.abc.AbstractConnection = connection
+        self._connection: AbstractConnection = connection
 
         # That's means user closed channel instance explicitly
         self._closed: bool = False
@@ -99,8 +99,6 @@ class Channel(ChannelContext):
         """Returns True when the channel has been closed from the broker
         side or after the close() method has been called."""
         if not self.is_initialized or self._closed:
-            return True
-        if not self._channel:
             return True
         return self._channel.channel.is_closed
 
@@ -127,11 +125,6 @@ class Channel(ChannelContext):
                 "Channel was not opened",
             )
 
-        if self.is_closed:
-            raise aiormq.exceptions.ChannelInvalidStateError(
-                "Channel has been closed",
-            )
-
         return self._channel.channel
 
     @property
@@ -156,16 +149,20 @@ class Channel(ChannelContext):
         await self._connection.ready()
 
         channel = await UnderlayChannel.create(
-            self._connection,
+            self._connection.transport.connection,
             self._on_close,
             publisher_confirms=self.publisher_confirms,
             on_return_raises=self.on_return_raises,
             channel_number=self._channel_number,
         )
 
-        await self._on_open(channel.channel)
-        self._channel = channel
-        self._closed = False
+        try:
+            self._channel = channel
+            await self._on_open()
+            self._closed = False
+        except Exception as e:
+            await channel.close(e)
+            raise
 
     async def initialize(self, timeout: TimeoutType = None) -> None:
         if self.is_initialized:
@@ -176,9 +173,9 @@ class Channel(ChannelContext):
         await self._open()
         await self._on_initialized()
 
-    async def _on_open(self, channel: aiormq.abc.AbstractChannel) -> None:
+    async def _on_open(self) -> None:
         self.default_exchange: Exchange = self.EXCHANGE_CLASS(
-            channel=channel,
+            channel=self,
             arguments=None,
             auto_delete=False,
             durable=False,
@@ -248,10 +245,8 @@ class Channel(ChannelContext):
         if auto_delete and durable is None:
             durable = False
 
-        channel = await self.get_underlay_channel()
-
         exchange = self.EXCHANGE_CLASS(
-            channel=channel,
+            channel=self,
             name=name,
             type=type,
             durable=durable,
@@ -291,7 +286,7 @@ class Channel(ChannelContext):
             return await self.declare_exchange(name=name, passive=True)
         else:
             return self.EXCHANGE_CLASS(
-                channel=await self.get_underlay_channel(),
+                channel=self,
                 name=name,
                 durable=False,
                 auto_delete=False,
@@ -331,7 +326,7 @@ class Channel(ChannelContext):
         """
 
         queue: AbstractQueue = self.QUEUE_CLASS(
-            channel=await self.get_underlay_channel(),
+            channel=self,
             name=name,
             durable=durable,
             exclusive=exclusive,
@@ -368,7 +363,7 @@ class Channel(ChannelContext):
             return await self.declare_queue(name=name, passive=True)
         else:
             return self.QUEUE_CLASS(
-                channel=await self.get_underlay_channel(),
+                channel=self,
                 name=name,
                 durable=False,
                 exclusive=False,

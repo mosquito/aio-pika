@@ -239,7 +239,7 @@ class AbstractProcessContext(AsyncContextManager):
 
 
 class AbstractQueue:
-    channel: aiormq.abc.AbstractChannel
+    channel: "AbstractChannel"
     name: str
     durable: bool
     exclusive: bool
@@ -404,7 +404,7 @@ class AbstractExchange(ABC):
     @abstractmethod
     def __init__(
         self,
-        channel: aiormq.abc.AbstractChannel,
+        channel: "AbstractChannel",
         name: str,
         type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         *,
@@ -754,7 +754,7 @@ class AbstractConnection(PoolInstance, ABC):
 
 class AbstractRobustQueue(AbstractQueue):
     @abstractmethod
-    def restore(self, channel: aiormq.abc.AbstractChannel) -> Awaitable[None]:
+    def restore(self) -> Awaitable[None]:
         raise NotImplementedError
 
     @abstractmethod
@@ -785,7 +785,7 @@ class AbstractRobustQueue(AbstractQueue):
 
 class AbstractRobustExchange(AbstractExchange):
     @abstractmethod
-    def restore(self, channel: aiormq.abc.AbstractChannel) -> Awaitable[None]:
+    def restore(self) -> Awaitable[None]:
         raise NotImplementedError
 
     @abstractmethod
@@ -809,7 +809,7 @@ class AbstractRobustChannel(AbstractChannel):
         raise NotImplementedError
 
     @abstractmethod
-    async def restore(self, connection: aiormq.abc.AbstractConnection) -> None:
+    async def restore(self) -> None:
         raise NotImplementedError
 
     @abstractmethod

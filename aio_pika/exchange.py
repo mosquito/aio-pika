@@ -5,7 +5,7 @@ from pamqp.common import Arguments
 
 from .abc import (
     AbstractExchange, AbstractMessage, ExchangeParamType, ExchangeType,
-    TimeoutType, get_exchange_name,
+    TimeoutType, get_exchange_name, AbstractChannel,
 )
 from .log import get_logger
 
@@ -15,11 +15,11 @@ log = get_logger(__name__)
 
 class Exchange(AbstractExchange):
     """ Exchange abstraction """
-    channel: aiormq.abc.AbstractChannel
+    channel: AbstractChannel
 
     def __init__(
         self,
-        channel: aiormq.abc.AbstractChannel,
+        channel: AbstractChannel,
         name: str,
         type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         *,
@@ -52,7 +52,8 @@ class Exchange(AbstractExchange):
     async def declare(
         self, timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.DeclareOk:
-        return await self.channel.exchange_declare(
+        channel = await self.channel.get_underlay_channel()
+        return await channel.exchange_declare(
             self.name,
             exchange_type=self._type,
             durable=self.durable,
@@ -114,7 +115,8 @@ class Exchange(AbstractExchange):
             arguments,
         )
 
-        return await self.channel.exchange_bind(
+        channel = await self.channel.get_underlay_channel()
+        return await channel.exchange_bind(
             arguments=arguments,
             destination=self.name,
             routing_key=routing_key,
@@ -149,7 +151,8 @@ class Exchange(AbstractExchange):
             arguments,
         )
 
-        return await self.channel.exchange_unbind(
+        channel = await self.channel.get_underlay_channel()
+        return await channel.exchange_unbind(
             arguments=arguments,
             destination=self.name,
             routing_key=routing_key,
@@ -187,7 +190,8 @@ class Exchange(AbstractExchange):
                 f"Can not publish to internal exchange: '{self.name}'!",
             )
 
-        return await self.channel.basic_publish(
+        channel = await self.channel.get_underlay_channel()
+        return await channel.basic_publish(
             exchange=self.name,
             routing_key=routing_key,
             body=message.body,
@@ -208,9 +212,12 @@ class Exchange(AbstractExchange):
         """
 
         log.info("Deleting %r", self)
-        return await self.channel.exchange_delete(
+        channel = await self.channel.get_underlay_channel()
+        result = await channel.exchange_delete(
             self.name, if_unused=if_unused, timeout=timeout,
         )
+        del self.channel
+        return result
 
 
 __all__ = ("Exchange", "ExchangeType", "ExchangeParamType")
