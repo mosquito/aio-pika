@@ -101,7 +101,10 @@ class Channel(ChannelContext):
         side or after the close() method has been called."""
         if not self.is_initialized or self._closed:
             return True
-        return self.channel.is_closed
+        channel = self._channel
+        if channel is None:
+            return True
+        return channel.channel.is_closed
 
     async def close(
         self,
@@ -161,13 +164,14 @@ class Channel(ChannelContext):
             channel_number=self._channel_number,
         )
 
+        self._channel = channel
         try:
-            self._channel = channel
             await self._on_open()
-            self._closed = False
-        except Exception as e:
+        except BaseException as e:
             await channel.close(e)
+            self._channel = None
             raise
+        self._closed = False
 
     async def initialize(self, timeout: TimeoutType = None) -> None:
         if self.is_initialized:

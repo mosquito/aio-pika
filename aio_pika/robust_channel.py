@@ -89,6 +89,10 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
 
     async def __close_callback(self, _: Any, exc: BaseException) -> None:
         if isinstance(exc, asyncio.CancelledError):
+            # This happens only if the channel is forced to close from the
+            # outside, for example, if the connection is closed.
+            # Of course, here you need to exit fron this function
+            # as soon as possible and to avoid a recovery attempt.
             return
 
         in_restore_state = not self.__restored
