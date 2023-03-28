@@ -51,7 +51,7 @@ class RobustExchange(Exchange, AbstractRobustExchange):
         if channel is not None:
             warnings.warn(
                 "Channel argument will be ignored because you "
-                "no need to pass this anymore.",
+                "don't need to pass this anymore.",
                 DeprecationWarning,
             )
         async with self.__restore_lock:

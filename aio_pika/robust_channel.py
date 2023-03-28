@@ -84,7 +84,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         if channel is not None:
             warnings.warn(
                 "Channel argument will be ignored because you "
-                "no need to pass this anymore.",
+                "don't need to pass this anymore.",
                 DeprecationWarning,
             )
 
