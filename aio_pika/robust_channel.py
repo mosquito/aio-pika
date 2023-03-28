@@ -91,7 +91,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         if isinstance(exc, asyncio.CancelledError):
             # This happens only if the channel is forced to close from the
             # outside, for example, if the connection is closed.
-            # Of course, here you need to exit fron this function
+            # Of course, here you need to exit from this function
             # as soon as possible and to avoid a recovery attempt.
             return
 
