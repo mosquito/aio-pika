@@ -9,7 +9,7 @@ from pamqp.common import FieldTable
 from yarl import URL
 
 from .abc import (
-    AbstractRobustChannel, AbstractRobustConnection, SSLOptions, TimeoutType
+    AbstractRobustChannel, AbstractRobustConnection, SSLOptions, TimeoutType,
 )
 from .connection import Connection, make_url
 from .exceptions import CONNECTION_EXCEPTIONS

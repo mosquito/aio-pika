@@ -135,7 +135,7 @@ class Channel(ChannelContext):
     def channel(self) -> aiormq.abc.AbstractChannel:
         warnings.warn(
             "This property is deprecated, do not use this anymore.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         if self._channel is None:
             raise aiormq.exceptions.ChannelInvalidStateError

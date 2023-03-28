@@ -1,3 +1,4 @@
+import warnings
 from random import Random
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
@@ -54,7 +55,14 @@ class RobustQueue(Queue, AbstractRobustQueue):
         self._consumers = {}
         self._bindings = {}
 
-    async def restore(self) -> None:
+    async def restore(self, channel: Any = None) -> None:
+        if channel is not None:
+            warnings.warn(
+                "Channel argument will be ignored because you "
+                "no need to pass this anymore.",
+                DeprecationWarning,
+            )
+
         await self.declare()
         bindings = tuple(self._bindings.items())
         consumers = tuple(self._consumers.items())

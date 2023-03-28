@@ -878,7 +878,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         await channel.set_qos(prefetch_count=1, global_=True)
 
     async def test_set_qos_deprecated_all_channels(
-        self, channel: aio_pika.Channel
+        self, channel: aio_pika.Channel,
     ):
         await channel.set_qos(prefetch_count=1, all_channels=True)
 

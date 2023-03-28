@@ -1,4 +1,5 @@
 import asyncio
+import warnings
 from collections import defaultdict
 from itertools import chain
 from typing import Any, DefaultDict, Dict, MutableSet, Optional, Type, Union
@@ -79,7 +80,14 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         await self._connection.ready()
         return await super().get_underlay_channel()
 
-    async def restore(self) -> None:
+    async def restore(self, channel: Any = None) -> None:
+        if channel is not None:
+            warnings.warn(
+                "Channel argument will be ignored because you "
+                "no need to pass this anymore.",
+                DeprecationWarning,
+            )
+
         async with self.__restore_lock:
             if self.__restored:
                 return

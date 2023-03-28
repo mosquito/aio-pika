@@ -1,4 +1,5 @@
 import asyncio
+import warnings
 from typing import Any, Dict, Union
 
 import aiormq
@@ -46,7 +47,13 @@ class RobustExchange(Exchange, AbstractRobustExchange):
         self._bindings = {}
         self.__restore_lock = asyncio.Lock()
 
-    async def restore(self) -> None:
+    async def restore(self, channel: Any = None) -> None:
+        if channel is not None:
+            warnings.warn(
+                "Channel argument will be ignored because you "
+                "no need to pass this anymore.",
+                DeprecationWarning,
+            )
         async with self.__restore_lock:
             try:
                 # special case for default exchange

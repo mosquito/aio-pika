@@ -115,7 +115,7 @@ class TestCase:
         assert await future == instance
 
     async def test_collection_create_tasks(
-        self, event_loop, collection, instance
+        self, event_loop, collection, instance,
     ):
         future = event_loop.create_future()
 
