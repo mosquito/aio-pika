@@ -5,10 +5,9 @@ import time
 import uuid
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Dict, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, Optional, Tuple, TypeVar, Awaitable
 
 from aiormq.abc import ExceptionType
-from aiormq.tools import awaitable
 
 from aio_pika.abc import (
     AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
@@ -24,7 +23,7 @@ from .base import Base, Proxy
 log = logging.getLogger(__name__)
 
 T = TypeVar("T")
-CallbackType = Callable[..., T]
+CallbackType = Callable[..., Awaitable[T]]
 
 
 class RPCException(RuntimeError):
@@ -406,7 +405,7 @@ class RPC(Base):
             partial(self.on_call_message, method_name),
         )
 
-        self.routes[method_name] = awaitable(func)
+        self.routes[method_name] = func
         self.queues[func] = queue
 
     async def unregister(self, func: CallbackType) -> None:

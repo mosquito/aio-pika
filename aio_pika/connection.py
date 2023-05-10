@@ -4,7 +4,6 @@ from types import TracebackType
 from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
 
 import aiormq.abc
-from aiormq.tools import censor_url
 from pamqp.common import FieldTable
 from yarl import URL
 
@@ -70,7 +69,10 @@ class Connection(AbstractConnection):
         self.connected: asyncio.Event = asyncio.Event()
 
     def __str__(self) -> str:
-        return str(censor_url(self.url))
+        url = self.url
+        if url.password:
+            url = url.with_password("******")
+        return str(url)
 
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}: "{self}">'

@@ -7,7 +7,6 @@ from types import MappingProxyType
 from typing import Any, Awaitable, Callable, Mapping, Optional, TypeVar
 
 import aiormq
-from aiormq.tools import awaitable
 
 from aio_pika.abc import (
     AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
@@ -174,17 +173,14 @@ class Master(Base):
         return await self.channel.declare_queue(queue_name, **kwargs)
 
     async def create_worker(
-        self, queue_name: str, func: Callable[..., Any], **kwargs: Any,
+        self, queue_name: str,
+        func: Callable[..., Awaitable[Any]],
+        **kwargs: Any,
     ) -> Worker:
         """ Creates a new :class:`Worker` instance. """
 
         queue = await self.create_queue(queue_name, **kwargs)
-
-        if hasattr(func, "_is_coroutine"):
-            fn = func
-        else:
-            fn = awaitable(func)
-        consumer_tag = await queue.consume(partial(self.on_message, fn))
+        consumer_tag = await queue.consume(partial(self.on_message, func))
 
         return Worker(queue, consumer_tag, self.loop)
 
