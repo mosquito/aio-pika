@@ -2,7 +2,7 @@ import asyncio
 import sys
 from functools import partial
 from types import TracebackType
-from typing import Any, Callable, Optional, Type, overload
+from typing import Any, Callable, Optional, Type, overload, Awaitable
 
 import aiormq
 from aiormq.abc import DeliveredMessage
@@ -16,8 +16,7 @@ from .exceptions import QueueEmpty
 from .exchange import ExchangeParamType
 from .log import get_logger
 from .message import IncomingMessage
-from .tools import CallbackCollection, create_task
-
+from .tools import CallbackCollection, create_task, ensure_awaitable
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -186,7 +185,7 @@ class Queue(AbstractQueue):
 
     async def consume(
         self,
-        callback: Callable[[AbstractIncomingMessage], Any],
+        callback: Callable[[AbstractIncomingMessage], Awaitable[Any]],
         no_ack: bool = False,
         exclusive: bool = False,
         arguments: Arguments = None,
@@ -198,7 +197,7 @@ class Queue(AbstractQueue):
 
         :param timeout: :class:`asyncio.TimeoutError` will be raises when the
                         Future was not finished after this time.
-        :param callback: Consuming callback. Could be a coroutine.
+        :param callback: Consuming callback. Should be a coroutine function.
         :param no_ack:
             if :class:`True` you don't need to call
             :func:`aio_pika.message.IncomingMessage.ack`
@@ -217,6 +216,7 @@ class Queue(AbstractQueue):
         """
 
         log.debug("Start to consuming queue: %r", self)
+        callback = ensure_awaitable(callback)
 
         channel = await self.channel.get_underlay_channel()
         consume_result = await channel.basic_consume(

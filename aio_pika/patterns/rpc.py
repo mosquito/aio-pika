@@ -1,10 +1,8 @@
 import asyncio
-import inspect
 import json
 import logging
 import time
 import uuid
-import warnings
 from enum import Enum
 from functools import partial
 from typing import Any, Callable, Dict, Optional, Tuple
@@ -20,7 +18,7 @@ from aio_pika.exchange import ExchangeType
 from aio_pika.message import IncomingMessage, Message, ReturnedMessage
 
 from .base import Base, CallbackType, Proxy, T
-
+from ..tools import ensure_awaitable
 
 log = logging.getLogger(__name__)
 
@@ -388,16 +386,7 @@ class RPC(Base):
         arguments = kwargs.pop("arguments", {})
         arguments.update({"x-dead-letter-exchange": self.DLX_NAME})
 
-        if inspect.isfunction(func) and not inspect.iscoroutinefunction(func):
-            warnings.warn(
-                "Registering non-coroutine functions are deprecated and will "
-                "be removed in future releases", DeprecationWarning,
-            )
-
-            async def async_func(*args: Any, **kwargs: Any) -> Any:
-                return func(*args, **kwargs)
-
-            func = async_func
+        func = ensure_awaitable(func)
 
         kwargs["arguments"] = arguments
 

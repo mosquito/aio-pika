@@ -303,7 +303,7 @@ class AbstractQueue:
     @abstractmethod
     async def consume(
         self,
-        callback: Callable[[AbstractIncomingMessage], Any],
+        callback: Callable[[AbstractIncomingMessage], Awaitable[Any]],
         no_ack: bool = False,
         exclusive: bool = False,
         arguments: Arguments = None,

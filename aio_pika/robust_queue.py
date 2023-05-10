@@ -1,6 +1,6 @@
 import warnings
 from random import Random
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union, Awaitable
 
 import aiormq
 from aiormq import ChannelInvalidStateError
@@ -116,7 +116,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
 
     async def consume(
         self,
-        callback: Callable[[AbstractIncomingMessage], Any],
+        callback: Callable[[AbstractIncomingMessage], Awaitable[Any]],
         no_ack: bool = False,
         exclusive: bool = False,
         arguments: Arguments = None,

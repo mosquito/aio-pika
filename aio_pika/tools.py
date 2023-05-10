@@ -1,4 +1,7 @@
 import asyncio
+import inspect
+import warnings
+from functools import wraps
 from itertools import chain
 from threading import Lock
 from typing import (
@@ -251,11 +254,47 @@ class OneShotCallback:
         return self.__task
 
 
+def ensure_awaitable(
+    func: Callable[..., Union[T, Awaitable[T]]]
+) -> Callable[..., Awaitable[T]]:
+    if inspect.iscoroutinefunction(func):
+        return func
+
+    if inspect.isfunction(func) and not iscoroutinepartial(func):
+        warnings.warn(
+            f"You probably registering the non-coroutine function {func!r}. "
+            "This is deprecated and will be removed in future releases. "
+            "Moreover, it can block the event loop",
+            DeprecationWarning,
+        )
+
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> T:
+        nonlocal func
+
+        result = func(*args, **kwargs)
+        if not hasattr(result, "__await__"):
+            warnings.warn(
+                f"Function {func!r} returned a non awaitable result."
+                "This may be bad for performance or may blocks the event loop,"
+                "you should pay attention to this. This warning is here in an "
+                "attempt to maintain backwards compatibility and will "
+                "simply be removed in future releases.",
+                DeprecationWarning,
+            )
+            return result
+
+        return await result
+
+    return wrapper
+
+
 __all__ = (
     "CallbackCollection",
-    "CallbackType",
     "CallbackSetType",
+    "CallbackType",
     "OneShotCallback",
     "create_task",
+    "ensure_awaitable",
     "iscoroutinepartial",
 )

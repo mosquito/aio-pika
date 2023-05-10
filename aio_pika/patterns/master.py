@@ -1,12 +1,10 @@
 import asyncio
 import gzip
-import inspect
 import json
 import logging
-import warnings
 from functools import partial
 from types import MappingProxyType
-from typing import Any, Awaitable, Callable, Mapping, Optional
+from typing import Any, Awaitable, Mapping, Optional
 
 import aiormq
 
@@ -16,9 +14,8 @@ from aio_pika.abc import (
 )
 from aio_pika.message import Message, ReturnedMessage
 
-from ..tools import create_task
+from ..tools import create_task, ensure_awaitable
 from .base import Base, CallbackType, Proxy, T
-
 
 log = logging.getLogger(__name__)
 
@@ -148,12 +145,13 @@ class Master(Base):
         kwargs = kwargs or {}
 
         if not isinstance(kwargs, dict):
+            logging.error("Bad kwargs %r received for the %r", kwargs, func)
             raise RejectMessage(requeue=False)
 
         return await func(**kwargs)
 
     async def on_message(
-        self, func: Callable[..., Any],
+        self, func: CallbackType,
         message: AbstractIncomingMessage,
     ) -> None:
         async with message.process(
@@ -179,20 +177,10 @@ class Master(Base):
         **kwargs: Any,
     ) -> Worker:
         """ Creates a new :class:`Worker` instance. """
-
-        if inspect.isfunction(func) and not inspect.iscoroutinefunction(func):
-            warnings.warn(
-                "Registering non-coroutine functions are deprecated and will "
-                "be removed in future releases", DeprecationWarning,
-            )
-
-            async def async_func(*args: Any, **kwargs: Any) -> Any:
-                return func(*args, **kwargs)
-
-            func = async_func
-
         queue = await self.create_queue(queue_name, **kwargs)
-        consumer_tag = await queue.consume(partial(self.on_message, func))
+        consumer_tag = await queue.consume(
+            partial(self.on_message, ensure_awaitable(func))
+        )
 
         return Worker(queue, consumer_tag, self.loop)
 
