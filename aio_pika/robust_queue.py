@@ -1,6 +1,6 @@
 import warnings
 from random import Random
-from typing import Any, Callable, Dict, Optional, Tuple, Union, Awaitable
+from typing import Any, Awaitable, Callable, Dict, Optional, Tuple, Union
 
 import aiormq
 from aiormq import ChannelInvalidStateError

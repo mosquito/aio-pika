@@ -152,7 +152,7 @@ class TestCase:
 class TestEnsureAwaitable:
     async def test_non_coroutine(self):
         with pytest.deprecated_call(match="You probably registering the"):
-            func = ensure_awaitable(lambda x: x*x)
+            func = ensure_awaitable(lambda x: x * x)
 
         with pytest.deprecated_call(match="Function"):
             assert await func(2) == 4

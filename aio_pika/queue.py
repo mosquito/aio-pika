@@ -2,7 +2,7 @@ import asyncio
 import sys
 from functools import partial
 from types import TracebackType
-from typing import Any, Callable, Optional, Type, overload, Awaitable
+from typing import Any, Awaitable, Callable, Optional, Type, overload
 
 import aiormq
 from aiormq.abc import DeliveredMessage
@@ -17,6 +17,7 @@ from .exchange import ExchangeParamType
 from .log import get_logger
 from .message import IncomingMessage
 from .tools import CallbackCollection, create_task, ensure_awaitable
+
 
 if sys.version_info >= (3, 8):
     from typing import Literal

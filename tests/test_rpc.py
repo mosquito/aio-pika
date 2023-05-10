@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import warnings
-
 from functools import partial
 
 import pytest
@@ -197,7 +196,7 @@ class TestCase:
             await rpc.register(
                 "test.non-coroutine",
                 bypass,         # type: ignore
-                auto_delete=True
+                auto_delete=True,
             )
 
         async def coro(_):
@@ -208,7 +207,7 @@ class TestCase:
             await rpc.register(
                 "test.coroutine",
                 coro,  # type: ignore
-                auto_delete=True
+                auto_delete=True,
             )
 
         assert len(record) == 1
@@ -218,7 +217,7 @@ class TestCase:
             await rpc.register(
                 "test.coroutine_partial",
                 partial(partial(coro)),  # type: ignore
-                auto_delete=True
+                auto_delete=True,
             )
 
         assert len(record) == 1

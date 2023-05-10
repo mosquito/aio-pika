@@ -17,8 +17,9 @@ from aio_pika.exceptions import MessageProcessError
 from aio_pika.exchange import ExchangeType
 from aio_pika.message import IncomingMessage, Message, ReturnedMessage
 
-from .base import Base, CallbackType, Proxy, T
 from ..tools import ensure_awaitable
+from .base import Base, CallbackType, Proxy, T
+
 
 log = logging.getLogger(__name__)
 

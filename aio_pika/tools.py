@@ -255,7 +255,7 @@ class OneShotCallback:
 
 
 def ensure_awaitable(
-    func: Callable[..., Union[T, Awaitable[T]]]
+    func: Callable[..., Union[T, Awaitable[T]]],
 ) -> Callable[..., Awaitable[T]]:
     if inspect.iscoroutinefunction(func):
         return func
