@@ -1,5 +1,8 @@
 import asyncio
 import logging
+import warnings
+
+from functools import partial
 
 import pytest
 
@@ -183,3 +186,39 @@ class TestCase:
         await rpc.unregister(rpc_func)
 
         await rpc.close()
+
+    async def test_register_non_coroutine(self, channel: aio_pika.Channel):
+        rpc = await RPC.create(channel, auto_delete=True)
+
+        def bypass(_):
+            return
+
+        with pytest.deprecated_call():
+            await rpc.register(
+                "test.non-coroutine",
+                bypass,         # type: ignore
+                auto_delete=True
+            )
+
+        async def coro(_):
+            return
+
+        with pytest.warns(UserWarning) as record:
+            warnings.warn("Test", UserWarning)
+            await rpc.register(
+                "test.coroutine",
+                coro,  # type: ignore
+                auto_delete=True
+            )
+
+        assert len(record) == 1
+
+        with pytest.warns() as record:
+            warnings.warn("Test", UserWarning)
+            await rpc.register(
+                "test.coroutine_partial",
+                partial(partial(coro)),  # type: ignore
+                auto_delete=True
+            )
+
+        assert len(record) == 1

@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from aio_pika.tools import CallbackCollection
+from aio_pika.tools import CallbackCollection, ensure_awaitable
 
 
 log = logging.getLogger(__name__)
@@ -147,3 +147,49 @@ class TestCase:
         await asyncio.wait_for(collection(), timeout=2)
 
         assert [c.counter for c in callables] == [1] * 100
+
+
+class TestEnsureAwaitable:
+    async def test_non_coroutine(self):
+        with pytest.deprecated_call(match="You probably registering the"):
+            func = ensure_awaitable(lambda x: x*x)
+
+        with pytest.deprecated_call(match="Function"):
+            assert await func(2) == 4
+
+        with pytest.deprecated_call(match="Function"):
+            assert await func(4) == 16
+
+    async def test_coroutine(self):
+        async def square(x):
+            return x * x
+        func = ensure_awaitable(square)
+        assert await func(2) == 4
+        assert await func(4) == 16
+
+    async def test_something_awaitable_returned(self):
+
+        def non_coro(x):
+            async def coro(x):
+                return x * x
+
+            return coro(x)
+
+        with pytest.deprecated_call(match="You probably registering the"):
+            func = ensure_awaitable(non_coro)
+
+        assert await func(2) == 4
+
+    async def test_something_non_awaitable_returned(self):
+
+        def non_coro(x):
+            def coro(x):
+                return x * x
+
+            return coro(x)
+
+        with pytest.deprecated_call(match="You probably registering the"):
+            func = ensure_awaitable(non_coro)
+
+        with pytest.deprecated_call(match="Function"):
+            assert await func(2) == 4

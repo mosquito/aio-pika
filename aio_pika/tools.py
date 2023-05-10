@@ -276,10 +276,11 @@ def ensure_awaitable(
         if not hasattr(result, "__await__"):
             warnings.warn(
                 f"Function {func!r} returned a non awaitable result."
-                "This may be bad for performance or may blocks the event loop,"
-                "you should pay attention to this. This warning is here in an "
-                "attempt to maintain backwards compatibility and will "
-                "simply be removed in future releases.",
+                "This may be bad for performance or may blocks the "
+                "event loop, you should pay attention to this. This "
+                "warning is here in an attempt to maintain backwards "
+                "compatibility and will simply be removed in "
+                "future releases.",
                 DeprecationWarning,
             )
             return result
