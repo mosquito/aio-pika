@@ -880,7 +880,8 @@ class TestCaseAmqp(TestCaseAmqpBase):
     async def test_set_qos_deprecated_all_channels(
         self, channel: aio_pika.Channel,
     ):
-        await channel.set_qos(prefetch_count=1, all_channels=True)
+        with pytest.deprecated_call():
+            await channel.set_qos(prefetch_count=1, all_channels=True)
 
     async def test_exchange_delete(
         self, channel: aio_pika.Channel, declare_exchange,
