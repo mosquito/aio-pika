@@ -276,7 +276,7 @@ class Queue(AbstractQueue):
         fail: Literal[False] = ..., timeout: TimeoutType = ...,
     ) -> Optional[IncomingMessage]:
         ...
-[]
+
     async def get(
         self, *, no_ack: bool = False,
         fail: bool = True, timeout: TimeoutType = 5,
