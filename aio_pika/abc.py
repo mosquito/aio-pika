@@ -330,12 +330,14 @@ class AbstractQueue:
         fail: Literal[True] = ..., timeout: TimeoutType = ...,
     ) -> AbstractIncomingMessage:
         ...
+
     @overload
     async def get(
         self, *, no_ack: bool = False,
         fail: Literal[False] = ..., timeout: TimeoutType = ...,
     ) -> Optional[AbstractIncomingMessage]:
         ...
+
     @abstractmethod
     async def get(
         self, *, no_ack: bool = False,
