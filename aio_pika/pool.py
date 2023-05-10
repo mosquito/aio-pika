@@ -2,8 +2,8 @@ import abc
 import asyncio
 from types import TracebackType
 from typing import (
-    Any, AsyncContextManager, Awaitable, Callable, Generic, Optional,
-    Set, Tuple, Type, TypeVar,
+    Any, AsyncContextManager, Awaitable, Callable, Generic, Optional, Set,
+    Tuple, Type, TypeVar,
 )
 
 from aio_pika.log import get_logger
@@ -22,7 +22,7 @@ class PoolInstance(abc.ABC):
 T = TypeVar("T")
 ConstructorType = Callable[
     ...,
-    Awaitable[PoolInstance]
+    Awaitable[PoolInstance],
 ]
 
 

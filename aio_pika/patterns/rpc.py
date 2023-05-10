@@ -1,11 +1,13 @@
 import asyncio
+import inspect
 import json
 import logging
 import time
 import uuid
+import warnings
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Dict, Optional, Tuple, TypeVar, Awaitable
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from aiormq.abc import ExceptionType
 
@@ -17,13 +19,10 @@ from aio_pika.exceptions import MessageProcessError
 from aio_pika.exchange import ExchangeType
 from aio_pika.message import IncomingMessage, Message, ReturnedMessage
 
-from .base import Base, Proxy
+from .base import Base, CallbackType, Proxy, T
 
 
 log = logging.getLogger(__name__)
-
-T = TypeVar("T")
-CallbackType = Callable[..., Awaitable[T]]
 
 
 class RPCException(RuntimeError):
@@ -389,6 +388,17 @@ class RPC(Base):
         arguments = kwargs.pop("arguments", {})
         arguments.update({"x-dead-letter-exchange": self.DLX_NAME})
 
+        if inspect.isfunction(func) and not inspect.iscoroutinefunction(func):
+            warnings.warn(
+                "Registering non-coroutine functions are deprecated and will "
+                "be removed in future releases", DeprecationWarning,
+            )
+
+            async def async_func(*args: Any, **kwargs: Any) -> Any:
+                return func(*args, **kwargs)
+
+            func = async_func
+
         kwargs["arguments"] = arguments
 
         queue = await self.channel.declare_queue(method_name, **kwargs)
@@ -456,7 +466,6 @@ class JsonRPC(RPC):
 
 
 __all__ = (
-    "CallbackType",
     "JsonRPC",
     "RPC",
     "RPCException",

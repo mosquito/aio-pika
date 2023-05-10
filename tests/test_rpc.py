@@ -12,7 +12,7 @@ from aio_pika.patterns.rpc import log as rpc_logger
 from tests import get_random_name
 
 
-def rpc_func(*, foo, bar):
+async def rpc_func(*, foo, bar):
     assert not foo
     assert not bar
 
@@ -164,11 +164,14 @@ class TestCase:
     async def test_register_twice(self, channel: aio_pika.Channel):
         rpc = await RPC.create(channel, auto_delete=True)
 
-        await rpc.register("test.sleeper", lambda x: None, auto_delete=True)
+        async def bypass(_: aio_pika.abc.AbstractIncomingMessage):
+            return
+
+        await rpc.register("test.sleeper", bypass, auto_delete=True)
 
         with pytest.raises(RuntimeError):
             await rpc.register(
-                "test.sleeper", lambda x: None, auto_delete=True,
+                "test.sleeper", bypass, auto_delete=True,
             )
 
         await rpc.register("test.one", rpc_func, auto_delete=True)
