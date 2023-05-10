@@ -1,5 +1,6 @@
 import asyncio
 import dataclasses
+import sys
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum, unique
@@ -7,14 +8,13 @@ from functools import singledispatch
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
-    Generator, Iterator, Optional, Type, TypeVar, Union,
+    Generator, Iterator, Optional, Type, TypeVar, Union, overload,
 )
 
-
-try:
-    from typing import TypedDict
-except ImportError:
-    from typing_extensions import TypedDict
+if sys.version_info >= (3, 8):
+    from typing import Literal, TypedDict
+else:
+    from typing_extensions import Literal, TypedDict
 
 import aiormq.abc
 from aiormq.abc import ExceptionType
@@ -324,6 +324,18 @@ class AbstractQueue:
     ) -> aiormq.spec.Basic.CancelOk:
         raise NotImplementedError
 
+    @overload
+    async def get(
+        self, *, no_ack: bool = False,
+        fail: Literal[True] = ..., timeout: TimeoutType = ...,
+    ) -> AbstractIncomingMessage:
+        ...
+    @overload
+    async def get(
+        self, *, no_ack: bool = False,
+        fail: Literal[False] = ..., timeout: TimeoutType = ...,
+    ) -> Optional[AbstractIncomingMessage]:
+        ...
     @abstractmethod
     async def get(
         self, *, no_ack: bool = False,

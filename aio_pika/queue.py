@@ -1,7 +1,8 @@
 import asyncio
+import sys
 from functools import partial
 from types import TracebackType
-from typing import Any, Callable, Optional, Type
+from typing import Any, Callable, Optional, Type, overload
 
 import aiormq
 from aiormq.abc import DeliveredMessage
@@ -16,6 +17,12 @@ from .exchange import ExchangeParamType
 from .log import get_logger
 from .message import IncomingMessage
 from .tools import CallbackCollection, create_task
+
+
+if sys.version_info >= (3, 8):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
 
 
 log = get_logger(__name__)
@@ -256,6 +263,18 @@ class Queue(AbstractQueue):
             consumer_tag=consumer_tag, nowait=nowait, timeout=timeout,
         )
 
+    @overload
+    async def get(
+        self, *, no_ack: bool = False,
+        fail: Literal[True] = ..., timeout: TimeoutType = ...,
+    ) -> IncomingMessage:
+        ...
+    @overload
+    async def get(
+        self, *, no_ack: bool = False,
+        fail: Literal[False] = ..., timeout: TimeoutType = ...,
+    ) -> Optional[IncomingMessage]:
+        ...
     async def get(
         self, *, no_ack: bool = False,
         fail: bool = True, timeout: TimeoutType = 5,
