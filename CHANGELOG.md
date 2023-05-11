@@ -1,3 +1,8 @@
+9.0.7
+-----
+
+* Update aiormq version
+
 9.0.6
 -----
 

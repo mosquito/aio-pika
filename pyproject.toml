@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aio-pika"
-version = "9.0.6"
+version = "9.0.7"
 description = "Wrapper around the aiormq for asyncio and humans"
 authors = ["Dmitry Orlov <me@mosquito.su>"]
 readme = "README.rst"
@@ -37,14 +37,15 @@ packages = [{ include = "aio_pika" }]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-aiormq = "~6.7.1"
+aiormq = "~6.7.5"
 yarl = [{ version = '*'}]
 typing_extensions = [{ version = '*', python = "< 3.8" }]
 # for pkg_resources
 setuptools = [{ version = '*', python = "< 3.8" }]
 
 [tool.poetry.group.dev.dependencies]
-aiomisc = "^16.2"
+aiomisc = "^17.2"
+aiomisc-pytest = "*"
 collective-checkdocs = "^0.2"
 coverage = "^6.5.0"
 coveralls = "^3.3.1"
