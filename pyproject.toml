@@ -45,7 +45,7 @@ setuptools = [{ version = '*', python = "< 3.8" }]
 
 [tool.poetry.group.dev.dependencies]
 aiomisc = "^17.2"
-aiomisc-pytest = "*"
+aiomisc-pytest = "^1.1.1"
 collective-checkdocs = "^0.2"
 coverage = "^6.5.0"
 coveralls = "^3.3.1"
@@ -60,7 +60,6 @@ sphinx = "^5.3.0"
 sphinx-autobuild = "^2021.3.14"
 timeout-decorator = "^0.5.0"
 types-setuptools = "^65.6.0.2"
-aiomisc-pytest = "^1.1.1"
 
 [tool.poetry.group.uvloop.dependencies]
 uvloop = "^0.17.0"
