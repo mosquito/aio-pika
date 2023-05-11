@@ -9,7 +9,7 @@ import aiomisc
 import aiormq.exceptions
 import pytest
 import shortuuid
-from aiomisc_pytest.pytest_plugin import TCPProxy  # type: ignore
+from aiomisc_pytest import TCPProxy  # type: ignore
 from yarl import URL
 
 import aio_pika
