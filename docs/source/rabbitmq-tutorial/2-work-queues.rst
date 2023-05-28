@@ -166,6 +166,13 @@ from the worker, once we're done with a task.
         print(" [x] Done")
         await message.ack()
 
+.. code-block:: python
+
+    # Declaring queue
+        queue = await channel.declare_queue("hello")
+    # Start listening the queue with name 'hello'
+        await queue.consume(on_message)
+
 or using special context processor:
 
 .. literalinclude:: examples/2-work-queues/tasks_worker.py
@@ -208,9 +215,9 @@ Two things are required to make sure that messages aren't lost: we need to mark 
 First, we need to make sure that RabbitMQ will never lose our queue. In order to do so,
 we need to declare it as *durable*:
 
-.. literalinclude:: examples/2-work-queues/tasks_worker.py
-   :language: python
-   :lines: 23-26
+.. code-block:: python
+
+   queue = await channel.declare_queue("hello", durable=True)
 
 
 Although this command is correct by itself, it won't work in our setup.
