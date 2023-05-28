@@ -73,9 +73,12 @@ Our old receive.py script also requires some changes: it needs to fake a second 
 for every dot in the message body. It will pop messages from the queue and perform the task,
 so let's call it *tasks_worker.py*:
 
-.. literalinclude:: examples/2-work-queues/tasks_worker.py
-   :language: python
-   :pyobject: on_message
+.. code-block:: python
+
+    async def on_message(message: IncomingMessage):
+        print(" [x] Received %r" % message.body)
+        await asyncio.sleep(message.body.count(b'.'))
+        print(" [x] Done")
 
 
 Round-robin dispatching
@@ -167,7 +170,7 @@ or using special context processor:
 
 .. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
-   :lines: 8-11
+   :lines: 7-11
 
 
 If context processor will catch an exception, the message will be returned to the queue.
