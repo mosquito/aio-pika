@@ -57,7 +57,7 @@ Preparation
 In the previous part of this tutorial we sent a message containing `"Hello World!"`.
 Now we'll be sending strings that stand for complex tasks. We don't have a real-world
 task, like images to be resized or pdf files to be rendered, so let's fake it by just
-pretending we're busy - by using the time.sleep() function. We'll take the number of dots
+pretending we're busy - by using the `asyncio.sleep()` function. We'll take the number of dots
 in the string as its complexity; every dot will account for one second of "work".
 For example, a fake task described by Hello... will take three seconds.
 
@@ -159,7 +159,7 @@ from the worker, once we're done with a task.
 
     async def on_message(message: IncomingMessage):
         print(" [x] Received %r" % message.body)
-        await asyncio.sleep(message.body.count(b'.'), loop=loop)
+        await asyncio.sleep(message.body.count(b'.'))
         print(" [x] Done")
         await message.ack()
 
@@ -167,7 +167,7 @@ or using special context processor:
 
 .. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
-   :lines: 8-10
+   :lines: 8-11
 
 
 If context processor will catch an exception, the message will be returned to the queue.
@@ -218,7 +218,7 @@ But there is a quick workaround - let's declare a queue with different name, for
 
 .. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
-   :lines: 22-26
+   :lines: 23-27
 
 This queue_declare change needs to be applied to both the producer and consumer code.
 
@@ -272,7 +272,7 @@ acknowledged the previous one. Instead, it will dispatch it to the next worker t
 
 .. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
-   :lines: 17-20
+   :lines: 18-21
 
 
 .. note::
