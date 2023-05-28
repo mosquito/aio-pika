@@ -65,7 +65,7 @@ We will slightly modify the send.py code from our previous example, to allow arb
 messages to be sent from the command line. This program will schedule tasks to our work
 queue, so let's name it *new_task.py*:
 
-.. literalinclude:: examples/2-work-queues/new_task.py
+.. literalinclude:: examples/2-work-queues/new_task_initial.py
    :language: python
    :pyobject: main
 
