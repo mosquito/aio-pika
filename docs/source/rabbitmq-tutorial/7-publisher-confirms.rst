@@ -116,12 +116,14 @@ The broker confirms published messages asynchronously, one just needs to registe
 The `.result()` method will either return a `aiormq.abc.ConfirmationFrameType` for confirmed messages
 or raise an Exception for nack-ed messages (messages that can be considered lost by the broker).
 
-..
-   TODO: Which exceptions can be raised?
-   How to determine which message the callback belongs to?
-   From RabbitMQ Tutorial:
+The callback does not have the `Message` that corresponds to the `ConfirmationFrame` that is returned by `.result()` or
+contained in the `DeliveryError`.
+You can use sequence numbers (delivery tag) to understand which message this callback belongs to or retrieve additional
+information using a `ContextVar`_.
+The `TimeoutError` does not contain a `ConfirmationFrame`, so a `ContextVar` is required to get additional information
+about the message that triggered the timeout.
 
-   Each callback has AMQPMessage $message parameter with returned message, so you don't need to handle sequence numbers (delivery tag) to understand which message this callback belongs to.
+.. _ContextVar: https://docs.python.org/3/library/contextvars.html#contextvars.ContextVar
 
 Summary
 +++++++
