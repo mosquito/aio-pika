@@ -43,6 +43,7 @@ async def main() -> None:
                     channel.default_exchange.publish(
                         Message(msg),
                         routing_key=queue.name,
+                        timeout=5.0,
                     )
                 ).add_done_callback(handle_confirm)
 

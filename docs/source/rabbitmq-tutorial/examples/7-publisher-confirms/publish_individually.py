@@ -22,11 +22,10 @@ async def main() -> None:
         # Sending the messages
         for msg in get_messages_to_publish():
             # Waiting for publisher confirmation with timeout for every message
-            await asyncio.wait_for(
-                channel.default_exchange.publish(
-                    Message(msg),
-                    routing_key=queue.name,
-                ), timeout=5.0,
+            await channel.default_exchange.publish(
+                Message(msg),
+                routing_key=queue.name,
+                timeout=5.0,
             )
         # Done sending messages
         print(" [x] Sent and confirmed multiple messages individually. ")

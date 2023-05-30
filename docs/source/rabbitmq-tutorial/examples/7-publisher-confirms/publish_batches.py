@@ -28,20 +28,15 @@ async def main() -> None:
                 channel.default_exchange.publish(
                     Message(msg),
                     routing_key=queue.name,
-                ),
-            )
-            if len(outstanding_messages) == batchsize:
-                await asyncio.wait_for(
-                    asyncio.gather(*outstanding_messages),
                     timeout=5.0,
                 )
+            )
+            if len(outstanding_messages) == batchsize:
+                await asyncio.gather(*outstanding_messages)
                 outstanding_messages.clear()
 
         if len(outstanding_messages) > 0:
-            await asyncio.wait_for(
-                asyncio.gather(*outstanding_messages),
-                timeout=5.0,
-            )
+            await asyncio.gather(*outstanding_messages)
             outstanding_messages.clear()
         # Done sending messages
 

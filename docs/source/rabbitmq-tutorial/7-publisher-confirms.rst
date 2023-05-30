@@ -68,13 +68,11 @@ waiting synchronously for its confirmation:
    :start-at: # Sending the messages
    :end-before: # Done sending messages
 
-In the previous example we publish a message as usual and wait for its confirmation with the `asyncio.wait_for` method.
-The method returns as soon as the message has been confirmed.
+In the previous example we publish a message as usual and wait for its confirmation with the :code:`await` keyword.
+The :code:`await` returns as soon as the message has been confirmed.
 If the message is not confirmed within the timeout or if it is nack-ed (meaning the broker could not take care of it for
-some reason), the method will throw an exception.
+some reason), the :code:`await` will throw an exception.
 The handling of the exception usually consists in logging an error message and/or retrying to send the message.
-
-If a timeout isn't requied the `await` keyword can be used instead directly as before.
 
 Different client libraries have different ways to synchronously deal with publisher confirms, so make sure to read
 carefully the documentation of the client you are using.
@@ -83,10 +81,6 @@ This technique is very straightforward but also has a major drawback: it **signi
 confirmation of a message blocks the publishing of all subsequent messages.
 This approach is not going to deliver throughput of more than a few hundreds of published messages per second.
 Nevertheless, this can be good enough for some applications.
-
-..
-   TODO: Do we need to specify, that wait_for cancels the awaitables waiting for publisher confirmation when the timeout
-   occurs?
 
 Strategy #2: Publishing Messages in Batches
 +++++++++++++++++++++++++++++++++++++++++++
