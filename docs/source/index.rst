@@ -15,9 +15,9 @@ Welcome to aio-pika's documentation!
     :target: https://coveralls.io/github/mosquito/aio-pika
     :alt: Coveralls
 
-.. image:: https://travis-ci.org/mosquito/aio-pika.svg
-    :target: https://travis-ci.org/mosquito/aio-pika
-    :alt: Travis CI
+.. image:: https://github.com/mosquito/aio-pika/workflows/tests/badge.svg
+    :target: https://github.com/mosquito/aio-pika/actions?query=workflow%3Atests
+    :alt: Github Actions
 
 .. image:: https://img.shields.io/pypi/v/aio-pika.svg
     :target: https://pypi.python.org/pypi/aio-pika/
