@@ -1,3 +1,4 @@
 # ONLY FOR ReadTheDocs
 autodoc
 furo
+poetry<1.4
