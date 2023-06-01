@@ -7,7 +7,7 @@ from aio_pika.pool import Pool, PoolInstance
 
 
 @pytest.mark.parametrize("max_size", [50, 10, 5, 1])
-async def test_simple(max_size, loop):
+async def test_simple(max_size, event_loop):
     counter = 0
 
     async def create_instance():
@@ -16,7 +16,7 @@ async def test_simple(max_size, loop):
         counter += 1
         return counter
 
-    pool: Pool = Pool(create_instance, max_size=max_size, loop=loop)
+    pool: Pool = Pool(create_instance, max_size=max_size, loop=event_loop)
 
     async def getter():
         nonlocal counter, pool
@@ -55,7 +55,7 @@ class TestInstanceBase:
         return request.param
 
     @pytest.fixture
-    def pool(self, max_size, instances, loop):
+    def pool(self, max_size, instances, event_loop):
         async def create_instance():
             nonlocal instances
 
@@ -63,11 +63,11 @@ class TestInstanceBase:
             instances.add(obj)
             return obj
 
-        return Pool(create_instance, max_size=max_size, loop=loop)
+        return Pool(create_instance, max_size=max_size, loop=event_loop)
 
 
 class TestInstance(TestInstanceBase):
-    async def test_close(self, pool, instances, loop, max_size):
+    async def test_close(self, pool, instances, event_loop, max_size):
         async def getter():
             async with pool.acquire():
                 await asyncio.sleep(0.05)
@@ -115,7 +115,7 @@ class TestInstance(TestInstanceBase):
 
 
 class TestCaseNoMaxSize(TestInstance):
-    async def test_simple(self, pool, loop):
+    async def test_simple(self, pool, event_loop):
         call_count = 200
         counter = 0
 

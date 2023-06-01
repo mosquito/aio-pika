@@ -4,7 +4,6 @@ from types import TracebackType
 from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
 
 import aiormq.abc
-from aiormq.tools import censor_url
 from pamqp.common import FieldTable
 from yarl import URL
 
@@ -13,6 +12,7 @@ from .abc import (
     UnderlayConnection,
 )
 from .channel import Channel
+from .exceptions import ConnectionClosed
 from .log import get_logger
 from .tools import CallbackCollection
 
@@ -34,7 +34,7 @@ class Connection(AbstractConnection):
         return self._closed
 
     async def close(
-        self, exc: Optional[aiormq.abc.ExceptionType] = asyncio.CancelledError,
+        self, exc: Optional[aiormq.abc.ExceptionType] = ConnectionClosed,
     ) -> None:
         transport, self.transport = self.transport, None
         self._close_called = True
@@ -69,7 +69,10 @@ class Connection(AbstractConnection):
         self.connected: asyncio.Event = asyncio.Event()
 
     def __str__(self) -> str:
-        return str(censor_url(self.url))
+        url = self.url
+        if url.password:
+            url = url.with_password("******")
+        return str(url)
 
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}: "{self}">'
@@ -82,7 +85,7 @@ class Connection(AbstractConnection):
         self.connected.clear()
         await self.close_callbacks(exc)
 
-    async def _on_connected(self, transport: UnderlayConnection) -> None:
+    async def _on_connected(self) -> None:
         self.connected.set()
 
     async def connect(self, timeout: TimeoutType = None) -> None:
@@ -94,12 +97,11 @@ class Connection(AbstractConnection):
             You shouldn't call it explicitly.
 
         """
-        transport = await UnderlayConnection.connect(
+        self.transport = await UnderlayConnection.connect(
             self.url, self._on_connection_close,
             timeout=timeout, **self.kwargs,
         )
-        await self._on_connected(transport)
-        self.transport = transport
+        await self._on_connected()
 
     def channel(
         self,
@@ -166,7 +168,7 @@ class Connection(AbstractConnection):
         log.debug("Creating AMQP channel for connection: %r", self)
 
         channel = self.CHANNEL_CLASS(
-            connection=self.transport.connection,
+            connection=self,
             channel_number=channel_number,
             publisher_confirms=publisher_confirms,
             on_return_raises=on_return_raises,

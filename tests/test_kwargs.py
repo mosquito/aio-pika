@@ -47,7 +47,7 @@ class TestCase:
 
     async def get_instance(self, url, **kwargs):
         return await connect(
-            url, connection_class=self.CONNECTION_CLASS, **kwargs
+            url, connection_class=self.CONNECTION_CLASS, **kwargs,
         )
 
     async def test_kwargs(self):
@@ -62,13 +62,13 @@ class TestCase:
             positives = VALUE_GENERATORS[parser]  # type: ignore
             for example, expected in positives.items():  # type: ignore
                 instance = await self.get_instance(
-                    f"amqp://localhost/?{key}={example}"
+                    f"amqp://localhost/?{key}={example}",
                 )
                 assert hasattr(instance, key)
                 assert getattr(instance, key) == expected
 
                 instance = await self.get_instance(
-                    "amqp://localhost", **{key: example}
+                    "amqp://localhost", **{key: example},
                 )
                 assert hasattr(instance, key)
                 assert getattr(instance, key) == expected

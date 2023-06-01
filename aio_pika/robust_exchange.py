@@ -1,11 +1,13 @@
 import asyncio
+import warnings
 from typing import Any, Dict, Union
 
 import aiormq
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractExchange, AbstractRobustExchange, ExchangeParamType, TimeoutType,
+    AbstractChannel, AbstractExchange, AbstractRobustExchange,
+    ExchangeParamType, TimeoutType,
 )
 from .exchange import Exchange, ExchangeType
 from .log import get_logger
@@ -21,7 +23,7 @@ class RobustExchange(Exchange, AbstractRobustExchange):
 
     def __init__(
         self,
-        channel: aiormq.abc.AbstractChannel,
+        channel: AbstractChannel,
         name: str,
         type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         *,
@@ -45,11 +47,15 @@ class RobustExchange(Exchange, AbstractRobustExchange):
         self._bindings = {}
         self.__restore_lock = asyncio.Lock()
 
-    async def restore(self, channel: aiormq.abc.AbstractChannel) -> None:
+    async def restore(self, channel: Any = None) -> None:
+        if channel is not None:
+            warnings.warn(
+                "Channel argument will be ignored because you "
+                "don't need to pass this anymore.",
+                DeprecationWarning,
+            )
         async with self.__restore_lock:
             try:
-                self.channel = channel
-
                 # special case for default exchange
                 if self.name == "":
                     return
@@ -59,7 +65,6 @@ class RobustExchange(Exchange, AbstractRobustExchange):
                 for exchange, kwargs in tuple(self._bindings.items()):
                     await self.bind(exchange, **kwargs)
             except Exception:
-                del self.channel
                 raise
 
     async def bind(

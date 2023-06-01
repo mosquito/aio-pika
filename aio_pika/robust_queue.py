@@ -1,13 +1,14 @@
+import warnings
 from random import Random
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Awaitable, Callable, Dict, Optional, Tuple, Union
 
 import aiormq
 from aiormq import ChannelInvalidStateError
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractExchange, AbstractIncomingMessage, AbstractQueueIterator,
-    AbstractRobustQueue, ConsumerTag, TimeoutType,
+    AbstractChannel, AbstractExchange, AbstractIncomingMessage,
+    AbstractQueueIterator, AbstractRobustQueue, ConsumerTag, TimeoutType,
 )
 from .exchange import ExchangeParamType
 from .log import get_logger
@@ -32,7 +33,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
 
     def __init__(
         self,
-        channel: aiormq.abc.AbstractChannel,
+        channel: AbstractChannel,
         name: Optional[str],
         durable: bool = False,
         exclusive: bool = False,
@@ -54,8 +55,14 @@ class RobustQueue(Queue, AbstractRobustQueue):
         self._consumers = {}
         self._bindings = {}
 
-    async def restore(self, channel: aiormq.abc.AbstractChannel) -> None:
-        self.channel = channel
+    async def restore(self, channel: Any = None) -> None:
+        if channel is not None:
+            warnings.warn(
+                "Channel argument will be ignored because you "
+                "don't need to pass this anymore.",
+                DeprecationWarning,
+            )
+
         await self.declare()
         bindings = tuple(self._bindings.items())
         consumers = tuple(self._consumers.items())
@@ -109,7 +116,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
 
     async def consume(
         self,
-        callback: Callable[[AbstractIncomingMessage], Any],
+        callback: Callable[[AbstractIncomingMessage], Awaitable[Any]],
         no_ack: bool = False,
         exclusive: bool = False,
         arguments: Arguments = None,
@@ -156,7 +163,7 @@ class RobustQueueIterator(QueueIterator):
             try:
                 return await super().consume()
             except ChannelInvalidStateError:
-                await self._amqp_queue.channel.connection.ready()
+                await self._amqp_queue.channel.get_underlay_channel()
 
 
 __all__ = ("RobustQueue",)

@@ -15,7 +15,7 @@ from .abc import (
     AbstractMessage, AbstractProcessContext, DateType, DeliveryMode,
     HeadersType, MessageInfo, NoneType,
 )
-from .exceptions import MessageProcessError
+from .exceptions import ChannelInvalidStateError, MessageProcessError
 from .log import get_logger
 
 
@@ -410,6 +410,8 @@ class IncomingMessage(Message, AbstractIncomingMessage):
 
     @property
     def channel(self) -> aiormq.abc.AbstractChannel:
+        if self.__channel.is_closed:
+            raise ChannelInvalidStateError
         return self.__channel
 
     def process(
@@ -471,7 +473,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             raise MessageProcessError("Message already processed", self)
 
         if self.delivery_tag is not None:
-            await self.__channel.basic_ack(
+            await self.channel.basic_ack(
                 delivery_tag=self.delivery_tag, multiple=multiple,
             )
 
@@ -482,7 +484,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
 
     async def reject(self, requeue: bool = False) -> None:
         """ When `requeue=True` the message will be returned to queue.
-        Otherwise message will be dropped.
+        Otherwise, message will be dropped.
 
         .. note::
             This method looks like a blocking-method, but actually it just
@@ -498,7 +500,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             raise MessageProcessError("Message already processed", self)
 
         if self.delivery_tag is not None:
-            await self.__channel.basic_reject(
+            await self.channel.basic_reject(
                 delivery_tag=self.delivery_tag,
                 requeue=requeue,
             )
@@ -521,7 +523,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             raise MessageProcessError("Message already processed", self)
 
         if self.delivery_tag is not None:
-            await self.__channel.basic_nack(
+            await self.channel.basic_nack(
                 delivery_tag=self.delivery_tag,
                 multiple=multiple,
                 requeue=requeue,

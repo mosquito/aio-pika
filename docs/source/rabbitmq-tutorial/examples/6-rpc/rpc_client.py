@@ -28,7 +28,7 @@ class FibonacciRpcClient:
 
         return self
 
-    def on_response(self, message: AbstractIncomingMessage) -> None:
+    async def on_response(self, message: AbstractIncomingMessage) -> None:
         if message.correlation_id is None:
             print(f"Bad message {message!r}")
             return

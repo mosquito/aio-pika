@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import warnings
+from functools import partial
 
 import pytest
 
@@ -12,7 +14,7 @@ from aio_pika.patterns.rpc import log as rpc_logger
 from tests import get_random_name
 
 
-def rpc_func(*, foo, bar):
+async def rpc_func(*, foo, bar):
     assert not foo
     assert not bar
 
@@ -137,7 +139,9 @@ class TestCase:
 
         await rpc.close()
 
-    async def test_close_cancelling(self, channel: aio_pika.Channel, loop):
+    async def test_close_cancelling(
+        self, channel: aio_pika.Channel, event_loop,
+    ):
         rpc = await RPC.create(channel, auto_delete=True)
 
         async def sleeper():
@@ -150,7 +154,7 @@ class TestCase:
         tasks = set()
 
         for _ in range(10):
-            tasks.add(loop.create_task(rpc.call(method_name)))
+            tasks.add(event_loop.create_task(rpc.call(method_name)))
 
         await rpc.close()
 
@@ -162,11 +166,14 @@ class TestCase:
     async def test_register_twice(self, channel: aio_pika.Channel):
         rpc = await RPC.create(channel, auto_delete=True)
 
-        await rpc.register("test.sleeper", lambda x: None, auto_delete=True)
+        async def bypass(_: aio_pika.abc.AbstractIncomingMessage):
+            return
+
+        await rpc.register("test.sleeper", bypass, auto_delete=True)
 
         with pytest.raises(RuntimeError):
             await rpc.register(
-                "test.sleeper", lambda x: None, auto_delete=True,
+                "test.sleeper", bypass, auto_delete=True,
             )
 
         await rpc.register("test.one", rpc_func, auto_delete=True)
@@ -178,3 +185,39 @@ class TestCase:
         await rpc.unregister(rpc_func)
 
         await rpc.close()
+
+    async def test_register_non_coroutine(self, channel: aio_pika.Channel):
+        rpc = await RPC.create(channel, auto_delete=True)
+
+        def bypass(_):
+            return
+
+        with pytest.deprecated_call():
+            await rpc.register(
+                "test.non-coroutine",
+                bypass,         # type: ignore
+                auto_delete=True,
+            )
+
+        async def coro(_):
+            return
+
+        with pytest.warns(UserWarning) as record:
+            warnings.warn("Test", UserWarning)
+            await rpc.register(
+                "test.coroutine",
+                coro,  # type: ignore
+                auto_delete=True,
+            )
+
+        assert len(record) == 1
+
+        with pytest.warns() as record:
+            warnings.warn("Test", UserWarning)
+            await rpc.register(
+                "test.coroutine_partial",
+                partial(partial(coro)),  # type: ignore
+                auto_delete=True,
+            )
+
+        assert len(record) == 1

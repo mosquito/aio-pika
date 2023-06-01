@@ -10,7 +10,6 @@ from yarl import URL
 
 from .abc import (
     AbstractRobustChannel, AbstractRobustConnection, SSLOptions, TimeoutType,
-    UnderlayConnection,
 )
 from .connection import Connection, make_url
 from .exceptions import CONNECTION_EXCEPTIONS
@@ -81,11 +80,17 @@ class RobustConnection(Connection, AbstractRobustConnection):
 
         self.__connection_close_event.set()
 
-    async def _on_connected(self, transport: UnderlayConnection) -> None:
+    async def _on_connected(self) -> None:
+        await super()._on_connected()
+
+        transport = self.transport
+        if transport is None:
+            raise RuntimeError("No active transport for connection %r", self)
+
         try:
             for channel in self.__channels:
                 try:
-                    await channel.restore(transport.connection)
+                    await channel.restore()
                 except Exception:
                     log.exception("Failed to reopen channel")
                     raise
@@ -98,11 +103,10 @@ class RobustConnection(Connection, AbstractRobustConnection):
             closing.set_exception(e)
             await self.close_callbacks(closing)
             await asyncio.gather(
-                transport.connection.close(e), return_exceptions=True,
+                transport.connection.close(e),
+                return_exceptions=True,
             )
             raise
-
-        await super()._on_connected(transport)
 
         if self.connection_attempt:
             await self.reconnect_callbacks()
@@ -205,6 +209,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
                 self.__reconnection_task, return_exceptions=True,
             )
             self.__reconnection_task = None
+
         return await super().close(exc)
 
 
@@ -320,7 +325,7 @@ async def connect_robust(
             client_properties=client_properties,
             **kwargs,
         ),
-        loop=loop, ssl_context=ssl_context, **kwargs
+        loop=loop, ssl_context=ssl_context, **kwargs,
     )
 
     await connection.connect(timeout=timeout)

@@ -11,6 +11,7 @@ from typing import (
     Generator, Iterator, Optional, Type, TypeVar, Union, overload,
 )
 
+
 if sys.version_info >= (3, 8):
     from typing import Literal, TypedDict
 else:
@@ -80,11 +81,6 @@ class DeclarationResult:
 
 class AbstractTransaction:
     state: TransactionState
-
-    @property
-    @abstractmethod
-    def channel(self) -> "AbstractChannel":
-        raise NotImplementedError
 
     @abstractmethod
     async def select(
@@ -244,7 +240,7 @@ class AbstractProcessContext(AsyncContextManager):
 
 
 class AbstractQueue:
-    channel: aiormq.abc.AbstractChannel
+    channel: "AbstractChannel"
     name: str
     durable: bool
     exclusive: bool
@@ -307,7 +303,7 @@ class AbstractQueue:
     @abstractmethod
     async def consume(
         self,
-        callback: Callable[[AbstractIncomingMessage], Any],
+        callback: Callable[[AbstractIncomingMessage], Awaitable[Any]],
         no_ack: bool = False,
         exclusive: bool = False,
         arguments: Arguments = None,
@@ -409,7 +405,7 @@ class AbstractExchange(ABC):
     @abstractmethod
     def __init__(
         self,
-        channel: aiormq.abc.AbstractChannel,
+        channel: "AbstractChannel",
         name: str,
         type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         *,
@@ -528,9 +524,8 @@ class AbstractChannel(PoolInstance, ABC):
     def close(self, exc: Optional[ExceptionType] = None) -> Awaitable[None]:
         raise NotImplementedError
 
-    @property
     @abstractmethod
-    def channel(self) -> aiormq.abc.AbstractChannel:
+    async def get_underlay_channel(self) -> aiormq.abc.AbstractChannel:
         raise NotImplementedError
 
     @property
@@ -760,7 +755,7 @@ class AbstractConnection(PoolInstance, ABC):
 
 class AbstractRobustQueue(AbstractQueue):
     @abstractmethod
-    def restore(self, channel: aiormq.abc.AbstractChannel) -> Awaitable[None]:
+    def restore(self) -> Awaitable[None]:
         raise NotImplementedError
 
     @abstractmethod
@@ -791,7 +786,7 @@ class AbstractRobustQueue(AbstractQueue):
 
 class AbstractRobustExchange(AbstractExchange):
     @abstractmethod
-    def restore(self, channel: aiormq.abc.AbstractChannel) -> Awaitable[None]:
+    def restore(self) -> Awaitable[None]:
         raise NotImplementedError
 
     @abstractmethod
@@ -815,7 +810,7 @@ class AbstractRobustChannel(AbstractChannel):
         raise NotImplementedError
 
     @abstractmethod
-    async def restore(self, connection: aiormq.abc.AbstractConnection) -> None:
+    async def restore(self) -> None:
         raise NotImplementedError
 
     @abstractmethod
