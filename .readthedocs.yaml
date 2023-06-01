@@ -7,7 +7,7 @@ build:
 
   jobs:
     post_install:
-      - pip install 'poetry<1.4'
+      - 'pip install "poetry<1.4"'
       - poetry config virtualenvs.create false
       - poetry install
       - pip install -Ur docs/requirements.txt
