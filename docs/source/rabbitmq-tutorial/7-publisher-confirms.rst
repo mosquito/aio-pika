@@ -72,6 +72,8 @@ In the previous example we publish a message as usual and wait for its confirmat
 The :code:`await` returns as soon as the message has been confirmed.
 If the message is not confirmed within the timeout or if it is nack-ed (meaning the broker could not take care of it for
 some reason), the :code:`await` will throw an exception.
+The :code:`on_return_raises` parameter of :code:`aio_pika.connect()` and :code:`connection.channel()` controls this behaivior for if a mandatory
+message is returned.
 The handling of the exception usually consists in logging an error message and/or retrying to send the message.
 
 Different client libraries have different ways to synchronously deal with publisher confirms, so make sure to read
