@@ -117,28 +117,22 @@ And this solution is still synchronous, so it blocks the publishing of messages.
 Strategy #3: Handling Publisher Confirms Asynchronously
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-The broker confirms published messages asynchronously, one just needs to register a callback on the client to be notified of these confirms:
-
-.. literalinclude:: examples/7-publisher-confirms/publish_asynchronously.py
-   :language: python
-   :pyobject: handle_confirm
+The broker confirms published messages asynchronously, our helper function will publish the messages and be notified of these confirms:
 
 .. literalinclude:: examples/7-publisher-confirms/publish_asynchronously.py
    :language: python
    :start-at: with asyncio.TaskGroup
-   :end-at: add_done_callback
+   :end-at: asyncio.sleep(0)
 
-The `.result()` method will either return a `aiormq.abc.ConfirmationFrameType` for confirmed messages
-or raise an Exception for nack-ed messages (messages that can be considered lost by the broker).
+The :code:`TaskGroup` is required to ensure that all tasks are awaited properly.
 
-The callback does not have the `Message` that corresponds to the `ConfirmationFrame` that is returned by `.result()` or
-contained in the `DeliveryError`.
-You can use sequence numbers (delivery tag) to understand which message this callback belongs to or retrieve additional
-information using a `ContextVar`_.
-The `TimeoutError` does not contain a `ConfirmationFrame`, so a `ContextVar` is required to get additional information
-about the message that triggered the timeout.
+The helper function publishes the message and awaits the confirmation.
+This way the helper function knows which message the confirmation, timeout or rejection belongs to.
 
-.. _ContextVar: https://docs.python.org/3/library/contextvars.html#contextvars.ContextVar
+.. literalinclude:: examples/7-publisher-confirms/publish_asynchronously.py
+   :language: python
+   :pyobject: publish_and_handle_confirm
+
 
 Summary
 +++++++

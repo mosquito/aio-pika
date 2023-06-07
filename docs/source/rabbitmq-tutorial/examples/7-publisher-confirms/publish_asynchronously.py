@@ -1,8 +1,8 @@
 import asyncio
 
 from aio_pika import Message, connect
-
 from aiormq.exceptions import DeliveryError
+from pamqp.commands import Basic
 
 
 def get_messages_to_publish():
@@ -10,19 +10,20 @@ def get_messages_to_publish():
         yield f"Hello World {i}!".encode()
 
 
-def handle_confirm(confirmation):
+async def publish_and_handle_confirm(exchange, queue_name, message_body):
     try:
-        _ = confirmation.result()
-        # code when message is ack-ed
-    except DeliveryError:
-        # code when message is nack-ed
-        pass
+        confirmation = await exchange.publish(
+            Message(message_body),
+            routing_key=queue_name,
+            timeout=5.0,
+        )
+    except DeliveryError as e:
+        print(f"Delivery of {message_body!r} failed with exception: {e}")
     except TimeoutError:
-        # code for message timeout
-        pass
+        print(f"Timeout occured for {message_body!r}")
     else:
-        # code when message is confirmed
-        pass
+        if not isinstance(confirmation, Basic.Ack):
+            print(f"Message {message_body!r} was not acknowledged by broker!")
 
 
 async def main() -> None:
@@ -40,12 +41,15 @@ async def main() -> None:
             # Sending the messages
             for msg in get_messages_to_publish():
                 tg.create_task(
-                    channel.default_exchange.publish(
-                        Message(msg),
-                        routing_key=queue.name,
-                        timeout=5.0,
+                    publish_and_handle_confirm(
+                        channel.default_exchange,
+                        queue.name,
+                        msg,
                     )
-                ).add_done_callback(handle_confirm)
+                )
+                # Yield control flow to event loop,
+                # so message sending is initiated:
+                await asyncio.sleep(0)
 
         print(" [x] Sent and confirmed multiple messages asynchronously. ")
 
