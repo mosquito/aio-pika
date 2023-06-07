@@ -25,12 +25,17 @@ async def main() -> None:
         # Sending the messages
         for msg in get_messages_to_publish():
             outstanding_messages.append(
-                channel.default_exchange.publish(
-                    Message(msg),
-                    routing_key=queue.name,
-                    timeout=5.0,
+                asyncio.create_task(
+                    channel.default_exchange.publish(
+                        Message(msg),
+                        routing_key=queue.name,
+                        timeout=5.0,
+                    )
                 )
             )
+            # Yield control flow to event loop, so message sending is initiated:
+            await asyncio.sleep(0)
+
             if len(outstanding_messages) == batchsize:
                 await asyncio.gather(*outstanding_messages)
                 outstanding_messages.clear()

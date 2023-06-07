@@ -101,6 +101,19 @@ One drawback is that we do not know exactly what went wrong in case of failure, 
 to log something meaningful or to re-publish the messages.
 And this solution is still synchronous, so it blocks the publishing of messages.
 
+.. note::
+
+   To initiate message sending asynchronously, a task is created with :code:`asyncio.create_task`, so the execution of our function
+   is handled by the event-loop.
+   The :code:`await asyncio.sleep(0)` is required to make the event loop switch to our coroutine.
+   Any :code:`await` would have sufficed, though.
+   Using :code:`async for` with an :code:`async` generator also requires the generator to yield control flow with :code:`await` for message
+   sending to be initiated.
+
+   Without the task and the :code:`await` the message sending would only be initiated with the :code:`asyncio.gather` call.
+   For some applications this behaivior might be acceptable.
+
+
 Strategy #3: Handling Publisher Confirms Asynchronously
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
