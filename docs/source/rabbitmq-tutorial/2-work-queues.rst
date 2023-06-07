@@ -57,7 +57,7 @@ Preparation
 In the previous part of this tutorial we sent a message containing `"Hello World!"`.
 Now we'll be sending strings that stand for complex tasks. We don't have a real-world
 task, like images to be resized or pdf files to be rendered, so let's fake it by just
-pretending we're busy - by using the time.sleep() function. We'll take the number of dots
+pretending we're busy - by using the `asyncio.sleep()` function. We'll take the number of dots
 in the string as its complexity; every dot will account for one second of "work".
 For example, a fake task described by Hello... will take three seconds.
 
@@ -65,7 +65,7 @@ We will slightly modify the send.py code from our previous example, to allow arb
 messages to be sent from the command line. This program will schedule tasks to our work
 queue, so let's name it *new_task.py*:
 
-.. literalinclude:: examples/2-work-queues/new_task.py
+.. literalinclude:: examples/2-work-queues/new_task_initial.py
    :language: python
    :pyobject: main
 
@@ -73,9 +73,12 @@ Our old receive.py script also requires some changes: it needs to fake a second 
 for every dot in the message body. It will pop messages from the queue and perform the task,
 so let's call it *tasks_worker.py*:
 
-.. literalinclude:: examples/2-work-queues/tasks_worker.py
-   :language: python
-   :pyobject: on_message
+.. code-block:: python
+
+    async def on_message(message: IncomingMessage):
+        print(" [x] Received %r" % message.body)
+        await asyncio.sleep(message.body.count(b'.'))
+        print(" [x] Done")
 
 
 Round-robin dispatching
@@ -159,15 +162,22 @@ from the worker, once we're done with a task.
 
     async def on_message(message: IncomingMessage):
         print(" [x] Received %r" % message.body)
-        await asyncio.sleep(message.body.count(b'.'), loop=loop)
+        await asyncio.sleep(message.body.count(b'.'))
         print(" [x] Done")
         await message.ack()
+
+.. code-block:: python
+
+    # Declaring queue
+        queue = await channel.declare_queue("hello")
+    # Start listening the queue with name 'hello'
+        await queue.consume(on_message)
 
 or using special context processor:
 
 .. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
-   :lines: 8-10
+   :lines: 7-11
 
 
 If context processor will catch an exception, the message will be returned to the queue.
@@ -205,9 +215,9 @@ Two things are required to make sure that messages aren't lost: we need to mark 
 First, we need to make sure that RabbitMQ will never lose our queue. In order to do so,
 we need to declare it as *durable*:
 
-.. literalinclude:: examples/2-work-queues/tasks_worker.py
-   :language: python
-   :lines: 23-26
+.. code-block:: python
+
+   queue = await channel.declare_queue("hello", durable=True)
 
 
 Although this command is correct by itself, it won't work in our setup.
@@ -218,7 +228,7 @@ But there is a quick workaround - let's declare a queue with different name, for
 
 .. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
-   :lines: 22-26
+   :lines: 23-27
 
 This queue_declare change needs to be applied to both the producer and consumer code.
 
@@ -272,7 +282,7 @@ acknowledged the previous one. Instead, it will dispatch it to the next worker t
 
 .. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
-   :lines: 17-20
+   :lines: 18-21
 
 
 .. note::
