@@ -1,3 +1,20 @@
+9.1.3
+-----
+
+* Ported publisher confirms tutorial by @MaPePeR #550
+* Fixed errored response when `aio_pika.patterns.RPC`
+  can not serialize the result #552
+
+9.1.2
+-----
+
+* Fix badges in docs
+
+9.1.1
+-----
+
+* Fix readthedocs build file
+
 9.1.0
 -----
 
