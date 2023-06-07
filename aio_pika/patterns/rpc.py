@@ -274,12 +274,22 @@ class RPC(Base):
             await message.ack()
             return
 
-        result_message = await self.serialize_message(
-            payload=result,
-            message_type=message_type,
-            correlation_id=message.correlation_id,
-            delivery_mode=message.delivery_mode,
-        )
+        try:
+            result_message = await self.serialize_message(
+                payload=result,
+                message_type=message_type,
+                correlation_id=message.correlation_id,
+                delivery_mode=message.delivery_mode,
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            result_message = await self.serialize_message(
+                payload=e,
+                message_type=RPCMessageType.ERROR,
+                correlation_id=message.correlation_id,
+                delivery_mode=message.delivery_mode,
+            )
 
         try:
             await self.channel.default_exchange.publish(
