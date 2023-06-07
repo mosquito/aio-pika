@@ -221,3 +221,20 @@ class TestCase:
             )
 
         assert len(record) == 1
+
+    async def test_non_serializable_result(self, channel: aio_pika.Channel):
+        rpc = await RPC.create(channel, auto_delete=True)
+
+        async def bad_func():
+            async def inner():
+                await asyncio.sleep(0)
+            return inner()
+
+        await rpc.register(
+            "test.not-serializable",
+            bad_func,
+            auto_delete=True,
+        )
+
+        with pytest.raises(TypeError):
+            await rpc.call("test.not-serializable")
