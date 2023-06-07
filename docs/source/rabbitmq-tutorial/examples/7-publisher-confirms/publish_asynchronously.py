@@ -37,19 +37,23 @@ async def main() -> None:
         # Declaring queue
         queue = await channel.declare_queue("hello")
 
-        async with asyncio.TaskGroup() as tg:
-            # Sending the messages
-            for msg in get_messages_to_publish():
-                tg.create_task(
-                    publish_and_handle_confirm(
-                        channel.default_exchange,
-                        queue.name,
-                        msg,
-                    )
+        # List for storing tasks
+        tasks = []
+        # Sending the messages
+        for msg in get_messages_to_publish():
+            task = asyncio.create_task(
+                publish_and_handle_confirm(
+                    channel.default_exchange,
+                    queue.name,
+                    msg,
                 )
-                # Yield control flow to event loop,
-                # so message sending is initiated:
-                await asyncio.sleep(0)
+            )
+            tasks.append(task)
+            # Yield control flow to event loop, so message sending is initiated:
+            await asyncio.sleep(0)
+
+        # Await all tasks
+        await asyncio.gather(*tasks)
 
         print(" [x] Sent and confirmed multiple messages asynchronously. ")
 

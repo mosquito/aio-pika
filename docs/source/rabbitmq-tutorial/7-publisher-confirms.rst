@@ -121,10 +121,10 @@ The broker confirms published messages asynchronously, our helper function will 
 
 .. literalinclude:: examples/7-publisher-confirms/publish_asynchronously.py
    :language: python
-   :start-at: with asyncio.TaskGroup
-   :end-at: asyncio.sleep(0)
+   :start-at: # List for storing tasks
+   :end-at: await asyncio.gather(*tasks)
 
-The :code:`TaskGroup` is required to ensure that all tasks are awaited properly.
+In Python 3.11 a :code:`TaskGroup` can be used instead of the :code:`list` with :code:`asyncio.gather`.
 
 The helper function publishes the message and awaits the confirmation.
 This way the helper function knows which message the confirmation, timeout or rejection belongs to.
