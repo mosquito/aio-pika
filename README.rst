@@ -55,10 +55,10 @@ Features
 * Transparent auto-reconnects with complete state recovery with `connect_robust`
   (e.g. declared queues or exchanges, consuming state and bindings).
 * Python 3.7+ compatible.
-* For python 3.5 users available `aio-pika<7`
-* Transparent `publisher confirms`_ support
-* `Transactions`_ support
-* Completely type-hints coverage.
+* For python 3.5 users, aio-pika is available via `aio-pika<7`.
+* Transparent `publisher confirms`_ support.
+* `Transactions`_ support.
+* Complete type-hints coverage.
 
 
 .. _Transactions: https://www.rabbitmq.com/semantics.html
@@ -250,11 +250,11 @@ _____________
 
 **NOTE: In order to run the tests locally you need to run a RabbitMQ instance with default user/password (guest/guest) and port (5672).**
 
-* ProTip: Use Docker for this:
+The Makefile provides a command to run an appropriate RabbitMQ Docker image:
 
 .. code-block:: bash
 
-    docker run -d -p 5671:5671 -p 5672:5672 -p 15671:15671 -p 15672:15672 mosquito/aiormq-rabbitmq
+    make rabbitmq
 
 To test just run:
 
