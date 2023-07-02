@@ -189,6 +189,20 @@ Thanks for contributing
 .. _@dizballanze: https://github.com/dizballanze
 
 
+See also
+==========
+
+`Propan`_ :fire:
+------
+
+**Propan** is a powerful and easy-to-use Python framework for building event-driven applications that interact with any MQ Broker.
+
+**Propan** provides you with the ability to use high-level interfaces to declare handlers, validate messages by **pydantic**, generate your project **AsyncAPI** spec, test it locally, and more.
+
+In fact, it is a high-level wrapper on top of **aio-pika**, so you can use both of these libraries' advantages at the same time.
+
+**Propan** RabbiMQ hello-world example:
+
 Versioning
 ==========
 
