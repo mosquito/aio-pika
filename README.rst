@@ -214,27 +214,27 @@ There are more examples and the RabbitMQ tutorial in the `documentation`_.
 See also
 ==========
 
-`Propan`_ :fire:
+`Propan`_:fire:
 ------
 
 **Propan** is a powerful and easy-to-use Python framework for building event-driven applications that interact with any MQ Broker.
 
-**Propan** provides you with the ability to use high-level interfaces to declare handlers, validate messages by **pydantic**, generate your project **AsyncAPI** spec, test it locally, and more.
-
-In fact, it is a high-level wrapper on top of **aio-pika**, so you can use both of these libraries' advantages at the same time.
-
-**Propan** RabbiMQ hello-world example:
+If you need no deep dive into **RabbitMQ** details, you can use more high-level **Propan** interfaces:
 
 .. code-block:: python
 
-   from propan import PropanApp, RabbitBroker
+   from propane import Propaneapp, Rabbit Broker
    
    broker = RabbitBroker("amqp://guest:guest@localhost:5672/")
-   app = PropanApp(broker)
+   app = Propane app(broker)
    
    @broker.handle("user")
    async def user_created(user_id: int):
        assert isinstance(user_id, int)
+
+Also, **Propan** validates messages by **pydantic**, generates your project **AsyncAPI** spec, tests application locally, and more.
+
+In fact, it is a high-level wrapper on top of **aio-pika**, so you can use both of these libraries' advantages at the same time.
 
 Versioning
 ==========
