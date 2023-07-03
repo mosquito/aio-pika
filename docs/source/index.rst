@@ -201,7 +201,7 @@ If you need no deep dive into **RabbitMQ** details, you can use more high-level 
 
 .. code-block:: python
 
-   from propane import Propaneapp, Rabbit Broker
+   from propane import Propaneapp, RabbitBroker
    
    broker = RabbitBroker("amqp://guest:guest@localhost:5672/")
    app = Propane app(broker)
