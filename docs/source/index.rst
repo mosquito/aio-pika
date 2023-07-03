@@ -248,3 +248,5 @@ This software follows `Semantic Versioning`_
 
 .. _Semantic Versioning: http://semver.org/
 .. _propan: https://github.com/Lancetnik/Propan
+.. _patio: https://github.com/patio-python/patio
+.. _patio-rmq: https://github.com/patio-python/patio-rabbitmq
