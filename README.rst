@@ -214,8 +214,34 @@ There are more examples and the RabbitMQ tutorial in the `documentation`_.
 See also
 ==========
 
+`Patio`_ and `Patio-RMQ`_
+-------------------------
+
+**PATIO** is an acronym for Python Asynchronous Tasks for AsyncIO - an easily extensible library, for distributed task execution, like celery, only targeting asyncio as the main design approach.
+
+**Patio-RMQ** provides you with the ability to use *RPC over RabbitMQ* services with extremely simple implementation:
+
+.. code-block:: python
+
+   from patio import Registry, ThreadPoolExecutor
+   from patio_rabbitmq import RabbitMQBroker
+
+   rpc = Registry(project="patio-rabbitmq", auto_naming=False)
+   
+   @rpc("sum")
+   def sum(*args):
+       return sum(args)
+
+   async def main():
+       async with ThreadPoolExecutor(rpc, max_workers=16) as executor:
+           async with RabbitMQBroker(
+               executor, amqp_url="amqp://guest:guest@localhost/",
+           ) as broker:
+               await broker.join()
+
+
 `Propan`_:fire:
-------
+---------------
 
 **Propan** is a powerful and easy-to-use Python framework for building event-driven applications that interact with any MQ Broker.
 
@@ -232,7 +258,7 @@ If you need no deep dive into **RabbitMQ** details, you can use more high-level 
    async def user_created(user_id: int):
        assert isinstance(user_id, int)
 
-Also, **Propan** validates messages by **pydantic**, generates your project **AsyncAPI** spec, tests application locally, and more.
+Also, **Propan** validates messages by **pydantic**, generates your project **AsyncAPI** spec, tests application locally, RPC calls, and more.
 
 In fact, it is a high-level wrapper on top of **aio-pika**, so you can use both of these libraries' advantages at the same time.
 
@@ -314,3 +340,5 @@ Changes should follow a few simple rules:
 .. _Semantic Versioning: http://semver.org/
 .. _aio-pika: https://github.com/mosquito/aio-pika/
 .. _propan: https://github.com/Lancetnik/Propan
+.. _patio: https://github.com/patio-python/patio
+.. _patio-rmq: https://github.com/patio-python/patio-rabbitmq
