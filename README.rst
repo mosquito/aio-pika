@@ -314,3 +314,5 @@ Changes should follow a few simple rules:
 .. _Semantic Versioning: http://semver.org/
 .. _aio-pika: https://github.com/mosquito/aio-pika/
 .. _propan: https://github.com/Lancetnik/Propan
+.. _patio: https://github.com/patio-python/patio
+.. _patio-rmq: https://github.com/patio-python/patio-rabbitmq
