@@ -1,3 +1,4 @@
+import uuid
 import warnings
 from random import Random
 from typing import Any, Awaitable, Callable, Dict, Optional, Tuple, Union
@@ -28,8 +29,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
 
     @classmethod
     def _get_random_queue_name(cls) -> str:
-        rnd = cls._rnd_gen.getrandbits(128)
-        return "amq_%s" % hex(rnd).lower()
+        return f"amq_{uuid.uuid4().hex}"
 
     def __init__(
         self,
