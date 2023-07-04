@@ -214,8 +214,86 @@ There are more examples and the RabbitMQ tutorial in the `documentation`_.
 See also
 ==========
 
+`aiormq`_
+---------
+
+`aiormq` is a pure python AMQP client library. It is under the hood of **aio-pika** and might to be used when you really loving works with the protocol low level.
+Following examples demonstrates the user API.
+
+Simple consumer:
+
+.. code-block:: python
+
+    import asyncio
+    import aiormq
+
+    async def on_message(message):
+        """
+        on_message doesn't necessarily have to be defined as async.
+        Here it is to show that it's possible.
+        """
+        print(f" [x] Received message {message!r}")
+        print(f"Message body is: {message.body!r}")
+        print("Before sleep!")
+        await asyncio.sleep(5)   # Represents async I/O operations
+        print("After sleep!")
+
+    async def main():
+        # Perform connection
+        connection = await aiormq.connect("amqp://guest:guest@localhost/")
+
+        # Creating a channel
+        channel = await connection.channel()
+
+        # Declaring queue
+        declare_ok = await channel.queue_declare('helo')
+        consume_ok = await channel.basic_consume(
+            declare_ok.queue, on_message, no_ack=True
+        )
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
+    loop.run_forever()
+
+Simple publisher:
+
+.. code-block:: python
+
+    import asyncio
+    from typing import Optional
+
+    import aiormq
+    from aiormq.abc import DeliveredMessage
+
+    MESSAGE: Optional[DeliveredMessage] = None
+
+    async def main():
+        global MESSAGE
+        body = b'Hello World!'
+
+        # Perform connection
+        connection = await aiormq.connect("amqp://guest:guest@localhost//")
+
+        # Creating a channel
+        channel = await connection.channel()
+        declare_ok = await channel.queue_declare("hello", auto_delete=True)
+
+        # Sending the message
+        await channel.basic_publish(body, routing_key='hello')
+        print(f" [x] Sent {body}")
+
+        MESSAGE = await channel.basic_get(declare_ok.queue)
+        print(f" [x] Received message from {declare_ok.queue!r}")
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
+
+    assert MESSAGE is not None
+    assert MESSAGE.routing_key == "hello"
+    assert MESSAGE.body == b'Hello World!'
+
 The `patio`_ and the `patio-rabbitmq`_
--------------------------
+--------------------------------------
 
 **PATIO** is an acronym for Python Asynchronous Tasks for AsyncIO - an easily extensible library, for distributed task execution, like celery, only targeting asyncio as the main design approach.
 
@@ -452,6 +530,7 @@ Changes should follow a few simple rules:
 .. _Semantic Versioning: http://semver.org/
 .. _aio-pika: https://github.com/mosquito/aio-pika/
 .. _propan: https://github.com/Lancetnik/Propan
+.. _aiormq: https://github.com/mosquito/aiormq
 .. _patio: https://github.com/patio-python/patio
 .. _patio-rabbitmq: https://github.com/patio-python/patio-rabbitmq
 .. _Socket.IO: https://socket.io/
