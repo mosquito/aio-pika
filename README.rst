@@ -1,6 +1,7 @@
 .. _documentation: https://aio-pika.readthedocs.org/
 .. _adopted official RabbitMQ tutorial: https://aio-pika.readthedocs.io/en/latest/rabbitmq-tutorial/1-introduction.html
 
+
 aio-pika
 ========
 
@@ -214,8 +215,8 @@ There are more examples and the RabbitMQ tutorial in the `documentation`_.
 See also
 ==========
 
-`aiormq`_
----------
+`aiormq <https://github.com/mosquito/aiormq>`_
+----------------------------------------------
 
 `aiormq` is a pure python AMQP client library. It is under the hood of **aio-pika** and might to be used when you really loving works with the protocol low level.
 Following examples demonstrates the user API.
@@ -530,7 +531,6 @@ Changes should follow a few simple rules:
 .. _Semantic Versioning: http://semver.org/
 .. _aio-pika: https://github.com/mosquito/aio-pika/
 .. _propan: https://github.com/Lancetnik/Propan
-.. _aiormq: https://github.com/mosquito/aiormq
 .. _patio: https://github.com/patio-python/patio
 .. _patio-rabbitmq: https://github.com/patio-python/patio-rabbitmq
 .. _Socket.IO: https://socket.io/
