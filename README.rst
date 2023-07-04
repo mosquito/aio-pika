@@ -214,12 +214,12 @@ There are more examples and the RabbitMQ tutorial in the `documentation`_.
 See also
 ==========
 
-`Patio`_ and `Patio-RMQ`_
+The `patio`_ and the `patio-rabbitmq`_
 -------------------------
 
 **PATIO** is an acronym for Python Asynchronous Tasks for AsyncIO - an easily extensible library, for distributed task execution, like celery, only targeting asyncio as the main design approach.
 
-**Patio-RMQ** provides you with the ability to use *RPC over RabbitMQ* services with extremely simple implementation:
+**patio-rabbitmq** provides you with the ability to use *RPC over RabbitMQ* services with extremely simple implementation:
 
 .. code-block:: python
 
@@ -239,6 +239,25 @@ See also
            ) as broker:
                await broker.join()
 
+And the caller side might be written like this:
+
+.. code-block:: python
+
+    import asyncio
+    from patio import NullExecutor, Registry
+    from patio_rabbitmq import RabbitMQBroker
+
+    async def main():
+        async with NullExecutor(Registry(project="patio-rabbitmq")) as executor:
+            async with RabbitMQBroker(
+                executor, amqp_url="amqp://guest:guest@localhost/",
+            ) as broker:
+                print(await asyncio.gather(
+                    *[
+                        broker.call("mul", i, i, timeout=1) for i in range(10)
+                     ]
+                ))
+
 
 `Propan`_:fire:
 ---------------
@@ -249,18 +268,111 @@ If you need no deep dive into **RabbitMQ** details, you can use more high-level 
 
 .. code-block:: python
 
-   from propane import Propaneapp, RabbitBroker
+   from propan import PropanApp, RabbitBroker
    
    broker = RabbitBroker("amqp://guest:guest@localhost:5672/")
-   app = Propane app(broker)
+   app = PropanApp(broker)
    
    @broker.handle("user")
    async def user_created(user_id: int):
        assert isinstance(user_id, int)
+       return f"user-{user_id}: created"
+
+   @app.after_startup
+   async def pub_smth():
+       assert (
+           await broker.publish(1, "user", callback=True)
+       ) ==  "user-1: created"
 
 Also, **Propan** validates messages by **pydantic**, generates your project **AsyncAPI** spec, tests application locally, RPC calls, and more.
 
 In fact, it is a high-level wrapper on top of **aio-pika**, so you can use both of these libraries' advantages at the same time.
+
+`python-socketio`_
+------------------
+
+`Socket.IO`_ is a transport protocol that enables real-time bidirectional event-based communication between clients (typically, though not always, web browsers) and a server. This package provides Python implementations of both, each with standard and asyncio variants.
+
+Also this package is suitable for building messaging services over **RabbitMQ** via **aio-pika** adapter:
+
+.. code-block:: python
+
+   import socketio
+   from aiohttp import web
+   
+   sio = socketio.AsyncServer(client_manager=socketio.AsyncAioPikaManager())
+   app = web.Application()
+   sio.attach(app)
+   
+   @sio.event
+   async def chat_message(sid, data):
+       print("message ", data)
+   
+   if __name__ == '__main__':
+       web.run_app(app)
+
+And a client is able to call `chat_message` the following way:
+
+.. code-block:: python
+
+   import asyncio
+   import socketio
+   
+   sio = socketio.AsyncClient()
+   
+   async def main():
+       await sio.connect('http://localhost:8080')
+       await sio.emit('chat_message', {'response': 'my response'})
+   
+   if __name__ == '__main__':
+       asyncio.run(main())
+
+The `taskiq`_ and the `taskiq-aio-pika`_
+----------------------------------------
+
+**Taskiq** is an asynchronous distributed task queue for python. The project takes inspiration from big projects such as Celery and Dramatiq. But taskiq can send and run both the sync and async functions.
+
+The library provides you with **aio-pika** broker for running tasks too.
+
+.. code-block:: python
+
+   from taskiq_aio_pika import AioPikaBroker
+   
+   broker = AioPikaBroker()
+   
+   @broker.task
+   async def test() -> None:
+       print("nothing")
+
+   async def main():
+       await broker.startup()
+       await test.kiq()
+
+`Rasa`_
+-------
+
+With over 25 million downloads, Rasa Open Source is the most popular open source framework for building chat and voice-based AI assistants.
+
+With **Rasa**, you can build contextual assistants on:
+
+* Facebook Messenger
+* Slack
+* Google Hangouts
+* Webex Teams
+* Microsoft Bot Framework
+* Rocket.Chat
+* Mattermost
+* Telegram
+* Twilio
+
+Your own custom conversational channels or voice assistants as:
+
+* Alexa Skills
+* Google Home Actions
+
+**Rasa** helps you build contextual assistants capable of having layered conversations with lots of back-and-forth. In order for a human to have a meaningful exchange with a contextual assistant, the assistant needs to be able to use context to build on things that were previously discussed – **Rasa** enables you to build assistants that can do this in a scalable way.
+
+And it also uses **aio-pika** to interact with **RabbitMQ** deep inside!
 
 Versioning
 ==========
@@ -341,4 +453,9 @@ Changes should follow a few simple rules:
 .. _aio-pika: https://github.com/mosquito/aio-pika/
 .. _propan: https://github.com/Lancetnik/Propan
 .. _patio: https://github.com/patio-python/patio
-.. _patio-rmq: https://github.com/patio-python/patio-rabbitmq
+.. _patio-rabbitmq: https://github.com/patio-python/patio-rabbitmq
+.. _Socket.IO: https://socket.io/
+.. _python-socketio: https://python-socketio.readthedocs.io/en/latest/intro.html
+.. _taskiq: https://github.com/taskiq-python/taskiq
+.. _taskiq-aio-pika: https://github.com/taskiq-python/taskiq-aio-pika
+.. _Rasa: https://rasa.com/docs/rasa/
