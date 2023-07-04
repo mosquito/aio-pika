@@ -1,3 +1,8 @@
+9.1.4
+-----
+
+* use fork friendly random robust queue generation way #560
+
 9.1.3
 -----
 
