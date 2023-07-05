@@ -1,5 +1,5 @@
+import uuid
 import warnings
-from random import Random
 from typing import Any, Awaitable, Callable, Dict, Optional, Tuple, Union
 
 import aiormq
@@ -24,13 +24,6 @@ class RobustQueue(Queue, AbstractRobustQueue):
     _consumers: Dict[ConsumerTag, Dict[str, Any]]
     _bindings: Dict[Tuple[Union[AbstractExchange, str], str], Dict[str, Any]]
 
-    _rnd_gen: Random = Random()
-
-    @classmethod
-    def _get_random_queue_name(cls) -> str:
-        rnd = cls._rnd_gen.getrandbits(128)
-        return "amq_%s" % hex(rnd).lower()
-
     def __init__(
         self,
         channel: AbstractChannel,
@@ -44,7 +37,7 @@ class RobustQueue(Queue, AbstractRobustQueue):
 
         super().__init__(
             channel=channel,
-            name=name or self._get_random_queue_name(),
+            name=name or f"amq_{uuid.uuid4().hex}",
             durable=durable,
             exclusive=exclusive,
             auto_delete=auto_delete,
