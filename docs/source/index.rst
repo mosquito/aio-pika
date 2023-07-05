@@ -190,10 +190,10 @@ Thanks for contributing
 
 
 See also
-==========
+++++++++
 
-`aiormq <https://github.com/mosquito/aiormq>`_
-----------------------------------------------
+`aiormq`_
+~~~~~~~~~
 
 `aiormq` is a pure python AMQP client library. It is under the hood of **aio-pika** and might to be used when you really loving works with the protocol low level.
 Following examples demonstrates the user API.
@@ -271,7 +271,7 @@ Simple publisher:
     assert MESSAGE.body == b'Hello World!'
 
 The `patio`_ and the `patio-rabbitmq`_
---------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **PATIO** is an acronym for Python Asynchronous Tasks for AsyncIO - an easily extensible library, for distributed task execution, like celery, only targeting asyncio as the main design approach.
 
@@ -315,8 +315,8 @@ And the caller side might be written like this:
                 ))
 
 
-`Propan`_:fire:
----------------
+`Propan`_
+~~~~~~~~~
 
 **Propan** is a powerful and easy-to-use Python framework for building event-driven applications that interact with any MQ Broker.
 
@@ -345,7 +345,7 @@ Also, **Propan** validates messages by **pydantic**, generates your project **As
 In fact, it is a high-level wrapper on top of **aio-pika**, so you can use both of these libraries' advantages at the same time.
 
 `python-socketio`_
-------------------
+~~~~~~~~~~~~~~~~~~
 
 `Socket.IO`_ is a transport protocol that enables real-time bidirectional event-based communication between clients (typically, though not always, web browsers) and a server. This package provides Python implementations of both, each with standard and asyncio variants.
 
@@ -384,7 +384,7 @@ And a client is able to call `chat_message` the following way:
        asyncio.run(main())
 
 The `taskiq`_ and the `taskiq-aio-pika`_
-----------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Taskiq** is an asynchronous distributed task queue for python. The project takes inspiration from big projects such as Celery and Dramatiq. But taskiq can send and run both the sync and async functions.
 
@@ -405,7 +405,7 @@ The library provides you with **aio-pika** broker for running tasks too.
        await test.kiq()
 
 `Rasa`_
--------
+~~~~~~~
 
 With over 25 million downloads, Rasa Open Source is the most popular open source framework for building chat and voice-based AI assistants.
 
