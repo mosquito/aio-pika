@@ -69,12 +69,13 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         self.reopen_callbacks: CallbackCollection = CallbackCollection(self)
         self.__restore_lock = asyncio.Lock()
         self.__ready = asyncio.Event()
-        self.__restored = True
+        self.__restored = asyncio.Event()
+        self.__restored.set()
         self.close_callbacks.add(self.__close_callback)
 
     async def ready(self) -> None:
-        while not self.__restored:
-            await self.__ready.wait()
+        await self.__ready.wait()
+        await self.__restored.wait()
 
     async def get_underlay_channel(self) -> aiormq.abc.AbstractChannel:
         await self._connection.ready()
@@ -89,11 +90,11 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
             )
 
         async with self.__restore_lock:
-            if self.__restored:
+            if self.__restored.is_set():
                 return
 
             await self.reopen()
-            self.__restored = True
+            self.__restored.set()
 
     async def __close_callback(self, _: Any, exc: BaseException) -> None:
         if isinstance(exc, asyncio.CancelledError):
@@ -103,8 +104,8 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
             # as soon as possible and to avoid a recovery attempt.
             return
 
-        in_restore_state = not self.__restored
-        self.__restored = False
+        in_restore_state = not self.__restored.is_set()
+        self.__restored.clear()
         self.__ready.clear()
 
         if self._closed or in_restore_state:
