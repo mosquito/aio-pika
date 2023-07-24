@@ -37,8 +37,6 @@ Check out the examples and the tutorial in the `documentation`_.
 
 If you are a newcomer to RabbitMQ, please start with the `adopted official RabbitMQ tutorial`_.
 
-.. _aiormq: http://github.com/mosquito/aiormq/
-
 .. note::
    Since version ``5.0.0`` this library doesn't use ``pika`` as AMQP connector.
    Versions below ``5.0.0`` contains or requires ``pika``'s source code.
@@ -306,7 +304,7 @@ The `patio`_ and the `patio-rabbitmq`_
    from patio_rabbitmq import RabbitMQBroker
 
    rpc = Registry(project="patio-rabbitmq", auto_naming=False)
-   
+
    @rpc("sum")
    def sum(*args):
        return sum(args)
@@ -348,10 +346,10 @@ If you need no deep dive into **RabbitMQ** details, you can use more high-level 
 .. code-block:: python
 
    from propan import PropanApp, RabbitBroker
-   
+
    broker = RabbitBroker("amqp://guest:guest@localhost:5672/")
    app = PropanApp(broker)
-   
+
    @broker.handle("user")
    async def user_created(user_id: int):
        assert isinstance(user_id, int)
@@ -378,15 +376,15 @@ Also this package is suitable for building messaging services over **RabbitMQ** 
 
    import socketio
    from aiohttp import web
-   
+
    sio = socketio.AsyncServer(client_manager=socketio.AsyncAioPikaManager())
    app = web.Application()
    sio.attach(app)
-   
+
    @sio.event
    async def chat_message(sid, data):
        print("message ", data)
-   
+
    if __name__ == '__main__':
        web.run_app(app)
 
@@ -396,13 +394,13 @@ And a client is able to call `chat_message` the following way:
 
    import asyncio
    import socketio
-   
+
    sio = socketio.AsyncClient()
-   
+
    async def main():
        await sio.connect('http://localhost:8080')
        await sio.emit('chat_message', {'response': 'my response'})
-   
+
    if __name__ == '__main__':
        asyncio.run(main())
 
@@ -416,9 +414,9 @@ The library provides you with **aio-pika** broker for running tasks too.
 .. code-block:: python
 
    from taskiq_aio_pika import AioPikaBroker
-   
+
    broker = AioPikaBroker()
-   
+
    @broker.task
    async def test() -> None:
        print("nothing")
