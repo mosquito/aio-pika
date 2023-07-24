@@ -37,6 +37,8 @@ Check out the examples and the tutorial in the `documentation`_.
 
 If you are a newcomer to RabbitMQ, please start with the `adopted official RabbitMQ tutorial`_.
 
+.. _aiormq: http://github.com/mosquito/aiormq/
+
 .. note::
    Since version ``5.0.0`` this library doesn't use ``pika`` as AMQP connector.
    Versions below ``5.0.0`` contains or requires ``pika``'s source code.
@@ -213,8 +215,8 @@ There are more examples and the RabbitMQ tutorial in the `documentation`_.
 See also
 ==========
 
-`aiormq <https://github.com/mosquito/aiormq>`_
-----------------------------------------------
+`aiormq`_
+---------
 
 `aiormq` is a pure python AMQP client library. It is under the hood of **aio-pika** and might to be used when you really loving works with the protocol low level.
 Following examples demonstrates the user API.
