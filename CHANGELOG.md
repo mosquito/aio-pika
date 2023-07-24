@@ -1,3 +1,8 @@
+9.1.5
+-----
+
+* Fix race condition in RobustChannel in reopen/ready #566 by @isra17
+
 9.1.4
 -----
 
