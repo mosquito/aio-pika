@@ -61,11 +61,31 @@ pass the parameters in URL query-string like format.
 
 This article describes a description for this parameters.
 
-``aio_pika.connect`` function and ``aio_pika.Connection`` class specific
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``aiormq`` specific
+~~~~~~~~~~~~~~~~~~~
 
 * ``name`` (``str`` url encoded) - A string that will be visible in the RabbitMQ management console and in
   the server logs, convenient for diagnostics.
+
+* ``cafile`` (``str``) - Path to Certificate Authority file
+
+* ``capath`` (``str``) - Path to Certificate Authority directory
+
+* ``cadata`` (``str`` url encoded) - URL encoded CA certificate content
+
+* ``keyfile`` (``str``) - Path to client ssl private key file
+
+* ``certfile`` (``str``) - Path to client ssl certificate file
+
+* ``no_verify_ssl`` - No verify server SSL certificates. ``0`` by default and means ``False`` other value means
+  ``True``.
+
+* ``heartbeat`` (``int``-like) - interval in seconds between AMQP heartbeat packets. ``0`` disables this feature.
+
+
+``aio_pika.connect`` function and ``aio_pika.Connection`` class specific
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 * ``interleave`` (``int``-like) - controls address reordering when a host name resolves to multiple
   IP addresses. If 0 or unspecified, no reordering is done, and addresses are tried
   in the order returned by ``getaddrinfo()``. If a positive integer is specified,
@@ -112,6 +132,18 @@ For ``aio_pika.RobustConnection`` class is applicable all ``aio_pika.Connection`
   not be successed.
 
 .. _RFC 8305: https://datatracker.ietf.org/doc/html/rfc8305.html
+
+
+URL examples
+~~~~~~~~~~~~
+
+* ``amqp://username:password@hostname/vhost?name=connection%20name&heartbeat=60&happy_eyeballs_delay=0.25``
+
+* ``amqps://username:password@hostname/vhost?reconnect_interval=5&fail_fast=1``
+
+* ``amqps://username:password@hostname/vhost?cafile=/path/to/ca.pem``
+
+* ``amqps://username:password@hostname/vhost?cafile=/path/to/ca.pem&keyfile=/path/to/key.pem&certfile=/path/to/sert.pem``
 
 
 Installation
