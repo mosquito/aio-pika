@@ -96,7 +96,7 @@ class TestCaseNoRobust(TestCaseAmqp):
         await channel.declare_queue(
             name,
             auto_delete=True,
-            arguments={"x-max-length": 1}
+            arguments={"x-max-length": 1},
         )
         with pytest.raises(ChannelPreconditionFailed):
             await channel.declare_queue(name, auto_delete=True)

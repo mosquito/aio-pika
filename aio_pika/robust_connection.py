@@ -1,6 +1,6 @@
 import asyncio
 from ssl import SSLContext
-from typing import Any, Optional, Type, Union
+from typing import Any, Optional, Tuple, Type, Union
 from weakref import WeakSet
 
 import aiormq.abc
@@ -9,7 +9,8 @@ from pamqp.common import FieldTable
 from yarl import URL
 
 from .abc import (
-    AbstractRobustChannel, AbstractRobustConnection, SSLOptions, TimeoutType,
+    AbstractRobustChannel, AbstractRobustConnection, ConnectionParameter,
+    SSLOptions, TimeoutType,
 )
 from .connection import Connection, make_url
 from .exceptions import CONNECTION_EXCEPTIONS
@@ -26,9 +27,15 @@ class RobustConnection(Connection, AbstractRobustConnection):
 
     CHANNEL_REOPEN_PAUSE = 1
     CHANNEL_CLASS: Type[RobustChannel] = RobustChannel
-    KWARGS_TYPES = (
-        ("reconnect_interval", parse_timeout, "5"),
-        ("fail_fast", parse_bool, "1"),
+    PARAMETERS: Tuple[ConnectionParameter, ...] = Connection.PARAMETERS + (
+        ConnectionParameter(
+            name="reconnect_interval",
+            parser=parse_timeout, default="5",
+        ),
+        ConnectionParameter(
+            name="fail_fast",
+            parser=parse_bool, default="1",
+        ),
     )
 
     def __init__(
@@ -284,7 +291,7 @@ async def connect_robust(
 
         ``client_properties`` argument requires ``aiormq>=2.9``
 
-    URL string might be contain ssl parameters e.g.
+    URL string might contain ssl parameters e.g.
     `amqps://user:pass@host//?ca_certs=ca.pem&certfile=crt.pem&keyfile=key.pem`
 
     :param client_properties: add custom client capability.
