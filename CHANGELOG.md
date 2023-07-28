@@ -1,3 +1,11 @@
+9.2.0
+-----
+
+* URL params passing to aiormq #569
+  * `Connection.KWARGS_TYPES` renamed to `Connection.PARAMETERS` and rework it to `dataclass`
+  * `Connection._parse_kwargs` renamed to `Connection._parse_parameters`
+  * [AMQP URL parameters](https://aio-pika.readthedocs.io/en/latest/#amqp-url-parameters) documentation article
+
 9.1.5
 -----
 
