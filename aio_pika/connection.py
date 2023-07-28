@@ -26,16 +26,16 @@ class Connection(AbstractConnection):
     """ Connection abstraction """
 
     CHANNEL_CLASS: Type[Channel] = Channel
-    KWARGS_TYPES: Tuple[ConnectionParameter, ...] = (
+    PARAMETERS: Tuple[ConnectionParameter, ...] = (
         ConnectionParameter(
             name="interleave",
             parser=parse_int,
-            kwarg=True,
+            is_kwarg=True,
         ),
         ConnectionParameter(
             name="happy_eyeballs_delay",
             parser=float,
-            kwarg=True,
+            is_kwarg=True,
         ),
     )
 
@@ -56,12 +56,12 @@ class Connection(AbstractConnection):
         self._closed = True
 
     @classmethod
-    def _parse_kwargs(cls, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_parameters(cls, kwargs: Dict[str, Any]) -> Dict[str, Any]:
         result = {}
-        for parameter in cls.KWARGS_TYPES:
+        for parameter in cls.PARAMETERS:
             value = kwargs.get(parameter.name, parameter.default)
 
-            if parameter.kwarg and value is None:
+            if parameter.is_kwarg and value is None:
                 # skip optional value
                 continue
 
@@ -79,7 +79,7 @@ class Connection(AbstractConnection):
 
         self.url = URL(url)
 
-        self.kwargs: Dict[str, Any] = self._parse_kwargs(
+        self.kwargs: Dict[str, Any] = self._parse_parameters(
             kwargs or dict(self.url.query),
         )
         self.kwargs["context"] = ssl_context

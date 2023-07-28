@@ -27,7 +27,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
 
     CHANNEL_REOPEN_PAUSE = 1
     CHANNEL_CLASS: Type[RobustChannel] = RobustChannel
-    KWARGS_TYPES: Tuple[ConnectionParameter, ...] = Connection.KWARGS_TYPES + (
+    PARAMETERS: Tuple[ConnectionParameter, ...] = Connection.PARAMETERS + (
         ConnectionParameter(
             name="reconnect_interval",
             parser=parse_timeout, default="5",

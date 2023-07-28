@@ -699,7 +699,7 @@ class ConnectionParameter:
     name: str
     parser: Callable[[str], Any]
     default: Optional[str] = None
-    kwarg: bool = False
+    is_kwarg: bool = False
 
     def parse(self, value: Optional[str]) -> Any:
         if value is None:
@@ -711,7 +711,7 @@ class ConnectionParameter:
 
 
 class AbstractConnection(PoolInstance, ABC):
-    KWARGS_TYPES: Tuple[ConnectionParameter, ...]
+    PARAMETERS: Tuple[ConnectionParameter, ...]
 
     close_callbacks: CallbackCollection
     connected: asyncio.Event
