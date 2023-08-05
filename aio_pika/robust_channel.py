@@ -72,6 +72,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         self.close_callbacks.add(self.__close_callback)
 
     async def ready(self) -> None:
+        await self._connection.ready()
         await self.__restored.wait()
 
     async def get_underlay_channel(self) -> aiormq.abc.AbstractChannel:
@@ -149,7 +150,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
             warn('Use "global_" instead of "all_channels"', DeprecationWarning)
             global_ = all_channels
 
-        await self._connection.ready()
+        await self.ready()
 
         self._prefetch_count = prefetch_count
         self._prefetch_size = prefetch_size
@@ -174,7 +175,6 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> AbstractRobustExchange:
-        await self._connection.ready()
         await self.ready()
         exchange = (
             await super().declare_exchange(
@@ -202,7 +202,6 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         if_unused: bool = False,
         nowait: bool = False,
     ) -> aiormq.spec.Exchange.DeleteOk:
-        await self._connection.ready()
         await self.ready()
         result = await super().exchange_delete(
             exchange_name=exchange_name,
@@ -225,7 +224,6 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> AbstractRobustQueue:
-        await self._connection.ready()
         await self.ready()
         queue: RobustQueue = await super().declare_queue(   # type: ignore
             name=name,
@@ -248,7 +246,6 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         if_empty: bool = False,
         nowait: bool = False,
     ) -> aiormq.spec.Queue.DeleteOk:
-        await self._connection.ready()
         await self.ready()
         result = await super().queue_delete(
             queue_name=queue_name,
