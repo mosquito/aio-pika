@@ -106,6 +106,13 @@ class TestCaseNoRobust(TestCaseAmqp):
         with pytest.raises(ChannelPreconditionFailed):
             await channel.declare_queue(name, auto_delete=True)
 
+    async def test_channel_is_ready_after_close_and_reopen(self, connection):
+        channel: RobustChannel = await connection.channel()  # type: ignore
+        await channel.ready()
+        await channel.close()
+        await channel.reopen()
+        await asyncio.wait_for(channel.ready(), timeout=1)
+
 
 class TestCaseAmqpNoConfirmsRobust(TestCaseAmqpNoConfirms):
     pass

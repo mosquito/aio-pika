@@ -70,7 +70,6 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         self.__restore_lock = asyncio.Lock()
         self.__ready = asyncio.Event()
         self.__restored = asyncio.Event()
-        self.__restored.set()
         self.close_callbacks.add(self.__close_callback)
 
     async def ready(self) -> None:
@@ -139,6 +138,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         if hasattr(self, "default_exchange"):
             self.default_exchange.channel = self
 
+        self.__restored.set()
         self.__ready.set()
 
     async def set_qos(
