@@ -1,3 +1,8 @@
+9.2.1
+-----
+
+* Fix reopen of robust channel after close #571 by @decaz. Fixes #570
+
 9.2.0
 -----
 
