@@ -99,7 +99,9 @@ class RPC(Base):
         self.consumer_tags: Dict[Callable[..., Any], ConsumerTag] = {}
         self.host_exceptions = host_exceptions
 
-    def __remove_future(self, correlation_id: str) -> Callable[[asyncio.Future], None]:
+    def __remove_future(
+        self, correlation_id: str
+    ) -> Callable[[asyncio.Future], None]:
         def remove_future(future: asyncio.Future) -> None:
             log.debug("Remove done future %r", future)
             self.futures.pop(correlation_id, None)
