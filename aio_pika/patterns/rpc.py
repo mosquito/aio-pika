@@ -102,10 +102,10 @@ class RPC(Base):
     def __remove_future(
         self, correlation_id: str
     ) -> Callable[[asyncio.Future], None]:
-        def remove_future(future: asyncio.Future) -> None:
+        def do_remove(future: asyncio.Future) -> None:
             log.debug("Remove done future %r", future)
             self.futures.pop(correlation_id, None)
-        return remove_future
+        return do_remove
 
     def create_future(self) -> Tuple[asyncio.Future, str]:
         future = self.loop.create_future()
