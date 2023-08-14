@@ -1,3 +1,8 @@
+9.2.2
+-----
+
+* Fix bug with RPC when handling `on_close` with a RobustConnection #573 by @CodeCorrupt
+
 9.2.1
 -----
 
