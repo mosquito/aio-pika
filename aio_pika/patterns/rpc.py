@@ -99,16 +99,20 @@ class RPC(Base):
         self.consumer_tags: Dict[Callable[..., Any], ConsumerTag] = {}
         self.host_exceptions = host_exceptions
 
-    def __remove_future(self, future: asyncio.Future) -> None:
-        log.debug("Remove done future %r", future)
-        self.futures.pop(str(id(future)), None)
+    def __remove_future(
+        self, correlation_id: str
+    ) -> Callable[[asyncio.Future], None]:
+        def do_remove(future: asyncio.Future) -> None:
+            log.debug("Remove done future %r", future)
+            self.futures.pop(correlation_id, None)
+        return do_remove
 
     def create_future(self) -> Tuple[asyncio.Future, str]:
         future = self.loop.create_future()
         log.debug("Create future for RPC call")
         correlation_id = str(uuid.uuid4())
         self.futures[correlation_id] = future
-        future.add_done_callback(self.__remove_future)
+        future.add_done_callback(self.__remove_future(correlation_id))
         return future, correlation_id
 
     async def close(self) -> None:
