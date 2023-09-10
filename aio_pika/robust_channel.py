@@ -100,6 +100,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
             # outside, for example, if the connection is closed.
             # Of course, here you need to exit from this function
             # as soon as possible and to avoid a recovery attempt.
+            self.__restored.clear()
             return
 
         in_restore_state = not self.__restored.is_set()
