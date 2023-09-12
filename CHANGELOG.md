@@ -1,3 +1,8 @@
+9.2.3
+-----
+
+* Fix restore bug of RobustChannel #578 by @aozupek
+
 9.2.2
 -----
 
