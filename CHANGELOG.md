@@ -1,3 +1,8 @@
+9.3.0
+-----
+
+* new: add custom exchanges to rpc pattern #377 by @cloud-rocket
+
 9.2.3
 -----
 
