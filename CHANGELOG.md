@@ -1,3 +1,36 @@
+9.3.0
+-----
+
+* new: add custom exchanges to rpc pattern #377 by @cloud-rocket
+
+9.2.3
+-----
+
+* Fix restore bug of RobustChannel #578 by @aozupek
+
+9.2.2
+-----
+
+* Fix bug with RPC when handling `on_close` with a RobustConnection #573 by @CodeCorrupt
+
+9.2.1
+-----
+
+* Fix reopen of robust channel after close #571 by @decaz. Fixes #570
+
+9.2.0
+-----
+
+* URL params passing to aiormq #569
+  * `Connection.KWARGS_TYPES` renamed to `Connection.PARAMETERS` and rework it to `dataclass`
+  * `Connection._parse_kwargs` renamed to `Connection._parse_parameters`
+  * [AMQP URL parameters](https://aio-pika.readthedocs.io/en/latest/#amqp-url-parameters) documentation article
+
+9.1.5
+-----
+
+* Fix race condition in RobustChannel in reopen/ready #566 by @isra17
+
 9.1.4
 -----
 

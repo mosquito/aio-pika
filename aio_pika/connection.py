@@ -1,15 +1,16 @@
 import asyncio
 from ssl import SSLContext
 from types import TracebackType
-from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Dict, Optional, Tuple, Type, TypeVar, Union
 
 import aiormq.abc
+from aiormq.connection import parse_int
 from pamqp.common import FieldTable
 from yarl import URL
 
 from .abc import (
-    AbstractChannel, AbstractConnection, SSLOptions, TimeoutType,
-    UnderlayConnection,
+    AbstractChannel, AbstractConnection, ConnectionParameter, SSLOptions,
+    TimeoutType, UnderlayConnection,
 )
 from .channel import Channel
 from .exceptions import ConnectionClosed
@@ -25,7 +26,18 @@ class Connection(AbstractConnection):
     """ Connection abstraction """
 
     CHANNEL_CLASS: Type[Channel] = Channel
-    KWARGS_TYPES: Tuple[Tuple[str, Callable[[str], Any], str], ...] = ()
+    PARAMETERS: Tuple[ConnectionParameter, ...] = (
+        ConnectionParameter(
+            name="interleave",
+            parser=parse_int,
+            is_kwarg=True,
+        ),
+        ConnectionParameter(
+            name="happy_eyeballs_delay",
+            parser=float,
+            is_kwarg=True,
+        ),
+    )
 
     _closed: bool
 
@@ -44,10 +56,16 @@ class Connection(AbstractConnection):
         self._closed = True
 
     @classmethod
-    def _parse_kwargs(cls, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_parameters(cls, kwargs: Dict[str, Any]) -> Dict[str, Any]:
         result = {}
-        for key, parser, default in cls.KWARGS_TYPES:
-            result[key] = parser(kwargs.get(key, default))
+        for parameter in cls.PARAMETERS:
+            value = kwargs.get(parameter.name, parameter.default)
+
+            if parameter.is_kwarg and value is None:
+                # skip optional value
+                continue
+
+            result[parameter.name] = parameter.parse(value)
         return result
 
     def __init__(
@@ -61,7 +79,7 @@ class Connection(AbstractConnection):
 
         self.url = URL(url)
 
-        self.kwargs: Dict[str, Any] = self._parse_kwargs(
+        self.kwargs: Dict[str, Any] = self._parse_parameters(
             kwargs or dict(self.url.query),
         )
         self.kwargs["context"] = ssl_context
@@ -321,7 +339,7 @@ async def connect(
 
         ``client_properties`` argument requires ``aiormq>=2.9``
 
-    URL string might be contain ssl parameters e.g.
+    URL string might be containing ssl parameters e.g.
     `amqps://user:pass@host//?ca_certs=ca.pem&certfile=crt.pem&keyfile=key.pem`
 
     :param client_properties: add custom client capability.
@@ -371,4 +389,4 @@ async def connect(
     return connection
 
 
-__all__ = ("connect", "Connection", "make_url")
+__all__ = ("Connection", "connect", "make_url")

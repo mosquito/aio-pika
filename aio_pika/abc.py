@@ -2,13 +2,15 @@ import asyncio
 import dataclasses
 import sys
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum, unique
 from functools import singledispatch
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
-    Generator, Iterator, Optional, Type, TypeVar, Union, overload,
+    Generator, Iterator, Mapping, Optional, Tuple, Type, TypeVar, Union,
+    overload,
 )
 
 
@@ -692,10 +694,29 @@ class UnderlayConnection:
             await self.close_callback.wait()
 
 
+@dataclass
+class ConnectionParameter:
+    name: str
+    parser: Callable[[str], Any]
+    default: Optional[str] = None
+    is_kwarg: bool = False
+
+    def parse(self, value: Optional[str]) -> Any:
+        if value is None:
+            return self.default
+        try:
+            return self.parser(value)
+        except ValueError:
+            return self.default
+
+
 class AbstractConnection(PoolInstance, ABC):
+    PARAMETERS: Tuple[ConnectionParameter, ...]
+
     close_callbacks: CallbackCollection
     connected: asyncio.Event
     transport: Optional[UnderlayConnection]
+    kwargs: Mapping[str, Any]
 
     @abstractmethod
     def __init__(
@@ -912,6 +933,7 @@ __all__ = (
     "CallbackType",
     "ChannelCloseCallback",
     "ConnectionCloseCallback",
+    "ConnectionParameter",
     "ConsumerTag",
     "DateType",
     "DeclarationResult",

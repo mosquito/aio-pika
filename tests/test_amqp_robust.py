@@ -3,6 +3,7 @@ from functools import partial
 
 import pytest
 from aiormq import ChannelNotFoundEntity
+from aiormq.exceptions import ChannelPreconditionFailed
 
 import aio_pika
 from aio_pika import RobustChannel
@@ -82,6 +83,35 @@ class TestCaseNoRobust(TestCaseAmqp):
 
         await asyncio.wait_for(reopen_event.wait(), timeout=60)
         await channel.declare_queue(queue_name, auto_delete=True)
+
+    async def test_get_queue_fail(self, connection):
+        channel: RobustChannel = await connection.channel()     # type: ignore
+        close_event = asyncio.Event()
+        reopen_event = asyncio.Event()
+        channel.close_callbacks.add(lambda *_: close_event.set())
+        channel.reopen_callbacks.add(lambda *_: reopen_event.set())
+
+        name = get_random_name("passive", "queue")
+
+        await channel.declare_queue(
+            name,
+            auto_delete=True,
+            arguments={"x-max-length": 1},
+        )
+        with pytest.raises(ChannelPreconditionFailed):
+            await channel.declare_queue(name, auto_delete=True)
+        await asyncio.sleep(0)
+        await close_event.wait()
+        await reopen_event.wait()
+        with pytest.raises(ChannelPreconditionFailed):
+            await channel.declare_queue(name, auto_delete=True)
+
+    async def test_channel_is_ready_after_close_and_reopen(self, connection):
+        channel: RobustChannel = await connection.channel()  # type: ignore
+        await channel.ready()
+        await channel.close()
+        await channel.reopen()
+        await asyncio.wait_for(channel.ready(), timeout=1)
 
 
 class TestCaseAmqpNoConfirmsRobust(TestCaseAmqpNoConfirms):
