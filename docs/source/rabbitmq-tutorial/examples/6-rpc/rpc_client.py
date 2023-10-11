@@ -15,7 +15,7 @@ class FibonacciRpcClient:
 
     def __init__(self) -> None:
         self.futures: MutableMapping[str, asyncio.Future] = {}
-        self._loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
+        self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
 
     async def connect(self) -> "FibonacciRpcClient":
         self.connection = await connect("amqp://guest:guest@localhost/")
