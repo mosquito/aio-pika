@@ -1,11 +1,12 @@
 import asyncio
 import logging
 from copy import copy
+from typing import Any, List
 from unittest import mock
 
 import pytest
 
-from aio_pika.tools import CallbackCollection
+from aio_pika.tools import CallbackCollection, ensure_awaitable
 
 
 log = logging.getLogger(__name__)
@@ -14,7 +15,7 @@ log = logging.getLogger(__name__)
 # noinspection PyTypeChecker
 class TestCase:
     @pytest.fixture
-    def instance(self):
+    def instance(self) -> mock.MagicMock:
         return mock.MagicMock()
 
     @pytest.fixture
@@ -73,8 +74,8 @@ class TestCase:
         assert not collection
 
     def test_callback_call(self, collection):
-        l1 = list()
-        l2 = list()
+        l1: List[Any] = list()
+        l2: List[Any] = list()
 
         assert l1 == l2
 
@@ -90,8 +91,10 @@ class TestCase:
     async def test_blank_awaitable_callback(self, collection):
         await collection()
 
-    async def test_awaitable_callback(self, loop, collection, instance):
-        future = loop.create_future()
+    async def test_awaitable_callback(
+        self, event_loop, collection, instance,
+    ):
+        future = event_loop.create_future()
 
         shared = []
 
@@ -100,7 +103,7 @@ class TestCase:
             shared.append(arg)
 
         def task_maker(arg):
-            return loop.create_task(coro(arg))
+            return event_loop.create_task(coro(arg))
 
         collection.add(future.set_result)
         collection.add(coro)
@@ -111,8 +114,10 @@ class TestCase:
         assert shared == [instance, instance]
         assert await future == instance
 
-    async def test_collection_create_tasks(self, loop, collection, instance):
-        future = loop.create_future()
+    async def test_collection_create_tasks(
+        self, event_loop, collection, instance,
+    ):
+        future = event_loop.create_future()
 
         async def coro(arg):
             await asyncio.sleep(0.5)
@@ -142,3 +147,49 @@ class TestCase:
         await asyncio.wait_for(collection(), timeout=2)
 
         assert [c.counter for c in callables] == [1] * 100
+
+
+class TestEnsureAwaitable:
+    async def test_non_coroutine(self):
+        with pytest.deprecated_call(match="You probably registering the"):
+            func = ensure_awaitable(lambda x: x * x)
+
+        with pytest.deprecated_call(match="Function"):
+            assert await func(2) == 4
+
+        with pytest.deprecated_call(match="Function"):
+            assert await func(4) == 16
+
+    async def test_coroutine(self):
+        async def square(x):
+            return x * x
+        func = ensure_awaitable(square)
+        assert await func(2) == 4
+        assert await func(4) == 16
+
+    async def test_something_awaitable_returned(self):
+
+        def non_coro(x):
+            async def coro(x):
+                return x * x
+
+            return coro(x)
+
+        with pytest.deprecated_call(match="You probably registering the"):
+            func = ensure_awaitable(non_coro)
+
+        assert await func(2) == 4
+
+    async def test_something_non_awaitable_returned(self):
+
+        def non_coro(x):
+            def coro(x):
+                return x * x
+
+            return coro(x)
+
+        with pytest.deprecated_call(match="You probably registering the"):
+            func = ensure_awaitable(non_coro)
+
+        with pytest.deprecated_call(match="Function"):
+            assert await func(2) == 4

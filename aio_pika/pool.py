@@ -2,11 +2,9 @@ import abc
 import asyncio
 from types import TracebackType
 from typing import (
-    Any, AsyncContextManager, Awaitable, Callable, Coroutine, Generic, Optional,
-    Set, Tuple, Type, TypeVar, Union,
+    Any, AsyncContextManager, Awaitable, Callable, Generic, Optional, Set,
+    Tuple, Type, TypeVar,
 )
-
-from aiormq.tools import awaitable
 
 from aio_pika.log import get_logger
 from aio_pika.tools import create_task
@@ -24,11 +22,7 @@ class PoolInstance(abc.ABC):
 T = TypeVar("T")
 ConstructorType = Callable[
     ...,
-    Union[
-        Awaitable[PoolInstance],
-        PoolInstance,
-        Coroutine[Any, Any, PoolInstance],
-    ],
+    Awaitable[PoolInstance],
 ]
 
 
@@ -58,9 +52,7 @@ class Pool(Generic[T]):
     ):
         self.loop = loop or asyncio.get_event_loop()
         self.__closed = False
-        self.__constructor: Callable[..., Awaitable[Any]] = awaitable(
-            constructor,
-        )
+        self.__constructor: Callable[..., Awaitable[Any]] = constructor
         self.__constructor_args: Tuple[Any, ...] = args or ()
         self.__created: int = 0
         self.__item_set: Set[PoolInstance] = set()

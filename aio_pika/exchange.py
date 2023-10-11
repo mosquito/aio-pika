@@ -4,8 +4,8 @@ import aiormq
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractExchange, AbstractMessage, ExchangeParamType, ExchangeType,
-    TimeoutType, get_exchange_name,
+    AbstractChannel, AbstractExchange, AbstractMessage, ExchangeParamType,
+    ExchangeType, TimeoutType, get_exchange_name,
 )
 from .log import get_logger
 
@@ -15,11 +15,11 @@ log = get_logger(__name__)
 
 class Exchange(AbstractExchange):
     """ Exchange abstraction """
-    channel: aiormq.abc.AbstractChannel
+    channel: AbstractChannel
 
     def __init__(
         self,
-        channel: aiormq.abc.AbstractChannel,
+        channel: AbstractChannel,
         name: str,
         type: Union[ExchangeType, str] = ExchangeType.DIRECT,
         *,
@@ -27,7 +27,7 @@ class Exchange(AbstractExchange):
         durable: bool = False,
         internal: bool = False,
         passive: bool = False,
-        arguments: Arguments = None
+        arguments: Arguments = None,
     ):
         self._type = type.value if isinstance(type, ExchangeType) else type
         self.channel = channel
@@ -42,17 +42,18 @@ class Exchange(AbstractExchange):
         return self.name
 
     def __repr__(self) -> str:
-        return "<Exchange(%s): auto_delete=%s, durable=%s, arguments=%r)>" % (
-            self,
-            self.auto_delete,
-            self.durable,
-            self.arguments,
+        return (
+            f"<{self.__class__.__name__}({self}):"
+            f" auto_delete={self.auto_delete},"
+            f" durable={self.durable},"
+            f" arguments={self.arguments!r})>"
         )
 
     async def declare(
         self, timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.DeclareOk:
-        return await self.channel.exchange_declare(
+        channel = await self.channel.get_underlay_channel()
+        return await channel.exchange_declare(
             self.name,
             exchange_type=self._type,
             durable=self.durable,
@@ -69,7 +70,7 @@ class Exchange(AbstractExchange):
         routing_key: str = "",
         *,
         arguments: Arguments = None,
-        timeout: TimeoutType = None
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.BindOk:
 
         """ A binding can also be a relationship between two exchanges.
@@ -114,7 +115,8 @@ class Exchange(AbstractExchange):
             arguments,
         )
 
-        return await self.channel.exchange_bind(
+        channel = await self.channel.get_underlay_channel()
+        return await channel.exchange_bind(
             arguments=arguments,
             destination=self.name,
             routing_key=routing_key,
@@ -149,7 +151,8 @@ class Exchange(AbstractExchange):
             arguments,
         )
 
-        return await self.channel.exchange_unbind(
+        channel = await self.channel.get_underlay_channel()
+        return await channel.exchange_unbind(
             arguments=arguments,
             destination=self.name,
             routing_key=routing_key,
@@ -164,7 +167,7 @@ class Exchange(AbstractExchange):
         *,
         mandatory: bool = True,
         immediate: bool = False,
-        timeout: TimeoutType = None
+        timeout: TimeoutType = None,
     ) -> Optional[aiormq.abc.ConfirmationFrameType]:
 
         """ Publish the message to the queue. `aio-pika` uses
@@ -187,7 +190,8 @@ class Exchange(AbstractExchange):
                 f"Can not publish to internal exchange: '{self.name}'!",
             )
 
-        return await self.channel.basic_publish(
+        channel = await self.channel.get_underlay_channel()
+        return await channel.basic_publish(
             exchange=self.name,
             routing_key=routing_key,
             body=message.body,
@@ -208,9 +212,12 @@ class Exchange(AbstractExchange):
         """
 
         log.info("Deleting %r", self)
-        return await self.channel.exchange_delete(
+        channel = await self.channel.get_underlay_channel()
+        result = await channel.exchange_delete(
             self.name, if_unused=if_unused, timeout=timeout,
         )
+        del self.channel
+        return result
 
 
 __all__ = ("Exchange", "ExchangeType", "ExchangeParamType")

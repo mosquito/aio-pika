@@ -1,24 +1,21 @@
-import json
 import time
+import warnings
 from datetime import datetime, timedelta
 from functools import singledispatch
 from pprint import pformat
 from types import TracebackType
-from typing import (
-    Any, Callable, Dict, Iterable, Iterator, List, MutableMapping, Optional,
-    Type, TypeVar, Union,
-)
+from typing import Any, Callable, Iterator, Optional, Type, TypeVar, Union
 
 import aiormq
-from aiormq.abc import DeliveredMessage, FieldTable
+from aiormq.abc import DeliveredMessage
 from pamqp.common import FieldValue
 
 from .abc import (
     MILLISECONDS, ZERO_TIME, AbstractChannel, AbstractIncomingMessage,
     AbstractMessage, AbstractProcessContext, DateType, DeliveryMode,
-    HeadersPythonValues, HeadersType, NoneType,
+    HeadersType, MessageInfo, NoneType,
 )
-from .exceptions import MessageProcessError
+from .exceptions import ChannelInvalidStateError, MessageProcessError
 from .log import get_logger
 
 
@@ -136,88 +133,9 @@ T = TypeVar("T")
 def optional(
     value: V,
     func: Union[Callable[[V], T], Type[T]],
-    default: D = None,
+    default: Optional[D] = None,
 ) -> Union[T, D]:
     return func(value) if value else default    # type: ignore
-
-
-class HeaderProxy(MutableMapping):
-    def __init__(self, headers: FieldTable):
-        self._headers: FieldTable = headers
-        self._cache: Dict[str, Any] = {}
-
-    def __getitem__(self, k: str) -> FieldValue:
-        if k not in self._headers:
-            raise KeyError(k)
-
-        if k not in self._cache:
-            value = self._headers[k]
-
-            if isinstance(value, bytes):
-                self._cache[k] = value.decode()
-            else:
-                self._cache[k] = value
-
-        return self._cache[k]
-
-    def __delitem__(self, key: str) -> None:
-        del self._headers[key]
-
-    def __setitem__(self, key: str, value: FieldValue) -> None:
-        self._headers[key] = header_converter(value)
-        self._cache.pop(key, None)
-
-    def __len__(self) -> int:
-        return len(self._headers)
-
-    def __iter__(self) -> Iterator[str]:
-        yield from self._headers
-
-
-@singledispatch
-def header_converter(value: Any) -> FieldValue:
-    return bytearray(
-        json.dumps(
-            value,
-            separators=(",", ":"),
-            ensure_ascii=False,
-            default=repr,
-        ).encode(),
-    )
-
-
-@header_converter.register(NoneType)        # type: ignore
-@header_converter.register(bytearray)
-@header_converter.register(str)
-@header_converter.register(datetime)
-@header_converter.register(time.struct_time)
-@header_converter.register(list)
-@header_converter.register(int)
-def header_converter_native(v: T) -> T:
-    return v
-
-
-@header_converter.register(bytes)
-def header_converter_bytes(v: bytes) -> bytearray:
-    return bytearray(v)
-
-
-@header_converter.register(set)
-@header_converter.register(tuple)
-@header_converter.register(frozenset)
-def header_converter_iterable(v: Iterable[T]) -> List[T]:
-    return header_converter(list(v))        # type: ignore
-
-
-def format_headers(d: Optional[HeadersType]) -> FieldTable:
-    ret: FieldTable = {}
-
-    if not d:
-        return ret
-
-    for key, value in d.items():
-        ret[key] = header_converter(value)
-    return ret
 
 
 class Message(AbstractMessage):
@@ -233,7 +151,7 @@ class Message(AbstractMessage):
         "delivery_mode",
         "expiration",
         "_headers",
-        "headers_raw",
+        "headers",
         "message_id",
         "priority",
         "reply_to",
@@ -259,14 +177,13 @@ class Message(AbstractMessage):
         timestamp: Optional[DateType] = None,
         type: Optional[str] = None,
         user_id: Optional[str] = None,
-        app_id: Optional[str] = None
+        app_id: Optional[str] = None,
     ):
 
         """ Creates a new instance of Message
 
         :param body: message body
         :param headers: message headers
-        :param headers_raw: message raw headers
         :param content_type: content type
         :param content_encoding: content encoding
         :param delivery_mode: delivery mode
@@ -284,8 +201,7 @@ class Message(AbstractMessage):
         self.__lock = False
         self.body = body if isinstance(body, bytes) else bytes(body)
         self.body_size = len(self.body) if self.body else 0
-        self.headers_raw: FieldTable = format_headers(headers)
-        self._headers: HeadersType = HeaderProxy(self.headers_raw)
+        self.headers: HeadersType = headers or {}
         self.content_type = content_type
         self.content_encoding = content_encoding
         self.delivery_mode: DeliveryMode = DeliveryMode(
@@ -304,12 +220,13 @@ class Message(AbstractMessage):
         self.app_id = optional(app_id, str)
 
     @property
-    def headers(self) -> HeadersType:
-        return self._headers
-
-    @headers.setter
-    def headers(self, value: Dict[str, HeadersPythonValues]) -> None:
-        self.headers_raw = format_headers(value)
+    def headers_raw(self) -> HeadersType:
+        warnings.warn(
+            f"{self.__class__.__name__}.headers_raw deprecated, please use "
+            f"{self.__class__.__name__}.headers instead.",
+            DeprecationWarning,
+        )
+        return self.headers
 
     @staticmethod
     def _as_bytes(value: Any) -> bytes:
@@ -322,46 +239,29 @@ class Message(AbstractMessage):
         else:
             return str(value).encode()
 
-    def info(self) -> dict:
-        """ Create a dict with message attributes
-
-        ::
-
-            {
-                "body_size": 100,
-                "headers": {},
-                "content_type": "text/plain",
-                "content_encoding": "",
-                "delivery_mode": DeliveryMode.NOT_PERSISTENT,
-                "priority": 0,
-                "correlation_id": "",
-                "reply_to": "",
-                "expiration": "",
-                "message_id": "",
-                "timestamp": "",
-                "type": "",
-                "user_id": "",
-                "app_id": "",
-            }
-
-        """
-
-        return {
-            "body_size": self.body_size,
-            "headers": self.headers_raw,
-            "content_type": self.content_type,
-            "content_encoding": self.content_encoding,
-            "delivery_mode": self.delivery_mode,
-            "priority": self.priority,
-            "correlation_id": self.correlation_id,
-            "reply_to": self.reply_to,
-            "expiration": self.expiration,
-            "message_id": self.message_id,
-            "timestamp": decode_timestamp(self.timestamp),
-            "type": str(self.type),
-            "user_id": self.user_id,
-            "app_id": self.app_id,
-        }
+    def info(self) -> MessageInfo:
+        return MessageInfo(
+            app_id=self.app_id,
+            body_size=self.body_size,
+            cluster_id=None,
+            consumer_tag=None,
+            content_encoding=self.content_encoding,
+            content_type=self.content_type,
+            correlation_id=self.correlation_id,
+            delivery_mode=self.delivery_mode,
+            delivery_tag=None,
+            exchange=None,
+            expiration=self.expiration,
+            headers=self.headers,
+            message_id=self.message_id,
+            priority=self.priority,
+            redelivered=None,
+            reply_to=self.reply_to,
+            routing_key=None,
+            timestamp=decode_timestamp(self.timestamp),
+            type=str(self.type),
+            user_id=self.user_id,
+        )
 
     @property
     def locked(self) -> bool:
@@ -375,19 +275,19 @@ class Message(AbstractMessage):
     def properties(self) -> aiormq.spec.Basic.Properties:
         """ Build :class:`aiormq.spec.Basic.Properties` object """
         return aiormq.spec.Basic.Properties(
-            content_type=self.content_type,
-            content_encoding=self.content_encoding,
-            headers=self.headers_raw,
-            delivery_mode=self.delivery_mode,
-            priority=self.priority,
-            correlation_id=self.correlation_id,
-            reply_to=self.reply_to,
-            expiration=encode_expiration(self.expiration),
-            message_id=self.message_id,
-            timestamp=self.timestamp,
-            message_type=self.type,
-            user_id=self.user_id,
             app_id=self.app_id,
+            content_encoding=self.content_encoding,
+            content_type=self.content_type,
+            correlation_id=self.correlation_id,
+            delivery_mode=self.delivery_mode,
+            expiration=encode_expiration(self.expiration),
+            headers=self.headers,
+            message_id=self.message_id,
+            message_type=self.type,
+            priority=self.priority,
+            reply_to=self.reply_to,
+            timestamp=self.timestamp,
+            user_id=self.user_id,
         )
 
     def __repr__(self) -> str:
@@ -411,7 +311,7 @@ class Message(AbstractMessage):
     def __copy__(self) -> "Message":
         return Message(
             body=self.body,
-            headers=self.headers_raw,
+            headers=self.headers,
             content_encoding=self.content_encoding,
             content_type=self.content_type,
             delivery_mode=self.delivery_mode,
@@ -440,7 +340,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
     * basic.ack is used for positive acknowledgements
     * basic.nack is used for negative acknowledgements (note: this is a RabbitMQ
       extension to AMQP 0-9-1)
-    * basic.reject is used for negative acknowledgements but has one limitations
+    * basic.reject is used for negative acknowledgements but has one limitation
       compared to basic.nack
 
     Positive acknowledgements simply instruct RabbitMQ to record a message as
@@ -510,6 +410,8 @@ class IncomingMessage(Message, AbstractIncomingMessage):
 
     @property
     def channel(self) -> aiormq.abc.AbstractChannel:
+        if self.__channel.is_closed:
+            raise ChannelInvalidStateError
         return self.__channel
 
     def process(
@@ -571,7 +473,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             raise MessageProcessError("Message already processed", self)
 
         if self.delivery_tag is not None:
-            await self.__channel.basic_ack(
+            await self.channel.basic_ack(
                 delivery_tag=self.delivery_tag, multiple=multiple,
             )
 
@@ -582,7 +484,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
 
     async def reject(self, requeue: bool = False) -> None:
         """ When `requeue=True` the message will be returned to queue.
-        Otherwise message will be dropped.
+        Otherwise, message will be dropped.
 
         .. note::
             This method looks like a blocking-method, but actually it just
@@ -598,7 +500,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             raise MessageProcessError("Message already processed", self)
 
         if self.delivery_tag is not None:
-            await self.__channel.basic_reject(
+            await self.channel.basic_reject(
                 delivery_tag=self.delivery_tag,
                 requeue=requeue,
             )
@@ -621,7 +523,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             raise MessageProcessError("Message already processed", self)
 
         if self.delivery_tag is not None:
-            await self.__channel.basic_nack(
+            await self.channel.basic_nack(
                 delivery_tag=self.delivery_tag,
                 multiple=multiple,
                 requeue=requeue,
@@ -632,7 +534,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
         if not self.locked:
             self.lock()
 
-    def info(self) -> dict:
+    def info(self) -> MessageInfo:
         """ Method returns dict representation of the message """
 
         info = super().info()
@@ -663,7 +565,7 @@ class ProcessContext(AbstractProcessContext):
         *,
         requeue: bool,
         reject_on_redelivered: bool,
-        ignore_processed: bool
+        ignore_processed: bool,
     ):
         self.message = message
         self.requeue = requeue

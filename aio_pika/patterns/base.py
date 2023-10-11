@@ -1,5 +1,9 @@
 import pickle
-from typing import Any, Callable
+from typing import Any, Awaitable, Callable, TypeVar
+
+
+T = TypeVar("T")
+CallbackType = Callable[..., Awaitable[T]]
 
 
 class Method:

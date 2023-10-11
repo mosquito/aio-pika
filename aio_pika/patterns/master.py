@@ -4,10 +4,9 @@ import json
 import logging
 from functools import partial
 from types import MappingProxyType
-from typing import Any, Awaitable, Callable, Mapping, Optional, TypeVar
+from typing import Any, Awaitable, Mapping, Optional
 
 import aiormq
-from aiormq.tools import awaitable
 
 from aio_pika.abc import (
     AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
@@ -15,12 +14,11 @@ from aio_pika.abc import (
 )
 from aio_pika.message import Message, ReturnedMessage
 
-from ..tools import create_task
-from .base import Base, Proxy
+from ..tools import create_task, ensure_awaitable
+from .base import Base, CallbackType, Proxy, T
 
 
 log = logging.getLogger(__name__)
-T = TypeVar("T")
 
 
 class MessageProcessingError(Exception):
@@ -143,17 +141,18 @@ class Master(Base):
 
     @classmethod
     async def execute(
-        cls, func: Callable[..., Awaitable[T]], kwargs: Any,
+        cls, func: CallbackType, kwargs: Any,
     ) -> T:
         kwargs = kwargs or {}
 
         if not isinstance(kwargs, dict):
+            logging.error("Bad kwargs %r received for the %r", kwargs, func)
             raise RejectMessage(requeue=False)
 
         return await func(**kwargs)
 
     async def on_message(
-        self, func: Callable[..., Any],
+        self, func: CallbackType,
         message: AbstractIncomingMessage,
     ) -> None:
         async with message.process(
@@ -169,29 +168,27 @@ class Master(Base):
                 await message.nack(requeue=e.requeue)
 
     async def create_queue(
-        self, channel_name: str, **kwargs: Any
+        self, queue_name: str, **kwargs: Any,
     ) -> AbstractQueue:
-        return await self.channel.declare_queue(channel_name, **kwargs)
+        return await self.channel.declare_queue(queue_name, **kwargs)
 
     async def create_worker(
-        self, channel_name: str, func: Callable[..., Any], **kwargs: Any
+        self, queue_name: str,
+        func: CallbackType,
+        **kwargs: Any,
     ) -> Worker:
         """ Creates a new :class:`Worker` instance. """
-
-        queue = await self.create_queue(channel_name, **kwargs)
-
-        if hasattr(func, "_is_coroutine"):
-            fn = func
-        else:
-            fn = awaitable(func)
-        consumer_tag = await queue.consume(partial(self.on_message, fn))
+        queue = await self.create_queue(queue_name, **kwargs)
+        consumer_tag = await queue.consume(
+            partial(self.on_message, ensure_awaitable(func)),
+        )
 
         return Worker(queue, consumer_tag, self.loop)
 
     async def create_task(
         self, channel_name: str,
         kwargs: Mapping[str, Any] = MappingProxyType({}),
-        **message_kwargs: Any
+        **message_kwargs: Any,
     ) -> Optional[aiormq.abc.ConfirmationFrameType]:
 
         """ Creates a new task for the worker """
@@ -199,7 +196,7 @@ class Master(Base):
             body=self.serialize(kwargs),
             content_type=self.CONTENT_TYPE,
             delivery_mode=self.DELIVERY_MODE,
-            **message_kwargs
+            **message_kwargs,
         )
 
         return await self.exchange.publish(

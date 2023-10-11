@@ -15,9 +15,9 @@ Welcome to aio-pika's documentation!
     :target: https://coveralls.io/github/mosquito/aio-pika
     :alt: Coveralls
 
-.. image:: https://travis-ci.org/mosquito/aio-pika.svg
-    :target: https://travis-ci.org/mosquito/aio-pika
-    :alt: Travis CI
+.. image:: https://github.com/mosquito/aio-pika/workflows/tests/badge.svg
+    :target: https://github.com/mosquito/aio-pika/actions?query=workflow%3Atests
+    :alt: Github Actions
 
 .. image:: https://img.shields.io/pypi/v/aio-pika.svg
     :target: https://pypi.python.org/pypi/aio-pika/
@@ -51,6 +51,100 @@ Features
 
 .. _publisher confirms: https://www.rabbitmq.com/confirms.html
 .. _Transactions: https://www.rabbitmq.com/semantics.html#tx
+
+AMQP URL parameters
++++++++++++++++++++
+
+URL is the supported way to configure connection.
+For customisation of conneciton behaviour you might
+pass the parameters in URL query-string like format.
+
+This article describes a description for this parameters.
+
+``aiormq`` specific
+~~~~~~~~~~~~~~~~~~~
+
+* ``name`` (``str`` url encoded) - A string that will be visible in the RabbitMQ management console and in
+  the server logs, convenient for diagnostics.
+
+* ``cafile`` (``str``) - Path to Certificate Authority file
+
+* ``capath`` (``str``) - Path to Certificate Authority directory
+
+* ``cadata`` (``str`` url encoded) - URL encoded CA certificate content
+
+* ``keyfile`` (``str``) - Path to client ssl private key file
+
+* ``certfile`` (``str``) - Path to client ssl certificate file
+
+* ``no_verify_ssl`` - No verify server SSL certificates. ``0`` by default and means ``False`` other value means
+  ``True``.
+
+* ``heartbeat`` (``int``-like) - interval in seconds between AMQP heartbeat packets. ``0`` disables this feature.
+
+
+``aio_pika.connect`` function and ``aio_pika.Connection`` class specific
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ``interleave`` (``int``-like) - controls address reordering when a host name resolves to multiple
+  IP addresses. If 0 or unspecified, no reordering is done, and addresses are tried
+  in the order returned by ``getaddrinfo()``. If a positive integer is specified,
+  the addresses are interleaved by address family, and the given integer is interpreted
+  as "First Address Family Count" as defined in `RFC 8305`_. The default is ``0`` if
+  ``happy_eyeballs_delay`` is not specified, and ``1`` if it is.
+
+  .. note::
+
+      Really useful for RabbitMQ clusters with one DNS name with many ``A``/``AAAA`` records.
+
+  .. warning::
+
+      This option is supported by ``asyncio.DefaultEventLoopPolicy`` and available since python 3.8.
+
+* ``happy_eyeballs_delay`` (``float``-like) - if given, enables Happy Eyeballs for this connection.
+  It should be a floating-point number representing the amount of time in seconds to wait for a connection attempt
+  to complete, before starting the next attempt in parallel. This is the "Connection Attempt Delay" as defined in
+  `RFC 8305`_. A sensible default value recommended by the RFC is ``0.25`` (250 milliseconds).
+
+  .. note::
+
+      Really useful for RabbitMQ clusters with one DNS name with many ``A``/``AAAA`` records.
+
+  .. warning::
+
+      This option is supported by ``asyncio.DefaultEventLoopPolicy`` and available since python 3.8.
+
+``aio_pika.connect_robust`` function and ``aio_pika.RobustConnection`` class specific
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For ``aio_pika.RobustConnection`` class is applicable all ``aio_pika.Connection`` related parameters like,
+``name``/``interleave``/``happy_eyeballs_delay`` and some specific:
+
+
+* ``reconnect_interval`` (``float``-like) - is the period in seconds, not more often than the attempts to
+  re-establish the connection will take place.
+
+
+* ``fail_fast`` (``true``/``yes``/``y``/``enable``/``on``/``enabled``/``1`` means ``True``, otherwise ``False``) -
+  special behavior for the start connection attempt, if it fails, all other attempts stops and an exception will be
+  thrown at the connection stage. Enabled by default, if you are sure you need to disable this feature, be ensures
+  for the passed URL is reallt working. Otherwise, your program will go into endless reconnection attempts that can
+  not be successed.
+
+.. _RFC 8305: https://datatracker.ietf.org/doc/html/rfc8305.html
+
+
+URL examples
+~~~~~~~~~~~~
+
+* ``amqp://username:password@hostname/vhost?name=connection%20name&heartbeat=60&happy_eyeballs_delay=0.25``
+
+* ``amqps://username:password@hostname/vhost?reconnect_interval=5&fail_fast=1``
+
+* ``amqps://username:password@hostname/vhost?cafile=/path/to/ca.pem``
+
+* ``amqps://username:password@hostname/vhost?cafile=/path/to/ca.pem&keyfile=/path/to/key.pem&certfile=/path/to/sert.pem``
+
 
 Installation
 ++++++++++++
@@ -189,6 +283,247 @@ Thanks for contributing
 .. _@dizballanze: https://github.com/dizballanze
 
 
+See also
+++++++++
+
+`aiormq`_
+~~~~~~~~~
+
+`aiormq` is a pure python AMQP client library. It is under the hood of **aio-pika** and might to be used when you really loving works with the protocol low level.
+Following examples demonstrates the user API.
+
+Simple consumer:
+
+.. code-block:: python
+
+    import asyncio
+    import aiormq
+
+    async def on_message(message):
+        """
+        on_message doesn't necessarily have to be defined as async.
+        Here it is to show that it's possible.
+        """
+        print(f" [x] Received message {message!r}")
+        print(f"Message body is: {message.body!r}")
+        print("Before sleep!")
+        await asyncio.sleep(5)   # Represents async I/O operations
+        print("After sleep!")
+
+    async def main():
+        # Perform connection
+        connection = await aiormq.connect("amqp://guest:guest@localhost/")
+
+        # Creating a channel
+        channel = await connection.channel()
+
+        # Declaring queue
+        declare_ok = await channel.queue_declare('helo')
+        consume_ok = await channel.basic_consume(
+            declare_ok.queue, on_message, no_ack=True
+        )
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
+    loop.run_forever()
+
+Simple publisher:
+
+.. code-block:: python
+
+    import asyncio
+    from typing import Optional
+
+    import aiormq
+    from aiormq.abc import DeliveredMessage
+
+    MESSAGE: Optional[DeliveredMessage] = None
+
+    async def main():
+        global MESSAGE
+        body = b'Hello World!'
+
+        # Perform connection
+        connection = await aiormq.connect("amqp://guest:guest@localhost//")
+
+        # Creating a channel
+        channel = await connection.channel()
+        declare_ok = await channel.queue_declare("hello", auto_delete=True)
+
+        # Sending the message
+        await channel.basic_publish(body, routing_key='hello')
+        print(f" [x] Sent {body}")
+
+        MESSAGE = await channel.basic_get(declare_ok.queue)
+        print(f" [x] Received message from {declare_ok.queue!r}")
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
+
+    assert MESSAGE is not None
+    assert MESSAGE.routing_key == "hello"
+    assert MESSAGE.body == b'Hello World!'
+
+The `patio`_ and the `patio-rabbitmq`_
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**PATIO** is an acronym for Python Asynchronous Tasks for AsyncIO - an easily extensible library, for distributed task execution, like celery, only targeting asyncio as the main design approach.
+
+**patio-rabbitmq** provides you with the ability to use *RPC over RabbitMQ* services with extremely simple implementation:
+
+.. code-block:: python
+
+   from patio import Registry, ThreadPoolExecutor
+   from patio_rabbitmq import RabbitMQBroker
+
+   rpc = Registry(project="patio-rabbitmq", auto_naming=False)
+
+   @rpc("sum")
+   def sum(*args):
+       return sum(args)
+
+   async def main():
+       async with ThreadPoolExecutor(rpc, max_workers=16) as executor:
+           async with RabbitMQBroker(
+               executor, amqp_url="amqp://guest:guest@localhost/",
+           ) as broker:
+               await broker.join()
+
+And the caller side might be written like this:
+
+.. code-block:: python
+
+    import asyncio
+    from patio import NullExecutor, Registry
+    from patio_rabbitmq import RabbitMQBroker
+
+    async def main():
+        async with NullExecutor(Registry(project="patio-rabbitmq")) as executor:
+            async with RabbitMQBroker(
+                executor, amqp_url="amqp://guest:guest@localhost/",
+            ) as broker:
+                print(await asyncio.gather(
+                    *[
+                        broker.call("mul", i, i, timeout=1) for i in range(10)
+                     ]
+                ))
+
+
+`Propan`_
+~~~~~~~~~
+
+**Propan** is a powerful and easy-to-use Python framework for building event-driven applications that interact with any MQ Broker.
+
+If you need no deep dive into **RabbitMQ** details, you can use more high-level **Propan** interfaces:
+
+.. code-block:: python
+
+   from propan import PropanApp, RabbitBroker
+
+   broker = RabbitBroker("amqp://guest:guest@localhost:5672/")
+   app = PropanApp(broker)
+
+   @broker.handle("user")
+   async def user_created(user_id: int):
+       assert isinstance(user_id, int)
+       return f"user-{user_id}: created"
+
+   @app.after_startup
+   async def pub_smth():
+       assert (
+           await broker.publish(1, "user", callback=True)
+       ) ==  "user-1: created"
+
+Also, **Propan** validates messages by **pydantic**, generates your project **AsyncAPI** spec, tests application locally, RPC calls, and more.
+
+In fact, it is a high-level wrapper on top of **aio-pika**, so you can use both of these libraries' advantages at the same time.
+
+`python-socketio`_
+~~~~~~~~~~~~~~~~~~
+
+`Socket.IO`_ is a transport protocol that enables real-time bidirectional event-based communication between clients (typically, though not always, web browsers) and a server. This package provides Python implementations of both, each with standard and asyncio variants.
+
+Also this package is suitable for building messaging services over **RabbitMQ** via **aio-pika** adapter:
+
+.. code-block:: python
+
+   import socketio
+   from aiohttp import web
+
+   sio = socketio.AsyncServer(client_manager=socketio.AsyncAioPikaManager())
+   app = web.Application()
+   sio.attach(app)
+
+   @sio.event
+   async def chat_message(sid, data):
+       print("message ", data)
+
+   if __name__ == '__main__':
+       web.run_app(app)
+
+And a client is able to call `chat_message` the following way:
+
+.. code-block:: python
+
+   import asyncio
+   import socketio
+
+   sio = socketio.AsyncClient()
+
+   async def main():
+       await sio.connect('http://localhost:8080')
+       await sio.emit('chat_message', {'response': 'my response'})
+
+   if __name__ == '__main__':
+       asyncio.run(main())
+
+The `taskiq`_ and the `taskiq-aio-pika`_
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Taskiq** is an asynchronous distributed task queue for python. The project takes inspiration from big projects such as Celery and Dramatiq. But taskiq can send and run both the sync and async functions.
+
+The library provides you with **aio-pika** broker for running tasks too.
+
+.. code-block:: python
+
+   from taskiq_aio_pika import AioPikaBroker
+
+   broker = AioPikaBroker()
+
+   @broker.task
+   async def test() -> None:
+       print("nothing")
+
+   async def main():
+       await broker.startup()
+       await test.kiq()
+
+`Rasa`_
+~~~~~~~
+
+With over 25 million downloads, Rasa Open Source is the most popular open source framework for building chat and voice-based AI assistants.
+
+With **Rasa**, you can build contextual assistants on:
+
+* Facebook Messenger
+* Slack
+* Google Hangouts
+* Webex Teams
+* Microsoft Bot Framework
+* Rocket.Chat
+* Mattermost
+* Telegram
+* Twilio
+
+Your own custom conversational channels or voice assistants as:
+
+* Alexa Skills
+* Google Home Actions
+
+**Rasa** helps you build contextual assistants capable of having layered conversations with lots of back-and-forth. In order for a human to have a meaningful exchange with a contextual assistant, the assistant needs to be able to use context to build on things that were previously discussed – **Rasa** enables you to build assistants that can do this in a scalable way.
+
+And it also uses **aio-pika** to interact with **RabbitMQ** deep inside!
+
 Versioning
 ==========
 
@@ -196,3 +531,11 @@ This software follows `Semantic Versioning`_
 
 
 .. _Semantic Versioning: http://semver.org/
+.. _propan: https://github.com/Lancetnik/Propan
+.. _patio: https://github.com/patio-python/patio
+.. _patio-rabbitmq: https://github.com/patio-python/patio-rabbitmq
+.. _Socket.IO: https://socket.io/
+.. _python-socketio: https://python-socketio.readthedocs.io/en/latest/intro.html
+.. _taskiq: https://github.com/taskiq-python/taskiq
+.. _taskiq-aio-pika: https://github.com/taskiq-python/taskiq-aio-pika
+.. _Rasa: https://rasa.com/docs/rasa/

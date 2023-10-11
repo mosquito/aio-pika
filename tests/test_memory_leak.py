@@ -1,16 +1,14 @@
 import gc
 import weakref
-
-import pytest
+from typing import AbstractSet
 
 import aio_pika
 
 
-@pytest.mark.skip(reason="temporary skipped")
 async def test_leak_unclosed_channel(create_connection):
     rabbitmq_connection = await create_connection()
 
-    weakset = weakref.WeakSet()
+    weakset: AbstractSet[aio_pika.abc.AbstractChannel] = weakref.WeakSet()
 
     async def f(rabbitmq_connection: aio_pika.Connection, weakset):
         weakset.add(await rabbitmq_connection.channel())
@@ -24,11 +22,10 @@ async def test_leak_unclosed_channel(create_connection):
     assert len(tuple(weakset)) == 0
 
 
-@pytest.mark.skip(reason="temporary skipped")
 async def test_leak_closed_channel(create_connection):
     rabbitmq_connection = await create_connection()
 
-    weakset = weakref.WeakSet()
+    weakset: AbstractSet[aio_pika.abc.AbstractConnection] = weakref.WeakSet()
 
     async def f(rabbitmq_connection: aio_pika.Connection, weakset):
         async with rabbitmq_connection.channel() as channel:

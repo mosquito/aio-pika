@@ -1,3 +1,154 @@
+9.3.0
+-----
+
+* new: add custom exchanges to rpc pattern #377 by @cloud-rocket
+
+9.2.3
+-----
+
+* Fix restore bug of RobustChannel #578 by @aozupek
+
+9.2.2
+-----
+
+* Fix bug with RPC when handling `on_close` with a RobustConnection #573 by @CodeCorrupt
+
+9.2.1
+-----
+
+* Fix reopen of robust channel after close #571 by @decaz. Fixes #570
+
+9.2.0
+-----
+
+* URL params passing to aiormq #569
+  * `Connection.KWARGS_TYPES` renamed to `Connection.PARAMETERS` and rework it to `dataclass`
+  * `Connection._parse_kwargs` renamed to `Connection._parse_parameters`
+  * [AMQP URL parameters](https://aio-pika.readthedocs.io/en/latest/#amqp-url-parameters) documentation article
+
+9.1.5
+-----
+
+* Fix race condition in RobustChannel in reopen/ready #566 by @isra17
+
+9.1.4
+-----
+
+* use fork friendly random robust queue generation way #560
+
+9.1.3
+-----
+
+* Ported publisher confirms tutorial by @MaPePeR #550
+* Fixed errored response when `aio_pika.patterns.RPC`
+  can not serialize the result #552
+
+9.1.2
+-----
+
+* Fix badges in docs
+
+9.1.1
+-----
+
+* Fix readthedocs build file
+
+9.1.0
+-----
+
+The bulk of the changes are related to how the library entities are now
+interconnected. In previous versions of `aio_pika.Channel` instances not
+contains a link to the `aio_pika.Connection` instances for now is contains it.
+
+While I don't want custom code to work directly with the `aiormq.Channel`
+instance, this was a public API and I should warn you about the change here.
+The `aio_pika.Channel.channel` property is deprecated. Use
+`aio_pika.Channel.get_underlay_chanel()` instead.
+Now all library entities already use this method.
+
+
+9.0.7
+-----
+
+* Update aiormq version
+
+9.0.6
+-----
+
+* Amend Exchange.__repr__ to include class name #527
+  Also switch to f-strings rather than %-formatting, modelled after
+  Queue.__repr__.
+* Update example code of rpc tutorial #530
+* bugfix: kwargs not working in `aio_pika.connect_robust` #531
+* Improve type hints for `queue.get()` #542
+
+9.0.5
+-----
+
+* Prevent 'Task exception was never retrieved' #524
+  If future.exception() is not called (even on cancelled futures), it seems Python
+  will then log 'Task exception was never retrieved'. Rewriting this logic
+  slightly should hopefully achieve the same functionality while
+  preventing the Python errors.
+* Avoid implicitly depending on setuptools #526
+
+9.0.4
+-----
+
+* fix README badge
+* upgrade requirements
+
+9.0.3
+-----
+
+* RPCs: Show exceptions on Host (remote side) #503
+* Fixed queue_name was set as channel_name for `patterns/master.py` #523
+
+9.0.2
+-----
+
+* Do not nack if consumer is no_ack in QueueIterator #521
+
+9.0.1
+-----
+
+* change classifiers in pyproject.toml
+
+9.0.0
+-----
+
+The main goal of this release is the migration to `poetry` and stronger type
+checking with mypy.
+
+User code should remain compatible, just test it with mypy. The tests still
+work the same, without public API changes, this indicates that your code
+should work without changes, but does not prove it.
+
+### Deprecations
+
+* `aio_pika.message.HeaderProxy` - removed
+* `aio_pika.message.header_converter` - removed
+* `aio_pika.message.format_headers` - removed
+* `aio_pika.message.Message.headers_raw` - prints deprecation warning
+* `aio_pika.abc.AbstractMessage.headers_raw` - removed
+
+8.3.0
+-----
+
+* Update `aiormq~=6.6.3` #512
+* Fix getting futures exceptions #509
+
+8.2.4
+-----
+
+* Fix memory leaks around channel close callbacks #496
+* Fastest way to reject all messages when queue iterator is closing #498
+
+8.2.3
+-----
+
+* Fix memory leak when callback collections is chaining #495
+
 8.2.2
 -----
 

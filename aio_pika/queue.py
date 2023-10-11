@@ -1,22 +1,28 @@
 import asyncio
-import contextlib
+import sys
 from functools import partial
 from types import TracebackType
-from typing import Any, Callable, Generator, Optional, Type
+from typing import Any, Awaitable, Callable, Optional, Type, overload
 
 import aiormq
 from aiormq.abc import DeliveredMessage
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractIncomingMessage, AbstractQueue, AbstractQueueIterator, ConsumerTag,
-    TimeoutType, get_exchange_name,
+    AbstractChannel, AbstractIncomingMessage, AbstractQueue,
+    AbstractQueueIterator, ConsumerTag, TimeoutType, get_exchange_name,
 )
 from .exceptions import QueueEmpty
 from .exchange import ExchangeParamType
 from .log import get_logger
 from .message import IncomingMessage
-from .tools import CallbackCollection, create_task
+from .tools import CallbackCollection, create_task, ensure_awaitable
+
+
+if sys.version_info >= (3, 8):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
 
 
 log = get_logger(__name__)
@@ -25,7 +31,7 @@ log = get_logger(__name__)
 async def consumer(
     callback: Callable[[AbstractIncomingMessage], Any],
     msg: DeliveredMessage, *,
-    no_ack: bool
+    no_ack: bool,
 ) -> Any:
     message = IncomingMessage(msg, no_ack=no_ack)
     return await create_task(callback, message)
@@ -36,7 +42,7 @@ class Queue(AbstractQueue):
 
     def __init__(
         self,
-        channel: aiormq.abc.AbstractChannel,
+        channel: AbstractChannel,
         name: Optional[str],
         durable: bool,
         exclusive: bool,
@@ -76,7 +82,8 @@ class Queue(AbstractQueue):
         :return: :class:`None`
         """
         log.debug("Declaring queue: %r", self)
-        self.declaration_result = await self.channel.queue_declare(
+        channel = await self.channel.get_underlay_channel()
+        self.declaration_result = await channel.queue_declare(
             queue=self.name,
             durable=self.durable,
             exclusive=self.exclusive,
@@ -98,7 +105,7 @@ class Queue(AbstractQueue):
         routing_key: Optional[str] = None,
         *,
         arguments: Arguments = None,
-        timeout: TimeoutType = None
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Queue.BindOk:
 
         """ A binding is a relationship between an exchange and a queue.
@@ -129,7 +136,8 @@ class Queue(AbstractQueue):
             arguments,
         )
 
-        return await self.channel.queue_bind(
+        channel = await self.channel.get_underlay_channel()
+        return await channel.queue_bind(
             self.name,
             exchange=get_exchange_name(exchange),
             routing_key=routing_key,
@@ -167,7 +175,8 @@ class Queue(AbstractQueue):
             arguments,
         )
 
-        return await self.channel.queue_unbind(
+        channel = await self.channel.get_underlay_channel()
+        return await channel.queue_unbind(
             queue=self.name,
             exchange=get_exchange_name(exchange),
             routing_key=routing_key,
@@ -177,7 +186,7 @@ class Queue(AbstractQueue):
 
     async def consume(
         self,
-        callback: Callable[[AbstractIncomingMessage], Any],
+        callback: Callable[[AbstractIncomingMessage], Awaitable[Any]],
         no_ack: bool = False,
         exclusive: bool = False,
         arguments: Arguments = None,
@@ -189,7 +198,7 @@ class Queue(AbstractQueue):
 
         :param timeout: :class:`asyncio.TimeoutError` will be raises when the
                         Future was not finished after this time.
-        :param callback: Consuming callback. Could be a coroutine.
+        :param callback: Consuming callback. Should be a coroutine function.
         :param no_ack:
             if :class:`True` you don't need to call
             :func:`aio_pika.message.IncomingMessage.ack`
@@ -208,8 +217,10 @@ class Queue(AbstractQueue):
         """
 
         log.debug("Start to consuming queue: %r", self)
+        callback = ensure_awaitable(callback)
 
-        consume_result = await self.channel.basic_consume(
+        channel = await self.channel.get_underlay_channel()
+        consume_result = await channel.basic_consume(
             queue=self.name,
             consumer_callback=partial(
                 consumer,
@@ -253,13 +264,28 @@ class Queue(AbstractQueue):
         :return: Basic.CancelOk when operation completed successfully
         """
 
-        return await self.channel.basic_cancel(
+        channel = await self.channel.get_underlay_channel()
+        return await channel.basic_cancel(
             consumer_tag=consumer_tag, nowait=nowait, timeout=timeout,
         )
 
+    @overload
     async def get(
         self, *, no_ack: bool = False,
-        fail: bool = True, timeout: TimeoutType = 5
+        fail: Literal[True] = ..., timeout: TimeoutType = ...,
+    ) -> IncomingMessage:
+        ...
+
+    @overload
+    async def get(
+        self, *, no_ack: bool = False,
+        fail: Literal[False] = ..., timeout: TimeoutType = ...,
+    ) -> Optional[IncomingMessage]:
+        ...
+
+    async def get(
+        self, *, no_ack: bool = False,
+        fail: bool = True, timeout: TimeoutType = 5,
     ) -> Optional[IncomingMessage]:
 
         """ Get message from the queue.
@@ -272,7 +298,8 @@ class Queue(AbstractQueue):
         :return: :class:`aio_pika.message.IncomingMessage`
         """
 
-        msg: DeliveredMessage = await self.channel.basic_get(
+        channel = await self.channel.get_underlay_channel()
+        msg: DeliveredMessage = await channel.basic_get(
             self.name, no_ack=no_ack, timeout=timeout,
         )
 
@@ -295,13 +322,14 @@ class Queue(AbstractQueue):
 
         log.info("Purging queue: %r", self)
 
-        return await self.channel.queue_purge(
+        channel = await self.channel.get_underlay_channel()
+        return await channel.queue_purge(
             self.name, nowait=no_wait, timeout=timeout,
         )
 
     async def delete(
         self, *, if_unused: bool = True,
-        if_empty: bool = True, timeout: TimeoutType = None
+        if_empty: bool = True, timeout: TimeoutType = None,
     ) -> aiormq.spec.Queue.DeleteOk:
 
         """ Delete the queue.
@@ -314,7 +342,8 @@ class Queue(AbstractQueue):
 
         log.info("Deleting %r", self)
 
-        return await self.channel.queue_delete(
+        channel = await self.channel.get_underlay_channel()
+        return await channel.queue_delete(
             self.name,
             if_unused=if_unused,
             if_empty=if_empty,
@@ -398,18 +427,32 @@ class QueueIterator(AbstractQueueIterator):
 
         log.debug("Queue iterator %r closed", self)
 
-        def queue_tail(
-            channel: aiormq.abc.AbstractChannel,
-        ) -> Generator[Any, AbstractIncomingMessage, None]:
-            while not channel.is_closed:
-                with contextlib.suppress(asyncio.QueueEmpty):
-                    yield self._queue.get_nowait()
-                return None
-
         # Reject all messages
-        msg: IncomingMessage
-        for msg in queue_tail(self._amqp_queue.channel):
-            await msg.reject(requeue=True)
+        msg: Optional[IncomingMessage] = None
+        try:
+            while True:
+                msg = self._queue.get_nowait()
+        except asyncio.QueueEmpty:
+            if msg is None:
+                return
+
+            if self._amqp_queue.channel.is_closed:
+                log.warning(
+                    "Message %r lost when queue iterator %r channel closed",
+                    msg,
+                    self,
+                )
+                return
+
+            if self._consume_kwargs.get("no_ack", False):
+                log.warning(
+                    "Message %r lost for consumer with no_ack %r",
+                    msg,
+                    self,
+                )
+                return
+
+            await msg.nack(requeue=True, multiple=True)
 
     def __str__(self) -> str:
         return f"queue[{self._amqp_queue}](...)"
@@ -434,7 +477,7 @@ class QueueIterator(AbstractQueueIterator):
 
     async def consume(self) -> None:
         self._consumer_tag = await self._amqp_queue.consume(
-            self.on_message, **self._consume_kwargs
+            self.on_message, **self._consume_kwargs,
         )
 
     def __aiter__(self) -> "AbstractQueueIterator":
@@ -462,15 +505,15 @@ class QueueIterator(AbstractQueueIterator):
                 timeout=self._consume_kwargs.get("timeout"),
             )
         except asyncio.CancelledError:
+            timeout = self._consume_kwargs.get(
+                "timeout",
+                self.DEFAULT_CLOSE_TIMEOUT,
+            )
             log.info(
                 "%r closing with timeout %d seconds",
-                self, self.DEFAULT_CLOSE_TIMEOUT,
+                self, timeout,
             )
-            await asyncio.wait_for(
-                self.close(), timeout=self._consume_kwargs.get(
-                    "timeout", self.DEFAULT_CLOSE_TIMEOUT,
-                ),
-            )
+            await asyncio.wait_for(self.close(), timeout=timeout)
             raise
 
 

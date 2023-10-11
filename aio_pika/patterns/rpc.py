@@ -5,10 +5,9 @@ import time
 import uuid
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Dict, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from aiormq.abc import ExceptionType
-from aiormq.tools import awaitable
 
 from aio_pika.abc import (
     AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
@@ -18,13 +17,11 @@ from aio_pika.exceptions import MessageProcessError
 from aio_pika.exchange import ExchangeType
 from aio_pika.message import IncomingMessage, Message, ReturnedMessage
 
-from .base import Base, Proxy
+from ..tools import ensure_awaitable
+from .base import Base, CallbackType, Proxy, T
 
 
 log = logging.getLogger(__name__)
-
-T = TypeVar("T")
-CallbackType = Callable[..., T]
 
 
 class RPCException(RuntimeError):
@@ -62,7 +59,7 @@ class RPC(Base):
 
     Create an instance ::
 
-        rpc = await RPC.create(channel)
+        rpc = await RPC.create(channel, host_exceptions=False)
 
     Registering python function ::
 
@@ -80,13 +77,20 @@ class RPC(Base):
 
         assert await rpc.call('multiply', dict(x=2, y=3)) == 6
 
+    Show exceptions on remote side ::
+
+        rpc = await RPC.create(channel, host_exceptions=True)
     """
 
     result_queue: AbstractQueue
     result_consumer_tag: ConsumerTag
     dlx_exchange: AbstractExchange
+    rpc_exchange: Optional[AbstractExchange]
 
-    def __init__(self, channel: AbstractChannel):
+    def __init__(
+        self, channel: AbstractChannel,
+        host_exceptions: bool = False,
+    ) -> None:
         self.channel = channel
         self.loop = asyncio.get_event_loop()
         self.proxy = Proxy(self.call)
@@ -94,18 +98,30 @@ class RPC(Base):
         self.routes: Dict[str, Callable[..., Any]] = {}
         self.queues: Dict[Callable[..., Any], AbstractQueue] = {}
         self.consumer_tags: Dict[Callable[..., Any], ConsumerTag] = {}
+        self.host_exceptions = host_exceptions
 
-    def __remove_future(self, future: asyncio.Future) -> None:
-        log.debug("Remove done future %r", future)
-        self.futures.pop(str(id(future)), None)
+    def __remove_future(
+        self, correlation_id: str
+    ) -> Callable[[asyncio.Future], None]:
+        def do_remove(future: asyncio.Future) -> None:
+            log.debug("Remove done future %r", future)
+            self.futures.pop(correlation_id, None)
+        return do_remove
 
     def create_future(self) -> Tuple[asyncio.Future, str]:
         future = self.loop.create_future()
         log.debug("Create future for RPC call")
         correlation_id = str(uuid.uuid4())
         self.futures[correlation_id] = future
-        future.add_done_callback(self.__remove_future)
+        future.add_done_callback(self.__remove_future(correlation_id))
         return future, correlation_id
+
+    def _format_routing_key(self, method_name: str) -> str:
+        return (
+            f'{self.rpc_exchange.name}::{method_name}'
+            if self.rpc_exchange
+            else method_name
+        )
 
     async def close(self) -> None:
         if not hasattr(self, "result_queue"):
@@ -134,15 +150,24 @@ class RPC(Base):
         del self.result_queue
         del self.dlx_exchange
 
+        if self.rpc_exchange:
+            del self.rpc_exchange
+
     async def initialize(
         self, auto_delete: bool = True,
-        durable: bool = False, **kwargs: Any
+        durable: bool = False, exchange: str = '', **kwargs: Any,
     ) -> None:
         if hasattr(self, "result_queue"):
             return
 
+        self.rpc_exchange = await self.channel.declare_exchange(
+            exchange,
+            type=ExchangeType.DIRECT,
+            auto_delete=True,
+            durable=durable) if exchange else None
+
         self.result_queue = await self.channel.declare_queue(
-            None, auto_delete=auto_delete, durable=durable, **kwargs
+            None, auto_delete=auto_delete, durable=durable, **kwargs,
         )
 
         self.dlx_exchange = await self.channel.declare_exchange(
@@ -244,19 +269,24 @@ class RPC(Base):
     async def on_call_message(
         self, method_name: str, message: IncomingMessage,
     ) -> None:
-        if method_name not in self.routes:
+
+        routing_key = self._format_routing_key(method_name)
+
+        if routing_key not in self.routes:
             log.warning("Method %r not registered in %r", method_name, self)
             return
 
         try:
             payload = await self.deserialize_message(message)
-            func = self.routes[method_name]
-
+            func = self.routes[routing_key]
             result: Any = await self.execute(func, payload)
             message_type = RPCMessageType.RESULT
         except Exception as e:
             result = self.serialize_exception(e)
             message_type = RPCMessageType.ERROR
+
+            if self.host_exceptions is True:
+                log.exception(e)
 
         if not message.reply_to:
             log.info(
@@ -267,12 +297,22 @@ class RPC(Base):
             await message.ack()
             return
 
-        result_message = await self.serialize_message(
-            payload=result,
-            message_type=message_type,
-            correlation_id=message.correlation_id,
-            delivery_mode=message.delivery_mode,
-        )
+        try:
+            result_message = await self.serialize_message(
+                payload=result,
+                message_type=message_type,
+                correlation_id=message.correlation_id,
+                delivery_mode=message.delivery_mode,
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            result_message = await self.serialize_message(
+                payload=e,
+                message_type=RPCMessageType.ERROR,
+                correlation_id=message.correlation_id,
+                delivery_mode=message.delivery_mode,
+            )
 
         try:
             await self.channel.default_exchange.publish(
@@ -305,7 +345,7 @@ class RPC(Base):
     async def serialize_message(
         self, payload: Any, message_type: RPCMessageType,
         correlation_id: Optional[str], delivery_mode: DeliveryMode,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Message:
         return Message(
             self.serialize(payload),
@@ -314,7 +354,7 @@ class RPC(Base):
             delivery_mode=delivery_mode,
             timestamp=time.time(),
             type=message_type.value,
-            **kwargs
+            **kwargs,
         )
 
     async def call(
@@ -324,7 +364,7 @@ class RPC(Base):
         *,
         expiration: Optional[int] = None,
         priority: int = 5,
-        delivery_mode: DeliveryMode = DELIVERY_MODE
+        delivery_mode: DeliveryMode = DELIVERY_MODE,
     ) -> Any:
         """ Call remote method and awaiting result.
 
@@ -355,16 +395,18 @@ class RPC(Base):
         if expiration is not None:
             message.expiration = expiration
 
-        log.debug("Publishing calls for %s(%r)", method_name, kwargs)
-        await self.channel.default_exchange.publish(
-            message, routing_key=method_name, mandatory=True,
-        )
+        routing_key = self._format_routing_key(method_name)
 
-        log.debug("Waiting RPC result for %s(%r)", method_name, kwargs)
+        log.debug("Publishing calls for %s(%r)", routing_key, kwargs)
+        exchange = self.rpc_exchange or self.channel.default_exchange
+        await exchange.publish(message, routing_key=routing_key,
+                               mandatory=True)
+
+        log.debug("Waiting RPC result for %s(%r)", routing_key, kwargs)
         return await future
 
     async def register(
-        self, method_name: str, func: CallbackType, **kwargs: Any
+        self, method_name: str, func: CallbackType, **kwargs: Any,
     ) -> Any:
         """ Method creates a queue with name which equal of
         `method_name` argument. Then subscribes this queue.
@@ -380,23 +422,33 @@ class RPC(Base):
         arguments = kwargs.pop("arguments", {})
         arguments.update({"x-dead-letter-exchange": self.DLX_NAME})
 
+        func = ensure_awaitable(func)
+
         kwargs["arguments"] = arguments
 
-        queue = await self.channel.declare_queue(method_name, **kwargs)
+        routing_key = self._format_routing_key(method_name)
+
+        queue = await self.channel.declare_queue(routing_key, **kwargs)
+
+        if self.rpc_exchange:
+            await queue.bind(
+                self.rpc_exchange,
+                routing_key
+            )
 
         if func in self.consumer_tags:
             raise RuntimeError("Function already registered")
 
-        if method_name in self.routes:
+        if routing_key in self.routes:
             raise RuntimeError(
-                "Method name already used for %r" % self.routes[method_name],
+                "Method name already used for %r" % self.routes[routing_key],
             )
 
         self.consumer_tags[func] = await queue.consume(
             partial(self.on_call_message, method_name),
         )
 
-        self.routes[method_name] = awaitable(func)
+        self.routes[routing_key] = func
         self.queues[func] = queue
 
     async def unregister(self, func: CallbackType) -> None:
@@ -447,7 +499,6 @@ class JsonRPC(RPC):
 
 
 __all__ = (
-    "CallbackType",
     "JsonRPC",
     "RPC",
     "RPCException",

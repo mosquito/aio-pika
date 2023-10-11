@@ -1,4 +1,7 @@
 import asyncio
+import inspect
+import warnings
+from functools import wraps
 from itertools import chain
 from threading import Lock
 from typing import (
@@ -38,16 +41,19 @@ def iscoroutinepartial(fn: Callable[..., Any]) -> bool:
 
 
 def _task_done(future: asyncio.Future) -> None:
-    exc = future.exception()
-    if exc is not None:
-        raise exc
+    try:
+        exc = future.exception()
+        if exc is not None:
+            raise exc
+    except asyncio.CancelledError:
+        pass
 
 
 def create_task(
     func: Callable[..., Union[Coroutine[Any, Any, T], Awaitable[T]]],
     *args: Any,
     loop: Optional[asyncio.AbstractEventLoop] = None,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> Awaitable[T]:
     loop = loop or asyncio.get_event_loop()
 
@@ -88,7 +94,13 @@ STUB_AWAITABLE = StubAwaitable()
 
 
 class CallbackCollection(MutableSet):
-    __slots__ = "__sender", "__callbacks", "__weak_callbacks", "__lock"
+    __slots__ = (
+        "__weakref__",
+        "__sender",
+        "__callbacks",
+        "__weak_callbacks",
+        "__lock",
+    )
 
     def __init__(self, sender: Union[T, ReferenceType]):
         self.__sender: ReferenceType
@@ -208,7 +220,7 @@ class OneShotCallback:
         self.loop = asyncio.get_event_loop()
         self.finished: asyncio.Event = asyncio.Event()
         self.__lock: asyncio.Lock = asyncio.Lock()
-        self.__task: asyncio.Future
+        self.__task: Optional[asyncio.Future] = None
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}: cb={self.callback!r}>"
@@ -217,7 +229,8 @@ class OneShotCallback:
         try:
             return self.finished.wait()
         except asyncio.CancelledError:
-            self.__task.cancel()
+            if self.__task is not None:
+                self.__task.cancel()
             raise
 
     async def __task_inner(self, *args: Any, **kwargs: Any) -> None:
@@ -228,23 +241,61 @@ class OneShotCallback:
             try:
                 await self.callback(*args, **kwargs)
             finally:
-                self.finished.set()
+                self.loop.call_soon(self.finished.set)
                 del self.callback
 
     def __call__(self, *args: Any, **kwargs: Any) -> Awaitable[Any]:
-        if self.finished.is_set():
+        if self.finished.is_set() or self.__task is not None:
             return STUB_AWAITABLE
+
         self.__task = self.loop.create_task(
             self.__task_inner(*args, **kwargs),
         )
         return self.__task
 
 
+def ensure_awaitable(
+    func: Callable[..., Union[T, Awaitable[T]]],
+) -> Callable[..., Awaitable[T]]:
+    if inspect.iscoroutinefunction(func):
+        return func
+
+    if inspect.isfunction(func) and not iscoroutinepartial(func):
+        warnings.warn(
+            f"You probably registering the non-coroutine function {func!r}. "
+            "This is deprecated and will be removed in future releases. "
+            "Moreover, it can block the event loop",
+            DeprecationWarning,
+        )
+
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> T:
+        nonlocal func
+
+        result = func(*args, **kwargs)
+        if not hasattr(result, "__await__"):
+            warnings.warn(
+                f"Function {func!r} returned a non awaitable result."
+                "This may be bad for performance or may blocks the "
+                "event loop, you should pay attention to this. This "
+                "warning is here in an attempt to maintain backwards "
+                "compatibility and will simply be removed in "
+                "future releases.",
+                DeprecationWarning,
+            )
+            return result
+
+        return await result
+
+    return wrapper
+
+
 __all__ = (
     "CallbackCollection",
-    "CallbackType",
     "CallbackSetType",
+    "CallbackType",
     "OneShotCallback",
     "create_task",
+    "ensure_awaitable",
     "iscoroutinepartial",
 )

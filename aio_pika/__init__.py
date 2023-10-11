@@ -11,10 +11,14 @@ from .robust_channel import RobustChannel
 from .robust_connection import RobustConnection, connect_robust
 from .robust_exchange import RobustExchange
 from .robust_queue import RobustQueue
-from .version import (
-    __author__, __version__, author_info, package_info, package_license,
-    version_info,
-)
+
+
+try:
+    from importlib.metadata import Distribution
+    __version__ = Distribution.from_name("aio-pika").version
+except ImportError:
+    import pkg_resources
+    __version__ = pkg_resources.get_distribution("aio-pika").version
 
 
 __all__ = (
@@ -32,16 +36,11 @@ __all__ = (
     "RobustConnection",
     "RobustExchange",
     "RobustQueue",
-    "__author__",
     "__version__",
     "abc",
-    "author_info",
     "connect",
     "connect_robust",
     "logger",
-    "package_info",
-    "package_license",
     "patterns",
     "pool",
-    "version_info",
 )

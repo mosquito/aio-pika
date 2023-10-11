@@ -104,8 +104,7 @@ Producer sends messages to the "hello" queue. The consumer receives messages fro
 
     RabbitMQ speaks AMQP 0.9.1, which is an open, general-purpose protocol for messaging.
     There are a number of clients for RabbitMQ in `many different languages`_.
-    In this tutorial series we're going to use `aio-pika`_,
-    which is the Python client recommended by the RabbitMQ team.
+    In this tutorial series we're going to use `aio-pika`_.
     To install it you can use the `pip`_ package management tool.
 
     .. _many different languages: https://www.rabbitmq.com/devtools.html

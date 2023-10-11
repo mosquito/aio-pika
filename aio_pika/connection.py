@@ -1,18 +1,19 @@
 import asyncio
 from ssl import SSLContext
 from types import TracebackType
-from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Dict, Optional, Tuple, Type, TypeVar, Union
 
 import aiormq.abc
-from aiormq.tools import censor_url
+from aiormq.connection import parse_int
 from pamqp.common import FieldTable
 from yarl import URL
 
 from .abc import (
-    AbstractChannel, AbstractConnection, SSLOptions, TimeoutType,
-    UnderlayConnection,
+    AbstractChannel, AbstractConnection, ConnectionParameter, SSLOptions,
+    TimeoutType, UnderlayConnection,
 )
 from .channel import Channel
+from .exceptions import ConnectionClosed
 from .log import get_logger
 from .tools import CallbackCollection
 
@@ -25,7 +26,18 @@ class Connection(AbstractConnection):
     """ Connection abstraction """
 
     CHANNEL_CLASS: Type[Channel] = Channel
-    KWARGS_TYPES: Tuple[Tuple[str, Callable[[str], Any], str], ...] = ()
+    PARAMETERS: Tuple[ConnectionParameter, ...] = (
+        ConnectionParameter(
+            name="interleave",
+            parser=parse_int,
+            is_kwarg=True,
+        ),
+        ConnectionParameter(
+            name="happy_eyeballs_delay",
+            parser=float,
+            is_kwarg=True,
+        ),
+    )
 
     _closed: bool
 
@@ -34,7 +46,7 @@ class Connection(AbstractConnection):
         return self._closed
 
     async def close(
-        self, exc: Optional[aiormq.abc.ExceptionType] = asyncio.CancelledError,
+        self, exc: Optional[aiormq.abc.ExceptionType] = ConnectionClosed,
     ) -> None:
         transport, self.transport = self.transport, None
         self._close_called = True
@@ -44,15 +56,21 @@ class Connection(AbstractConnection):
         self._closed = True
 
     @classmethod
-    def _parse_kwargs(cls, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_parameters(cls, kwargs: Dict[str, Any]) -> Dict[str, Any]:
         result = {}
-        for key, parser, default in cls.KWARGS_TYPES:
-            result[key] = parser(kwargs.get(key, default))
+        for parameter in cls.PARAMETERS:
+            value = kwargs.get(parameter.name, parameter.default)
+
+            if parameter.is_kwarg and value is None:
+                # skip optional value
+                continue
+
+            result[parameter.name] = parameter.parse(value)
         return result
 
     def __init__(
         self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None,
-        ssl_context: Optional[SSLContext] = None, **kwargs: Any
+        ssl_context: Optional[SSLContext] = None, **kwargs: Any,
     ):
         self.loop = loop or asyncio.get_event_loop()
         self.transport = None
@@ -61,7 +79,7 @@ class Connection(AbstractConnection):
 
         self.url = URL(url)
 
-        self.kwargs: Dict[str, Any] = self._parse_kwargs(
+        self.kwargs: Dict[str, Any] = self._parse_parameters(
             kwargs or dict(self.url.query),
         )
         self.kwargs["context"] = ssl_context
@@ -69,17 +87,23 @@ class Connection(AbstractConnection):
         self.connected: asyncio.Event = asyncio.Event()
 
     def __str__(self) -> str:
-        return str(censor_url(self.url))
+        url = self.url
+        if url.password:
+            url = url.with_password("******")
+        return str(url)
 
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}: "{self}">'
 
     async def _on_connection_close(self, closing: asyncio.Future) -> None:
-        exc: Optional[BaseException] = closing.exception()
+        try:
+            exc = closing.exception()
+        except asyncio.CancelledError as e:
+            exc = e
         self.connected.clear()
         await self.close_callbacks(exc)
 
-    async def _on_connected(self, transport: UnderlayConnection) -> None:
+    async def _on_connected(self) -> None:
         self.connected.set()
 
     async def connect(self, timeout: TimeoutType = None) -> None:
@@ -91,12 +115,11 @@ class Connection(AbstractConnection):
             You shouldn't call it explicitly.
 
         """
-        transport = await UnderlayConnection.connect(
+        self.transport = await UnderlayConnection.connect(
             self.url, self._on_connection_close,
-            timeout=timeout, **self.kwargs
+            timeout=timeout, **self.kwargs,
         )
-        await self._on_connected(transport)
-        self.transport = transport
+        await self._on_connected()
 
     def channel(
         self,
@@ -163,7 +186,7 @@ class Connection(AbstractConnection):
         log.debug("Creating AMQP channel for connection: %r", self)
 
         channel = self.CHANNEL_CLASS(
-            connection=self.transport.connection,
+            connection=self,
             channel_number=channel_number,
             publisher_confirms=publisher_confirms,
             on_return_raises=on_return_raises,
@@ -262,7 +285,7 @@ async def connect(
     timeout: TimeoutType = None,
     client_properties: Optional[FieldTable] = None,
     connection_class: Type[AbstractConnection] = Connection,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> AbstractConnection:
     """ Make connection to the broker.
 
@@ -316,7 +339,7 @@ async def connect(
 
         ``client_properties`` argument requires ``aiormq>=2.9``
 
-    URL string might be contain ssl parameters e.g.
+    URL string might be containing ssl parameters e.g.
     `amqps://user:pass@host//?ca_certs=ca.pem&certfile=crt.pem&keyfile=key.pem`
 
     :param client_properties: add custom client capability.
@@ -355,13 +378,15 @@ async def connect(
             ssl=ssl,
             ssl_options=ssl_options,
             client_properties=client_properties,
-            **kwargs
+            **kwargs,
         ),
-        loop=loop, ssl_context=ssl_context,
+        loop=loop,
+        ssl_context=ssl_context,
+        **kwargs,
     )
 
     await connection.connect(timeout=timeout)
     return connection
 
 
-__all__ = ("connect", "Connection", "make_url")
+__all__ = ("Connection", "connect", "make_url")

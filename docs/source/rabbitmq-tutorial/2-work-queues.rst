@@ -57,7 +57,7 @@ Preparation
 In the previous part of this tutorial we sent a message containing `"Hello World!"`.
 Now we'll be sending strings that stand for complex tasks. We don't have a real-world
 task, like images to be resized or pdf files to be rendered, so let's fake it by just
-pretending we're busy - by using the time.sleep() function. We'll take the number of dots
+pretending we're busy - by using the `asyncio.sleep()` function. We'll take the number of dots
 in the string as its complexity; every dot will account for one second of "work".
 For example, a fake task described by Hello... will take three seconds.
 
@@ -65,17 +65,20 @@ We will slightly modify the send.py code from our previous example, to allow arb
 messages to be sent from the command line. This program will schedule tasks to our work
 queue, so let's name it *new_task.py*:
 
-.. literalinclude:: examples/2-work-queues/new_task.py
+.. literalinclude:: examples/2-work-queues/new_task_initial.py
    :language: python
    :pyobject: main
 
 Our old receive.py script also requires some changes: it needs to fake a second of work
 for every dot in the message body. It will pop messages from the queue and perform the task,
-so let's call it *worker.py*:
+so let's call it *tasks_worker.py*:
 
-.. literalinclude:: examples/2-work-queues/worker.py
-   :language: python
-   :pyobject: on_message
+.. code-block:: python
+
+    async def on_message(message: IncomingMessage):
+        print(" [x] Received %r" % message.body)
+        await asyncio.sleep(message.body.count(b'.'))
+        print(" [x] Done")
 
 
 Round-robin dispatching
@@ -84,20 +87,20 @@ Round-robin dispatching
 One of the advantages of using a Task Queue is the ability to easily parallelise work.
 If we are building up a backlog of work, we can just add more workers and that way, scale easily.
 
-First, let's try to run two *worker.py* scripts at the same time. They will
+First, let's try to run two *tasks_worker.py* scripts at the same time. They will
 both get messages from the queue, but how exactly? Let's see.
 
-You need three consoles open. Two will run the worker.py script.
+You need three consoles open. Two will run the ``tasks_worker.py`` script.
 These consoles will be our two consumers - C1 and C2.
 
 ::
 
-    shell1$ python worker.py
+    shell1$ python tasks_worker.py
     [*] Waiting for messages. To exit press CTRL+C
 
 ::
 
-    shell2$ python worker.py
+    shell2$ python tasks_worker.py
     [*] Waiting for messages. To exit press CTRL+C
 
 In the third one we'll publish new tasks. Once you've started the consumers you can publish a few messages::
@@ -110,7 +113,7 @@ In the third one we'll publish new tasks. Once you've started the consumers you 
 
 Let's see what is delivered to our workers::
 
-    shell1$ python worker.py
+    shell1$ python tasks_worker.py
      [*] Waiting for messages. To exit press CTRL+C
      [x] Received 'First message.'
      [x] Received 'Third message...'
@@ -118,7 +121,7 @@ Let's see what is delivered to our workers::
 
 ::
 
-    shell2$ python worker.py
+    shell2$ python tasks_worker.py
      [*] Waiting for messages. To exit press CTRL+C
      [x] Received 'Second message..'
      [x] Received 'Fourth message....'
@@ -163,11 +166,18 @@ from the worker, once we're done with a task.
         print(" [x] Done")
         await message.ack()
 
+.. code-block:: python
+
+    # Declaring queue
+        queue = await channel.declare_queue("hello")
+    # Start listening the queue with name 'hello'
+        await queue.consume(on_message)
+
 or using special context processor:
 
-.. literalinclude:: examples/2-work-queues/worker.py
+.. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
-   :lines: 8-10
+   :lines: 7-11
 
 
 If context processor will catch an exception, the message will be returned to the queue.
@@ -205,9 +215,9 @@ Two things are required to make sure that messages aren't lost: we need to mark 
 First, we need to make sure that RabbitMQ will never lose our queue. In order to do so,
 we need to declare it as *durable*:
 
-.. literalinclude:: examples/2-work-queues/worker.py
-   :language: python
-   :lines: 23-26
+.. code-block:: python
+
+   queue = await channel.declare_queue("hello", durable=True)
 
 
 Although this command is correct by itself, it won't work in our setup.
@@ -216,9 +226,9 @@ RabbitMQ doesn't allow you to redefine an existing queue with different paramete
 and will return an error to any program that tries to do that.
 But there is a quick workaround - let's declare a queue with different name, for example task_queue:
 
-.. literalinclude:: examples/2-work-queues/worker.py
+.. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
-   :lines: 22-26
+   :lines: 23-27
 
 This queue_declare change needs to be applied to both the producer and consumer code.
 
@@ -270,9 +280,9 @@ This tells RabbitMQ not to give more than one message to a worker at a time. Or,
 in other words, don't dispatch a new message to a worker until it has processed and
 acknowledged the previous one. Instead, it will dispatch it to the next worker that is not still busy.
 
-.. literalinclude:: examples/2-work-queues/worker.py
+.. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
-   :lines: 17-20
+   :lines: 18-21
 
 
 .. note::
@@ -290,9 +300,9 @@ Final code of our :download:`new_task.py <examples/2-work-queues/new_task.py>` s
 .. literalinclude:: examples/2-work-queues/new_task.py
    :language: python
 
-And our :download:`worker.py <examples/2-work-queues/worker.py>`:
+And our :download:`tasks_worker.py <examples/2-work-queues/tasks_worker.py>`:
 
-.. literalinclude:: examples/2-work-queues/worker.py
+.. literalinclude:: examples/2-work-queues/tasks_worker.py
    :language: python
 
 Using message acknowledgments and prefetch_count you can set up a work queue. The durability

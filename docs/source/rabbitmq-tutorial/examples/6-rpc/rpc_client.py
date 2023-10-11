@@ -21,11 +21,11 @@ class FibonacciRpcClient:
         self.connection = await connect("amqp://guest:guest@localhost/")
         self.channel = await self.connection.channel()
         self.callback_queue = await self.channel.declare_queue(exclusive=True)
-        await self.callback_queue.consume(self.on_response)
+        await self.callback_queue.consume(self.on_response, no_ack=True)
 
         return self
 
-    def on_response(self, message: AbstractIncomingMessage) -> None:
+    async def on_response(self, message: AbstractIncomingMessage) -> None:
         if message.correlation_id is None:
             print(f"Bad message {message!r}")
             return
