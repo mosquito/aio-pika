@@ -6,18 +6,16 @@ from aio_pika.pool import Pool
 
 
 async def main() -> None:
-    loop = asyncio.get_event_loop()
-
     async def get_connection() -> AbstractRobustConnection:
         return await aio_pika.connect_robust("amqp://guest:guest@localhost/")
 
-    connection_pool: Pool = Pool(get_connection, max_size=2, loop=loop)
+    connection_pool: Pool = Pool(get_connection, max_size=2)
 
     async def get_channel() -> aio_pika.Channel:
         async with connection_pool.acquire() as connection:
             return await connection.channel()
 
-    channel_pool: Pool = Pool(get_channel, max_size=10, loop=loop)
+    channel_pool: Pool = Pool(get_channel, max_size=10)
     queue_name = "pool_queue"
 
     async def consume() -> None:
@@ -41,7 +39,7 @@ async def main() -> None:
             )
 
     async with connection_pool, channel_pool:
-        task = loop.create_task(consume())
+        task = asyncio.create_task(consume())
         await asyncio.wait([publish() for _ in range(50)])
         await task
 
