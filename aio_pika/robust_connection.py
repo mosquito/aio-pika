@@ -95,7 +95,9 @@ class RobustConnection(Connection, AbstractRobustConnection):
             raise RuntimeError("No active transport for connection %r", self)
 
         try:
-            for channel in self.__channels:
+            # Make a copy of the channels to iterate on, to guard from
+            # concurrent updates to the set.
+            for channel in tuple(self.__channels):
                 try:
                     await channel.restore()
                 except Exception:
