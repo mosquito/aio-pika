@@ -73,7 +73,7 @@ class Queue(AbstractQueue):
         )
 
     async def declare(
-        self, timeout: TimeoutType = None,
+        self, timeout: TimeoutType = None, passive: Optional[bool] = None
     ) -> aiormq.spec.Queue.DeclareOk:
         """ Declare queue.
 
@@ -89,7 +89,7 @@ class Queue(AbstractQueue):
             exclusive=self.exclusive,
             auto_delete=self.auto_delete,
             arguments=self.arguments,
-            passive=self.passive,
+            passive=passive or self.passive,
             timeout=timeout,
         )
 
