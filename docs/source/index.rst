@@ -56,10 +56,10 @@ AMQP URL parameters
 +++++++++++++++++++
 
 URL is the supported way to configure connection.
-For customisation of conneciton behaviour you might
+For customisation of connection behaviour you might
 pass the parameters in URL query-string like format.
 
-This article describes a description for this parameters.
+This article describes a description for these parameters.
 
 ``aiormq`` specific
 ~~~~~~~~~~~~~~~~~~~
