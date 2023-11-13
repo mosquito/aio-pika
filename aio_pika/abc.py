@@ -140,6 +140,8 @@ class MessageInfo(TypedDict, total=False):
 
 
 class AbstractMessage(ABC):
+    __slots__ = ()
+
     body: bytes
     body_size: int
     headers: HeadersType
@@ -183,6 +185,8 @@ class AbstractMessage(ABC):
 
 
 class AbstractIncomingMessage(AbstractMessage, ABC):
+    __slots__ = ()
+
     cluster_id: Optional[str]
     consumer_tag: Optional["ConsumerTag"]
     delivery_tag: Optional[int]
