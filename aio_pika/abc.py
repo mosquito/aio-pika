@@ -246,6 +246,8 @@ class AbstractProcessContext(AsyncContextManager):
 
 
 class AbstractQueue:
+    __slots__ = ()
+
     channel: "AbstractChannel"
     name: str
     durable: bool
@@ -779,6 +781,8 @@ class AbstractConnection(PoolInstance, ABC):
 
 
 class AbstractRobustQueue(AbstractQueue):
+    __slots__ = ()
+
     @abstractmethod
     def restore(self) -> Awaitable[None]:
         raise NotImplementedError
