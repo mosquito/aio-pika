@@ -44,11 +44,15 @@ class RPC(Base):
         "channel",
         "loop",
         "proxy",
+        "futures",
         "result_queue",
         "result_consumer_tag",
         "routes",
+        "queues",
         "consumer_tags",
         "dlx_exchange",
+        "rpc_exchange",
+        "host_exceptions",
     )
 
     DLX_NAME = "rpc.dlx"

@@ -67,6 +67,8 @@ class Master(Base):
         "channel",
         "loop",
         "proxy",
+        "_requeue",
+        "_reject_on_redelivered",
     )
 
     DELIVERY_MODE = DeliveryMode.PERSISTENT

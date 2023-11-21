@@ -140,6 +140,8 @@ class MessageInfo(TypedDict, total=False):
 
 
 class AbstractMessage(ABC):
+    __slots__ = ()
+
     body: bytes
     body_size: int
     headers: HeadersType
@@ -183,6 +185,8 @@ class AbstractMessage(ABC):
 
 
 class AbstractIncomingMessage(AbstractMessage, ABC):
+    __slots__ = ()
+
     cluster_id: Optional[str]
     consumer_tag: Optional["ConsumerTag"]
     delivery_tag: Optional[int]
@@ -242,6 +246,8 @@ class AbstractProcessContext(AsyncContextManager):
 
 
 class AbstractQueue:
+    __slots__ = ()
+
     channel: "AbstractChannel"
     name: str
     durable: bool
@@ -775,6 +781,8 @@ class AbstractConnection(PoolInstance, ABC):
 
 
 class AbstractRobustQueue(AbstractQueue):
+    __slots__ = ()
+
     @abstractmethod
     def restore(self) -> Awaitable[None]:
         raise NotImplementedError

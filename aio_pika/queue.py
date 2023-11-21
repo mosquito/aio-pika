@@ -40,6 +40,20 @@ async def consumer(
 class Queue(AbstractQueue):
     """ AMQP queue abstraction """
 
+    __slots__ = (
+        "__weakref__",
+        "__get_lock",
+        "close_callbacks",
+        "channel",
+        "name",
+        "durable",
+        "exclusive",
+        "auto_delete",
+        "arguments",
+        "passive",
+        "declaration_result",
+    )
+
     def __init__(
         self,
         channel: AbstractChannel,
