@@ -38,7 +38,7 @@ ExchangeParamType = Union["AbstractExchange", str]
 ConsumerTag = str
 
 MILLISECONDS = 1000
-ZERO_TIME = datetime.utcfromtimestamp(0)
+ZERO_TIME = datetime(1970, 1, 1)
 
 
 class SSLOptions(TypedDict, total=False):

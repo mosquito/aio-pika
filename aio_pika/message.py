@@ -1,6 +1,6 @@
 import time
 import warnings
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import singledispatch
 from pprint import pformat
 from types import TracebackType
@@ -86,12 +86,12 @@ def encode_timestamp_datetime(value: datetime) -> datetime:
 @encode_timestamp.register(float)
 @encode_timestamp.register(int)
 def encode_timestamp_number(value: Union[int, float]) -> datetime:
-    return datetime.utcfromtimestamp(value)
+    return datetime.fromtimestamp(value, tz=timezone.utc)
 
 
 @encode_timestamp.register(timedelta)
 def encode_timestamp_timedelta(value: timedelta) -> datetime:
-    return datetime.utcnow() + value
+    return datetime.now(tz=timezone.utc) + value
 
 
 @encode_timestamp.register(NoneType)        # type: ignore
@@ -112,7 +112,7 @@ def decode_timestamp_datetime(value: datetime) -> datetime:
 @decode_timestamp.register(float)
 @decode_timestamp.register(int)
 def decode_timestamp_number(value: Union[float, int]) -> datetime:
-    return datetime.utcfromtimestamp(value)
+    return datetime.fromtimestamp(value, tz=timezone.utc)
 
 
 @decode_timestamp.register(time.struct_time)

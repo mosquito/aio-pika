@@ -1,6 +1,6 @@
 import time
 from copy import copy
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Tuple
 
 import shortuuid
@@ -45,7 +45,7 @@ def test_message_info():
         redelivered=None,
         reply_to="test",
         routing_key=None,
-        timestamp=datetime.utcfromtimestamp(int(time.time())),
+        timestamp=datetime.fromtimestamp(int(time.time()), tz=timezone.utc),
         type="0",
         user_id="guest",
     )
