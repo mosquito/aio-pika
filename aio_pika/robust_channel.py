@@ -69,7 +69,8 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         self.reopen_callbacks: CallbackCollection = CallbackCollection(self)
         self.__restore_lock = asyncio.Lock()
         self.__restored = asyncio.Event()
-        self.close_callbacks.add(self.__close_callback)
+
+        self.close_callbacks.remove(self._set_closed_callback)
 
     async def ready(self) -> None:
         await self._connection.ready()
@@ -94,22 +95,31 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
             await self.reopen()
             self.__restored.set()
 
-    async def __close_callback(self, _: Any, exc: BaseException) -> None:
+    async def _on_close(
+        self,
+        closing: asyncio.Future
+    ) -> Optional[BaseException]:
+        exc = await super()._on_close(closing)
+
         if isinstance(exc, asyncio.CancelledError):
             # This happens only if the channel is forced to close from the
             # outside, for example, if the connection is closed.
             # Of course, here you need to exit from this function
             # as soon as possible and to avoid a recovery attempt.
             self.__restored.clear()
-            return
+            if not self._closed.done():
+                self._closed.set_result(True)
+            return exc
 
         in_restore_state = not self.__restored.is_set()
         self.__restored.clear()
 
-        if self._closed or in_restore_state:
-            return
+        if self._closed.done() or in_restore_state:
+            return exc
 
         await self.restore()
+
+        return exc
 
     async def reopen(self) -> None:
         await super().reopen()
