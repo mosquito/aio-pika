@@ -1,8 +1,12 @@
 import asyncio
+import contextlib
 import warnings
 from abc import ABC
 from types import TracebackType
-from typing import Any, AsyncContextManager, Generator, Optional, Type, Union
+from typing import (
+    Any, AsyncContextManager, Awaitable, Generator, Literal, Optional, Type,
+    Union,
+)
 from warnings import warn
 
 import aiormq
@@ -77,8 +81,9 @@ class Channel(ChannelContext):
 
         self._connection: AbstractConnection = connection
 
-        # That's means user closed channel instance explicitly
-        self._closed: bool = False
+        self._closed: asyncio.Future = (
+            asyncio.get_running_loop().create_future()
+        )
 
         self._channel: Optional[UnderlayChannel] = None
         self._channel_number = channel_number
@@ -88,6 +93,8 @@ class Channel(ChannelContext):
 
         self.publisher_confirms = publisher_confirms
         self.on_return_raises = on_return_raises
+
+        self.close_callbacks.add(self._set_closed_callback)
 
     @property
     def is_initialized(self) -> bool:
@@ -99,7 +106,7 @@ class Channel(ChannelContext):
     def is_closed(self) -> bool:
         """Returns True when the channel has been closed from the broker
         side or after the close() method has been called."""
-        if not self.is_initialized or self._closed:
+        if not self.is_initialized or self._closed.done():
             return True
         channel = self._channel
         if channel is None:
@@ -119,8 +126,12 @@ class Channel(ChannelContext):
             return
 
         log.debug("Closing channel %r", self)
-        self._closed = True
         await self._channel.close()
+        if not self._closed.done():
+            self._closed.set_result(True)
+
+    def closed(self) -> Awaitable[Literal[True]]:
+        return self._closed
 
     async def get_underlay_channel(self) -> aiormq.abc.AbstractChannel:
 
@@ -174,12 +185,13 @@ class Channel(ChannelContext):
             await channel.close(e)
             self._channel = None
             raise
-        self._closed = False
+        if self._closed.done():
+            self._closed = asyncio.get_running_loop().create_future()
 
     async def initialize(self, timeout: TimeoutType = None) -> None:
         if self.is_initialized:
             raise RuntimeError("Already initialized")
-        elif self._closed:
+        elif self._closed.done():
             raise RuntimeError("Can't initialize closed channel")
 
         await self._open()
@@ -197,7 +209,10 @@ class Channel(ChannelContext):
             type=ExchangeType.DIRECT,
         )
 
-    async def _on_close(self, closing: asyncio.Future) -> None:
+    async def _on_close(
+        self,
+        closing: asyncio.Future
+    ) -> Optional[BaseException]:
         try:
             exc = closing.exception()
         except asyncio.CancelledError as e:
@@ -206,6 +221,15 @@ class Channel(ChannelContext):
 
         if self._channel and self._channel.channel:
             self._channel.channel.on_return_callbacks.discard(self._on_return)
+
+        return exc
+
+    async def _set_closed_callback(
+        self,
+        _: AbstractChannel, exc: BaseException
+    ) -> None:
+        if not self._closed.done():
+            self._closed.set_result(True)
 
     async def _on_initialized(self) -> None:
         channel = await self.get_underlay_channel()
@@ -219,7 +243,11 @@ class Channel(ChannelContext):
         await self._open()
 
     def __del__(self) -> None:
-        self._closed = True
+        with contextlib.suppress(AttributeError):
+            # might raise because an Exception was raised in __init__
+            if not self._closed.done():
+                self._closed.set_result(True)
+
         self._channel = None
 
     async def declare_exchange(

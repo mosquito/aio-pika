@@ -1,3 +1,8 @@
 [run]
 omit = aio_pika/compat.py
 branch = True
+
+[report]
+exclude_lines =
+    pragma: no cover
+    raise NotImplementedError

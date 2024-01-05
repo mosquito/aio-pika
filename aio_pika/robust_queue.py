@@ -151,6 +151,11 @@ class RobustQueue(Queue, AbstractRobustQueue):
 
 
 class RobustQueueIterator(QueueIterator):
+    def __init__(self, queue: Queue, **kwargs: Any):
+        super().__init__(queue, **kwargs)
+
+        self._amqp_queue.close_callbacks.discard(self._set_closed)
+
     async def consume(self) -> None:
         while True:
             try:

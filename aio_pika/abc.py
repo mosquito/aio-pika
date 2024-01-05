@@ -366,14 +366,14 @@ class AbstractQueue:
         raise NotImplementedError
 
 
-class AbstractQueueIterator(AsyncIterable):
+class AbstractQueueIterator(AsyncIterable[AbstractIncomingMessage]):
     _amqp_queue: AbstractQueue
     _queue: asyncio.Queue
     _consumer_tag: ConsumerTag
     _consume_kwargs: Dict[str, Any]
 
     @abstractmethod
-    def close(self, *_: Any) -> Awaitable[Any]:
+    def close(self) -> Awaitable[Any]:
         raise NotImplementedError
 
     @abstractmethod
@@ -529,6 +529,10 @@ class AbstractChannel(PoolInstance, ABC):
 
     @abstractmethod
     def close(self, exc: Optional[ExceptionType] = None) -> Awaitable[None]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def closed(self) -> Awaitable[Literal[True]]:
         raise NotImplementedError
 
     @abstractmethod
@@ -739,6 +743,10 @@ class AbstractConnection(PoolInstance, ABC):
 
     @abstractmethod
     async def close(self, exc: ExceptionType = asyncio.CancelledError) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def closed(self) -> Awaitable[Literal[True]]:
         raise NotImplementedError
 
     @abstractmethod

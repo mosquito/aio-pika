@@ -1,7 +1,10 @@
 import asyncio
 from ssl import SSLContext
 from types import TracebackType
-from typing import Any, Dict, Optional, Tuple, Type, TypeVar, Union
+from typing import (
+    Any, Awaitable, Dict, Literal, Optional, Tuple, Type, TypeVar, Union
+)
+
 
 import aiormq.abc
 from aiormq.connection import parse_int
@@ -39,11 +42,11 @@ class Connection(AbstractConnection):
         ),
     )
 
-    _closed: bool
+    _closed: asyncio.Future
 
     @property
     def is_closed(self) -> bool:
-        return self._closed
+        return self._closed.done()
 
     async def close(
         self, exc: Optional[aiormq.abc.ExceptionType] = ConnectionClosed,
@@ -53,7 +56,11 @@ class Connection(AbstractConnection):
         if not transport:
             return
         await transport.close(exc)
-        self._closed = True
+        if not self._closed.done():
+            self._closed.set_result(True)
+
+    def closed(self) -> Awaitable[Literal[True]]:
+        return self._closed
 
     @classmethod
     def _parse_parameters(cls, kwargs: Dict[str, Any]) -> Dict[str, Any]:
@@ -74,7 +81,7 @@ class Connection(AbstractConnection):
     ):
         self.loop = loop or asyncio.get_event_loop()
         self.transport = None
-        self._closed = False
+        self._closed = self.loop.create_future()
         self._close_called = False
 
         self.url = URL(url)
@@ -201,8 +208,7 @@ class Connection(AbstractConnection):
     def __del__(self) -> None:
         if (
             self.is_closed or
-            self.loop.is_closed() or
-            not hasattr(self, "connection")
+            self.loop.is_closed()
         ):
             return
 
