@@ -39,7 +39,7 @@ packages = [{ include = "aio_pika" }]
 python = "^3.8"
 aiormq = "~6.8.0"
 yarl = [{ version = '*'}]
-typing_extensions = [{ version = '*', python = "< 3.8" }]
+exceptiongroup = "^1"
 # for pkg_resources
 setuptools = [{ version = '*', python = "< 3.8" }]
 
@@ -62,6 +62,9 @@ timeout-decorator = "^0.5.0"
 types-setuptools = "^65.6.0.2"
 setuptools = "^69.0.3"
 testcontainers = "^3.7.1"
+
+[tool.poetry.group.uvloop]
+optional = true
 
 [tool.poetry.group.uvloop.dependencies]
 uvloop = "^0.19"
