@@ -123,7 +123,7 @@ thing we need to do is to establish a connection with RabbitMQ server.
 
 .. literalinclude:: examples/1-introduction/send.py
    :language: python
-   :lines: 5-8
+   :lines: 5-12
 
 We're connected now, to a broker on the local machine - hence the localhost.
 If we wanted to connect to a broker on a different machine we'd simply specify
