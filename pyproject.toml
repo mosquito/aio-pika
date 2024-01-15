@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aio-pika"
-version = "9.3.1"
+version = "9.4.0"
 description = "Wrapper around the aiormq for asyncio and humans"
 authors = ["Dmitry Orlov <me@mosquito.su>"]
 readme = "README.rst"
@@ -15,7 +15,6 @@ classifiers = [
     "Operating System :: Microsoft",
     "Operating System :: POSIX",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -36,15 +35,15 @@ packages = [{ include = "aio_pika" }]
 "Documentation" = "https://aio-pika.readthedocs.org/"
 
 [tool.poetry.dependencies]
-python = "^3.7"
-aiormq = "~6.7.7"
+python = "^3.8"
+aiormq = "~6.8.0"
 yarl = [{ version = '*'}]
 typing_extensions = [{ version = '*', python = "< 3.8" }]
 # for pkg_resources
 setuptools = [{ version = '*', python = "< 3.8" }]
 
 [tool.poetry.group.dev.dependencies]
-aiomisc = "^17.2"
+aiomisc = "^17.3"
 aiomisc-pytest = "^1.1.1"
 collective-checkdocs = "^0.2"
 coverage = "^6.5.0"
@@ -52,7 +51,7 @@ coveralls = "^3.3.1"
 mypy = "^0.991"
 nox = "^2022.11.21"
 pylama = "^8.4.1"
-pytest = "^7.2.0"
+pytest = "^7.4.0"
 pytest-cov = "^4.0.0"
 pytest-rst = "^0.0.7"
 shortuuid = "^1.0.11"
@@ -60,6 +59,7 @@ sphinx = "^5.3.0"
 sphinx-autobuild = "^2021.3.14"
 timeout-decorator = "^0.5.0"
 types-setuptools = "^65.6.0.2"
+setuptools = "^69.0.3"
 
 [tool.poetry.group.uvloop.dependencies]
 uvloop = "^0.17.0"
