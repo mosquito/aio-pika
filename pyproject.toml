@@ -15,7 +15,6 @@ classifiers = [
     "Operating System :: Microsoft",
     "Operating System :: POSIX",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -36,15 +35,15 @@ packages = [{ include = "aio_pika" }]
 "Documentation" = "https://aio-pika.readthedocs.org/"
 
 [tool.poetry.dependencies]
-python = "^3.7"
-aiormq = "~6.7.7"
+python = "^3.8"
+aiormq = "~6.8.0"
 yarl = [{ version = '*'}]
 typing_extensions = [{ version = '*', python = "< 3.8" }]
 # for pkg_resources
 setuptools = [{ version = '*', python = "< 3.8" }]
 
 [tool.poetry.group.dev.dependencies]
-aiomisc = "^17.2"
+aiomisc = "^17.3"
 aiomisc-pytest = "^1.1.1"
 collective-checkdocs = "^0.2"
 coverage = "^6.5.0"
@@ -52,7 +51,7 @@ coveralls = "^3.3.1"
 mypy = "^0.991"
 nox = "^2022.11.21"
 pylama = "^8.4.1"
-pytest = "^7.2.0"
+pytest = "^7.4.0"
 pytest-cov = "^4.0.0"
 pytest-rst = "^0.0.7"
 shortuuid = "^1.0.11"
