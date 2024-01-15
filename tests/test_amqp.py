@@ -3,7 +3,7 @@ import logging
 import os
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Callable, Optional
 from unittest import mock
 
@@ -369,7 +369,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
             message_id=shortuuid.uuid(),
             priority=0,
             reply_to="test",
-            timestamp=datetime.utcfromtimestamp(int(time.time())),
+            timestamp=datetime.fromtimestamp(int(time.time()), tz=timezone.utc),
             type="0",
             user_id="guest",
         )
