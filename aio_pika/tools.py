@@ -19,25 +19,12 @@ T = TypeVar("T")
 
 def iscoroutinepartial(fn: Callable[..., Any]) -> bool:
     """
-    Function returns True if function is a partial instance of coroutine.
-    See additional information here_.
-
-    :param fn: Function
-    :return: bool
-
-    .. _here: https://goo.gl/C0S4sQ
-
+    Use Python 3.8's inspect.iscoroutinefunction() instead
     """
-
-    while True:
-        parent = fn
-
-        fn = getattr(parent, "func", None)  # type: ignore
-
-        if fn is None:
-            break
-
-    return asyncio.iscoroutinefunction(parent)
+    warnings.warn(
+        "Use inspect.iscoroutinefunction() instead.", DeprecationWarning
+    )
+    return asyncio.iscoroutinefunction(fn)
 
 
 def _task_done(future: asyncio.Future) -> None:
@@ -57,8 +44,8 @@ def create_task(
 ) -> Awaitable[T]:
     loop = loop or asyncio.get_event_loop()
 
-    if iscoroutinepartial(func):
-        task = loop.create_task(func(*args, **kwargs))      # type: ignore
+    if inspect.iscoroutinefunction(func):
+        task = loop.create_task(func(*args, **kwargs))
         task.add_done_callback(_task_done)
         return task
 
@@ -260,7 +247,7 @@ def ensure_awaitable(
     if inspect.iscoroutinefunction(func):
         return func
 
-    if inspect.isfunction(func) and not iscoroutinepartial(func):
+    if inspect.isfunction(func):
         warnings.warn(
             f"You probably registering the non-coroutine function {func!r}. "
             "This is deprecated and will be removed in future releases. "
