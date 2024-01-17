@@ -1,6 +1,5 @@
 import asyncio
 import dataclasses
-import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -9,15 +8,9 @@ from functools import singledispatch
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
-    Generator, Iterator, Mapping, Optional, Tuple, Type, TypeVar, Union,
-    overload,
+    Generator, Iterator, Literal, Mapping, Optional, Tuple, Type, TypedDict,
+    TypeVar, Union, overload,
 )
-
-
-if sys.version_info >= (3, 8):
-    from typing import Literal, TypedDict
-else:
-    from typing_extensions import Literal, TypedDict
 
 import aiormq.abc
 from aiormq.abc import ExceptionType
