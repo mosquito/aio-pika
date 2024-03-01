@@ -63,21 +63,30 @@ async def create_task(event_loop):
 
 
 class RabbitmqContainer(DockerContainer):       # type: ignore
-    SERVER_PORT: int = 5672
+    _amqp_port: int
+    _amqps_port: int
 
-    def get_url(self) -> URL:
+    def get_amqp_url(self) -> URL:
         return URL.build(
             scheme="amqp", user="guest", password="guest", path="//",
             host=self.get_container_host_ip(),
-            port=int(self.get_exposed_port(self.SERVER_PORT)),
+            port=self._amqp_port,
+        )
+
+    def get_amqps_url(self) -> URL:
+        return URL.build(
+            scheme="amqps", user="guest", password="guest", path="//",
+            host=self.get_container_host_ip(),
+            port=self._amqps_port,
         )
 
     def readiness_probe(self) -> None:
-        url = self.get_url()
+        host = self.get_container_host_ip()
+        port = int(self.get_exposed_port(5672))
         while True:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 try:
-                    sock.connect((url.host, url.port))
+                    sock.connect((host, port))
                     sock.send(b"AMQP\0x0\0x0\0x9\0x1")
                     data = sock.recv(4)
                     if len(data) != 4:
@@ -89,19 +98,25 @@ class RabbitmqContainer(DockerContainer):       # type: ignore
                 return
 
     def start(self) -> "RabbitmqContainer":
-        """Start the test container."""
-        self.with_env("RABBITMQ_NODE_PORT", str(self.SERVER_PORT))
-        self.with_exposed_ports(self.SERVER_PORT)
+        self.with_exposed_ports(5672, 5671)
         super().start()
         self.readiness_probe()
+        self._amqp_port = int(self.get_exposed_port(5672))
+        self._amqps_port = int(self.get_exposed_port(5671))
         return self
 
 
 @pytest.fixture(scope="module")
-def amqp_direct_url(request) -> Generator[URL, Any, Any]:
+def rabbitmq_container() -> Generator[RabbitmqContainer, Any, Any]:
     with RabbitmqContainer("mosquito/aiormq-rabbitmq") as container:
-        url = container.get_url()
-        yield url.update_query(name=request.node.nodeid)
+        yield container
+
+
+@pytest.fixture(scope="module")
+def amqp_direct_url(request, rabbitmq_container: RabbitmqContainer) -> URL:
+    return rabbitmq_container.get_amqp_url().update_query(
+        name=request.node.nodeid
+    )
 
 
 @pytest.fixture
