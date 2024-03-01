@@ -38,7 +38,6 @@ ExchangeParamType = Union["AbstractExchange", str]
 ConsumerTag = str
 
 MILLISECONDS = 1000
-ZERO_TIME = datetime.utcfromtimestamp(0)
 
 
 class SSLOptions(TypedDict, total=False):
@@ -958,6 +957,5 @@ __all__ = (
     "TransactionState",
     "UnderlayChannel",
     "UnderlayConnection",
-    "ZERO_TIME",
     "get_exchange_name",
 )

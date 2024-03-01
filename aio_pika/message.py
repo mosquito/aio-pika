@@ -1,6 +1,5 @@
-import time
 import warnings
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import singledispatch
 from pprint import pformat
 from types import TracebackType
@@ -11,7 +10,7 @@ from aiormq.abc import DeliveredMessage
 from pamqp.common import FieldValue
 
 from .abc import (
-    MILLISECONDS, ZERO_TIME, AbstractChannel, AbstractIncomingMessage,
+    MILLISECONDS, AbstractChannel, AbstractIncomingMessage,
     AbstractMessage, AbstractProcessContext, DateType, DeliveryMode,
     HeadersType, MessageInfo, NoneType,
 )
@@ -58,24 +57,19 @@ def decode_expiration(t: Any) -> Optional[float]:
     raise ValueError("Invalid expiration type: %r" % type(t), t)
 
 
-@decode_expiration.register(time.struct_time)
-def decode_expiration_struct_time(t: time.struct_time) -> float:
-    return (datetime(*t[:7]) - ZERO_TIME).total_seconds()
-
-
 @decode_expiration.register(str)
 def decode_expiration_str(t: str) -> float:
-    return float(t)
+    return float(t) / MILLISECONDS
+
+
+@decode_expiration.register(NoneType)  # type: ignore
+def decode_expiration_none(_: Any) -> None:
+    return None
 
 
 @singledispatch
 def encode_timestamp(value: Any) -> Optional[datetime]:
     raise ValueError("Invalid timestamp type: %r" % type(value), value)
-
-
-@encode_timestamp.register(time.struct_time)
-def encode_timestamp_struct_time(value: time.struct_time) -> datetime:
-    return datetime(*value[:6])
 
 
 @encode_timestamp.register(datetime)
@@ -86,12 +80,12 @@ def encode_timestamp_datetime(value: datetime) -> datetime:
 @encode_timestamp.register(float)
 @encode_timestamp.register(int)
 def encode_timestamp_number(value: Union[int, float]) -> datetime:
-    return datetime.utcfromtimestamp(value)
+    return datetime.fromtimestamp(value, tz=timezone.utc)
 
 
 @encode_timestamp.register(timedelta)
 def encode_timestamp_timedelta(value: timedelta) -> datetime:
-    return datetime.utcnow() + value
+    return datetime.now(tz=timezone.utc) + value
 
 
 @encode_timestamp.register(NoneType)        # type: ignore
@@ -107,17 +101,6 @@ def decode_timestamp(value: Any) -> Optional[datetime]:
 @decode_timestamp.register(datetime)
 def decode_timestamp_datetime(value: datetime) -> datetime:
     return value
-
-
-@decode_timestamp.register(float)
-@decode_timestamp.register(int)
-def decode_timestamp_number(value: Union[float, int]) -> datetime:
-    return datetime.utcfromtimestamp(value)
-
-
-@decode_timestamp.register(time.struct_time)
-def decode_timestamp_struct_time(value: time.struct_time) -> datetime:
-    return datetime(*value[:6])
 
 
 @decode_timestamp.register(NoneType)    # type: ignore
@@ -373,12 +356,6 @@ class IncomingMessage(Message, AbstractIncomingMessage):
         self.__no_ack = no_ack
         self.__processed = False
 
-        expiration = None
-        if message.header.properties.expiration:
-            expiration = decode_expiration(
-                message.header.properties.expiration,
-            )
-
         super().__init__(
             body=message.body,
             content_type=message.header.properties.content_type,
@@ -388,7 +365,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             priority=message.header.properties.priority,
             correlation_id=message.header.properties.correlation_id,
             reply_to=message.header.properties.reply_to,
-            expiration=expiration / 1000.0 if expiration else None,
+            expiration=decode_expiration(message.header.properties.expiration),
             message_id=message.header.properties.message_id,
             timestamp=decode_timestamp(message.header.properties.timestamp),
             type=message.header.properties.message_type,
