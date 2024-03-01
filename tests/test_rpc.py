@@ -247,8 +247,8 @@ class TestCase:
             await rpc.call("test.not-serializable")
 
     async def test_custom_exchange(self, channel: aio_pika.Channel):
-        rpc_ex1 = await RPC.create(channel, auto_delete=True, exchange='ex1')
-        rpc_ex2 = await RPC.create(channel, auto_delete=True, exchange='ex2')
+        rpc_ex1 = await RPC.create(channel, auto_delete=True, exchange="ex1")
+        rpc_ex2 = await RPC.create(channel, auto_delete=True, exchange="ex2")
         rpc_default = await RPC.create(channel, auto_delete=True)
 
         await rpc_ex1.register("test.rpc", rpc_func, auto_delete=True)

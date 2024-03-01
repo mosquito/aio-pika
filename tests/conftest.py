@@ -67,9 +67,9 @@ class RabbitmqContainer(DockerContainer):       # type: ignore
 
     def get_url(self) -> URL:
         return URL.build(
-            scheme='amqp', user="guest", password="guest", path="//",
+            scheme="amqp", user="guest", password="guest", path="//",
             host=self.get_container_host_ip(),
-            port=int(self.get_exposed_port(self.SERVER_PORT))
+            port=int(self.get_exposed_port(self.SERVER_PORT)),
         )
 
     def readiness_probe(self) -> None:
@@ -78,7 +78,7 @@ class RabbitmqContainer(DockerContainer):       # type: ignore
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 try:
                     sock.connect((url.host, url.port))
-                    sock.send(b'AMQP\0x0\0x0\0x9\0x1')
+                    sock.send(b"AMQP\0x0\0x0\0x9\0x1")
                     data = sock.recv(4)
                     if len(data) != 4:
                         sleep(0.3)
@@ -97,7 +97,7 @@ class RabbitmqContainer(DockerContainer):       # type: ignore
         return self
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def amqp_direct_url(request) -> Generator[URL, Any, Any]:
     with RabbitmqContainer("mosquito/aiormq-rabbitmq") as container:
         url = container.get_url()

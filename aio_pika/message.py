@@ -10,9 +10,9 @@ from aiormq.abc import DeliveredMessage
 from pamqp.common import FieldValue
 
 from .abc import (
-    MILLISECONDS, AbstractChannel, AbstractIncomingMessage,
-    AbstractMessage, AbstractProcessContext, DateType, DeliveryMode,
-    HeadersType, MessageInfo, NoneType,
+    MILLISECONDS, AbstractChannel, AbstractIncomingMessage, AbstractMessage,
+    AbstractProcessContext, DateType, DeliveryMode, HeadersType, MessageInfo,
+    NoneType,
 )
 from .exceptions import ChannelInvalidStateError, MessageProcessError
 from .log import get_logger
