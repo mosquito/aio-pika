@@ -5,7 +5,7 @@ import tracemalloc
 from contextlib import suppress
 from functools import partial
 from time import sleep
-from typing import Any, Dict, Generator
+from typing import Any, Generator
 
 import aiormq
 import pamqp
