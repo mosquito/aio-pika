@@ -1,12 +1,11 @@
 import asyncio
-import base64
 import gc
-import random
 import socket
 import tracemalloc
 from contextlib import suppress
 from functools import partial
 from time import sleep
+from typing import Any, Dict, Generator
 
 import aiormq
 import pamqp
@@ -63,32 +62,17 @@ async def create_task(event_loop):
                 raise result
 
 
-class RabbitmqContainer(DockerContainer):
-    SERVER_PORT = 5672
-
-    def __init__(self, image, **kwargs):
-        super().__init__(image, **kwargs)
-        self.with_env("RABBITMQ_NODE_PORT", str(self.SERVER_PORT))
-        self.with_exposed_ports(self.SERVER_PORT)
-
-    def random_password(self) -> str:
-        return base64.b85encode(
-            random.getrandbits(
-                random.randint(32, 256)
-            ).to_bytes(length=32, byteorder='big')
-        ).decode()
+class RabbitmqContainer(DockerContainer):       # type: ignore
+    SERVER_PORT: int = 5672
 
     def get_url(self) -> URL:
         return URL.build(
-            scheme='amqp',
+            scheme='amqp', user="guest", password="guest", path="//",
             host=self.get_container_host_ip(),
-            port=int(self.get_exposed_port(self.SERVER_PORT)),
-            user="guest",
-            password="guest",
-            path="//"
+            port=int(self.get_exposed_port(self.SERVER_PORT))
         )
 
-    def readiness_probe(self):
+    def readiness_probe(self) -> None:
         url = self.get_url()
         while True:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -104,15 +88,17 @@ class RabbitmqContainer(DockerContainer):
                     continue
                 return
 
-    def start(self):
+    def start(self) -> "RabbitmqContainer":
         """Start the test container."""
+        self.with_env("RABBITMQ_NODE_PORT", str(self.SERVER_PORT))
+        self.with_exposed_ports(self.SERVER_PORT)
         super().start()
         self.readiness_probe()
         return self
 
 
 @pytest.fixture(scope='module')
-def amqp_direct_url(request) -> URL:
+def amqp_direct_url(request) -> Generator[URL, Any, Any]:
     with RabbitmqContainer("mosquito/aiormq-rabbitmq") as container:
         url = container.get_url()
         yield url.update_query(name=request.node.nodeid)

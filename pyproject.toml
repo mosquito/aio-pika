@@ -105,6 +105,10 @@ disallow_untyped_decorators = false
 disallow_untyped_defs = false
 warn_unused_ignores = false
 
+[[tool.mypy.overrides]]
+module = ["testcontainers.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 log_cli = true
 addopts = "-p no:asyncio"
