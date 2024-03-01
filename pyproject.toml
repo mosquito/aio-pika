@@ -61,6 +61,7 @@ sphinx-autobuild = "^2021.3.14"
 timeout-decorator = "^0.5.0"
 types-setuptools = "^65.6.0.2"
 setuptools = "^69.0.3"
+testcontainers = "^3.7.1"
 
 [tool.poetry.group.uvloop.dependencies]
 uvloop = "^0.19"

@@ -51,13 +51,6 @@ jobs:
   tests:
     runs-on: ubuntu-latest
 
-    services:
-      rabbitmq:
-        image: docker://mosquito/aiormq-rabbitmq
-        ports:
-          - 5672:5672
-          - 5671:5671
-
     strategy:
       fail-fast: false
 
