@@ -105,7 +105,7 @@ class RPC(Base):
         self.host_exceptions = host_exceptions
 
     def __remove_future(
-        self, correlation_id: str
+        self, correlation_id: str,
     ) -> Callable[[asyncio.Future], None]:
         def do_remove(future: asyncio.Future) -> None:
             log.debug("Remove done future %r", future)
@@ -122,7 +122,7 @@ class RPC(Base):
 
     def _format_routing_key(self, method_name: str) -> str:
         return (
-            f'{self.rpc_exchange.name}::{method_name}'
+            f"{self.rpc_exchange.name}::{method_name}"
             if self.rpc_exchange
             else method_name
         )
@@ -159,7 +159,7 @@ class RPC(Base):
 
     async def initialize(
         self, auto_delete: bool = True,
-        durable: bool = False, exchange: str = '', **kwargs: Any,
+        durable: bool = False, exchange: str = "", **kwargs: Any,
     ) -> None:
         if hasattr(self, "result_queue"):
             return
@@ -168,7 +168,8 @@ class RPC(Base):
             exchange,
             type=ExchangeType.DIRECT,
             auto_delete=True,
-            durable=durable) if exchange else None
+            durable=durable,
+        ) if exchange else None
 
         self.result_queue = await self.channel.declare_queue(
             None, auto_delete=auto_delete, durable=durable, **kwargs,
@@ -403,8 +404,10 @@ class RPC(Base):
 
         log.debug("Publishing calls for %s(%r)", routing_key, kwargs)
         exchange = self.rpc_exchange or self.channel.default_exchange
-        await exchange.publish(message, routing_key=routing_key,
-                               mandatory=True)
+        await exchange.publish(
+            message, routing_key=routing_key,
+            mandatory=True,
+        )
 
         log.debug("Waiting RPC result for %s(%r)", routing_key, kwargs)
         return await future
@@ -437,7 +440,7 @@ class RPC(Base):
         if self.rpc_exchange:
             await queue.bind(
                 self.rpc_exchange,
-                routing_key
+                routing_key,
             )
 
         if func in self.consumer_tags:
