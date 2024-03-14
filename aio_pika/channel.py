@@ -153,11 +153,11 @@ class Channel(ChannelContext):
         return "{}".format(self.number or "Not initialized channel")
 
     async def _open(self) -> None:
-        await self._connection.ready()
-
         transport = self._connection.transport
         if transport is None:
             raise ChannelInvalidStateError("No active transport in channel")
+
+        await transport.ready()
 
         channel = await UnderlayChannel.create(
             transport.connection,
