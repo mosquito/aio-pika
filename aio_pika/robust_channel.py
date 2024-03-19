@@ -111,8 +111,8 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
 
         await self.restore()
 
-    async def _open(self) -> None:
-        await super()._open()
+    async def reopen(self) -> None:
+        await super().reopen()
         await self.reopen_callbacks()
 
     async def _on_open(self) -> None:
