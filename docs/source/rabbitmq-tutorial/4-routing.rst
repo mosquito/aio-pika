@@ -180,7 +180,7 @@ Putting it all together
 .. image:: /_static/tutorial/python-four.svg
    :align: center
 
-The simplified code for :download:`receive_logs_direct_somple.py <examples/4-routing/receive_logs_direct_simple.py>`:
+The simplified code for :download:`receive_logs_direct_simple.py <examples/4-routing/receive_logs_direct_simple.py>`:
 
 .. literalinclude:: examples/4-routing/receive_logs_direct_simple.py
    :language: python
