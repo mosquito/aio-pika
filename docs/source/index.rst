@@ -409,21 +409,22 @@ And the caller side might be written like this:
                 ))
 
 
-`Propan`_
+`FastStream`_
 ~~~~~~~~~
 
-**Propan** is a powerful and easy-to-use Python framework for building event-driven applications that interact with any MQ Broker.
+**FastStream** is a powerful and easy-to-use Python library for building asynchronous services that interact with event streams..
 
-If you need no deep dive into **RabbitMQ** details, you can use more high-level **Propan** interfaces:
+If you need no deep dive into **RabbitMQ** details, you can use more high-level **FastStream** interfaces:
 
 .. code-block:: python
 
-   from propan import PropanApp, RabbitBroker
-
+   from faststream import FastStream
+   from faststream.rabbit import RabbitBroker
+   
    broker = RabbitBroker("amqp://guest:guest@localhost:5672/")
-   app = PropanApp(broker)
-
-   @broker.handle("user")
+   app = FastStream(broker)
+   
+   @broker.subscriber("user")
    async def user_created(user_id: int):
        assert isinstance(user_id, int)
        return f"user-{user_id}: created"
@@ -431,10 +432,10 @@ If you need no deep dive into **RabbitMQ** details, you can use more high-level 
    @app.after_startup
    async def pub_smth():
        assert (
-           await broker.publish(1, "user", callback=True)
+           await broker.publish(1, "user", rpc=True)
        ) ==  "user-1: created"
 
-Also, **Propan** validates messages by **pydantic**, generates your project **AsyncAPI** spec, tests application locally, RPC calls, and more.
+Also, **FastStream** validates messages by **pydantic**, generates your project **AsyncAPI** spec, supports In-Memory testing, RPC calls, and more.
 
 In fact, it is a high-level wrapper on top of **aio-pika**, so you can use both of these libraries' advantages at the same time.
 
@@ -531,7 +532,7 @@ This software follows `Semantic Versioning`_
 
 
 .. _Semantic Versioning: http://semver.org/
-.. _propan: https://github.com/Lancetnik/Propan
+.. _faststream: https://github.com/airtai/faststream
 .. _patio: https://github.com/patio-python/patio
 .. _patio-rabbitmq: https://github.com/patio-python/patio-rabbitmq
 .. _Socket.IO: https://socket.io/
