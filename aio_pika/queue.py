@@ -441,7 +441,7 @@ class QueueIterator(AbstractQueueIterator):
 
         log.debug("Queue iterator %r closed", self)
 
-        # Reject all messages
+        # Reject all messages that have been received and in the buffer/cache.
         while not self._queue.empty():
             msg = self._queue.get_nowait()
 

@@ -1695,7 +1695,8 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         await queue_iterator2.__aexit__(None, None, None)
         # To test if the wrong messages are nacked by stopping subscription to
-        # queue 2, we ack a message received from queue 1.
+        # queue 2, we ack a message received from queue 1. If it was nacked,
+        # RabbitMQ will throw an exception.
         second_message1 = await anext(queue_iterator1)
         async with second_message1.process():
             assert second_message1.body == all_bodies1[1]
