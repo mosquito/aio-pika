@@ -1616,7 +1616,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         # Create a subscription but only process first message
         async with queue.iterator() as queue_iterator:
-            first_message = await anext(queue_iterator)
+            first_message = await queue_iterator.__anext__()
             async with first_message.process():
                 assert first_message.body == all_bodies[0]
 
@@ -1678,11 +1678,11 @@ class TestCaseAmqp(TestCaseAmqpBase):
         queue_iterator1 = await queue1.iterator().__aenter__()
         queue_iterator2 = await queue2.iterator().__aenter__()
 
-        first_message1 = await anext(queue_iterator1)
+        first_message1 = await queue_iterator1.__anext__()
         async with first_message1.process():
             assert first_message1.body == all_bodies1[0]
 
-        first_message2 = await anext(queue_iterator2)
+        first_message2 = await queue_iterator2.__anext__()
         async with first_message2.process():
             assert first_message2.body == all_bodies2[0]
         #  The order of exit here is important.
@@ -1697,7 +1697,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         # To test if the wrong messages are nacked by stopping subscription to
         # queue 2, we ack a message received from queue 1. If it was nacked,
         # RabbitMQ will throw an exception.
-        second_message1 = await anext(queue_iterator1)
+        second_message1 = await queue_iterator1.__anext__()
         async with second_message1.process():
             assert second_message1.body == all_bodies1[1]
 
