@@ -359,7 +359,11 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         with pytest.raises(aiormq.exceptions.ChannelInvalidStateError):
             await exchange.publish(
-                Message(body, content_type="text/plain", headers={"foo": "bar"}),
+                Message(
+                    body,
+                    content_type="text/plain",
+                    headers={"foo": "bar"},
+                ),
                 routing_key,
             )
 

@@ -191,7 +191,9 @@ class Exchange(AbstractExchange):
             )
 
         if self.channel.is_closed:
-            raise aiormq.exceptions.ChannelInvalidStateError("%r closed" % self.channel)
+            raise aiormq.exceptions.ChannelInvalidStateError(
+                "%r closed" % self.channel,
+            )
 
         channel = await self.channel.get_underlay_channel()
         return await channel.basic_publish(
