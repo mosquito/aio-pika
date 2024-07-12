@@ -339,6 +339,30 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         await queue.unbind(dest_exchange, routing_key)
 
+    async def test_simple_publish_with_closed_channel(
+        self,
+        connection: aio_pika.Connection,
+        declare_exchange: Callable,
+        declare_queue: Callable,
+    ):
+        routing_key = get_random_name()
+
+        channel = await connection.channel(publisher_confirms=False)
+
+        exchange = await declare_exchange(
+            "direct", auto_delete=True, channel=channel,
+        )
+
+        await connection.close()
+
+        body = bytes(shortuuid.uuid(), "utf-8")
+
+        with pytest.raises(aiormq.exceptions.ChannelInvalidStateError):
+            await exchange.publish(
+                Message(body, content_type="text/plain", headers={"foo": "bar"}),
+                routing_key,
+            )
+
     async def test_incoming_message_info(
         self,
         channel: aio_pika.Channel,

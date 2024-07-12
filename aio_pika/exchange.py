@@ -190,6 +190,9 @@ class Exchange(AbstractExchange):
                 f"Can not publish to internal exchange: '{self.name}'!",
             )
 
+        if self.channel.is_closed:
+            raise aiormq.exceptions.ChannelInvalidStateError("%r closed" % self.channel)
+
         channel = await self.channel.get_underlay_channel()
         return await channel.basic_publish(
             exchange=self.name,
