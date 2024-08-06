@@ -4,7 +4,7 @@ import os
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Callable, Optional
+from typing import Callable, Optional, List
 from unittest import mock
 
 import aiormq.exceptions
@@ -23,6 +23,7 @@ from aio_pika.exceptions import (
 )
 from aio_pika.exchange import ExchangeType
 from aio_pika.message import ReturnedMessage
+from aio_pika.queue import QueueIterator
 from tests import get_random_name
 
 
@@ -1282,7 +1283,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
     async def test_async_for_queue_context(
         self, event_loop, connection, declare_queue,
-    ):
+    ) -> None:
         channel2 = await self.create_channel(connection)
 
         queue = await declare_queue(
@@ -1291,31 +1292,46 @@ class TestCaseAmqp(TestCaseAmqpBase):
             channel=channel2,
         )
 
-        messages = 100
+        messages: asyncio.Queue[bytes] = asyncio.Queue(100)
+        condition = asyncio.Condition()
 
-        async def publisher():
+        async def publisher() -> None:
             channel1 = await self.create_channel(connection)
 
-            for i in range(messages):
+            for i in range(messages.maxsize):
+                body = str(i).encode()
+                await messages.put(body)
                 await channel1.default_exchange.publish(
-                    Message(body=str(i).encode()), routing_key=queue.name,
+                    Message(body=body), routing_key=queue.name,
                 )
 
-        event_loop.create_task(publisher())
+        async def consumer() -> None:
+            async with queue.iterator() as queue_iterator:
+                async for message in queue_iterator:
+                    async with message.process():
+                        async with condition:
+                            data.append(message.body)
+                            messages.task_done()
+                            condition.notify()
 
-        count = 0
-        data = list()
+        async def application_stop_request() -> None:
+            async with condition:
+                await condition.wait_for(messages.full)
+            await messages.join()
+            await asyncio.sleep(1)
+            await connection.close()
 
-        async with queue.iterator() as queue_iterator:
-            async for message in queue_iterator:
-                async with message.process():
-                    count += 1
-                    data.append(message.body)
+        p = event_loop.create_task(publisher())
+        c = event_loop.create_task(consumer())
+        asr = event_loop.create_task(application_stop_request())
 
-                if count >= messages:
-                    break
+        data: List[bytes] = list()
 
-        assert data == list(map(lambda x: str(x).encode(), range(messages)))
+        await asyncio.gather(p, c, asr)
+
+        assert data == list(
+            map(lambda x: str(x).encode(), range(messages.maxsize))
+        )
 
     async def test_async_with_connection(
         self, create_connection: Callable,
@@ -1331,32 +1347,47 @@ class TestCaseAmqp(TestCaseAmqpBase):
                 channel=channel,
             )
 
-            messages = 100
+            condition = asyncio.Condition()
+            messages: asyncio.Queue[bytes] = asyncio.Queue(
+                100
+            )
 
             async def publisher():
                 channel1 = await self.create_channel(connection)
 
-                for i in range(messages):
+                for i in range(messages.maxsize):
+                    body = str(i).encode()
+                    await messages.put(body)
                     await channel1.default_exchange.publish(
-                        Message(body=str(i).encode()), routing_key=queue.name,
+                        Message(body=body), routing_key=queue.name,
                     )
 
-            event_loop.create_task(publisher())
-
-            count = 0
             data = list()
 
-            async with queue.iterator() as queue_iterator:
-                async for message in queue_iterator:
-                    async with message.process():
-                        count += 1
-                        data.append(message.body)
+            async def consume_loop():
+                async with queue.iterator() as queue_iterator:
+                    async for message in queue_iterator:
+                        async with message.process():
+                            async with condition:
+                                data.append(message.body)
+                                condition.notify()
+                                messages.task_done()
 
-                    if count >= messages:
-                        break
+            async def application_close_request():
+                async with condition:
+                    await condition.wait_for(messages.full)
+                await messages.join()
+                await asyncio.sleep(1)
+                await connection.close()
+
+            p = event_loop.create_task(publisher())
+            cl = event_loop.create_task(consume_loop())
+            acr = event_loop.create_task(application_close_request())
+
+            await asyncio.gather(p, cl, acr)
 
             assert data == list(
-                map(lambda x: str(x).encode(), range(messages)),
+                map(lambda x: str(x).encode(), range(messages.maxsize)),
             )
 
         assert channel.is_closed
@@ -1412,47 +1443,37 @@ class TestCaseAmqp(TestCaseAmqpBase):
     async def test_queue_iterator_close_was_called_twice(
         self, create_connection: Callable, event_loop, declare_queue,
     ):
-        future = event_loop.create_future()
         event = asyncio.Event()
 
         queue_name = get_random_name()
+        iterator: QueueIterator
 
         async def task_inner():
-            nonlocal future
             nonlocal event
+            nonlocal iterator
             nonlocal create_connection
 
-            try:
-                connection = await create_connection()
+            connection = await create_connection()
 
-                async with connection:
-                    channel = await self.create_channel(connection)
+            async with connection:
+                channel = await self.create_channel(connection)
 
-                    queue = await declare_queue(
-                        queue_name, channel=channel, cleanup=False,
-                    )
+                queue = await declare_queue(
+                    queue_name, channel=channel, cleanup=False,
+                )
 
-                    async with queue.iterator() as q:
-                        event.set()
+                async with queue.iterator() as iterator:
+                    event.set()
 
-                        async for message in q:
-                            with message.process():
-                                break
-
-            except asyncio.CancelledError as e:
-                future.set_exception(e)
-                raise
+                    async for message in iterator:
+                        async with message.process():
+                            pytest.fail("who sent this message?")
 
         task = event_loop.create_task(task_inner())
 
         await event.wait()
-        event_loop.call_soon(task.cancel)
-
-        with pytest.raises(asyncio.CancelledError):
-            await task
-
-        with pytest.raises(asyncio.CancelledError):
-            await future
+        await iterator.close()
+        await task
 
     async def test_queue_iterator_close_with_noack(
         self,
@@ -1461,7 +1482,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         add_cleanup: Callable,
         declare_queue,
     ):
-        messages = []
+        messages: asyncio.Queue = asyncio.Queue()
         queue_name = get_random_name("test_queue")
         body = get_random_name("test_body").encode()
 
@@ -1482,7 +1503,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
                 async with queue.iterator(no_ack=True) as q:
                     async for message in q:
-                        messages.append(message)
+                        await messages.put(message)
                         return
 
         async with await create_connection() as connection:
@@ -1499,13 +1520,69 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
                 task = event_loop.create_task(task_inner())
 
-                await task
+                message = await messages.get()
 
-                assert messages
-                assert messages[0].body == body
+                assert message
+                assert message.body == body
 
             finally:
+                await task
                 await queue.delete()
+
+    async def test_queue_iterator_throws_cancelled_error(
+        self,
+        create_connection: Callable,
+        event_loop,
+        add_cleanup: Callable,
+        declare_queue,
+    ):
+        event_loop.set_debug(True)
+        queue_name = get_random_name("test_queue")
+
+        connection = await create_connection()
+
+        async with connection:
+            channel = await self.create_channel(connection)
+
+            queue = await channel.declare_queue(
+                queue_name,
+            )
+
+            iterator = queue.iterator()
+            task = event_loop.create_task(iterator.__anext__())
+            done, pending = await asyncio.wait({task}, timeout=1)
+            assert not done
+            task.cancel()
+
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+    async def test_queue_iterator_throws_timeout_error(
+        self,
+        create_connection: Callable,
+        event_loop,
+        add_cleanup: Callable,
+        declare_queue,
+    ):
+        event_loop.set_debug(True)
+        queue_name = get_random_name("test_queue")
+
+        connection = await create_connection()
+
+        async with connection:
+            channel = await self.create_channel(connection)
+
+            queue = await channel.declare_queue(
+                queue_name,
+            )
+
+            iterator = queue.iterator(timeout=1)
+            task = event_loop.create_task(iterator.__anext__())
+            done, pending = await asyncio.wait({task}, timeout=5)
+            assert done
+
+            with pytest.raises(asyncio.TimeoutError):
+                await task
 
     async def test_passive_for_exchange(
         self, declare_exchange: Callable, connection, add_cleanup: Callable,

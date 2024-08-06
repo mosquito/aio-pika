@@ -1,8 +1,9 @@
 import asyncio
-import sys
 from functools import partial
 from types import TracebackType
-from typing import Any, Awaitable, Callable, Optional, Type, overload
+from typing import (
+    Any, Awaitable, Callable, Literal, Optional, Type, cast, overload,
+)
 
 import aiormq
 from aiormq.abc import DeliveredMessage
@@ -17,12 +18,6 @@ from .exchange import ExchangeParamType
 from .log import get_logger
 from .message import IncomingMessage
 from .tools import CallbackCollection, create_task, ensure_awaitable
-
-
-if sys.version_info >= (3, 8):
-    from typing import Literal
-else:
-    from typing_extensions import Literal
 
 
 log = get_logger(__name__)
@@ -92,7 +87,6 @@ class Queue(AbstractQueue):
         """ Declare queue.
 
         :param timeout: execution timeout
-        :param passive: Only check to see if the queue exists.
         :return: :class:`None`
         """
         log.debug("Declaring queue: %r", self)
@@ -421,7 +415,24 @@ class QueueIterator(AbstractQueueIterator):
     def consumer_tag(self) -> Optional[ConsumerTag]:
         return getattr(self, "_consumer_tag", None)
 
-    async def close(self, *_: Any) -> Any:
+    async def close(self) -> None:
+        await self._on_close(self._amqp_queue.channel, None)
+        if not self._closed.done():
+            self._closed.set_result(True)
+
+    async def _set_closed_callback(
+        self,
+        _channel: AbstractChannel,
+        exc: Optional[BaseException]
+    ) -> None:
+        if not self._closed.done():
+            self._closed.set_result(True)
+
+    async def _on_close(
+        self,
+        _channel: AbstractChannel,
+        _exc: Optional[BaseException]
+    ) -> None:
         log.debug("Cancelling queue iterator %r", self)
 
         if not hasattr(self, "_consumer_tag"):
@@ -436,7 +447,7 @@ class QueueIterator(AbstractQueueIterator):
         consumer_tag = self._consumer_tag
         del self._consumer_tag
 
-        self._amqp_queue.close_callbacks.remove(self.close)
+        self._amqp_queue.close_callbacks.discard(self._on_close)
         await self._amqp_queue.cancel(consumer_tag)
 
         log.debug("Queue iterator %r closed", self)
@@ -474,9 +485,14 @@ class QueueIterator(AbstractQueueIterator):
         self._consumer_tag: ConsumerTag
         self._amqp_queue: AbstractQueue = queue
         self._queue = asyncio.Queue()
+        self._closed = asyncio.get_running_loop().create_future()
         self._consume_kwargs = kwargs
 
-        self._amqp_queue.close_callbacks.add(self.close)
+        self._amqp_queue.close_callbacks.add(self._on_close, weak=True)
+        self._amqp_queue.close_callbacks.add(
+            self._set_closed_callback,
+            weak=True
+        )
 
     async def on_message(self, message: AbstractIncomingMessage) -> None:
         await self._queue.put(message)
@@ -503,24 +519,57 @@ class QueueIterator(AbstractQueueIterator):
         await self.close()
 
     async def __anext__(self) -> IncomingMessage:
+        if self._closed.done():
+            raise StopAsyncIteration
+
         if not hasattr(self, "_consumer_tag"):
             await self.consume()
+
+        closed = self._closed
+        closed_channel = cast(
+            asyncio.Future, self._amqp_queue.channel.closed()
+        )
+        message = asyncio.create_task(
+            self._queue.get(),
+            name=f"waiting for message from {self}"
+        )
+
+        timeout = self._consume_kwargs.get("timeout")
+        pending = {message, closed_channel, closed}
+
         try:
-            return await asyncio.wait_for(
-                self._queue.get(),
-                timeout=self._consume_kwargs.get("timeout"),
+            done, pending = await asyncio.wait(
+                pending, return_when=asyncio.FIRST_COMPLETED, timeout=timeout
             )
+            timed_out = not done
         except asyncio.CancelledError:
-            timeout = self._consume_kwargs.get(
-                "timeout",
-                self.DEFAULT_CLOSE_TIMEOUT,
-            )
-            log.info(
-                "%r closing with timeout %d seconds",
-                self, timeout,
-            )
+            timed_out = False
+
+        if message.done():
+            return message.result()
+        else:
+            message.cancel()
+
+        if closed.done() or closed_channel.done():
+            if not self._closed.done():
+                self._closed.set_result(True)
+            raise StopAsyncIteration
+
+        if timeout is None:
+            timeout = self.DEFAULT_CLOSE_TIMEOUT
+        log.info(
+            "%r closing with timeout %d seconds",
+            self, timeout,
+        )
+        try:
             await asyncio.wait_for(self.close(), timeout=timeout)
-            raise
+        except asyncio.TimeoutError:
+            pass
+
+        if timed_out:
+            raise asyncio.TimeoutError
+
+        raise asyncio.CancelledError
 
 
 __all__ = ("Queue", "QueueIterator", "ConsumerTag")

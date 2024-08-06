@@ -1,6 +1,5 @@
 import asyncio
 import dataclasses
-import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -9,15 +8,9 @@ from functools import singledispatch
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
-    Generator, Iterator, Mapping, Optional, Tuple, Type, TypeVar, Union,
-    overload,
+    Generator, Iterator, Literal, Mapping, Optional, Tuple, Type, TypedDict,
+    TypeVar, Union, overload,
 )
-
-
-if sys.version_info >= (3, 8):
-    from typing import Literal, TypedDict
-else:
-    from typing_extensions import Literal, TypedDict
 
 import aiormq.abc
 from aiormq.abc import ExceptionType
@@ -366,14 +359,14 @@ class AbstractQueue:
         raise NotImplementedError
 
 
-class AbstractQueueIterator(AsyncIterable):
+class AbstractQueueIterator(AsyncIterable[AbstractIncomingMessage]):
     _amqp_queue: AbstractQueue
     _queue: asyncio.Queue
     _consumer_tag: ConsumerTag
     _consume_kwargs: Dict[str, Any]
 
     @abstractmethod
-    def close(self, *_: Any) -> Awaitable[Any]:
+    def close(self) -> Awaitable[Any]:
         raise NotImplementedError
 
     @abstractmethod
@@ -529,6 +522,10 @@ class AbstractChannel(PoolInstance, ABC):
 
     @abstractmethod
     def close(self, exc: Optional[ExceptionType] = None) -> Awaitable[None]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def closed(self) -> Awaitable[Literal[True]]:
         raise NotImplementedError
 
     @abstractmethod
@@ -739,6 +736,10 @@ class AbstractConnection(PoolInstance, ABC):
 
     @abstractmethod
     async def close(self, exc: ExceptionType = asyncio.CancelledError) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def closed(self) -> Awaitable[Literal[True]]:
         raise NotImplementedError
 
     @abstractmethod
