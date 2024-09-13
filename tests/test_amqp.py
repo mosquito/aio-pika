@@ -60,12 +60,13 @@ class TestCaseAmqp(TestCaseAmqpBase):
         closed = False
 
         def on_close(
-            ch: aio_pika.abc.AbstractChannel,
-            exc: Optional[Exception] = None,
+            ch: Optional[aio_pika.abc.AbstractChannel],
+            exc: Optional[BaseException] = None,
         ):
             nonlocal event, closed
             log.info("Close called")
             closed = True
+            assert ch is not None
             assert ch.is_closed
             event.set()
 

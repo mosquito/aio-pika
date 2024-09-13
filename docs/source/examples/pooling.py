@@ -40,7 +40,7 @@ async def main() -> None:
 
     async with connection_pool, channel_pool:
         task = asyncio.create_task(consume())
-        await asyncio.wait([publish() for _ in range(50)])
+        await asyncio.wait([asyncio.create_task(publish()) for _ in range(50)])
         await task
 
 

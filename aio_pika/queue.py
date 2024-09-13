@@ -418,13 +418,13 @@ class QueueIterator(AbstractQueueIterator):
         return getattr(self, "_consumer_tag", None)
 
     async def close(self) -> None:
-        await self._on_close(self._amqp_queue.channel, None)
+        await self._on_close(self._amqp_queue, None)
         if not self._closed.done():
             self._closed.set_result(True)
 
     async def _set_closed(
         self,
-        _channel: AbstractChannel,
+        _channel: Optional[AbstractQueue],
         exc: Optional[BaseException]
     ) -> None:
         if not self._closed.done():
@@ -432,7 +432,7 @@ class QueueIterator(AbstractQueueIterator):
 
     async def _on_close(
         self,
-        _channel: AbstractChannel,
+        _channel: Optional[AbstractQueue],
         _exc: Optional[BaseException]
     ) -> None:
         log.debug("Cancelling queue iterator %r", self)
@@ -503,7 +503,7 @@ class QueueIterator(AbstractQueueIterator):
 
     def __init__(self, queue: Queue, **kwargs: Any):
         self._consumer_tag: ConsumerTag
-        self._amqp_queue: AbstractQueue = queue
+        self._amqp_queue: Queue = queue
         self._queue = asyncio.Queue()
         self._closed = asyncio.get_running_loop().create_future()
         self._message_or_closed = asyncio.Event()

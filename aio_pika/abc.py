@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import dataclasses
 from abc import ABC, abstractmethod
@@ -248,7 +250,10 @@ class AbstractQueue:
     arguments: Arguments
     passive: bool
     declaration_result: aiormq.spec.Queue.DeclareOk
-    close_callbacks: CallbackCollection
+    close_callbacks: CallbackCollection[
+        AbstractQueue,
+        [Optional[BaseException]],
+    ]
 
     @abstractmethod
     def __init__(
@@ -504,8 +509,14 @@ class AbstractChannel(PoolInstance, ABC):
     QUEUE_CLASS: Type[AbstractQueue]
     EXCHANGE_CLASS: Type[AbstractExchange]
 
-    close_callbacks: CallbackCollection
-    return_callbacks: CallbackCollection
+    close_callbacks: CallbackCollection[
+        AbstractChannel,
+        [Optional[BaseException]],
+    ]
+    return_callbacks: CallbackCollection[
+        AbstractChannel,
+        [AbstractIncomingMessage],
+    ]
     default_exchange: AbstractExchange
 
     publisher_confirms: bool
@@ -715,7 +726,10 @@ class ConnectionParameter:
 class AbstractConnection(PoolInstance, ABC):
     PARAMETERS: Tuple[ConnectionParameter, ...]
 
-    close_callbacks: CallbackCollection
+    close_callbacks: CallbackCollection[
+        AbstractConnection,
+        [Optional[BaseException]],
+    ]
     connected: asyncio.Event
     transport: Optional[UnderlayConnection]
     kwargs: Mapping[str, Any]
@@ -832,7 +846,7 @@ class AbstractRobustExchange(AbstractExchange):
 
 
 class AbstractRobustChannel(AbstractChannel):
-    reopen_callbacks: CallbackCollection
+    reopen_callbacks: CallbackCollection[AbstractRobustChannel, []]
 
     @abstractmethod
     def reopen(self) -> Awaitable[None]:
@@ -875,7 +889,7 @@ class AbstractRobustChannel(AbstractChannel):
 
 
 class AbstractRobustConnection(AbstractConnection):
-    reconnect_callbacks: CallbackCollection
+    reconnect_callbacks: CallbackCollection[AbstractRobustConnection, []]
 
     @property
     @abstractmethod
@@ -897,10 +911,10 @@ class AbstractRobustConnection(AbstractConnection):
 
 
 ChannelCloseCallback = Callable[
-    [AbstractChannel, Optional[BaseException]], Any,
+    [Optional[AbstractChannel], Optional[BaseException]], Any,
 ]
 ConnectionCloseCallback = Callable[
-    [AbstractConnection, Optional[BaseException]], Any,
+    [Optional[AbstractConnection], Optional[BaseException]], Any,
 ]
 ConnectionType = TypeVar("ConnectionType", bound=AbstractConnection)
 
