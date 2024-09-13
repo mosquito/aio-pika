@@ -3,7 +3,7 @@ import itertools
 import logging
 from contextlib import suppress
 from functools import partial
-from typing import Callable, List, Type
+from typing import Callable, List, Type, Optional
 
 import aiomisc
 import aiormq.exceptions
@@ -13,7 +13,7 @@ from aiomisc_pytest import TCPProxy  # type: ignore
 from yarl import URL
 
 import aio_pika
-from aio_pika.abc import AbstractRobustChannel
+from aio_pika.abc import AbstractRobustChannel, AbstractRobustConnection
 from aio_pika.exceptions import QueueEmpty, CONNECTION_EXCEPTIONS
 from aio_pika.message import Message
 from aio_pika.robust_channel import RobustChannel
@@ -109,7 +109,7 @@ async def test_revive_passive_queue_on_reconnect(
     reconnect_event = asyncio.Event()
     reconnect_count = 0
 
-    def reconnect_callback(conn):
+    def reconnect_callback(conn: Optional[AbstractRobustConnection]):
         nonlocal reconnect_count
         reconnect_count += 1
         reconnect_event.set()

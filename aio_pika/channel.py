@@ -226,7 +226,8 @@ class Channel(ChannelContext):
 
     async def _set_closed_callback(
         self,
-        _: AbstractChannel, exc: BaseException
+        _: Optional[AbstractChannel],
+        exc: Optional[BaseException],
     ) -> None:
         if not self._closed.done():
             self._closed.set_result(True)

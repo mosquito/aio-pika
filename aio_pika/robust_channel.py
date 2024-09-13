@@ -66,7 +66,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         self._prefetch_count: int = 0
         self._prefetch_size: int = 0
         self._global_qos: bool = False
-        self.reopen_callbacks: CallbackCollection = CallbackCollection(self)
+        self.reopen_callbacks = CallbackCollection(self)
         self.__restore_lock = asyncio.Lock()
         self.__restored = asyncio.Event()
 
