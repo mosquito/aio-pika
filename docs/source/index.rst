@@ -128,7 +128,7 @@ For ``aio_pika.RobustConnection`` class is applicable all ``aio_pika.Connection`
 * ``fail_fast`` (``true``/``yes``/``y``/``enable``/``on``/``enabled``/``1`` means ``True``, otherwise ``False``) -
   special behavior for the start connection attempt, if it fails, all other attempts stops and an exception will be
   thrown at the connection stage. Enabled by default, if you are sure you need to disable this feature, be ensures
-  for the passed URL is reallt working. Otherwise, your program will go into endless reconnection attempts that can
+  for the passed URL is really working. Otherwise, your program will go into endless reconnection attempts that can
   not be successed.
 
 .. _RFC 8305: https://datatracker.ietf.org/doc/html/rfc8305.html
