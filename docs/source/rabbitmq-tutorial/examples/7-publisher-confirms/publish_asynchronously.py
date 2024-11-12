@@ -1,16 +1,23 @@
 import asyncio
+from typing import Generator
 
 from aio_pika import Message, connect
 from aiormq.exceptions import DeliveryError
 from pamqp.commands import Basic
 
+from aio_pika.abc import AbstractExchange
 
-def get_messages_to_publish():
+
+def get_messages_to_publish() -> Generator[bytes, None, None]:
     for i in range(10000):
         yield f"Hello World {i}!".encode()
 
 
-async def publish_and_handle_confirm(exchange, queue_name, message_body):
+async def publish_and_handle_confirm(
+    exchange: AbstractExchange,
+    queue_name: str,
+    message_body: bytes,
+) -> None:
     try:
         confirmation = await exchange.publish(
             Message(message_body),

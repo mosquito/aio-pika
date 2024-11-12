@@ -61,7 +61,7 @@ class TestCaseNoRobust(TestCaseAmqp):
         close_reasons = []
         close_event = asyncio.Event()
         reopen_event = asyncio.Event()
-        channel.reopen_callbacks.add(lambda _: reopen_event.set())
+        channel.reopen_callbacks.add(lambda *_: reopen_event.set())
 
         queue_name = get_random_name("test_channel_blocking_timeout_reopen")
 

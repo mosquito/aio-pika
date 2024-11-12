@@ -60,7 +60,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
         self.__reconnection_task: Optional[asyncio.Task] = None
 
         self._reconnect_lock = asyncio.Lock()
-        self.reconnect_callbacks: CallbackCollection = CallbackCollection(self)
+        self.reconnect_callbacks = CallbackCollection(self)
 
         self.__connection_close_event.set()
 
@@ -103,14 +103,8 @@ class RobustConnection(Connection, AbstractRobustConnection):
                 except Exception:
                     log.exception("Failed to reopen channel")
                     raise
-        except asyncio.CancelledError:
-            # In python 3.7 asyncio.CancelledError inherited
-            # from Exception and this needed for catch it first
-            raise
         except Exception as e:
-            closing = self.loop.create_future()
-            closing.set_exception(e)
-            await self.close_callbacks(closing)
+            await self.close_callbacks(e)
             await asyncio.gather(
                 transport.connection.close(e),
                 return_exceptions=True,

@@ -15,7 +15,7 @@ from aio_pika.abc import (
 )
 from aio_pika.exceptions import MessageProcessError
 from aio_pika.exchange import ExchangeType
-from aio_pika.message import IncomingMessage, Message, ReturnedMessage
+from aio_pika.message import IncomingMessage, Message
 
 from ..tools import ensure_awaitable
 from .base import Base, CallbackType, Proxy, T
@@ -193,7 +193,8 @@ class RPC(Base):
         self.channel.return_callbacks.add(self.on_message_returned)
 
     def on_close(
-        self, channel: AbstractChannel,
+        self,
+        channel: Optional[AbstractChannel],
         exc: Optional[ExceptionType] = None,
     ) -> None:
         log.debug("Closing RPC futures because %r", exc)
@@ -218,7 +219,9 @@ class RPC(Base):
         return rpc
 
     def on_message_returned(
-        self, channel: AbstractChannel, message: ReturnedMessage,
+        self,
+        channel: Optional[AbstractChannel],
+        message: AbstractIncomingMessage,
     ) -> None:
         if message.correlation_id is None:
             log.warning(

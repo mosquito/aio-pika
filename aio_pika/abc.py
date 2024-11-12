@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import asyncio
 import dataclasses
-import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -9,15 +10,9 @@ from functools import singledispatch
 from types import TracebackType
 from typing import (
     Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
-    Generator, Iterator, Mapping, Optional, Tuple, Type, TypeVar, Union,
-    overload,
+    Generator, Iterator, Literal, Mapping, Optional, Tuple, Type, TypedDict,
+    TypeVar, Union, overload,
 )
-
-
-if sys.version_info >= (3, 8):
-    from typing import Literal, TypedDict
-else:
-    from typing_extensions import Literal, TypedDict
 
 import aiormq.abc
 from aiormq.abc import ExceptionType
@@ -255,7 +250,10 @@ class AbstractQueue:
     arguments: Arguments
     passive: bool
     declaration_result: aiormq.spec.Queue.DeclareOk
-    close_callbacks: CallbackCollection
+    close_callbacks: CallbackCollection[
+        AbstractQueue,
+        [Optional[BaseException]],
+    ]
 
     @abstractmethod
     def __init__(
@@ -366,14 +364,14 @@ class AbstractQueue:
         raise NotImplementedError
 
 
-class AbstractQueueIterator(AsyncIterable):
+class AbstractQueueIterator(AsyncIterable[AbstractIncomingMessage]):
     _amqp_queue: AbstractQueue
     _queue: asyncio.Queue
     _consumer_tag: ConsumerTag
     _consume_kwargs: Dict[str, Any]
 
     @abstractmethod
-    def close(self, *_: Any) -> Awaitable[Any]:
+    def close(self) -> Awaitable[Any]:
         raise NotImplementedError
 
     @abstractmethod
@@ -511,8 +509,14 @@ class AbstractChannel(PoolInstance, ABC):
     QUEUE_CLASS: Type[AbstractQueue]
     EXCHANGE_CLASS: Type[AbstractExchange]
 
-    close_callbacks: CallbackCollection
-    return_callbacks: CallbackCollection
+    close_callbacks: CallbackCollection[
+        AbstractChannel,
+        [Optional[BaseException]],
+    ]
+    return_callbacks: CallbackCollection[
+        AbstractChannel,
+        [AbstractIncomingMessage],
+    ]
     default_exchange: AbstractExchange
 
     publisher_confirms: bool
@@ -529,6 +533,10 @@ class AbstractChannel(PoolInstance, ABC):
 
     @abstractmethod
     def close(self, exc: Optional[ExceptionType] = None) -> Awaitable[None]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def closed(self) -> Awaitable[Literal[True]]:
         raise NotImplementedError
 
     @abstractmethod
@@ -718,7 +726,10 @@ class ConnectionParameter:
 class AbstractConnection(PoolInstance, ABC):
     PARAMETERS: Tuple[ConnectionParameter, ...]
 
-    close_callbacks: CallbackCollection
+    close_callbacks: CallbackCollection[
+        AbstractConnection,
+        [Optional[BaseException]],
+    ]
     connected: asyncio.Event
     transport: Optional[UnderlayConnection]
     kwargs: Mapping[str, Any]
@@ -739,6 +750,10 @@ class AbstractConnection(PoolInstance, ABC):
 
     @abstractmethod
     async def close(self, exc: ExceptionType = asyncio.CancelledError) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def closed(self) -> Awaitable[Literal[True]]:
         raise NotImplementedError
 
     @abstractmethod
@@ -831,7 +846,7 @@ class AbstractRobustExchange(AbstractExchange):
 
 
 class AbstractRobustChannel(AbstractChannel):
-    reopen_callbacks: CallbackCollection
+    reopen_callbacks: CallbackCollection[AbstractRobustChannel, []]
 
     @abstractmethod
     def reopen(self) -> Awaitable[None]:
@@ -874,7 +889,7 @@ class AbstractRobustChannel(AbstractChannel):
 
 
 class AbstractRobustConnection(AbstractConnection):
-    reconnect_callbacks: CallbackCollection
+    reconnect_callbacks: CallbackCollection[AbstractRobustConnection, []]
 
     @property
     @abstractmethod
@@ -896,10 +911,10 @@ class AbstractRobustConnection(AbstractConnection):
 
 
 ChannelCloseCallback = Callable[
-    [AbstractChannel, Optional[BaseException]], Any,
+    [Optional[AbstractChannel], Optional[BaseException]], Any,
 ]
 ConnectionCloseCallback = Callable[
-    [AbstractConnection, Optional[BaseException]], Any,
+    [Optional[AbstractConnection], Optional[BaseException]], Any,
 ]
 ConnectionType = TypeVar("ConnectionType", bound=AbstractConnection)
 

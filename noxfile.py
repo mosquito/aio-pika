@@ -1,8 +1,9 @@
 import nox
+from nox import Session
 
 
 @nox.session
-def docs(session):
+def docs(session: Session) -> None:
     session.install(".")
     session.install("sphinx", "sphinx-autobuild")
     session.run("rm", "-rf", "build/html", external=True)
