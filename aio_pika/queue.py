@@ -476,6 +476,11 @@ class QueueIterator(AbstractQueueIterator):
         self._queue = asyncio.Queue()
         self._consume_kwargs = kwargs
 
+        if kwargs.get("timeout"):
+            self.__anext_impl = self.__anext_with_timeout
+        else:
+            self.__anext_impl = self.__anext_without_timeout
+
         self._amqp_queue.close_callbacks.add(self.close)
 
     async def on_message(self, message: AbstractIncomingMessage) -> None:
@@ -503,6 +508,9 @@ class QueueIterator(AbstractQueueIterator):
         await self.close()
 
     async def __anext__(self) -> IncomingMessage:
+        return await self.__anext_impl()
+
+    async def __anext_with_timeout(self) -> IncomingMessage:
         if not hasattr(self, "_consumer_tag"):
             await self.consume()
         try:
@@ -520,6 +528,15 @@ class QueueIterator(AbstractQueueIterator):
                 self, timeout,
             )
             await asyncio.wait_for(self.close(), timeout=timeout)
+            raise
+
+    async def __anext_without_timeout(self) -> IncomingMessage:
+        if not hasattr(self, "_consumer_tag"):
+            await self.consume()
+        try:
+            return await self._queue.get()
+        except asyncio.CancelledError:
+            await self.close()
             raise
 
 
