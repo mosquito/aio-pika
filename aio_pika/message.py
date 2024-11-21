@@ -47,7 +47,7 @@ def encode_expiration_timedelta(value: timedelta) -> str:
     return str(int(value.total_seconds() * MILLISECONDS))
 
 
-@encode_expiration.register(NoneType)       # type: ignore
+@encode_expiration.register(NoneType)
 def encode_expiration_none(_: Any) -> None:
     return None
 
@@ -62,7 +62,7 @@ def decode_expiration_str(t: str) -> float:
     return float(t) / MILLISECONDS
 
 
-@decode_expiration.register(NoneType)  # type: ignore
+@decode_expiration.register(NoneType)
 def decode_expiration_none(_: Any) -> None:
     return None
 
@@ -88,7 +88,7 @@ def encode_timestamp_timedelta(value: timedelta) -> datetime:
     return datetime.now(tz=timezone.utc) + value
 
 
-@encode_timestamp.register(NoneType)        # type: ignore
+@encode_timestamp.register(NoneType)
 def encode_timestamp_none(_: Any) -> None:
     return None
 
@@ -103,7 +103,7 @@ def decode_timestamp_datetime(value: datetime) -> datetime:
     return value
 
 
-@decode_timestamp.register(NoneType)    # type: ignore
+@decode_timestamp.register(NoneType)
 def decode_timestamp_none(_: Any) -> None:
     return None
 
