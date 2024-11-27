@@ -69,7 +69,7 @@ sphinxcontrib-googleanalytics = "*"
 optional = true
 
 [tool.poetry.group.uvloop.dependencies]
-uvloop = "^0.19"
+uvloop = "^0.21"
 
 [build-system]
 requires = ["poetry-core"]
