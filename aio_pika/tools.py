@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import typing
 import warnings
 from functools import wraps
 from itertools import chain
@@ -11,9 +12,15 @@ from typing import (
     List,
     MutableSet, Optional, TypeVar, Union, Generic,
 )
-
-from typing_extensions import ParamSpec, Protocol
 from weakref import ReferenceType, WeakSet, ref
+
+if typing.TYPE_CHECKING:    # pragma: no cover
+    from typing_extensions import ParamSpec, Protocol
+else:
+    try:
+        from typing import ParamSpec, Protocol
+    except ImportError:
+        from typing_extensions import ParamSpec, Protocol
 
 from aio_pika.log import get_logger
 
