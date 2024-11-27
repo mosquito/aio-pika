@@ -39,7 +39,7 @@ packages = [{ include = "aio_pika" }]
 python = "^3.9"
 aiormq = "~6.8"
 yarl = [{ version = '*'}]
-exceptiongroup = "^1"
+exceptiongroup = [{ version = "^1", python = "< 3.11" }]
 typing-extensions = [{ version = '*', python = "< 3.10" }]
 
 [tool.poetry.group.dev.dependencies]
