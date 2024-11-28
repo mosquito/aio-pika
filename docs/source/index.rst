@@ -410,7 +410,7 @@ And the caller side might be written like this:
 
 
 `FastStream`_
-~~~~~~~~~
+~~~~~~~~~~~~~
 
 **FastStream** is a powerful and easy-to-use Python library for building asynchronous services that interact with event streams..
 
@@ -420,10 +420,10 @@ If you need no deep dive into **RabbitMQ** details, you can use more high-level 
 
    from faststream import FastStream
    from faststream.rabbit import RabbitBroker
-   
+
    broker = RabbitBroker("amqp://guest:guest@localhost:5672/")
    app = FastStream(broker)
-   
+
    @broker.subscriber("user")
    async def user_created(user_id: int):
        assert isinstance(user_id, int)

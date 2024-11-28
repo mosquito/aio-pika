@@ -56,12 +56,15 @@ pytest = "^7.4.0"
 pytest-cov = "^4.0.0"
 pytest-rst = "^0.0.7"
 shortuuid = "^1.0.11"
-sphinx = "^5.3.0"
+sphinx = "^6.0"
 sphinx-autobuild = "^2021.3.14"
 timeout-decorator = "^0.5.0"
 types-setuptools = "^65.6.0.2"
 setuptools = "^69.0.3"
 testcontainers = "^3.7.1"
+autodoc = "^0.5.0"
+furo = "^2024.8.6"
+sphinxcontrib-googleanalytics = "^0.4"
 
 [tool.poetry.group.uvloop]
 optional = true
