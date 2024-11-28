@@ -5,10 +5,6 @@
 aio-pika
 ========
 
-.. image:: https://readthedocs.org/projects/aio-pika/badge/?version=latest
-    :target: https://aio-pika.readthedocs.org/
-    :alt: ReadTheDocs
-
 .. image:: https://coveralls.io/repos/github/mosquito/aio-pika/badge.svg?branch=master
     :target: https://coveralls.io/github/mosquito/aio-pika
     :alt: Coveralls
@@ -349,10 +345,10 @@ If you need no deep dive into **RabbitMQ** details, you can use more high-level 
 
    from faststream import FastStream
    from faststream.rabbit import RabbitBroker
-   
+
    broker = RabbitBroker("amqp://guest:guest@localhost:5672/")
    app = FastStream(broker)
-   
+
    @broker.subscriber("user")
    async def user_created(user_id: int):
        assert isinstance(user_id, int)

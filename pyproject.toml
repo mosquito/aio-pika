@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aio-pika"
-version = "9.5.0"
+version = "9.5.1"
 description = "Wrapper around the aiormq for asyncio and humans"
 authors = ["Dmitry Orlov <me@mosquito.su>"]
 readme = "README.rst"
@@ -33,7 +33,7 @@ packages = [{ include = "aio_pika" }]
 [tool.poetry.urls]
 "Source" = "https://github.com/mosquito/aio-pika"
 "Tracker" = "https://github.com/mosquito/aio-pika/issues"
-"Documentation" = "https://aio-pika.readthedocs.org/"
+"Documentation" = "https://docs.aio-pika.com/"
 
 [tool.poetry.dependencies]
 python = "^3.8"
