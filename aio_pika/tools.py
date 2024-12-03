@@ -12,10 +12,15 @@ from typing import (
     MutableSet, Optional, TypeVar, Union, Generic,
 )
 
-from typing_extensions import ParamSpec, Protocol
 from weakref import ReferenceType, WeakSet, ref
 
 from aio_pika.log import get_logger
+
+
+try:
+    from typing import ParamSpec, Protocol
+except ImportError:
+    from typing_extensions import ParamSpec, Protocol   # type: ignore
 
 
 log = get_logger(__name__)
