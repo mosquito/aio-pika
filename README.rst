@@ -1,4 +1,4 @@
-.. _documentation: https://aio-pika.readthedocs.org/
+.. _documentation: https://docs.aio-pika.com/
 .. _adopted official RabbitMQ tutorial: https://aio-pika.readthedocs.io/en/latest/rabbitmq-tutorial/1-introduction.html
 
 
