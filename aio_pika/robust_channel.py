@@ -121,6 +121,14 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
 
         return exc
 
+    async def close(
+        self,
+        exc: Optional[aiormq.abc.ExceptionType] = None,
+    ) -> None:
+        # Avoid recovery when channel is explicitely closed using this method
+        self.__restored.clear()
+        await super().close(exc)
+
     async def reopen(self) -> None:
         await super().reopen()
         await self.reopen_callbacks()
