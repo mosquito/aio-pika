@@ -1,3 +1,57 @@
+9.5.4
+-----
+
+* fix: RobustChannel should not reopen after close() call #658
+
+9.5.3
+-----
+
+* python3.8-eol #657
+* self-hosted docs
+
+9.5.2
+-----
+
+* Fix documentation links
+
+9.5.1
+-----
+
+* Fix documentation links
+
+9.5.0
+-----
+
+* Fix two bugs by adding more type hints to `CallbackCollection`. @Darsstar
+* Dropped python 3.7 @Darsstar
+* QueueIterator raises StopAsyncIteration when channel is closed. @Darsstar
+
+9.4.3
+-----
+
+* fix: raise ChannelInvalidStateError at exchange.publish with closed channel #637
+
+9.4.2
+-----
+
+* Only nack messages upon cancellation of a consumer subscription … #634
+
+9.4.1
+-----
+
+* Prevent deadlock in RobustChannel.reopen() #622
+* Python 3.12 tests #603
+
+9.4.0
+-----
+
+* Support aiormq 6.8.0 #614
+
+9.3.1
+-----
+
+* Define empty __slots__ in base classes #598
+
 9.3.0
 -----
 
