@@ -157,6 +157,7 @@ Get single message example:
 .. code-block:: python
 
     import asyncio
+    import aio_pika.abc
     from aio_pika import connect_robust, Message
 
 
