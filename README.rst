@@ -86,7 +86,7 @@ Simple consumer:
         # Connecting with the given parameters is also possible.
         # aio_pika.connect_robust(host="host", login="login", password="password")
         # You can only choose one option to create a connection, url or kw-based params.
-        connection = await aio_pika.connect_robust(
+        connection: aio_pika.abc.AbstractRobustConnection = await aio_pika.connect_robust(
             "amqp://guest:guest@127.0.0.1/", loop=loop
         )
 
@@ -128,7 +128,7 @@ Simple publisher:
 
     async def main(loop):
         # Explicit type annotation
-        connection: aio_pika.RobustConnection = await aio_pika.connect_robust(
+        connection: aio_pika.abc.AbstractRobustConnection = await aio_pika.connect_robust(
             "amqp://guest:guest@127.0.0.1/", loop=loop
         )
 
@@ -157,11 +157,12 @@ Get single message example:
 .. code-block:: python
 
     import asyncio
+    import aio_pika.abc
     from aio_pika import connect_robust, Message
 
 
     async def main(loop):
-        connection = await connect_robust(
+        connection: aio_pika.abc.AbstractRobustConnection = await connect_robust(
             "amqp://guest:guest@127.0.0.1/",
             loop=loop
         )
