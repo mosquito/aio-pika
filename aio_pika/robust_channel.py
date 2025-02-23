@@ -2,9 +2,8 @@ import asyncio
 import warnings
 from collections import defaultdict
 from itertools import chain
-from typing import Any, DefaultDict, Dict, MutableSet, Optional, Type, Union
+from typing import Any, DefaultDict, Dict, Optional, Set, Type, Union
 from warnings import warn
-from weakref import WeakSet
 
 import aiormq
 
@@ -32,8 +31,8 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
 
     RESTORE_RETRY_DELAY: int = 2
 
-    _exchanges: DefaultDict[str, MutableSet[AbstractRobustExchange]]
-    _queues: DefaultDict[str, MutableSet[RobustQueue]]
+    _exchanges: DefaultDict[str, Set[AbstractRobustExchange]]
+    _queues: DefaultDict[str, Set[RobustQueue]]
     default_exchange: RobustExchange
 
     def __init__(
@@ -61,8 +60,8 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
             on_return_raises=on_return_raises,
         )
 
-        self._exchanges = defaultdict(WeakSet)
-        self._queues = defaultdict(WeakSet)
+        self._exchanges = defaultdict(set)
+        self._queues = defaultdict(set)
         self._prefetch_count: int = 0
         self._prefetch_size: int = 0
         self._global_qos: bool = False
@@ -194,6 +193,11 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> AbstractRobustExchange:
+        """
+        :param robust: If True, the exchange will be re-declared during
+        reconnection.
+        Set to False for temporary exchanges that should not be restored.
+        """
         await self.ready()
         exchange = (
             await super().declare_exchange(
@@ -243,6 +247,11 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         timeout: TimeoutType = None,
         robust: bool = True,
     ) -> AbstractRobustQueue:
+        """
+        :param robust: If True, the queue will be re-declared during
+        reconnection.
+        Set to False for temporary queues that should not be restored.
+        """
         await self.ready()
         queue: RobustQueue = await super().declare_queue(   # type: ignore
             name=name,
