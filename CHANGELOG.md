@@ -1,3 +1,8 @@
+9.5.5
+-----
+
+* Replace WeakSet with set for robust channels tracking #666 by shushpanov
+
 9.5.4
 -----
 
