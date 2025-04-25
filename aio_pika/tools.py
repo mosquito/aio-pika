@@ -304,6 +304,8 @@ class OneShotCallback:
 
             try:
                 await self.callback(*args, **kwargs)
+            except Exception:
+                log.exception("Callback %r error", self)
             finally:
                 self.loop.call_soon(self.finished.set)
                 del self.callback
