@@ -12,7 +12,7 @@ from aio_pika.abc import (
     AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
     ConsumerTag, DeliveryMode,
 )
-from aio_pika.message import Message, ReturnedMessage
+from aio_pika.message import Message
 
 from ..tools import create_task, ensure_awaitable
 from .base import Base, CallbackType, Proxy, T
@@ -67,6 +67,8 @@ class Master(Base):
         "channel",
         "loop",
         "proxy",
+        "_requeue",
+        "_reject_on_redelivered",
     )
 
     DELIVERY_MODE = DeliveryMode.PERSISTENT
@@ -111,8 +113,8 @@ class Master(Base):
 
     @staticmethod
     def on_message_returned(
-        channel: AbstractChannel,
-        message: ReturnedMessage,
+        channel: Optional[AbstractChannel],
+        message: AbstractIncomingMessage,
     ) -> None:
         log.warning(
             "Message returned. Probably destination queue does not exists: %r",

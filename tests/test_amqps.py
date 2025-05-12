@@ -15,14 +15,14 @@ def connection_fabric(request):
 
 
 @pytest.fixture
-def create_connection(connection_fabric, event_loop, amqp_url):
+def create_connection(connection_fabric, event_loop, rabbitmq_container):
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.VerifyMode.CERT_NONE
 
     return partial(
         connection_fabric,
-        amqp_url.with_scheme("amqps").with_port(5671),
+        rabbitmq_container.get_amqps_url(),
         loop=event_loop,
         ssl_context=ssl_context,
     )

@@ -1,11 +1,14 @@
 import asyncio
-import sys
+from asyncio import Future
 from functools import partial
 from types import TracebackType
-from typing import Any, Awaitable, Callable, Optional, Type, overload
+from typing import (
+    Any, Awaitable, Callable, Literal, Optional, Type, cast, overload,
+)
 
 import aiormq
 from aiormq.abc import DeliveredMessage
+from exceptiongroup import ExceptionGroup
 from pamqp.common import Arguments
 
 from .abc import (
@@ -17,12 +20,6 @@ from .exchange import ExchangeParamType
 from .log import get_logger
 from .message import IncomingMessage
 from .tools import CallbackCollection, create_task, ensure_awaitable
-
-
-if sys.version_info >= (3, 8):
-    from typing import Literal
-else:
-    from typing_extensions import Literal
 
 
 log = get_logger(__name__)
@@ -39,6 +36,20 @@ async def consumer(
 
 class Queue(AbstractQueue):
     """ AMQP queue abstraction """
+
+    __slots__ = (
+        "__weakref__",
+        "__get_lock",
+        "close_callbacks",
+        "channel",
+        "name",
+        "durable",
+        "exclusive",
+        "auto_delete",
+        "arguments",
+        "passive",
+        "declaration_result",
+    )
 
     def __init__(
         self,
@@ -78,7 +89,6 @@ class Queue(AbstractQueue):
         """ Declare queue.
 
         :param timeout: execution timeout
-        :param passive: Only check to see if the queue exists.
         :return: :class:`None`
         """
         log.debug("Declaring queue: %r", self)
@@ -407,7 +417,24 @@ class QueueIterator(AbstractQueueIterator):
     def consumer_tag(self) -> Optional[ConsumerTag]:
         return getattr(self, "_consumer_tag", None)
 
-    async def close(self, *_: Any) -> Any:
+    async def close(self) -> None:
+        await self._on_close(self._amqp_queue, None)
+        if not self._closed.done():
+            self._closed.set_result(True)
+
+    async def _set_closed(
+        self,
+        _channel: Optional[AbstractQueue],
+        exc: Optional[BaseException]
+    ) -> None:
+        if not self._closed.done():
+            self._closed.set_result(True)
+
+    async def _on_close(
+        self,
+        _channel: Optional[AbstractQueue],
+        _exc: Optional[BaseException]
+    ) -> None:
         log.debug("Cancelling queue iterator %r", self)
 
         if not hasattr(self, "_consumer_tag"):
@@ -422,19 +449,18 @@ class QueueIterator(AbstractQueueIterator):
         consumer_tag = self._consumer_tag
         del self._consumer_tag
 
-        self._amqp_queue.close_callbacks.remove(self.close)
+        self._amqp_queue.close_callbacks.discard(self._on_close)
         await self._amqp_queue.cancel(consumer_tag)
 
         log.debug("Queue iterator %r closed", self)
 
-        # Reject all messages
-        msg: Optional[IncomingMessage] = None
-        try:
-            while True:
-                msg = self._queue.get_nowait()
-        except asyncio.QueueEmpty:
-            if msg is None:
-                return
+        if self._queue.empty():
+            return
+
+        exceptions = []
+        # Reject all messages that have been received and in the buffer/cache.
+        while not self._queue.empty():
+            msg = self._queue.get_nowait()
 
             if self._amqp_queue.channel.is_closed:
                 log.warning(
@@ -442,17 +468,28 @@ class QueueIterator(AbstractQueueIterator):
                     msg,
                     self,
                 )
-                return
-
-            if self._consume_kwargs.get("no_ack", False):
+            elif self._consume_kwargs.get("no_ack", False):
                 log.warning(
                     "Message %r lost for consumer with no_ack %r",
                     msg,
                     self,
                 )
-                return
+            else:
+                try:
+                    await msg.nack(requeue=True, multiple=False)
+                except Exception as e:
+                    log.warning(
+                        "Failed to nack message %r",
+                        msg,
+                        exc_info=e,
+                    )
+                    exceptions.append(e)
 
-            await msg.nack(requeue=True, multiple=True)
+        if exceptions:
+            raise ExceptionGroup(
+                "Unable to nack all messages",
+                exceptions,
+            )
 
     def __str__(self) -> str:
         return f"queue[{self._amqp_queue}](...)"
@@ -466,14 +503,30 @@ class QueueIterator(AbstractQueueIterator):
 
     def __init__(self, queue: Queue, **kwargs: Any):
         self._consumer_tag: ConsumerTag
-        self._amqp_queue: AbstractQueue = queue
+        self._amqp_queue: Queue = queue
         self._queue = asyncio.Queue()
+        self._closed = asyncio.get_running_loop().create_future()
+        self._message_or_closed = asyncio.Event()
+        self._timeout_event = asyncio.Event()
         self._consume_kwargs = kwargs
 
-        self._amqp_queue.close_callbacks.add(self.close)
+        cast(
+            asyncio.Future, self._amqp_queue.channel.closed()
+        ).add_done_callback(self._propagate_closed)
+        self._closed.add_done_callback(self._propagate_closed)
+
+        self._amqp_queue.close_callbacks.add(self._on_close, weak=True)
+        self._amqp_queue.close_callbacks.add(
+            self._set_closed,
+            weak=True
+        )
+
+    def _propagate_closed(self, _: Future) -> None:
+        self._message_or_closed.set()
 
     async def on_message(self, message: AbstractIncomingMessage) -> None:
         await self._queue.put(message)
+        self._message_or_closed.set()
 
     async def consume(self) -> None:
         self._consumer_tag = await self._amqp_queue.consume(
@@ -494,27 +547,70 @@ class QueueIterator(AbstractQueueIterator):
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
-        await self.close()
+        if hasattr(self, "__closing"):
+            try:
+                await self.__closing
+            finally:
+                del self.__closing
+        else:
+            await self.close()
 
-    async def __anext__(self) -> IncomingMessage:
+    async def __anext__(self) -> AbstractIncomingMessage:
+        if self._closed.done():
+            raise StopAsyncIteration
+
         if not hasattr(self, "_consumer_tag"):
             await self.consume()
-        try:
-            return await asyncio.wait_for(
-                self._queue.get(),
-                timeout=self._consume_kwargs.get("timeout"),
-            )
-        except asyncio.CancelledError:
-            timeout = self._consume_kwargs.get(
-                "timeout",
-                self.DEFAULT_CLOSE_TIMEOUT,
-            )
-            log.info(
-                "%r closing with timeout %d seconds",
-                self, timeout,
-            )
-            await asyncio.wait_for(self.close(), timeout=timeout)
-            raise
+
+        timeout: Optional[float] = self._consume_kwargs.get("timeout")
+
+        if not self._message_or_closed.is_set():
+            coroutine: Awaitable[Any] = self._message_or_closed.wait()
+            if timeout is not None and timeout > 0:
+                coroutine = asyncio.wait_for(coroutine, timeout=timeout)
+
+            try:
+                await coroutine
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                if timeout is not None:
+                    timeout = (
+                        timeout
+                        if timeout > 0
+                        else self.DEFAULT_CLOSE_TIMEOUT
+                    )
+                    log.info(
+                        "%r closing with timeout %d seconds",
+                        self, timeout,
+                    )
+
+                task = asyncio.create_task(self.close())
+                coroutine = task
+                if timeout is not None:
+                    coroutine = asyncio.wait_for(
+                        asyncio.shield(coroutine),
+                        timeout=timeout,
+                    )
+
+                try:
+                    await coroutine
+                except asyncio.TimeoutError:
+                    self.__closing = task
+
+                raise
+
+        if self._queue.empty():
+            raise StopAsyncIteration
+
+        msg = self._queue.get_nowait()
+
+        if (
+            self._queue.empty()
+            and not self._amqp_queue.channel.is_closed
+            and not self._closed.done()
+        ):
+            self._message_or_closed.clear()
+
+        return msg
 
 
 __all__ = ("Queue", "QueueIterator", "ConsumerTag")

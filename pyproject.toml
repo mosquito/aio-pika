@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aio-pika"
-version = "9.3.0"
+version = "9.5.5"
 description = "Wrapper around the aiormq for asyncio and humans"
 authors = ["Dmitry Orlov <me@mosquito.su>"]
 readme = "README.rst"
@@ -15,11 +15,10 @@ classifiers = [
     "Operating System :: Microsoft",
     "Operating System :: POSIX",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Programming Language :: Python",
@@ -33,36 +32,44 @@ packages = [{ include = "aio_pika" }]
 [tool.poetry.urls]
 "Source" = "https://github.com/mosquito/aio-pika"
 "Tracker" = "https://github.com/mosquito/aio-pika/issues"
-"Documentation" = "https://aio-pika.readthedocs.org/"
+"Documentation" = "https://docs.aio-pika.com/"
 
 [tool.poetry.dependencies]
-python = "^3.7"
-aiormq = "~6.7.7"
+python = "^3.9"
+aiormq = "~6.8"
 yarl = [{ version = '*'}]
-typing_extensions = [{ version = '*', python = "< 3.8" }]
-# for pkg_resources
-setuptools = [{ version = '*', python = "< 3.8" }]
+exceptiongroup = "^1"
+typing-extensions = [{ version = '*', python = "< 3.10" }]
 
 [tool.poetry.group.dev.dependencies]
-aiomisc = "^17.2"
+aiomisc = "^17.5"
 aiomisc-pytest = "^1.1.1"
 collective-checkdocs = "^0.2"
 coverage = "^6.5.0"
 coveralls = "^3.3.1"
-mypy = "^0.991"
-nox = "^2022.11.21"
+mypy = "^1"
+nox = "*"
 pylama = "^8.4.1"
-pytest = "^7.2.0"
+pytest = "^8.0"
 pytest-cov = "^4.0.0"
-pytest-rst = "^0.0.7"
-shortuuid = "^1.0.11"
-sphinx = "^5.3.0"
+pytest-rst = "^0.0"
+shortuuid = "^1.0"
+sphinx = "*"
 sphinx-autobuild = "^2021.3.14"
 timeout-decorator = "^0.5.0"
 types-setuptools = "^65.6.0.2"
+typing-extensions = "*"
+setuptools = "^69.0.3"
+testcontainers = "^3.7.1"
+autodoc = "*"
+furo = "*"
+sphinxcontrib-googleanalytics = "*"
+
+[tool.poetry.group.uvloop]
+optional = true
 
 [tool.poetry.group.uvloop.dependencies]
-uvloop = "^0.17.0"
+uvloop = "^0.19"
 
 [build-system]
 requires = ["poetry-core"]
@@ -102,6 +109,10 @@ disallow_untyped_calls = false
 disallow_untyped_decorators = false
 disallow_untyped_defs = false
 warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = ["testcontainers.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 log_cli = true

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import inspect
 import warnings
@@ -5,12 +7,20 @@ from functools import wraps
 from itertools import chain
 from threading import Lock
 from typing import (
-    AbstractSet, Any, Awaitable, Callable, Coroutine, Generator, Iterator, List,
-    MutableSet, Optional, TypeVar, Union,
+    AbstractSet, Any, Awaitable, Callable, Coroutine, Generator, Iterator,
+    List,
+    MutableSet, Optional, TypeVar, Union, Generic,
 )
+
 from weakref import ReferenceType, WeakSet, ref
 
 from aio_pika.log import get_logger
+
+
+try:
+    from typing import ParamSpec, Protocol
+except ImportError:
+    from typing_extensions import ParamSpec, Protocol   # type: ignore
 
 
 log = get_logger(__name__)
@@ -19,25 +29,12 @@ T = TypeVar("T")
 
 def iscoroutinepartial(fn: Callable[..., Any]) -> bool:
     """
-    Function returns True if function is a partial instance of coroutine.
-    See additional information here_.
-
-    :param fn: Function
-    :return: bool
-
-    .. _here: https://goo.gl/C0S4sQ
-
+    Use Python 3.8's inspect.iscoroutinefunction() instead
     """
-
-    while True:
-        parent = fn
-
-        fn = getattr(parent, "func", None)  # type: ignore
-
-        if fn is None:
-            break
-
-    return asyncio.iscoroutinefunction(parent)
+    warnings.warn(
+        "Use inspect.iscoroutinefunction() instead.", DeprecationWarning
+    )
+    return asyncio.iscoroutinefunction(fn)
 
 
 def _task_done(future: asyncio.Future) -> None:
@@ -57,8 +54,8 @@ def create_task(
 ) -> Awaitable[T]:
     loop = loop or asyncio.get_event_loop()
 
-    if iscoroutinepartial(func):
-        task = loop.create_task(func(*args, **kwargs))      # type: ignore
+    if inspect.iscoroutinefunction(func):
+        task = loop.create_task(func(*args, **kwargs))
         task.add_done_callback(_task_done)
         return task
 
@@ -79,8 +76,20 @@ def create_task(
     return future
 
 
-CallbackType = Callable[..., Union[T, Awaitable[T]]]
-CallbackSetType = AbstractSet[CallbackType]
+_Sender = TypeVar("_Sender", contravariant=True)
+_Params = ParamSpec("_Params")
+_Return = TypeVar("_Return", covariant=True)
+
+
+class CallbackType(Protocol[_Sender, _Params, _Return]):
+    def __call__(
+        self,
+        __sender: Optional[_Sender],
+        /,
+        *args: _Params.args,
+        **kwargs: _Params.kwargs,
+    ) -> Union[_Return, Awaitable[_Return]]:
+        ...
 
 
 class StubAwaitable:
@@ -93,7 +102,15 @@ class StubAwaitable:
 STUB_AWAITABLE = StubAwaitable()
 
 
-class CallbackCollection(MutableSet):
+class CallbackCollection(
+    MutableSet[
+        Union[
+            CallbackType[_Sender, _Params, Any],
+            "CallbackCollection[Any, _Params]",
+        ],
+    ],
+    Generic[_Sender, _Params],
+):
     __slots__ = (
         "__weakref__",
         "__sender",
@@ -102,7 +119,7 @@ class CallbackCollection(MutableSet):
         "__lock",
     )
 
-    def __init__(self, sender: Union[T, ReferenceType]):
+    def __init__(self, sender: Union[_Sender, ReferenceType[_Sender]]):
         self.__sender: ReferenceType
         if isinstance(sender, ReferenceType):
             self.__sender = sender
@@ -110,22 +127,56 @@ class CallbackCollection(MutableSet):
             self.__sender = ref(sender)
 
         self.__callbacks: CallbackSetType = set()
-        self.__weak_callbacks: MutableSet[CallbackType] = WeakSet()
+        self.__weak_callbacks: MutableSet[
+            Union[
+                CallbackType[_Sender, _Params, Any],
+                CallbackCollection[Any, _Params],
+            ],
+        ] = WeakSet()
         self.__lock: Lock = Lock()
 
-    def add(self, callback: CallbackType, weak: bool = False) -> None:
+    def add(
+        self,
+        callback: Union[
+            CallbackType[_Sender, _Params, Any],
+            CallbackCollection[Any, _Params],
+        ],
+        weak: bool = False
+    ) -> None:
         if self.is_frozen:
             raise RuntimeError("Collection frozen")
         if not callable(callback):
             raise ValueError("Callback is not callable")
 
         with self.__lock:
-            if weak:
+            if weak or isinstance(callback, CallbackCollection):
                 self.__weak_callbacks.add(callback)
             else:
                 self.__callbacks.add(callback)      # type: ignore
 
-    def discard(self, callback: CallbackType) -> None:
+    def remove(
+        self,
+        callback: Union[
+            CallbackType[_Sender, _Params, Any],
+            CallbackCollection[Any, _Params],
+        ],
+    ) -> None:
+        if self.is_frozen:
+            raise RuntimeError("Collection frozen")
+
+        with self.__lock:
+            try:
+                self.__callbacks.remove(callback)    # type: ignore
+            except KeyError:
+                self.__weak_callbacks.remove(callback)
+
+    def discard(
+        self,
+        callback: Union[
+            CallbackType[_Sender, _Params, Any],
+            CallbackCollection[Any, _Params],
+        ],
+    ) -> None:
         if self.is_frozen:
             raise RuntimeError("Collection frozen")
 
@@ -169,13 +220,18 @@ class CallbackCollection(MutableSet):
     def __len__(self) -> int:
         return len(self.__callbacks) + len(self.__weak_callbacks)
 
-    def __iter__(self) -> Iterator[CallbackType]:
+    def __iter__(self) -> Iterator[
+        Union[
+            CallbackType[_Sender, _Params, Any],
+            CallbackCollection[_Sender, _Params],
+        ],
+    ]:
         return iter(chain(self.__callbacks, self.__weak_callbacks))
 
     def __bool__(self) -> bool:
         return bool(self.__callbacks) or bool(self.__weak_callbacks)
 
-    def __copy__(self) -> "CallbackCollection":
+    def __copy__(self) -> CallbackCollection[_Sender, _Params]:
         instance = self.__class__(self.__sender)
 
         with self.__lock:
@@ -190,7 +246,11 @@ class CallbackCollection(MutableSet):
 
         return instance
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Awaitable[Any]:
+    def __call__(
+        self,
+        *args: _Params.args,
+        **kwargs: _Params.kwargs,
+    ) -> Awaitable[Any]:
         futures: List[asyncio.Future] = []
 
         with self.__lock:
@@ -198,14 +258,18 @@ class CallbackCollection(MutableSet):
 
             for cb in self:
                 try:
-                    result = cb(sender, *args, **kwargs)
-                    if hasattr(result, "__await__"):
+                    if isinstance(cb, CallbackCollection):
+                        result = cb(*args, **kwargs)
+                    else:
+                        result = cb(sender, *args, **kwargs)
+                    if inspect.isawaitable(result):
                         futures.append(asyncio.ensure_future(result))
                 except Exception:
                     log.exception("Callback %r error", cb)
 
         if not futures:
             return STUB_AWAITABLE
+
         return asyncio.gather(*futures, return_exceptions=True)
 
     def __hash__(self) -> int:
@@ -255,12 +319,12 @@ class OneShotCallback:
 
 
 def ensure_awaitable(
-    func: Callable[..., Union[T, Awaitable[T]]],
-) -> Callable[..., Awaitable[T]]:
+    func: Callable[_Params, Union[T, Awaitable[T]]],
+) -> Callable[_Params, Awaitable[T]]:
     if inspect.iscoroutinefunction(func):
         return func
 
-    if inspect.isfunction(func) and not iscoroutinepartial(func):
+    if inspect.isfunction(func):
         warnings.warn(
             f"You probably registering the non-coroutine function {func!r}. "
             "This is deprecated and will be removed in future releases. "
@@ -269,7 +333,7 @@ def ensure_awaitable(
         )
 
     @wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> T:
+    async def wrapper(*args: _Params.args, **kwargs: _Params.kwargs) -> T:
         nonlocal func
 
         result = func(*args, **kwargs)
@@ -288,6 +352,14 @@ def ensure_awaitable(
         return await result
 
     return wrapper
+
+
+CallbackSetType = AbstractSet[
+    Union[
+        CallbackType[_Sender, _Params, None],
+        CallbackCollection[_Sender, _Params],
+    ],
+]
 
 
 __all__ = (

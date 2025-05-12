@@ -34,6 +34,8 @@ class Proxy:
 
 
 class Base:
+    __slots__ = ()
+
     SERIALIZER = pickle
     CONTENT_TYPE = "application/python-pickle"
 

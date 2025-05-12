@@ -1,13 +1,9 @@
-.. _documentation: https://aio-pika.readthedocs.org/
-.. _adopted official RabbitMQ tutorial: https://aio-pika.readthedocs.io/en/latest/rabbitmq-tutorial/1-introduction.html
+.. _documentation: https://docs.aio-pika.com/
+.. _adopted official RabbitMQ tutorial: https://docs.aio-pika.com/rabbitmq-tutorial/index.html
 
 
 aio-pika
 ========
-
-.. image:: https://readthedocs.org/projects/aio-pika/badge/?version=latest
-    :target: https://aio-pika.readthedocs.org/
-    :alt: ReadTheDocs
 
 .. image:: https://coveralls.io/repos/github/mosquito/aio-pika/badge.svg?branch=master
     :target: https://coveralls.io/github/mosquito/aio-pika
@@ -87,7 +83,7 @@ Simple consumer:
 
 
     async def main(loop):
-        # Connect with the givien parameters is also valiable.
+        # Connecting with the given parameters is also possible.
         # aio_pika.connect_robust(host="host", login="login", password="password")
         # You can only choose one option to create a connection, url or kw-based params.
         connection = await aio_pika.connect_robust(
@@ -338,21 +334,22 @@ And the caller side might be written like this:
                 ))
 
 
-`Propan`_:fire:
+`FastStream`_
 ---------------
 
-**Propan** is a powerful and easy-to-use Python framework for building event-driven applications that interact with any MQ Broker.
+**FastStream** is a powerful and easy-to-use Python library for building asynchronous services that interact with event streams..
 
-If you need no deep dive into **RabbitMQ** details, you can use more high-level **Propan** interfaces:
+If you need no deep dive into **RabbitMQ** details, you can use more high-level **FastStream** interfaces:
 
 .. code-block:: python
 
-   from propan import PropanApp, RabbitBroker
+   from faststream import FastStream
+   from faststream.rabbit import RabbitBroker
 
    broker = RabbitBroker("amqp://guest:guest@localhost:5672/")
-   app = PropanApp(broker)
+   app = FastStream(broker)
 
-   @broker.handle("user")
+   @broker.subscriber("user")
    async def user_created(user_id: int):
        assert isinstance(user_id, int)
        return f"user-{user_id}: created"
@@ -360,10 +357,10 @@ If you need no deep dive into **RabbitMQ** details, you can use more high-level 
    @app.after_startup
    async def pub_smth():
        assert (
-           await broker.publish(1, "user", callback=True)
+           await broker.publish(1, "user", rpc=True)
        ) ==  "user-1: created"
 
-Also, **Propan** validates messages by **pydantic**, generates your project **AsyncAPI** spec, tests application locally, RPC calls, and more.
+Also, **FastStream** validates messages by **pydantic**, generates your project **AsyncAPI** spec, supports In-Memory testing, RPC calls, and more.
 
 In fact, it is a high-level wrapper on top of **aio-pika**, so you can use both of these libraries' advantages at the same time.
 
@@ -530,7 +527,7 @@ Changes should follow a few simple rules:
 .. _"thank's to" section: https://github.com/mosquito/aio-pika/blob/master/docs/source/index.rst#thanks-for-contributing
 .. _Semantic Versioning: http://semver.org/
 .. _aio-pika: https://github.com/mosquito/aio-pika/
-.. _propan: https://github.com/Lancetnik/Propan
+.. _faststream: https://github.com/airtai/faststream
 .. _patio: https://github.com/patio-python/patio
 .. _patio-rabbitmq: https://github.com/patio-python/patio-rabbitmq
 .. _Socket.IO: https://socket.io/

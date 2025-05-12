@@ -1,15 +1,17 @@
 import asyncio
 import gc
-import os
+import socket
 import tracemalloc
 from contextlib import suppress
 from functools import partial
+from time import sleep
+from typing import Any, Generator
 
 import aiormq
 import pamqp
 import pytest
 from aiomisc import awaitable
-from aiormq.connection import DEFAULT_PORTS
+from testcontainers.core.container import DockerContainer
 from yarl import URL
 
 import aio_pika
@@ -60,18 +62,61 @@ async def create_task(event_loop):
                 raise result
 
 
-@pytest.fixture
-def amqp_direct_url(request) -> URL:
-    url = URL(
-        os.getenv("AMQP_URL", "amqp://guest:guest@localhost"),
-    ).update_query(name=request.node.nodeid)
+class RabbitmqContainer(DockerContainer):       # type: ignore
+    _amqp_port: int
+    _amqps_port: int
 
-    default_port = DEFAULT_PORTS[url.scheme]
+    def get_amqp_url(self) -> URL:
+        return URL.build(
+            scheme="amqp", user="guest", password="guest", path="//",
+            host=self.get_container_host_ip(),
+            port=self._amqp_port,
+        )
 
-    if not url.port:
-        url = url.with_port(default_port)
+    def get_amqps_url(self) -> URL:
+        return URL.build(
+            scheme="amqps", user="guest", password="guest", path="//",
+            host=self.get_container_host_ip(),
+            port=self._amqps_port,
+        )
 
-    return url
+    def readiness_probe(self) -> None:
+        host = self.get_container_host_ip()
+        port = int(self.get_exposed_port(5672))
+        while True:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                try:
+                    sock.connect((host, port))
+                    sock.send(b"AMQP\0x0\0x0\0x9\0x1")
+                    data = sock.recv(4)
+                    if len(data) != 4:
+                        sleep(0.3)
+                        continue
+                except ConnectionError:
+                    sleep(0.3)
+                    continue
+                return
+
+    def start(self) -> "RabbitmqContainer":
+        self.with_exposed_ports(5672, 5671)
+        super().start()
+        self.readiness_probe()
+        self._amqp_port = int(self.get_exposed_port(5672))
+        self._amqps_port = int(self.get_exposed_port(5671))
+        return self
+
+
+@pytest.fixture(scope="module")
+def rabbitmq_container() -> Generator[RabbitmqContainer, Any, Any]:
+    with RabbitmqContainer("mosquito/aiormq-rabbitmq") as container:
+        yield container
+
+
+@pytest.fixture(scope="module")
+def amqp_direct_url(request, rabbitmq_container: RabbitmqContainer) -> URL:
+    return rabbitmq_container.get_amqp_url().update_query(
+        name=request.node.nodeid
+    )
 
 
 @pytest.fixture

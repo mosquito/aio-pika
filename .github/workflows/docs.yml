@@ -1,0 +1,63 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.12"
+      - name: Cache virtualenv
+        id: venv-cache
+        uses: actions/cache@v3
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ github.job }}-${{ github.ref }}-3.12
+          restore-keys: |
+            venv-${{ runner.os }}-${{ github.job }}-${{ github.ref }}-
+            venv-${{ runner.os }}-${{ github.job }}-
+            venv-${{ runner.os }}-
+      - name: Install Poetry
+        run: python -m pip install poetry
+      - name: Cache Poetry and pip
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pypoetry
+            ~/.cache/pip
+          key: poetry-pip-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            poetry-pip-${{ runner.os }}-
+      - name: Install Dependencies with Poetry
+        run: poetry install --no-interaction --no-ansi
+      - name: Build Documentation
+        run: |
+          cd docs
+          poetry -C .. run make html
+      - name: Install AWS CLI
+        run: |
+          sudo apt update
+          sudo apt install -y awscli
+      - name: Configure AWS CLI for Cloudflare R2
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          aws configure set default.region us-east-1  # R2 uses us-east-1 by default
+          aws configure set default.output json
+      - name: Sync to Cloudflare R2
+        env:
+          CF_R2_ENDPOINT: ${{ secrets.CF_R2_ENDPOINT }}
+          CF_R2_BUCKET_NAME: ${{ secrets.CF_R2_BUCKET_NAME }}
+        run: |
+          aws s3 sync docs/build/html s3://$CF_R2_BUCKET_NAME \
+            --delete \
+            --acl public-read \
+            --endpoint-url $CF_R2_ENDPOINT

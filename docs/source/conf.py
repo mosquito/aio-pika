@@ -23,12 +23,8 @@ import sys
 
 
 # noinspection PyUnresolvedReferences
-try:
-    from importlib.metadata import Distribution
-    __version__ = Distribution.from_name("aio-pika").version
-except ImportError:
-    import pkg_resources
-    __version__ = pkg_resources.get_distribution("aio-pika").version
+from importlib.metadata import Distribution
+__version__ = Distribution.from_name("aio-pika").version
 
 sys.path.insert(0, os.path.abspath(os.path.dirname("__file__")))
 
@@ -49,7 +45,11 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx.ext.coverage",
     "sphinx.ext.viewcode",
+    "sphinxcontrib.googleanalytics",
 ]
+
+googleanalytics_id = "G-VNYV7TYPS6"
+googleanalytics_enabled = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -87,7 +87,7 @@ language = "en"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = []
+exclude_patterns = []  # type: ignore
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
@@ -154,7 +154,7 @@ htmlhelp_basename = "aio-pikadoc"
 
 # -- Options for LaTeX output ---------------------------------------------
 
-latex_elements = {
+latex_elements = {  # type: ignore
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'a4paper',

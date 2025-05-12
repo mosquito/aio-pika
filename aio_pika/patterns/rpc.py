@@ -15,7 +15,7 @@ from aio_pika.abc import (
 )
 from aio_pika.exceptions import MessageProcessError
 from aio_pika.exchange import ExchangeType
-from aio_pika.message import IncomingMessage, Message, ReturnedMessage
+from aio_pika.message import IncomingMessage, Message
 
 from ..tools import ensure_awaitable
 from .base import Base, CallbackType, Proxy, T
@@ -44,11 +44,15 @@ class RPC(Base):
         "channel",
         "loop",
         "proxy",
+        "futures",
         "result_queue",
         "result_consumer_tag",
         "routes",
+        "queues",
         "consumer_tags",
         "dlx_exchange",
+        "rpc_exchange",
+        "host_exceptions",
     )
 
     DLX_NAME = "rpc.dlx"
@@ -101,7 +105,7 @@ class RPC(Base):
         self.host_exceptions = host_exceptions
 
     def __remove_future(
-        self, correlation_id: str
+        self, correlation_id: str,
     ) -> Callable[[asyncio.Future], None]:
         def do_remove(future: asyncio.Future) -> None:
             log.debug("Remove done future %r", future)
@@ -118,7 +122,7 @@ class RPC(Base):
 
     def _format_routing_key(self, method_name: str) -> str:
         return (
-            f'{self.rpc_exchange.name}::{method_name}'
+            f"{self.rpc_exchange.name}::{method_name}"
             if self.rpc_exchange
             else method_name
         )
@@ -155,7 +159,7 @@ class RPC(Base):
 
     async def initialize(
         self, auto_delete: bool = True,
-        durable: bool = False, exchange: str = '', **kwargs: Any,
+        durable: bool = False, exchange: str = "", **kwargs: Any,
     ) -> None:
         if hasattr(self, "result_queue"):
             return
@@ -164,7 +168,8 @@ class RPC(Base):
             exchange,
             type=ExchangeType.DIRECT,
             auto_delete=True,
-            durable=durable) if exchange else None
+            durable=durable,
+        ) if exchange else None
 
         self.result_queue = await self.channel.declare_queue(
             None, auto_delete=auto_delete, durable=durable, **kwargs,
@@ -188,7 +193,8 @@ class RPC(Base):
         self.channel.return_callbacks.add(self.on_message_returned)
 
     def on_close(
-        self, channel: AbstractChannel,
+        self,
+        channel: Optional[AbstractChannel],
         exc: Optional[ExceptionType] = None,
     ) -> None:
         log.debug("Closing RPC futures because %r", exc)
@@ -213,7 +219,9 @@ class RPC(Base):
         return rpc
 
     def on_message_returned(
-        self, channel: AbstractChannel, message: ReturnedMessage,
+        self,
+        channel: Optional[AbstractChannel],
+        message: AbstractIncomingMessage,
     ) -> None:
         if message.correlation_id is None:
             log.warning(
@@ -399,8 +407,10 @@ class RPC(Base):
 
         log.debug("Publishing calls for %s(%r)", routing_key, kwargs)
         exchange = self.rpc_exchange or self.channel.default_exchange
-        await exchange.publish(message, routing_key=routing_key,
-                               mandatory=True)
+        await exchange.publish(
+            message, routing_key=routing_key,
+            mandatory=True,
+        )
 
         log.debug("Waiting RPC result for %s(%r)", routing_key, kwargs)
         return await future
@@ -433,7 +443,7 @@ class RPC(Base):
         if self.rpc_exchange:
             await queue.bind(
                 self.rpc_exchange,
-                routing_key
+                routing_key,
             )
 
         if func in self.consumer_tags:

@@ -1,9 +1,10 @@
 import asyncio
+from typing import Generator
 
 from aio_pika import Message, connect
 
 
-def get_messages_to_publish():
+def get_messages_to_publish() -> Generator[bytes, None, None]:
     for i in range(10000):
         yield f"Hello World {i}!".encode()
 
