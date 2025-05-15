@@ -143,6 +143,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         await channel.basic_qos(
             prefetch_count=self._prefetch_count,
             prefetch_size=self._prefetch_size,
+            global_=self._global_qos,
         )
 
         for exchange in exchanges:
