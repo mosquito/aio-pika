@@ -2,7 +2,7 @@ import asyncio
 import warnings
 from collections import defaultdict
 from itertools import chain
-from typing import Any, DefaultDict, Dict, Optional, Set, Type, Union
+from typing import Any, DefaultDict, Dict, Optional, Set, Type, Union, cast
 from warnings import warn
 
 import aiormq
@@ -31,7 +31,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
 
     RESTORE_RETRY_DELAY: int = 2
 
-    _exchanges: DefaultDict[str, Set[AbstractRobustExchange]]
+    _exchanges: DefaultDict[str, AbstractRobustExchange]
     _queues: DefaultDict[str, Set[RobustQueue]]
     default_exchange: RobustExchange
 
@@ -60,7 +60,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
             on_return_raises=on_return_raises,
         )
 
-        self._exchanges = defaultdict(set)
+        self._exchanges = defaultdict()
         self._queues = defaultdict(set)
         self._prefetch_count: int = 0
         self._prefetch_size: int = 0
@@ -136,7 +136,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         if not hasattr(self, "default_exchange"):
             await super()._on_open()
 
-        exchanges = tuple(chain(*self._exchanges.values()))
+        exchanges = self._exchanges.values()
         queues = tuple(chain(*self._queues.values()))
         channel = await self.get_underlay_channel()
 
@@ -200,6 +200,10 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         Set to False for temporary exchanges that should not be restored.
         """
         await self.ready()
+        # Check if the exchange is already declared and return it
+        if name in self._exchanges:
+            return self._exchanges[name]
+
         exchange = (
             await super().declare_exchange(
                 name=name,
@@ -212,12 +216,12 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
                 timeout=timeout,
             )
         )
+        exchange = cast(AbstractRobustExchange, exchange)
 
         if not internal and robust:
-            # noinspection PyTypeChecker
-            self._exchanges[name].add(exchange)     # type: ignore
+            self._exchanges[name] = exchange
 
-        return exchange     # type: ignore
+        return exchange
 
     async def exchange_delete(
         self,
@@ -254,6 +258,9 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         Set to False for temporary queues that should not be restored.
         """
         await self.ready()
+        if name and name in self._queues:
+            return list(self._queues[name])[0]
+
         queue: RobustQueue = await super().declare_queue(   # type: ignore
             name=name,
             durable=durable,
