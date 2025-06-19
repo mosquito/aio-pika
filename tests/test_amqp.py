@@ -1636,6 +1636,16 @@ class TestCaseAmqp(TestCaseAmqpBase):
 
         assert exchange.name == exchange_passive.name
 
+    async def test_get_exchange_memory_leak(self, connection, declare_exchange):
+        channel = await self.create_channel(connection)
+        _ = await declare_exchange(
+            "passive", channel=channel,
+        )
+        exchange_1 = await channel.get_exchange("passive")
+        exchange_2 = await channel.get_exchange("passive")
+
+        assert exchange_1 == exchange_2
+
     async def test_get_queue(self, connection, declare_queue):
         channel = await self.create_channel(connection)
         name = get_random_name("passive", "queue")
