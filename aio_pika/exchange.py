@@ -36,7 +36,7 @@ class Exchange(AbstractExchange):
         self.durable = durable
         self.internal = internal
         self.passive = passive
-        self.arguments = arguments or {}
+        self.arguments = frozenset(arguments.items()) if arguments else frozenset()
 
     def __str__(self) -> str:
         return self.name
@@ -46,8 +46,41 @@ class Exchange(AbstractExchange):
             f"<{self.__class__.__name__}({self}):"
             f" auto_delete={self.auto_delete},"
             f" durable={self.durable},"
-            f" arguments={self.arguments!r})>"
+            f" arguments={dict(self.arguments)!r})>"
         )
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Defines equality for Exchange objects.
+        Two exchanges are considered equal if their name, type, and
+        all boolean flags, and arguments are the same.
+        """
+        if not isinstance(other, Exchange):
+            return False
+        return (
+            self.name == other.name and
+            self._type == other._type and
+            self.auto_delete == other.auto_delete and
+            self.durable == other.durable and
+            self.internal == other.internal and
+            self.passive == other.passive and
+            self.arguments == other.arguments
+        )
+
+    def __hash__(self) -> int:
+        """
+        Computes a hash for the Exchange object.
+        The hash is based on the same attributes used in __eq__.
+        """
+        return hash((
+            self.name,
+            self._type,
+            self.auto_delete,
+            self.durable,
+            self.internal,
+            self.passive,
+            self.arguments  # This is a frozenset, which is hashable
+        ))
 
     async def declare(
         self, timeout: TimeoutType = None,
@@ -60,7 +93,7 @@ class Exchange(AbstractExchange):
             auto_delete=self.auto_delete,
             internal=self.internal,
             passive=self.passive,
-            arguments=self.arguments,
+            arguments=dict(self.arguments),
             timeout=timeout,
         )
 
