@@ -129,6 +129,21 @@ class TestCaseNoRobust(TestCaseAmqp):
 
         assert channel.is_closed
 
+    async def test_get_exchange(self, connection, declare_exchange):
+        channel = await self.create_channel(connection)
+        name = get_random_name("passive", "exchange")
+
+        with pytest.raises(aio_pika.exceptions.ChannelNotFoundEntity):
+            await channel.get_exchange(name)
+
+        channel = await self.create_channel(connection)
+        exchange = await declare_exchange(
+            name, auto_delete=True, channel=channel,
+        )
+        exchange_passive = await channel.get_exchange(name)
+
+        assert exchange.name is exchange_passive.name
+
 
 class TestCaseAmqpNoConfirmsRobust(TestCaseAmqpNoConfirms):
     pass
