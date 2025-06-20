@@ -264,7 +264,7 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         if passive and name and name in self._queues:
             return list(self._queues[name])[0]
 
-        queue: RobustQueue = await super().declare_queue(   # type: ignore
+        queue = await super().declare_queue(
             name=name,
             durable=durable,
             exclusive=exclusive,
@@ -273,6 +273,8 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
             arguments=arguments,
             timeout=timeout,
         )
+        queue = cast(RobustQueue, queue)
+
         if robust:
             self._queues[queue.name].add(queue)
         return queue
