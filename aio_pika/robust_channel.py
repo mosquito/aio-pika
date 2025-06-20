@@ -200,8 +200,9 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         Set to False for temporary exchanges that should not be restored.
         """
         await self.ready()
-        # Check if the exchange is already declared and return it
-        if name in self._exchanges:
+        # Passive is True so expecting the exchange to be already declared
+        # if we can just return it instead of creating a new class instance
+        if passive and name in self._exchanges:
             return self._exchanges[name]
 
         exchange = (
@@ -258,7 +259,9 @@ class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
         Set to False for temporary queues that should not be restored.
         """
         await self.ready()
-        if name and name in self._queues:
+        # Passive is True so expecting the queue to be already declared
+        # if we can just return it instead of creating a new class instance
+        if passive and name and name in self._queues:
             return list(self._queues[name])[0]
 
         queue: RobustQueue = await super().declare_queue(   # type: ignore
