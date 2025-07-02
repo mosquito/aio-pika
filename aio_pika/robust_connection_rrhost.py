@@ -16,16 +16,18 @@ class RobustConnectionRRHost:
     cycling through provided URLs until a successful connection is made.
     """
 
-    def __init__(self, urls: List[str], default_port: int = 5672,
-                 **kwargs: Any):
+    def __init__(
+        self, urls: List[str], default_port: int = 5672, **kwargs: Any
+    ):
         """
-        Initialize with a list of broker URLs, normalizing and applying default port if missing.
+        Initialize with a list of broker URLs, normalizing and applying
+        default port if missing.
 
         :param urls: List of AMQP broker URLs as strings.
         :param default_port: Default port used if not specified in URLs.
         :param kwargs: Additional arguments passed to RobustConnection.
         """
-        self.urls = []
+        self.urls: List[URL] = []
         for url in urls:
             parsed = urlparse(url)
             if not parsed.scheme:
@@ -47,40 +49,25 @@ class RobustConnectionRRHost:
             self.urls.append(url_obj)
         self._current_index = 0
         self._kwargs = kwargs
-        self._connection: Optional[
-            RobustConnection
-        ] = None  # Active connection instance, None if disconnected
-        self._connect_timeout = None  # Timeout used for connection attempts
+        self._connection: Optional[RobustConnection] = None
+        self._connect_timeout: Optional[float] = None
 
     async def connect(self, timeout: Optional[float] = None) -> None:
         """
         Attempt to connect to one of the provided URLs in round-robin order.
-
-        :param timeout: Optional connection timeout in seconds.
-        :raises Exception: Raises the last exception if all connection attempts fail.
         """
         self._connect_timeout = timeout
-        last_exc = None
+        last_exc: Optional[Exception] = None
         for _ in range(len(self.urls)):
-            url = str(self.urls[self._current_index])
+            url = self.urls[self._current_index]
             try:
                 self._connection = RobustConnection(url, **self._kwargs)
                 await self._connection.connect(timeout=timeout)
                 return
             except Exception as e:
                 last_exc = e
-                self._current_index = (self._current_index + 1) % len(
-                    self.urls)
+                self._current_index = (self._current_index + 1) % len(self.urls)
         raise last_exc or RuntimeError("All connection attempts failed")
-
-    async def _on_connection_close(self, closing) -> None:
-        """
-        Internal callback triggered on connection close to attempt reconnection.
-        """
-        if self._connection and not self._connection.is_closed:
-            await self.reconnect()
-        if self._connection:
-            await self._connection._on_connection_close(closing)
 
     async def reconnect(self) -> None:
         """
@@ -93,10 +80,33 @@ class RobustConnectionRRHost:
                 await self._connection.reconnect_callbacks()
         except Exception as e:
             log.info(
-                f"Reconnect failed on {self.urls[self._current_index]}: {e}")
+                f"Reconnect failed on {self.urls[self._current_index]}: {e}"
+            )
+
+    async def _on_connection_close(self, closing: Any) -> None:
+        """
+        Internal callback triggered on connection close to attempt reconnection.
+        """
+        if self._connection and not self._connection.is_closed:
+            await self.reconnect()
+        if self._connection:
+            await self._connection._on_connection_close(closing)
+
+    @property
+    def is_closed(self) -> bool:
+        return self._connection.is_closed if self._connection else True
+
+    async def close(self) -> None:
+        if self._connection:
+            await self._connection.close()
 
     def __getattr__(self, name: str) -> Any:
         if self._connection:
             return getattr(self._connection, name)
         raise AttributeError(
-            f"'RobustConnectionRRHost' object has no attribute '{name}'")
+            f"'RobustConnectionRRHost' object has no attribute '{name}'"
+        )
+
+__all__ = (
+    "RobustConnectionRRHost"
+)
