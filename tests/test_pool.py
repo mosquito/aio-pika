@@ -19,8 +19,6 @@ async def test_simple(max_size, event_loop):
     pool: Pool = Pool(create_instance, max_size=max_size, loop=event_loop)
 
     async def getter():
-        nonlocal counter, pool
-
         async with pool.acquire() as instance:
             assert instance > 0
             await asyncio.sleep(1 if counter < max_size else 0)
@@ -57,8 +55,6 @@ class TestInstanceBase:
     @pytest.fixture
     def pool(self, max_size, instances, event_loop):
         async def create_instance():
-            nonlocal instances
-
             obj = TestInstanceBase.Instance()
             instances.add(obj)
             return obj
@@ -121,7 +117,6 @@ class TestCaseNoMaxSize(TestInstance):
 
         async def getter():
             nonlocal counter
-
             async with pool.acquire() as instance:
                 await asyncio.sleep(1)
                 assert isinstance(instance, TestInstanceBase.Instance)
@@ -145,8 +140,6 @@ class TestCaseItemReuse(TestInstanceBase):
         counter: Counter = Counter()
 
         async def getter():
-            nonlocal counter
-
             async with pool.acquire() as instance:
                 await asyncio.sleep(0.05)
                 counter[instance] += 1

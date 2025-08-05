@@ -23,13 +23,13 @@ def create_connection(connection_fabric, event_loop, amqp_url):
     return partial(connection_fabric, amqp_url, loop=event_loop)
 
 
-class TestCaseNoRobust(TestCaseAmqp):
+class TestCaseNoRobust(TestCaseAmqp):   # type: ignore
     PARAMS = [{"robust": True}, {"robust": False}]
     IDS = ["robust=1", "robust=0"]
 
     @staticmethod
     @pytest.fixture(name="declare_queue", params=PARAMS, ids=IDS)
-    def declare_queue_(request, declare_queue):
+    def declare_queue_(request, declare_queue):     # type: ignore
         async def fabric(*args, **kwargs) -> aio_pika.Queue:
             kwargs.update(request.param)
             return await declare_queue(*args, **kwargs)
@@ -38,7 +38,7 @@ class TestCaseNoRobust(TestCaseAmqp):
 
     @staticmethod
     @pytest.fixture(name="declare_exchange", params=PARAMS, ids=IDS)
-    def declare_exchange_(request, declare_exchange):
+    def declare_exchange_(request, declare_exchange):   # type: ignore
         async def fabric(*args, **kwargs) -> aio_pika.Queue:
             kwargs.update(request.param)
             return await declare_exchange(*args, **kwargs)

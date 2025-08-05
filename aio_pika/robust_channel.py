@@ -23,7 +23,7 @@ from .tools import CallbackCollection
 log = get_logger(__name__)
 
 
-class RobustChannel(Channel, AbstractRobustChannel):    # type: ignore
+class RobustChannel(Channel, AbstractRobustChannel):
     """ Channel abstraction """
 
     QUEUE_CLASS: Type[Queue] = RobustQueue
