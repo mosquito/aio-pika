@@ -15,7 +15,6 @@ classifiers = [
     "Operating System :: Microsoft",
     "Operating System :: POSIX",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -36,7 +35,7 @@ packages = [{ include = "aio_pika" }]
 "Documentation" = "https://docs.aio-pika.com/"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 aiormq = "^6.8"
 yarl = [{ version = '*'}]
 exceptiongroup = [{ version = "^1", python = "< 3.11" }]
