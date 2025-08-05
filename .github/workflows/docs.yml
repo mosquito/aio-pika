@@ -44,7 +44,7 @@ jobs:
       - name: Install AWS CLI
         run: |
           sudo apt update
-          sudo apt install -y awscli
+          sudo apt install -y aws-cli
       - name: Configure AWS CLI for Cloudflare R2
         run: |
           aws configure set aws_access_key_id ${{ secrets.CF_R2_ACCESS_KEY_ID }}
