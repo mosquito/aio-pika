@@ -336,7 +336,7 @@ def ensure_awaitable(
 
     @wraps(func)
     async def wrapper(*args: _Params.args, **kwargs: _Params.kwargs) -> T:
-        nonlocal func
+        nonlocal func       # noqa
 
         result = func(*args, **kwargs)
         if not hasattr(result, "__await__"):

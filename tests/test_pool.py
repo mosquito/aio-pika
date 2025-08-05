@@ -11,6 +11,7 @@ async def test_simple(max_size, event_loop):
     counter = 0
 
     async def create_instance():
+        nonlocal counter
         await asyncio.sleep(0)
         counter += 1
         return counter
@@ -115,6 +116,7 @@ class TestCaseNoMaxSize(TestInstance):
         counter = 0
 
         async def getter():
+            nonlocal counter
             async with pool.acquire() as instance:
                 await asyncio.sleep(1)
                 assert isinstance(instance, TestInstanceBase.Instance)

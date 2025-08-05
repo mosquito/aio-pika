@@ -110,6 +110,7 @@ async def test_revive_passive_queue_on_reconnect(
     reconnect_count = 0
 
     def reconnect_callback(conn: Optional[AbstractRobustConnection]):
+        nonlocal reconnect_count
         reconnect_count += 1
         reconnect_event.set()
         reconnect_event.clear()

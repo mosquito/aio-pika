@@ -63,6 +63,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
             ch: Optional[aio_pika.abc.AbstractChannel],
             exc: Optional[BaseException] = None,
         ):
+            nonlocal closed
             log.info("Close called")
             closed = True
             assert ch is not None
@@ -1449,6 +1450,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         iterator: QueueIterator
 
         async def task_inner():
+            nonlocal iterator
             connection = await create_connection()
 
             async with connection:
