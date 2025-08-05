@@ -99,7 +99,6 @@ class TestCase:
         shared = []
 
         async def coro(arg):
-            nonlocal shared
             shared.append(arg)
 
         def task_maker(arg):

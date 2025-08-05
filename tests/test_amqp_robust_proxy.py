@@ -110,7 +110,6 @@ async def test_revive_passive_queue_on_reconnect(
     reconnect_count = 0
 
     def reconnect_callback(conn: Optional[AbstractRobustConnection]):
-        nonlocal reconnect_count
         reconnect_count += 1
         reconnect_event.set()
         reconnect_event.clear()
@@ -180,8 +179,6 @@ async def test_robust_reconnect(
             consumer_event = asyncio.Event()
 
             async def reader(queue_name):
-                nonlocal shared
-
                 try:
                     queue = await read_channel.declare_queue(
                         name=queue_name, passive=True,
@@ -377,8 +374,6 @@ async def test_robust_duplicate_queue(
 
     # noinspection PyShadowingNames
     async def reader(queue: aio_pika.Queue):
-        nonlocal shared
-
         async with queue.iterator() as q:
             async for message in q:
                 # https://www.rabbitmq.com/confirms.html#automatic-requeueing

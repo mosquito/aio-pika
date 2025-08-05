@@ -17,7 +17,6 @@ class TestMaster:
         self.state: List[Any] = []
 
         def worker_func(*, foo, bar):
-            nonlocal event
             self.state.append((foo, bar))
             event.set()
 
@@ -40,7 +39,6 @@ class TestMaster:
         self.state = []
 
         async def worker_func(*, foo, bar):
-            nonlocal event
             self.state.append((foo, bar))
             event.set()
 
@@ -63,8 +61,6 @@ class TestMaster:
         state = []
 
         def worker_func(*, foo):
-            nonlocal tasks, state
-
             state.append(foo)
             tasks -= 1
 
@@ -89,7 +85,6 @@ class TestMaster:
         self.state = []
 
         def worker_func(*, foo):
-            nonlocal counter
             counter -= 1
 
             if foo < 50:

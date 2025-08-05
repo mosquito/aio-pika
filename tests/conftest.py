@@ -22,7 +22,6 @@ async def add_cleanup(event_loop):
     entities = []
 
     def payload(func, *args, **kwargs):
-        nonlocal entities
         func = partial(awaitable(func), *args, **kwargs)
         entities.append(func)
 
@@ -40,7 +39,6 @@ async def create_task(event_loop):
     tasks = []
 
     def payload(coroutine):
-        nonlocal tasks
         task = event_loop.create_task(coroutine)
         tasks.append(task)
         return task
@@ -145,8 +143,6 @@ def create_channel(connection: aio_pika.Connection, add_cleanup):
     conn = connection
 
     async def fabric(cleanup=True, connection=None, *args, **kwargs):
-        nonlocal add_cleanup, conn
-
         if connection is None:
             connection = conn
 
@@ -182,8 +178,6 @@ def declare_queue(connection, channel, add_cleanup):
     async def fabric(
         *args, cleanup=True, channel=None, **kwargs,
     ) -> aio_pika.Queue:
-        nonlocal ch, add_cleanup
-
         if channel is None:
             channel = ch
 
@@ -204,8 +198,6 @@ def declare_exchange(connection, channel, add_cleanup):
     async def fabric(
         *args, channel=None, cleanup=True, **kwargs,
     ) -> aio_pika.Exchange:
-        nonlocal ch, add_cleanup
-
         if channel is None:
             channel = ch
 
