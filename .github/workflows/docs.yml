@@ -44,13 +44,15 @@ jobs:
       - name: Install AWS CLI
         run: |
           sudo apt update
-          sudo apt install -y aws-cli
+          sudo apt install -y python3-pip python3-venv
+          sudo python3 -m venv /opt/awscli
+          sudo /opt/awscli/bin/pip install --upgrade awscli
       - name: Configure AWS CLI for Cloudflare R2
         run: |
-          aws configure set aws_access_key_id ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-          aws configure set default.region us-east-1  # R2 uses us-east-1 by default
-          aws configure set default.output json
+          /opt/awscli/bin/aws configure set aws_access_key_id ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          /opt/awscli/bin/aws configure set aws_secret_access_key ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          /opt/awscli/bin/aws configure set default.region us-east-1  # R2 uses us-east-1 by default
+          /opt/awscli/bin/aws configure set default.output json
       - name: Sync to Cloudflare R2
         env:
           CF_R2_ENDPOINT: ${{ secrets.CF_R2_ENDPOINT }}
