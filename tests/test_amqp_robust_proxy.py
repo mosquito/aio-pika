@@ -610,6 +610,168 @@ STAIR_STEPS_IDS = [
 
 
 @aiomisc.timeout(30)
+async def test_connection_stuck_reconnect(
+    connection_fabric,
+    event_loop: asyncio.AbstractEventLoop,
+    amqp_url: URL,
+    proxy: TCPProxy,
+):
+    """Test that RobustConnection reconnects after detecting a stuck connection.
+
+    This test simulates a scenario where the server stops responding (no
+    heartbeats received) but the connection is not explicitly closed. The
+    connection should be detected as "stuck" after the heartbeat grace timeout
+    and automatically reconnect.
+
+    Related issues: #577, #563, #588, #620
+    """
+    # Use a short heartbeat for faster test execution
+    # heartbeat=2 means grace timeout = (2+1) * 3 = 9 seconds
+    heartbeat = 2
+    test_url = amqp_url.update_query(heartbeat=heartbeat)
+
+    connection = await connection_fabric(test_url, loop=event_loop)
+    assert isinstance(connection, RobustConnection)
+
+    reconnect_event = asyncio.Event()
+    reconnect_count = 0
+
+    def on_reconnect(*_):
+        nonlocal reconnect_count
+        reconnect_count += 1
+        reconnect_event.set()
+
+    connection.reconnect_callbacks.add(on_reconnect, weak=False)
+
+    async with connection:
+        channel = await connection.channel()
+        assert isinstance(channel, RobustChannel)
+
+        # Verify connection is working
+        await channel.set_qos(prefetch_count=1)
+
+        # Simulate stuck connection by using slowdown context manager
+        # The slowdown makes traffic very slow, simulating a stuck connection
+        # After a brief period, disconnect to trigger the stuck detection
+        # and allow reconnection to proceed
+        grace_timeout = (heartbeat + 1) * 3
+
+        # Use slowdown to delay traffic, making heartbeats fail
+        with proxy.slowdown(read_delay=grace_timeout + 2, write_delay=0):
+            # Wait long enough for the connection to be detected as stuck
+            # but disconnect before the full delay so reconnection can start
+            await asyncio.sleep(grace_timeout + 1)
+            # Disconnect to force the stuck connection to close
+            await proxy.disconnect_all()
+
+        # Wait for reconnection to complete
+        await asyncio.wait_for(reconnect_event.wait(), timeout=10)
+
+        # Wait for the connection to be fully ready again
+        await asyncio.wait_for(connection.ready(), timeout=10)
+
+        # Verify reconnection happened
+        assert reconnect_count >= 1, "Connection should have reconnected"
+
+        # Verify connection is working after reconnection
+        await channel.set_qos(prefetch_count=1)
+
+
+@aiomisc.timeout(30)
+async def test_queue_iterator_reconnect_after_disconnect(
+    connection_fabric,
+    event_loop: asyncio.AbstractEventLoop,
+    amqp_url: URL,
+    amqp_direct_url: URL,
+    proxy: TCPProxy,
+):
+    """Test that queue.iterator() continues working after connection reconnect.
+
+    This test simulates the scenario from issue reports where users have a
+    consumer using queue.iterator(timeout=X) in a loop and experience
+    connection issues that should trigger automatic reconnection.
+
+    Related issues: #577, #563, #588, #620
+    """
+    connection = await connection_fabric(amqp_url, loop=event_loop)
+    direct_connection = await aio_pika.connect(amqp_direct_url, loop=event_loop)
+
+    assert isinstance(connection, RobustConnection)
+
+    reconnect_event = asyncio.Event()
+    connection.reconnect_callbacks.add(
+        lambda *_: reconnect_event.set(), weak=False,
+    )
+
+    messages_received: List[bytes] = []
+    consumer_ready = asyncio.Event()
+    consumer_error: Optional[Exception] = None
+
+    async with connection, direct_connection:
+        channel = await connection.channel()
+        direct_channel = await direct_connection.channel()
+
+        assert isinstance(channel, RobustChannel)
+
+        queue_name = get_random_name("iterator", "reconnect")
+        queue = await channel.declare_queue(queue_name, auto_delete=True)
+
+        async def consumer():
+            nonlocal consumer_error
+            try:
+                consumer_ready.set()
+                async with queue.iterator() as queue_iter:
+                    async for message in queue_iter:
+                        messages_received.append(message.body)
+                        await message.ack()
+            except Exception as e:
+                consumer_error = e
+                raise
+
+        consumer_task = event_loop.create_task(consumer())
+
+        try:
+            await consumer_ready.wait()
+
+            # Publish some messages before disconnect
+            for i in range(3):
+                await direct_channel.default_exchange.publish(
+                    Message(f"before-{i}".encode()),
+                    routing_key=queue_name,
+                )
+
+            # Wait for messages to be received
+            while len(messages_received) < 3:
+                await asyncio.sleep(0.1)
+
+            assert len(messages_received) == 3
+
+            # Disconnect and trigger reconnection
+            await proxy.disconnect_all()
+            await asyncio.wait_for(reconnect_event.wait(), timeout=10)
+            await asyncio.wait_for(connection.ready(), timeout=10)
+
+            # Publish more messages after reconnection
+            for i in range(3):
+                await direct_channel.default_exchange.publish(
+                    Message(f"after-{i}".encode()),
+                    routing_key=queue_name,
+                )
+
+            # Wait for all messages to be received
+            while len(messages_received) < 6:
+                await asyncio.sleep(0.1)
+
+            assert len(messages_received) == 6
+            assert consumer_error is None
+
+        finally:
+            consumer_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await consumer_task
+
+
+@aiomisc.timeout(30)
 @pytest.mark.parametrize(
     "reconnect_timeout,stair", STAIR_STEPS,
     ids=STAIR_STEPS_IDS,
