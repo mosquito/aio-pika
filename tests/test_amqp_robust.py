@@ -144,6 +144,62 @@ class TestCaseNoRobust(TestCaseAmqp):   # type: ignore
 
         assert exchange.name is exchange_passive.name
 
+    async def test_get_exchange_returns_same_instance(self, connection):
+        """Test that get_exchange returns the cached instance on repeated calls.
+
+        This tests the fix for the memory leak where each call to get_exchange
+        (which uses passive=True) was creating a new exchange instance instead
+        of returning the cached one.
+
+        Note: This only applies when robust=True (default), as non-robust
+        exchanges are not cached.
+        """
+        channel = await self.create_channel(connection)
+        name = get_random_name("passive", "exchange", "memory")
+
+        # Declare exchange with robust=True (default) so it gets cached
+        exchange = await channel.declare_exchange(
+            name, auto_delete=True,
+        )
+
+        # Get the exchange multiple times - should return the same instance
+        exchange_passive1 = await channel.get_exchange(name)
+        exchange_passive2 = await channel.get_exchange(name)
+        exchange_passive3 = await channel.get_exchange(name)
+
+        # All should be the exact same object (same id)
+        assert exchange is exchange_passive1
+        assert exchange_passive1 is exchange_passive2
+        assert exchange_passive2 is exchange_passive3
+
+    async def test_get_queue_returns_same_instance(self, connection):
+        """Test that get_queue returns the cached instance on repeated calls.
+
+        This tests the fix for the memory leak where each call to get_queue
+        (which uses passive=True) was creating a new queue instance instead
+        of returning the cached one.
+
+        Note: This only applies when robust=True (default), as non-robust
+        queues are not cached.
+        """
+        channel = await self.create_channel(connection)
+        name = get_random_name("passive", "queue", "memory")
+
+        # Declare queue with robust=True (default) so it gets cached
+        queue = await channel.declare_queue(
+            name, auto_delete=True,
+        )
+
+        # Get the queue multiple times using passive=True - should return same
+        queue_passive1 = await channel.get_queue(name)
+        queue_passive2 = await channel.get_queue(name)
+        queue_passive3 = await channel.get_queue(name)
+
+        # All should be the exact same object (same id)
+        assert queue is queue_passive1
+        assert queue_passive1 is queue_passive2
+        assert queue_passive2 is queue_passive3
+
 
 class TestCaseAmqpNoConfirmsRobust(TestCaseAmqpNoConfirms):
     pass
