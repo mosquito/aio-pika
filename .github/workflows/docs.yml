@@ -10,14 +10,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
       - name: Setup Python 3.12
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Cache virtualenv
         id: venv-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ github.job }}-${{ github.ref }}-3.12
@@ -28,7 +28,7 @@ jobs:
       - name: Install Poetry
         run: python -m pip install poetry
       - name: Cache Poetry and pip
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/pypoetry
