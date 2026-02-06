@@ -264,8 +264,18 @@ class CallbackCollection(
                         result = cb(sender, *args, **kwargs)
                     if inspect.isawaitable(result):
                         futures.append(asyncio.ensure_future(result))
-                except Exception:
-                    log.exception("Callback %r error", cb)
+                except Exception as exc:
+                    log.error(
+                        "Callback %r error: %s: %s",
+                        cb,
+                        type(exc).__name__,
+                        exc,
+                    )
+                    log.debug(
+                        "Full traceback for callback %r error",
+                        cb,
+                        exc_info=True,
+                    )
 
         if not futures:
             return STUB_AWAITABLE
@@ -304,8 +314,18 @@ class OneShotCallback:
 
             try:
                 await self.callback(*args, **kwargs)
-            except Exception:
-                log.exception("Callback %r error", self)
+            except Exception as exc:
+                log.error(
+                    "Callback %r error: %s: %s",
+                    self,
+                    type(exc).__name__,
+                    exc,
+                )
+                log.debug(
+                    "Full traceback for callback %r error",
+                    self,
+                    exc_info=True,
+                )
             finally:
                 self.loop.call_soon(self.finished.set)
                 del self.callback
