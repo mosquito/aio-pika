@@ -87,7 +87,10 @@ async def test_get_exchange_no_memory_leak(create_robust_connection):
         # Verify internal storage doesn't grow
         assert name in channel._exchanges
         # Should be a single exchange, not a set/list of exchanges
-        assert isinstance(channel._exchanges[name], aio_pika.abc.AbstractExchange)
+        assert isinstance(
+            channel._exchanges[name],
+            aio_pika.abc.AbstractExchange
+        )
 
 
 async def test_get_queue_no_memory_leak(create_robust_connection):
