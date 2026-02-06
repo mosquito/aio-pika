@@ -40,7 +40,6 @@ python = "^3.10"
 aiormq = "^6.8"
 yarl = [{ version = '*'}]
 exceptiongroup = [{ version = "^1", python = "< 3.11" }]
-typing-extensions = [{ version = '*', python = "< 3.10" }]
 
 [tool.poetry.group.dev.dependencies]
 aiomisc = "^17.5"
@@ -59,7 +58,6 @@ sphinx = "*"
 sphinx-autobuild = "^2021.3.14"
 timeout-decorator = "^0.5.0"
 types-setuptools = "^65.6.0.2"
-typing-extensions = "*"
 setuptools = "^69.0.3"
 testcontainers = "^3.7.1"
 autodoc = "*"
