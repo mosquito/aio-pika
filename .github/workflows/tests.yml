@@ -12,14 +12,14 @@ jobs:
   pylama:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
       - name: Setup python3.10
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: "3.10"
       - name: Cache virtualenv
         id: venv-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ github.job }}-${{ github.ref }}
@@ -31,14 +31,14 @@ jobs:
   mypy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
       - name: Setup python3.10
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: "3.10"
       - name: Cache virtualenv
         id: venv-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ github.job }}-${{ github.ref }}
@@ -60,15 +60,16 @@ jobs:
           - '3.11'
           - '3.12'
           - '3.13'
+          - '3.14'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
       - name: Setup python${{ matrix.python }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: "${{ matrix.python }}"
       - name: Cache virtualenv
         id: venv-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ github.job }}-${{ github.ref }}-${{ matrix.python }}

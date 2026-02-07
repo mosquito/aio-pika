@@ -1,7 +1,6 @@
 import gc
 import weakref
 from functools import partial
-from typing import AbstractSet
 
 import pytest
 
@@ -13,7 +12,7 @@ from tests import get_random_name
 async def test_leak_unclosed_channel(create_connection):
     rabbitmq_connection = await create_connection()
 
-    weakset: AbstractSet[aio_pika.abc.AbstractChannel] = weakref.WeakSet()
+    weakset: weakref.WeakSet[aio_pika.abc.AbstractChannel] = weakref.WeakSet()
 
     async def f(rabbitmq_connection: aio_pika.Connection, weakset):
         weakset.add(await rabbitmq_connection.channel())
@@ -30,7 +29,9 @@ async def test_leak_unclosed_channel(create_connection):
 async def test_leak_closed_channel(create_connection):
     rabbitmq_connection = await create_connection()
 
-    weakset: AbstractSet[aio_pika.abc.AbstractConnection] = weakref.WeakSet()
+    weakset: weakref.WeakSet[aio_pika.abc.AbstractConnection] = (
+        weakref.WeakSet()
+    )
 
     async def f(rabbitmq_connection: aio_pika.Connection, weakset):
         async with rabbitmq_connection.channel() as channel:
@@ -64,7 +65,7 @@ async def test_get_exchange_no_memory_leak(create_robust_connection):
     """
     connection = await create_robust_connection()
 
-    weakset: AbstractSet[aio_pika.abc.AbstractExchange] = weakref.WeakSet()
+    weakset: weakref.WeakSet[aio_pika.abc.AbstractExchange] = weakref.WeakSet()
 
     async with connection:
         channel: RobustChannel = await connection.channel()  # type: ignore
@@ -87,7 +88,10 @@ async def test_get_exchange_no_memory_leak(create_robust_connection):
         # Verify internal storage doesn't grow
         assert name in channel._exchanges
         # Should be a single exchange, not a set/list of exchanges
-        assert isinstance(channel._exchanges[name], aio_pika.abc.AbstractExchange)
+        assert isinstance(
+            channel._exchanges[name],
+            aio_pika.abc.AbstractExchange
+        )
 
 
 async def test_get_queue_no_memory_leak(create_robust_connection):
@@ -99,7 +103,7 @@ async def test_get_queue_no_memory_leak(create_robust_connection):
     """
     connection = await create_robust_connection()
 
-    weakset: AbstractSet[aio_pika.abc.AbstractQueue] = weakref.WeakSet()
+    weakset: weakref.WeakSet[aio_pika.abc.AbstractQueue] = weakref.WeakSet()
 
     async with connection:
         channel: RobustChannel = await connection.channel()  # type: ignore
