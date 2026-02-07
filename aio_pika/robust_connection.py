@@ -100,8 +100,16 @@ class RobustConnection(Connection, AbstractRobustConnection):
             for channel in tuple(self.__channels):
                 try:
                     await channel.restore()
-                except Exception:
-                    log.exception("Failed to reopen channel")
+                except Exception as exc:
+                    log.error(
+                        "Failed to reopen channel due to %s: %s",
+                        type(exc).__name__,
+                        exc,
+                    )
+                    log.debug(
+                        "Full traceback for failure to reopen channel",
+                        exc_info=True,
+                    )
                     raise
         except Exception as e:
             await self.close_callbacks(e)
@@ -148,11 +156,18 @@ class RobustConnection(Connection, AbstractRobustConnection):
                     "Reconnecting after %r seconds.",
                     self, e, self.reconnect_interval,
                 )
-            except Exception:
-                log.exception(
-                    "Reconnect attempt failed %s. "
+            except Exception as exc:
+                log.error(
+                    "Reconnect attempt failed %s due to %s: %s. "
                     "Retrying after %r seconds.",
-                    self, self.reconnect_interval,
+                    self,
+                    type(exc).__name__,
+                    exc,
+                    self.reconnect_interval,
+                )
+                log.debug(
+                    "Full traceback for reconnect failure",
+                    exc_info=True,
                 )
 
             await asyncio.sleep(self.reconnect_interval)

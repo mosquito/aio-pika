@@ -326,8 +326,17 @@ class RPC(Base):
             await self.channel.default_exchange.publish(
                 result_message, message.reply_to, mandatory=False,
             )
-        except Exception:
-            log.exception("Failed to send reply %r", result_message)
+        except Exception as exc:
+            log.error(
+                "Failed to send reply %r due to %s: %s",
+                result_message,
+                type(exc).__name__,
+                exc,
+            )
+            log.debug(
+                "Full traceback for failure to send reply %r",
+                exc_info=True,
+            )
             await message.reject(requeue=False)
             return
 
