@@ -166,6 +166,19 @@ class RobustQueueIterator(QueueIterator):
         # Remove close callback to survive reconnection
         self._amqp_queue.close_callbacks.discard(self._set_closed)
 
+        # But listen to connection close to stop iteration when
+        # connection is intentionally closed
+        channel = self._amqp_queue.channel
+        if hasattr(channel, "_connection"):
+            connection = channel._connection
+            connection.closed().add_done_callback(self._on_connection_closed)
+
+    def _on_connection_closed(self, _: asyncio.Future) -> None:
+        """Handle connection closed - set _closed to stop iteration."""
+        if not self._closed.done():
+            self._closed.set_result(True)
+        self._message_or_closed.set()
+
     async def consume(self) -> None:
         """Consume with retry on channel errors.
 
@@ -259,7 +272,9 @@ class RobustQueueIterator(QueueIterator):
                 # This is a RobustChannel - check if connection is still alive
                 if hasattr(channel, "_connection"):
                     connection = channel._connection
-                    if not connection.is_closed:
+                    # Only wait for reconnection if connection wasn't
+                    # intentionally closed
+                    if not connection.is_closed and not connection.close_called:
                         # Connection is alive, channel is being restored
                         log.debug(
                             "%r queue empty during channel restoration, "

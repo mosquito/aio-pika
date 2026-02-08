@@ -48,6 +48,10 @@ class Connection(AbstractConnection):
     def is_closed(self) -> bool:
         return self._closed.done()
 
+    @property
+    def close_called(self) -> bool:
+        return self._close_called
+
     async def close(
         self, exc: Optional[aiormq.abc.ExceptionType] = ConnectionClosed,
     ) -> None:
