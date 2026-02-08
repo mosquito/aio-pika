@@ -95,6 +95,7 @@ def check_docker_available() -> DockerHostInfo:
     else:
         # Unix socket connection
         socket_path = info.socket_path
+        assert socket_path is not None
 
         if not os.path.exists(socket_path):
             hints = [
@@ -103,7 +104,7 @@ def check_docker_available() -> DockerHostInfo:
                 "Possible solutions:",
                 "  1. Start Docker daemon",
                 "  2. Set DOCKER_HOST environment variable:",
-                f"     export DOCKER_HOST=unix:///var/run/docker.sock",
+                "     export DOCKER_HOST=unix:///var/run/docker.sock",
                 "     export DOCKER_HOST=tcp://remote-host:2375",
                 "",
             ]
@@ -167,10 +168,12 @@ class DockerClient:
 
     def _get_connection(self) -> http.client.HTTPConnection:
         if self.docker_host_info.is_tcp:
+            assert self.docker_host_info.host is not None
             return http.client.HTTPConnection(
                 self.docker_host_info.host,
                 self.docker_host_info.port,
             )
+        assert self.docker_host_info.socket_path is not None
         return UnixHTTPConnection(self.docker_host_info.socket_path)
 
     def _request(

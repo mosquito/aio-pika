@@ -121,7 +121,7 @@ warn_unused_ignores = false
 log_cli = true
 addopts = "-p no:asyncio"
 markers = [
-    "asyncio: asyncio"
+    "asyncio: asyncio",
 ]
 
 [tool.coverage.run]

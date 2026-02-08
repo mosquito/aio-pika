@@ -38,12 +38,13 @@ async def proxy(tcp_proxy: Type[TCPProxy], amqp_direct_url: URL):
 
 
 @pytest.fixture
-def amqp_url(amqp_direct_url, proxy: TCPProxy):
+def amqp_url(request, amqp_direct_url, proxy: TCPProxy):
     return amqp_direct_url.with_host(
         proxy.proxy_host,
     ).with_port(
         proxy.proxy_port,
     ).update_query(
+        name=request.node.nodeid,
         reconnect_interval=1,
         heartbeat=1,
     )
@@ -60,11 +61,11 @@ def connection_fabric():
 
 
 @pytest.fixture
-def create_direct_connection(event_loop, amqp_direct_url):
+def create_direct_connection(event_loop, amqp_url):
     return partial(
         aio_pika.connect,
-        amqp_direct_url.update_query(
-            name=amqp_direct_url.query["name"] + "::direct",
+        amqp_url.update_query(
+            name=amqp_url.query["name"] + "::direct",
             heartbeat=30,
         ),
         loop=event_loop,
