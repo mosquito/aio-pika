@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 import warnings
 from typing import Any, Awaitable, Callable, Dict, Optional, Tuple, Union
@@ -151,17 +152,145 @@ class RobustQueue(Queue, AbstractRobustQueue):
 
 
 class RobustQueueIterator(QueueIterator):
+    """Queue iterator that survives channel reconnection.
+
+    This iterator handles channel disconnection/reconnection gracefully
+    by waiting for channel restoration instead of raising StopAsyncIteration.
+    """
+
+    RETRY_DELAY: float = 0.5
+
     def __init__(self, queue: Queue, **kwargs: Any):
         super().__init__(queue, **kwargs)
 
+        # Remove close callback to survive reconnection
         self._amqp_queue.close_callbacks.discard(self._set_closed)
 
     async def consume(self) -> None:
+        """Consume with retry on channel errors.
+
+        Waits for channel to be ready before consuming, with backoff delay
+        between retries to prevent CPU spinning during reconnection.
+        """
         while True:
             try:
+                # Wait for channel to be fully ready before consuming
+                channel = self._amqp_queue.channel
+                if hasattr(channel, "ready"):
+                    await channel.ready()
+
                 return await super().consume()
             except ChannelInvalidStateError:
-                await self._amqp_queue.channel.get_underlay_channel()
+                log.debug(
+                    "Channel invalid state in %r, waiting for restoration",
+                    self,
+                )
+                # Backoff to prevent CPU spinning during reconnection
+                await asyncio.sleep(self.RETRY_DELAY)
+
+    async def __anext__(self) -> AbstractIncomingMessage:
+        """Get next message, handling reconnection gracefully.
+
+        During reconnection, the queue may be empty and _message_or_closed
+        may be set due to channel closure. In robust mode, we wait for
+        reconnection instead of raising StopAsyncIteration.
+        """
+        while True:
+            # Check if explicitly closed
+            if self._closed.done():
+                raise StopAsyncIteration
+
+            if not hasattr(self, "_consumer_tag"):
+                await self.consume()
+
+            timeout: Optional[float] = self._consume_kwargs.get("timeout")
+
+            if not self._message_or_closed.is_set():
+                coroutine: Awaitable[Any] = self._message_or_closed.wait()
+                if timeout is not None and timeout > 0:
+                    coroutine = asyncio.wait_for(coroutine, timeout=timeout)
+
+                try:
+                    await coroutine
+                except (asyncio.TimeoutError, asyncio.CancelledError):
+                    # Handle timeout same as parent class
+                    if timeout is not None:
+                        timeout_val = (
+                            timeout
+                            if timeout > 0
+                            else self.DEFAULT_CLOSE_TIMEOUT
+                        )
+                        log.info(
+                            "%r closing with timeout %d seconds",
+                            self, timeout_val,
+                        )
+
+                    task = asyncio.create_task(self.close())
+                    close_coro: Awaitable[Any] = task
+                    if timeout is not None:
+                        close_coro = asyncio.wait_for(
+                            asyncio.shield(task),
+                            timeout=timeout_val,
+                        )
+
+                    try:
+                        await close_coro
+                    except asyncio.TimeoutError:
+                        self._QueueIterator__closing = task
+
+                    raise
+
+            # Check queue for messages
+            if not self._queue.empty():
+                msg = self._queue.get_nowait()
+
+                if (
+                    self._queue.empty()
+                    and not self._amqp_queue.channel.is_closed
+                    and not self._closed.done()
+                ):
+                    self._message_or_closed.clear()
+
+                return msg
+
+            # Queue is empty - check if this is a reconnection scenario
+            channel = self._amqp_queue.channel
+            if hasattr(channel, "ready"):
+                # This is a RobustChannel - check if connection is still alive
+                if hasattr(channel, "_connection"):
+                    connection = channel._connection
+                    if not connection.is_closed:
+                        # Connection is alive, channel is being restored
+                        log.debug(
+                            "%r queue empty during channel restoration, "
+                            "waiting for reconnection",
+                            self,
+                        )
+
+                        # Clear the event and wait for channel restoration
+                        self._message_or_closed.clear()
+
+                        try:
+                            # Wait for channel to become ready
+                            await asyncio.wait_for(
+                                channel.ready(), timeout=60.0,
+                            )
+
+                            # Re-establish consumer if needed
+                            if not hasattr(self, "_consumer_tag"):
+                                await self.consume()
+
+                            # Continue loop to wait for new messages
+                            continue
+                        except asyncio.TimeoutError:
+                            log.error(
+                                "%r timeout waiting for channel reconnection",
+                                self,
+                            )
+                            raise StopAsyncIteration
+
+            # Truly empty and not reconnecting - stop iteration
+            raise StopAsyncIteration
 
 
 __all__ = ("RobustQueue",)

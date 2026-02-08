@@ -689,3 +689,91 @@ async def test_channel_reconnect_stairway(
     assert on_reconnect.is_set()
     await connection.close()
     await direct_connection.close()
+
+
+@aiomisc.timeout(60)
+async def test_iterator_survives_reconnection(
+    create_connection,
+    direct_connection,
+    proxy: TCPProxy,
+):
+    """Test that RobustQueueIterator survives reconnection without exiting.
+
+    This test verifies the fix for issue #540 where consumers appeared
+    connected but were stuck with messages in unack state after reconnection.
+    """
+    connection = await create_connection()
+    assert isinstance(connection, RobustConnection)
+
+    reconnect_event = asyncio.Event()
+    connection.reconnect_callbacks.add(
+        lambda *_: reconnect_event.set(),
+    )
+
+    async with connection:
+        channel = await connection.channel()
+        assert isinstance(channel, RobustChannel)
+
+        queue = await channel.declare_queue(auto_delete=False)
+        assert isinstance(queue, RobustQueue)
+
+        direct_channel = await direct_connection.channel()
+
+        # Start consuming with iterator
+        iterator = queue.iterator()
+        await iterator.__aenter__()
+
+        # Publish first message
+        await direct_channel.default_exchange.publish(
+            Message(b"test message 1"),
+            routing_key=queue.name,
+        )
+
+        # Get first message
+        msg1 = await asyncio.wait_for(iterator.__anext__(), timeout=10)
+        await msg1.ack()
+        assert msg1.body == b"test message 1"
+
+        # Small delay to ensure ack is processed before disconnect
+        await asyncio.sleep(0.1)
+
+        # Disconnect (simulate network issue)
+        await proxy.disconnect_all()
+
+        # Wait for reconnection
+        await asyncio.wait_for(reconnect_event.wait(), timeout=30)
+        reconnect_event.clear()
+
+        # Wait for channel to be ready after reconnection
+        await asyncio.wait_for(channel.ready(), timeout=10)
+
+        # Publish another message after reconnection
+        await direct_channel.default_exchange.publish(
+            Message(b"test message 2"),
+            routing_key=queue.name,
+        )
+
+        # Iterator should still work (not raise StopAsyncIteration)
+        # This is the key assertion - before the fix, this would fail
+        # because the iterator would have exited during reconnection
+        received_messages = []
+        for _ in range(2):  # Try to receive up to 2 messages
+            try:
+                msg = await asyncio.wait_for(iterator.__anext__(), timeout=5)
+                received_messages.append(msg.body)
+                await msg.ack()
+                if msg.body == b"test message 2":
+                    break
+            except asyncio.TimeoutError:
+                break
+
+        # The important thing is that we received message 2 after reconnection
+        # Message 1 might be redelivered if ack didn't complete before disconnect
+        assert b"test message 2" in received_messages, (
+            f"Did not receive message 2. Got: {received_messages}"
+        )
+
+        await iterator.__aexit__(None, None, None)
+
+        # Clean up queue
+        await queue.delete()
