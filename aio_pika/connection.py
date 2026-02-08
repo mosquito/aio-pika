@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from ssl import SSLContext
 from types import TracebackType
 from typing import (
@@ -210,13 +211,14 @@ class Connection(AbstractConnection):
         await self.connected.wait()
 
     def __del__(self) -> None:
-        if (
-            self.is_closed or
-            self.loop.is_closed()
-        ):
-            return
+        with contextlib.suppress(AttributeError, RuntimeError):
+            if (
+                self.is_closed or
+                self.loop.is_closed()
+            ):
+                return
 
-        asyncio.ensure_future(self.close())
+            asyncio.ensure_future(self.close())
 
     async def __aenter__(self) -> "Connection":
         return self
