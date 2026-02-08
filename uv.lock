@@ -20,7 +20,7 @@ wheels = [
 
 [[package]]
 name = "aio-pika"
-version = "9.5.8"
+version = "9.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiormq" },

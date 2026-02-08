@@ -1,3 +1,14 @@
+9.6.0
+-----
+
+* Fixed callback-based consumers not resuming after connection reconnection #588
+* Fixed queue iterators raising StopAsyncIteration on channel reconnection #540
+* Added `close_called` property to `AbstractConnection` and `Connection` to distinguish intentional vs. automatic connection closures
+* Migrated build tooling from Poetry to UV
+* Migrated linting from Pylama to Ruff
+* Improved logging: split `log.exception` calls into error-level message and debug-level traceback #693
+* Removed testcontainers dependency from tests
+
 9.5.5
 -----
 

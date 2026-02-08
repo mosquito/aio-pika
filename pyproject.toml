@@ -1,6 +1,6 @@
 [project]
 name = "aio-pika"
-version = "9.5.8"
+version = "9.6.0"
 description = "Wrapper around the aiormq for asyncio and humans"
 authors = [{ name = "Dmitry Orlov", email = "me@mosquito.su" }]
 requires-python = ">=3.10,<4"
@@ -122,6 +122,15 @@ log_cli = true
 addopts = "-p no:asyncio"
 markers = [
     "asyncio: asyncio"
+]
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
 ]
 
 [tool.ruff]
