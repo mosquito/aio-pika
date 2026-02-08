@@ -64,7 +64,6 @@ dev = [
     "sphinx-autobuild>=2021.3.14,<2022",
     "timeout-decorator>=0.5.0,<0.6",
     "setuptools>=69.0.3,<70",
-    "testcontainers>=3.7.1,<4",
     "autodoc",
     "furo",
     "sphinxcontrib-googleanalytics",
@@ -117,10 +116,6 @@ disallow_untyped_calls = false
 disallow_untyped_decorators = false
 disallow_untyped_defs = false
 warn_unused_ignores = false
-
-[[tool.mypy.overrides]]
-module = ["testcontainers.*"]
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 log_cli = true
