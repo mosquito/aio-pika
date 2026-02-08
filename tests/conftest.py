@@ -1,3 +1,4 @@
+import atexit
 import asyncio
 import gc
 import socket
@@ -14,7 +15,44 @@ from aiomisc import awaitable
 from yarl import URL
 
 import aio_pika
-from .docker_client import ContainerInfo, DockerClient
+from .docker_client import (
+    ContainerInfo,
+    DockerClient,
+    DockerHostInfo,
+    DockerNotAvailableError,
+    check_docker_available,
+)
+
+# Cached docker host info from pytest_configure
+_docker_host_info: DockerHostInfo | None = None
+
+# Global registry for atexit cleanup
+_docker_client: DockerClient | None = None
+_docker_containers: set[str] = set()
+
+
+def _atexit_kill_containers() -> None:
+    """Kill all containers on exit (handles crashes/interrupts)."""
+    if _docker_client is None:
+        return
+    for container_id in _docker_containers:
+        with suppress(Exception):
+            _docker_client.kill(container_id)
+        with suppress(Exception):
+            _docker_client.remove(container_id)
+    _docker_containers.clear()
+
+
+atexit.register(_atexit_kill_containers)
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Check Docker availability before running tests."""
+    global _docker_host_info
+    try:
+        _docker_host_info = check_docker_available()
+    except DockerNotAvailableError as e:
+        raise pytest.UsageError(str(e)) from e
 
 
 @pytest.fixture
@@ -62,28 +100,29 @@ async def create_task(event_loop):
 
 @pytest.fixture(scope="session")
 def docker() -> Generator[Callable[..., ContainerInfo], Any, Any]:
-    client = DockerClient()
-    containers: set[str] = set()
+    global _docker_client
+    _docker_client = DockerClient(_docker_host_info)
 
     def docker_run(
         image: str, ports: list[str],
         environment: dict[str, str] | None = None,
     ) -> ContainerInfo:
-        info = client.run(image, ports, environment=environment)
-        containers.add(info.id)
+        info = _docker_client.run(image, ports, environment=environment)
+        _docker_containers.add(info.id)
         return info
 
     try:
         yield docker_run
     finally:
-        for container_id in containers:
+        for container_id in list(_docker_containers):
             with suppress(Exception):
-                client.stop(container_id)
+                _docker_client.kill(container_id)
             with suppress(Exception):
-                client.remove(container_id)
+                _docker_client.remove(container_id)
+            _docker_containers.discard(container_id)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def rabbitmq_container(docker) -> ContainerInfo:
     info = docker("mosquito/aiormq-rabbitmq", ["5672/tcp", "5671/tcp"])
     # Readiness probe - wait for RabbitMQ to be ready
@@ -100,13 +139,13 @@ def rabbitmq_container(docker) -> ContainerInfo:
         sleep(0.3)
 
 
-@pytest.fixture(scope="module")
-def amqp_direct_url(request, rabbitmq_container: ContainerInfo) -> URL:
+@pytest.fixture(scope="session")
+def amqp_direct_url(rabbitmq_container: ContainerInfo) -> URL:
     return URL.build(
         scheme="amqp", user="guest", password="guest", path="//",
         host=rabbitmq_container.host,
         port=rabbitmq_container.ports["5672/tcp"],
-    ).update_query(name=request.node.nodeid)
+    )
 
 
 @pytest.fixture
