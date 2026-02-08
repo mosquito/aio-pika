@@ -244,8 +244,9 @@ class Channel(ChannelContext):
         await self._open()
 
     def __del__(self) -> None:
-        with contextlib.suppress(AttributeError):
-            # might raise because an Exception was raised in __init__
+        with contextlib.suppress(AttributeError, RuntimeError):
+            # might raise AttributeError if Exception was raised in __init__
+            # or RuntimeError if the event loop is already closed
             if not self._closed.done():
                 self._closed.set_result(True)
 

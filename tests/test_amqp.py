@@ -1447,7 +1447,7 @@ class TestCaseAmqp(TestCaseAmqpBase):
         event = asyncio.Event()
 
         queue_name = get_random_name()
-        iterator: QueueIterator
+        iterator: QueueIterator = None  # type: ignore[assignment]
 
         async def task_inner():
             nonlocal iterator
