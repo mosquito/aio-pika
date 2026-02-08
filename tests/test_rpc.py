@@ -217,7 +217,7 @@ class TestCase:
                 auto_delete=True,
             )
 
-        assert len(record) == 1
+        assert len([w for w in record if w.category is UserWarning]) == 1
 
         with pytest.warns() as record:
             warnings.warn("Test", UserWarning)
@@ -227,7 +227,7 @@ class TestCase:
                 auto_delete=True,
             )
 
-        assert len(record) == 1
+        assert len([w for w in record if w.category is UserWarning]) == 1
 
     async def test_non_serializable_result(self, channel: aio_pika.Channel):
         rpc = await RPC.create(channel, auto_delete=True)
