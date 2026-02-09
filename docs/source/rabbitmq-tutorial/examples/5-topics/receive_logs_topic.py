@@ -18,10 +18,10 @@ async def main() -> None:
         "topic_logs", ExchangeType.TOPIC,
     )
 
+    # Generate a unique queue name for this instance
+    unique_queue_name = f"name_{uuid.uuid4().hex}"
     # Declaring queue
-    queue = await channel.declare_queue(
-        "task_queue", durable=True,
-    )
+    queue = await channel.declare_queue(unique_queue_name, durable=True)
 
     binding_keys = sys.argv[1:]
 
