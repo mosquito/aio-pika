@@ -61,11 +61,11 @@ def connection_fabric():
 
 
 @pytest.fixture
-def create_direct_connection(event_loop, amqp_url):
+def create_direct_connection(request, event_loop, amqp_direct_url):
     return partial(
         aio_pika.connect,
-        amqp_url.update_query(
-            name=amqp_url.query["name"] + "::direct",
+        amqp_direct_url.update_query(
+            name=request.node.nodeid + "::direct",
             heartbeat=30,
         ),
         loop=event_loop,
