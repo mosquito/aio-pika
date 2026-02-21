@@ -75,7 +75,12 @@ class RobustConnection(Connection, AbstractRobustConnection):
         )
 
     async def _on_connection_close(self, closing: asyncio.Future) -> None:
-        await super()._on_connection_close(closing)
+        try:
+            await super()._on_connection_close(closing)
+        except Exception:
+            log.exception(
+                "Failed to execute close callbacks for %s", self,
+            )
 
         if self._close_called or self.is_closed:
             return
@@ -155,6 +160,14 @@ class RobustConnection(Connection, AbstractRobustConnection):
                     'Connection attempt to "%s" failed: %s. '
                     "Reconnecting after %r seconds.",
                     self, e, self.reconnect_interval,
+                )
+            except asyncio.CancelledError:
+                if self._close_called or self.is_closed:
+                    raise
+                log.warning(
+                    'Connection attempt to "%s" cancelled. '
+                    "Reconnecting after %r seconds.",
+                    self, self.reconnect_interval,
                 )
             except Exception as exc:
                 log.error(
