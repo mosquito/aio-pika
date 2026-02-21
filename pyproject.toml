@@ -100,7 +100,6 @@ warn_unused_ignores = true
 files = [
     "aio_pika",
     "tests",
-    "docs/source/examples",
     "docs/source/rabbitmq-tutorial/examples/1-introduction",
     "docs/source/rabbitmq-tutorial/examples/2-work-queues",
     "docs/source/rabbitmq-tutorial/examples/3-publish-subscribe",
