@@ -12,10 +12,13 @@ async def main() -> None:
         # Creating a channel
         channel = await connection.channel()
 
+        # docs: begin-declare-exchange
         logs_exchange = await channel.declare_exchange(
             "logs", ExchangeType.FANOUT,
         )
+        # docs: end-declare-exchange
 
+        # docs: begin-publish-message
         message_body = b" ".join(
             arg.encode() for arg in sys.argv[1:]
         ) or b"Hello World!"
@@ -27,6 +30,7 @@ async def main() -> None:
 
         # Sending the message
         await logs_exchange.publish(message, routing_key="info")
+        # docs: end-publish-message
 
         print(f" [x] Sent {message!r}")
 

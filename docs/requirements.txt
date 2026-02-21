@@ -1,3 +1,5 @@
 # ONLY FOR ReadTheDocs
 autodoc
 furo
+myst-parser
+sphinx-design

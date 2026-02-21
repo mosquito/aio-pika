@@ -1,47 +1,38 @@
-.. _issue: https://github.com/mosquito/aio-pika/issues
-.. _pull request: https://github.com/mosquito/aio-pika/compare
-.. _aio-pika: https://github.com/mosquito/aio-pika
-.. _syslog: http://en.wikipedia.org/wiki/Syslog
-.. _official tutorial: https://www.rabbitmq.com/tutorials/tutorial-five-python.html
-.. _topics:
+(topics)=
 
-Topics
-======
+# Topics
 
-.. warning::
-
-    This is a beta version of the port from `official tutorial`_. Please when you found an
-    error create `issue`_ or `pull request`_ for me.
+:::{warning}
+This is a beta version of the port from [official tutorial](https://www.rabbitmq.com/tutorials/tutorial-five-python.html). Please when you found an
+error create [issue](https://github.com/mosquito/aio-pika/issues) or [pull request](https://github.com/mosquito/aio-pika/compare) for me.
+:::
 
 
-.. note::
-    Using the `aio-pika`_ async Python client
+:::{note}
+Using the [aio-pika](https://github.com/mosquito/aio-pika) async Python client
+:::
 
-.. note::
+:::{note}
+**Prerequisites**
 
-    **Prerequisites**
+This tutorial assumes RabbitMQ is [installed](https://www.rabbitmq.com/download.html) and running on localhost on standard port (`5672`).
+In case you use a different host, port or credentials, connections settings would require adjusting.
 
-    This tutorial assumes RabbitMQ is installed_ and running on localhost on standard port (`5672`).
-    In case you use a different host, port or credentials, connections settings would require adjusting.
+**Where to get help**
 
-    .. _installed: https://www.rabbitmq.com/download.html
-
-    **Where to get help**
-
-    If you're having trouble going through this tutorial you can `contact us`_ through the mailing list.
-
-    .. _contact us: https://groups.google.com/forum/#!forum/rabbitmq-users
+If you're having trouble going through this tutorial you can [contact us](https://groups.google.com/forum/#!forum/rabbitmq-users) through the mailing list.
+:::
 
 
-In the :ref:`previous tutorial <routing>` we improved our logging system. Instead of using a fanout
+In the {ref}`previous tutorial <routing>` we improved our logging system. Instead of using a fanout
 exchange only capable of dummy broadcasting, we used a direct one, and gained a
 possibility of selectively receiving the logs.
 
-Although using the direct exchange improved our system, it still has limitations — it can't do routing based on
+Although using the direct exchange improved our system, it still has limitations - it can't do routing based on
 multiple criteria.
 
 In our logging system we might want to subscribe to not only logs based on severity, but
-also based on the source which emitted the log. You might know this concept from the syslog_
+also based on the source which emitted the log. You might know this concept from the [syslog](http://en.wikipedia.org/wiki/Syslog)
 unix tool, which routes logs based on both severity (`info`/`warn`/`crit`...)
 and facility (`auth`/`cron`/`kern`...).
 
@@ -50,8 +41,7 @@ from 'cron' but also all logs from 'kern'.
 
 To implement that in our logging system we need to learn about a more complex topic exchange.
 
-Topic exchange
-++++++++++++++
+## Topic exchange
 
 Messages sent to a topic exchange can't have an arbitrary *routing_key* - it must be a list of words,
 delimited by dots. The words can be anything, but usually they specify some features connected to
@@ -68,8 +58,9 @@ cases for binding keys:
 
 It's easiest to explain this in an example:
 
-.. image:: /_static/tutorial/python-five.svg
-   :align: center
+```{image} /_static/tutorial/python-five.svg
+:align: center
+```
 
 In this example, we're going to send messages which all describe animals. The messages will be sent
 with a routing key that consists of three words (two dots). The first word in the routing key will
@@ -93,63 +84,64 @@ like `"orange"` or `"quick.orange.male.rabbit"`? Well, these messages won't matc
 On the other hand `"lazy.orange.male.rabbit"`, even though it has four words, will match the last binding and will be
 delivered to the second queue.
 
-.. note::
+:::{note}
+**Topic exchange**
 
-    **Topic exchange**
+Topic exchange is powerful and can behave like other exchanges.
 
-    Topic exchange is powerful and can behave like other exchanges.
+When a queue is bound with `"#"` (hash) binding key - it will receive all the messages, regardless of the routing
+key - like in fanout exchange.
 
-    When a queue is bound with `"#"` (hash) binding key - it will receive all the messages, regardless of the routing
-    key - like in fanout exchange.
-
-    When special characters `"*"` (star) and `"#"` (hash) aren't used in bindings, the topic exchange will behave just
-    like a direct one.
+When special characters `"*"` (star) and `"#"` (hash) aren't used in bindings, the topic exchange will behave just
+like a direct one.
+:::
 
 
-Putting it all together
-+++++++++++++++++++++++
+## Putting it all together
 
 We're going to use a topic exchange in our logging system. We'll start off with a working assumption
 that the routing keys of logs will have two words: `"<facility>.<severity>"`.
 
-The code is almost the same as in the :ref:`previous tutorial <routing>`.
+The code is almost the same as in the {ref}`previous tutorial <routing>`.
 
-The code for :download:`emit_log_topic.py <examples/5-topics/emit_log_topic.py>`:
+The code for {download}`emit_log_topic.py <examples/5-topics/emit_log_topic.py>`:
 
-.. literalinclude:: examples/5-topics/emit_log_topic.py
-   :language: python
+```{literalinclude} examples/5-topics/emit_log_topic.py
+:language: python
+```
 
-The code for :download:`receive_logs_topic.py <examples/5-topics/receive_logs_topic.py>`:
+The code for {download}`receive_logs_topic.py <examples/5-topics/receive_logs_topic.py>`:
 
-.. literalinclude:: examples/5-topics/receive_logs_topic.py
-   :language: python
+```{literalinclude} examples/5-topics/receive_logs_topic.py
+:language: python
+```
 
-To receive all the logs run::
+To receive all the logs run:
 
     python receive_logs_topic.py "#"
 
-To receive all logs from the facility `"kern"`::
+To receive all logs from the facility `"kern"`:
 
     python receive_logs_topic.py "kern.*"
 
-Or if you want to hear only about `"critical"` logs::
+Or if you want to hear only about `"critical"` logs:
 
     python receive_logs_topic.py "*.critical"
 
-You can create multiple bindings::
+You can create multiple bindings:
 
     python receive_logs_topic.py "kern.*" "*.critical"
 
-And to emit a log with a routing key `"kern.critical"` type::
+And to emit a log with a routing key `"kern.critical"` type:
 
     python emit_log_topic.py "kern.critical" "A critical kernel error"
 
 Have fun playing with these programs. Note that the code doesn't make any assumption
 about the routing or binding keys, you may want to play with more than two routing key parameters.
 
-Move on to :ref:`tutorial 6 <rpc>` to learn about RPC.
+Move on to {ref}`tutorial 6 <rpc>` to learn about RPC.
 
 
-.. note::
-
-    This material was adopted from `official tutorial`_ on **rabbitmq.org**.
+:::{note}
+This material was adopted from [official tutorial](https://www.rabbitmq.com/tutorials/tutorial-five-python.html) on **rabbitmq.org**.
+:::

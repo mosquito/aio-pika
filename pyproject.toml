@@ -4,7 +4,7 @@ version = "9.6.0"
 description = "Wrapper around the aiormq for asyncio and humans"
 authors = [{ name = "Dmitry Orlov", email = "me@mosquito.su" }]
 requires-python = ">=3.10,<4"
-readme = "README.rst"
+readme = "README.md"
 license = "Apache-2.0"
 keywords = [
     "rabbitmq",
@@ -68,6 +68,8 @@ dev = [
     "autodoc",
     "furo",
     "sphinxcontrib-googleanalytics",
+    "myst-parser",
+    "sphinx-design",
 ]
 uvloop = ["uvloop>=0.21,<0.22"]
 

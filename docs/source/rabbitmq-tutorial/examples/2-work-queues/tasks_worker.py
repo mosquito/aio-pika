@@ -4,27 +4,33 @@ from aio_pika import connect
 from aio_pika.abc import AbstractIncomingMessage
 
 
+# docs: begin-on-message
 async def on_message(message: AbstractIncomingMessage) -> None:
     async with message.process():
         print(f" [x] Received message {message!r}")
         await asyncio.sleep(message.body.count(b'.'))
         print(f"     Message body is: {message.body!r}")
+# docs: end-on-message
 
 
 async def main() -> None:
     # Perform connection
     connection = await connect("amqp://guest:guest@localhost/")
 
+    # docs: begin-qos-setup
     async with connection:
         # Creating a channel
         channel = await connection.channel()
         await channel.set_qos(prefetch_count=1)
+        # docs: end-qos-setup
 
+        # docs: begin-durable-queue
         # Declaring queue
         queue = await channel.declare_queue(
             "task_queue",
             durable=True,
         )
+        # docs: end-durable-queue
 
         # Start listening the queue with name 'task_queue'
         await queue.consume(on_message)

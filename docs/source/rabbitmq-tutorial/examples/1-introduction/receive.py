@@ -19,6 +19,7 @@ async def on_message(message: AbstractIncomingMessage) -> None:
 
 async def main() -> None:
     # Perform connection
+    # docs: begin-queue-declare-and-connect
     connection = await connect("amqp://guest:guest@localhost/")
     async with connection:
         # Creating a channel
@@ -26,6 +27,7 @@ async def main() -> None:
 
         # Declaring queue
         queue = await channel.declare_queue("hello")
+        # docs: end-queue-declare-and-connect
 
         # Start listening the queue with name 'hello'
         await queue.consume(on_message, no_ack=True)
