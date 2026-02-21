@@ -43,8 +43,7 @@ Features
 * Object oriented API.
 * Transparent auto-reconnects with complete state recovery with `connect_robust`
   (e.g. declared queues or exchanges, consuming state and bindings).
-* Python 3.6+ compatible.
-* For python 3.5 users available `aio-pika<7`
+* Python 3.10+ compatible.
 * Transparent `publisher confirms`_ support
 * `Transactions`_ support
 * Completely type-hints coverage.
@@ -180,17 +179,17 @@ Clone the project:
     cd aio-pika
 
 
-Create a new virtualenv for `aio-pika`_:
+Install uv if you haven't already:
 
 .. code-block:: shell
 
-    virtualenv -p python3.5 env
+    curl -LsSf https://astral.sh/uv/install.sh | sh
 
 Install all requirements for `aio-pika`_:
 
 .. code-block:: shell
 
-    env/bin/pip install -e '.[develop]'
+    uv sync
 
 Table Of Contents
 +++++++++++++++++

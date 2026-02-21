@@ -38,12 +38,13 @@ async def proxy(tcp_proxy: Type[TCPProxy], amqp_direct_url: URL):
 
 
 @pytest.fixture
-def amqp_url(amqp_direct_url, proxy: TCPProxy):
+def amqp_url(request, amqp_direct_url, proxy: TCPProxy):
     return amqp_direct_url.with_host(
         proxy.proxy_host,
     ).with_port(
         proxy.proxy_port,
     ).update_query(
+        name=request.node.nodeid,
         reconnect_interval=1,
         heartbeat=1,
     )
@@ -60,11 +61,11 @@ def connection_fabric():
 
 
 @pytest.fixture
-def create_direct_connection(event_loop, amqp_direct_url):
+def create_direct_connection(request, event_loop, amqp_direct_url):
     return partial(
         aio_pika.connect,
         amqp_direct_url.update_query(
-            name=amqp_direct_url.query["name"] + "::direct",
+            name=request.node.nodeid + "::direct",
             heartbeat=30,
         ),
         loop=event_loop,
@@ -689,3 +690,190 @@ async def test_channel_reconnect_stairway(
     assert on_reconnect.is_set()
     await connection.close()
     await direct_connection.close()
+
+
+@aiomisc.timeout(60)
+async def test_iterator_survives_reconnection(
+    create_connection,
+    direct_connection,
+    proxy: TCPProxy,
+):
+    """Test that RobustQueueIterator survives reconnection without exiting.
+
+    This test verifies the fix for issue #540 where consumers appeared
+    connected but were stuck with messages in unack state after reconnection.
+    """
+    connection = await create_connection()
+    assert isinstance(connection, RobustConnection)
+
+    reconnect_event = asyncio.Event()
+    connection.reconnect_callbacks.add(
+        lambda *_: reconnect_event.set(),
+    )
+
+    async with connection:
+        channel = await connection.channel()
+        assert isinstance(channel, RobustChannel)
+
+        queue = await channel.declare_queue(auto_delete=False)
+        assert isinstance(queue, RobustQueue)
+
+        direct_channel = await direct_connection.channel()
+
+        # Start consuming with iterator
+        iterator = queue.iterator()
+        await iterator.__aenter__()
+
+        # Publish first message
+        await direct_channel.default_exchange.publish(
+            Message(b"test message 1"),
+            routing_key=queue.name,
+        )
+
+        # Get first message
+        msg1 = await asyncio.wait_for(iterator.__anext__(), timeout=10)
+        await msg1.ack()
+        assert msg1.body == b"test message 1"
+
+        # Small delay to ensure ack is processed before disconnect
+        await asyncio.sleep(0.1)
+
+        # Disconnect (simulate network issue)
+        await proxy.disconnect_all()
+
+        # Wait for reconnection
+        await asyncio.wait_for(reconnect_event.wait(), timeout=30)
+        reconnect_event.clear()
+
+        # Wait for channel to be ready after reconnection
+        await asyncio.wait_for(channel.ready(), timeout=10)
+
+        # Publish another message after reconnection
+        await direct_channel.default_exchange.publish(
+            Message(b"test message 2"),
+            routing_key=queue.name,
+        )
+
+        # Iterator should still work (not raise StopAsyncIteration)
+        # This is the key assertion - before the fix, this would fail
+        # because the iterator would have exited during reconnection
+        received_messages = []
+        for _ in range(2):  # Try to receive up to 2 messages
+            try:
+                msg = await asyncio.wait_for(iterator.__anext__(), timeout=5)
+                received_messages.append(msg.body)
+                await msg.ack()
+                if msg.body == b"test message 2":
+                    break
+            except asyncio.TimeoutError:
+                break
+
+        # The important thing is that we received message 2 after reconnection
+        # Message 1 might be redelivered if ack didn't complete before
+        # disconnect
+        assert b"test message 2" in received_messages, (
+            f"Did not receive message 2. Got: {received_messages}"
+        )
+
+        await iterator.__aexit__(None, None, None)
+
+        # Clean up queue
+        await queue.delete()
+
+
+@aiomisc.timeout(30)
+async def test_consumer_resumes_after_connection_close(
+    create_connection,
+    direct_connection,
+    proxy: TCPProxy,
+):
+    """Test that callback-based consumers resume after connection close.
+
+    This test verifies the fix for issue #588 where consumers would stop
+    processing messages after reconnection. The issue was that
+    RobustChannel._on_close() prematurely set _closed.set_result(True)
+    when receiving CancelledError, which could interfere with restoration.
+
+    This test uses queue.consume(callback) instead of the iterator pattern
+    tested in test_iterator_survives_reconnection.
+    """
+    connection = await create_connection()
+    assert isinstance(connection, RobustConnection)
+
+    reconnect_event = asyncio.Event()
+    reconnect_count = 0
+
+    def on_reconnect(*_):
+        nonlocal reconnect_count
+        reconnect_count += 1
+        reconnect_event.set()
+
+    connection.reconnect_callbacks.add(on_reconnect, weak=False)
+
+    async with connection:
+        channel = await connection.channel()
+        assert isinstance(channel, RobustChannel)
+
+        queue = await channel.declare_queue(auto_delete=False)
+        assert isinstance(queue, RobustQueue)
+        direct_channel = await direct_connection.channel()
+
+        # Set up callback-based consumer with condition for precise waiting
+        received_messages = []
+        message_condition = asyncio.Condition()
+
+        async def consumer(message: aio_pika.abc.AbstractIncomingMessage):
+            async with message_condition:
+                received_messages.append(message.body)
+                message_condition.notify_all()
+            # Ack after notification to avoid race conditions
+            with suppress(Exception):
+                await message.ack()
+
+        await queue.consume(consumer)
+
+        # Publish and receive first message to confirm consumer works
+        await direct_channel.default_exchange.publish(
+            Message(b"before disconnect"),
+            routing_key=queue.name,
+        )
+
+        async with message_condition:
+            await asyncio.wait_for(
+                message_condition.wait_for(
+                    lambda: b"before disconnect" in received_messages,
+                ),
+                timeout=10,
+            )
+
+        # Disconnect to trigger reconnection
+        await proxy.disconnect_all()
+
+        # Wait for reconnection
+        await asyncio.wait_for(reconnect_event.wait(), timeout=20)
+        reconnect_event.clear()
+
+        # Wait for channel to be fully restored
+        await asyncio.wait_for(channel.ready(), timeout=10)
+
+        # Publish message after reconnection
+        await direct_channel.default_exchange.publish(
+            Message(b"after disconnect"),
+            routing_key=queue.name,
+        )
+
+        # Wait specifically for the "after disconnect" message
+        async with message_condition:
+            await asyncio.wait_for(
+                message_condition.wait_for(
+                    lambda: b"after disconnect" in received_messages,
+                ),
+                timeout=10,
+            )
+
+        # Verify we had at least one reconnection
+        assert reconnect_count >= 1
+
+        # Clean up - suppress errors during cleanup
+        with suppress(Exception):
+            await queue.delete()

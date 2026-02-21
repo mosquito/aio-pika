@@ -1,12 +1,18 @@
-[tool.poetry]
+[project]
 name = "aio-pika"
-version = "9.5.8"
+version = "9.6.0"
 description = "Wrapper around the aiormq for asyncio and humans"
-authors = ["Dmitry Orlov <me@mosquito.su>"]
+authors = [{ name = "Dmitry Orlov", email = "me@mosquito.su" }]
+requires-python = ">=3.10,<4"
 readme = "README.rst"
 license = "Apache-2.0"
-keywords=["rabbitmq", "asyncio", "amqp", "amqp 0.9.1", "aiormq"]
-homepage = "https://github.com/mosquito/aio-pika"
+keywords = [
+    "rabbitmq",
+    "asyncio",
+    "amqp",
+    "amqp 0.9.1",
+    "aiormq",
+]
 classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
@@ -28,51 +34,54 @@ classifiers = [
     "Topic :: Software Development",
     "Typing :: Typed",
 ]
-packages = [{ include = "aio_pika" }]
+dependencies = [
+    "aiormq>=6.8,<7",
+    "yarl",
+    "exceptiongroup>=1,<2 ; python_full_version < '3.11'",
+]
 
-[tool.poetry.urls]
-"Source" = "https://github.com/mosquito/aio-pika"
-"Tracker" = "https://github.com/mosquito/aio-pika/issues"
-"Documentation" = "https://docs.aio-pika.com/"
+[project.urls]
+Homepage = "https://github.com/mosquito/aio-pika"
+Source = "https://github.com/mosquito/aio-pika"
+Tracker = "https://github.com/mosquito/aio-pika/issues"
+Documentation = "https://docs.aio-pika.com/"
 
-[tool.poetry.dependencies]
-python = "^3.10"
-aiormq = "^6.8"
-yarl = [{ version = '*'}]
-exceptiongroup = [{ version = "^1", python = "< 3.11" }]
+[dependency-groups]
+dev = [
+    "aiomisc<18; python_full_version < '3.11'",
+    "aiomisc>=18.0; python_full_version >= '3.11'",
+    "aiomisc-pytest",
+    "collective-checkdocs",
+    "coverage",
+    "coveralls",
+    "mypy",
+    "nox",
+    "ruff",
+    "pytest",
+    "pytest-cov",
+    "pytest-rst",
+    "shortuuid",
+    "sphinx",
+    "sphinx-autobuild",
+    "timeout-decorator",
+    "setuptools",
+    "autodoc",
+    "furo",
+    "sphinxcontrib-googleanalytics",
+]
+uvloop = ["uvloop>=0.21,<0.22"]
 
-[tool.poetry.group.dev.dependencies]
-aiomisc = "^17.5"
-aiomisc-pytest = "^1.1.1"
-collective-checkdocs = "^0.2"
-coverage = "^6.5.0"
-coveralls = "^3.3.1"
-mypy = "^1"
-nox = "*"
-pylama = "^8.4.1"
-pytest = "^8.0"
-pytest-cov = "^4.0.0"
-pytest-rst = "^0.0"
-shortuuid = "^1.0"
-sphinx = "*"
-sphinx-autobuild = "^2021.3.14"
-timeout-decorator = "^0.5.0"
-# Seems to be implicitly required by pylama
-setuptools = "^69.0.3"
-testcontainers = "^3.7.1"
-autodoc = "*"
-furo = "*"
-sphinxcontrib-googleanalytics = "*"
+[tool.uv]
+default-groups = ["dev"]
 
-[tool.poetry.group.uvloop]
-optional = true
-
-[tool.poetry.group.uvloop.dependencies]
-uvloop = "^0.21"
+[tool.uv.build-backend]
+module-name = ["aio_pika"]
+module-root = ""
+source-include = ["tests/**"]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.9.26,<0.10.0"]
+build-backend = "uv_build"
 
 [tool.mypy]
 check_untyped_defs = true
@@ -91,7 +100,6 @@ warn_unused_ignores = true
 files = [
     "aio_pika",
     "tests",
-    "docs/source/examples",
     "docs/source/rabbitmq-tutorial/examples/1-introduction",
     "docs/source/rabbitmq-tutorial/examples/2-work-queues",
     "docs/source/rabbitmq-tutorial/examples/3-publish-subscribe",
@@ -109,13 +117,33 @@ disallow_untyped_decorators = false
 disallow_untyped_defs = false
 warn_unused_ignores = false
 
-[[tool.mypy.overrides]]
-module = ["testcontainers.*"]
-ignore_missing_imports = true
-
 [tool.pytest.ini_options]
 log_cli = true
 addopts = "-p no:asyncio"
 markers = [
-    "asyncio: asyncio"
+    "asyncio: asyncio",
 ]
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+]
+
+[tool.ruff]
+line-length = 80
+exclude = [
+    ".git",
+    ".tox",
+    ".venv",
+    "build",
+    "dist",
+    "env",
+]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "C90"]
+ignore = ["C901"]

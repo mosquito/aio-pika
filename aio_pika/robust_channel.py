@@ -101,13 +101,11 @@ class RobustChannel(Channel, AbstractRobustChannel):
         exc = await super()._on_close(closing)
 
         if isinstance(exc, asyncio.CancelledError):
-            # This happens only if the channel is forced to close from the
-            # outside, for example, if the connection is closed.
-            # Of course, here you need to exit from this function
-            # as soon as possible and to avoid a recovery attempt.
+            # Connection forced close (e.g., stuck connection).
+            # Clear restored but do NOT set _closed - the robust connection
+            # will restore this channel via restore() -> reopen() -> _open()
+            # which properly handles _closed state reset.
             self.__restored.clear()
-            if not self._closed.done():
-                self._closed.set_result(True)
             return exc
 
         in_restore_state = not self.__restored.is_set()
