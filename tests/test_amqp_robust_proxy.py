@@ -4,6 +4,7 @@ import logging
 from contextlib import suppress
 from functools import partial
 from typing import Callable, List, Type, Optional
+from unittest.mock import patch, AsyncMock
 
 import aiomisc
 import aiormq.exceptions
@@ -14,6 +15,7 @@ from yarl import URL
 
 import aio_pika
 from aio_pika.abc import AbstractRobustChannel, AbstractRobustConnection
+from aio_pika.connection import Connection
 from aio_pika.exceptions import QueueEmpty, CONNECTION_EXCEPTIONS
 from aio_pika.message import Message
 from aio_pika.robust_channel import RobustChannel
@@ -1039,3 +1041,41 @@ async def test_consumer_resumes_after_connection_close(
         # Clean up - suppress errors during cleanup
         with suppress(Exception):
             await queue.delete()
+
+
+async def test_close_does_not_hang_during_reconnect(event_loop):
+    """Test that close() does not hang when reconnection loop is active.
+
+    Reproduces the race condition where close() cancels __reconnection_task
+    while __connection_factory is inside Connection.connect(). Without the
+    fix (_close_called set before cancel), CancelledError would be swallowed
+    by the except block and close() would hang waiting for the task to finish.
+    """
+    connect_entered = asyncio.Event()
+
+    async def slow_connect(self, timeout=None):
+        connect_entered.set()
+        # Simulate a long connection attempt that will be cancelled
+        await asyncio.sleep(3600)
+
+    url = URL("amqp://guest:guest@localhost/?reconnect_interval=0.1&fail_fast=0")
+    conn = RobustConnection(url, loop=event_loop)
+
+    with patch.object(Connection, "connect", slow_connect):
+        # Start the connection (launches __connection_factory task).
+        # connect() will await connected.wait() which never resolves
+        # since Connection.connect is mocked, so run it as a task.
+        connect_task = event_loop.create_task(conn.connect())
+
+        # Wait until __connection_factory enters Connection.connect()
+        await asyncio.wait_for(connect_entered.wait(), timeout=5)
+
+        # Now close() should cancel the reconnection task and return
+        # promptly. Before the fix this would hang because CancelledError
+        # was swallowed (_close_called was not yet set when cancel arrived).
+        await asyncio.wait_for(conn.close(), timeout=5)
+
+    # Cancel connect_task which is stuck on connected.wait()
+    connect_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await connect_task

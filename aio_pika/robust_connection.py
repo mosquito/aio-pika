@@ -234,6 +234,8 @@ class RobustConnection(Connection, AbstractRobustConnection):
     async def close(
         self, exc: Optional[aiormq.abc.ExceptionType] = asyncio.CancelledError,
     ) -> None:
+        self._close_called = True
+
         if self.__reconnection_task is not None:
             self.__reconnection_task.cancel()
             await asyncio.gather(
