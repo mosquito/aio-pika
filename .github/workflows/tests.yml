@@ -22,6 +22,9 @@ jobs:
       - run: uv run ruff check
         env:
           FORCE_COLOR: 1
+      - run: uv run ruff format --check
+        env:
+          FORCE_COLOR: 1
   mypy:
     runs-on: ubuntu-latest
     steps:
