@@ -22,7 +22,8 @@ async def main() -> None:
                 message = aio_pika.Message(body="Hello #{}".format(i).encode())
 
                 await channel.default_exchange.publish(
-                    message, routing_key=routing_key,
+                    message,
+                    routing_key=routing_key,
                 )
 
         # Using transactions manually

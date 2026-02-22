@@ -14,6 +14,7 @@ from .robust_queue import RobustQueue
 
 
 from importlib.metadata import Distribution
+
 __version__ = Distribution.from_name("aio-pika").version
 
 

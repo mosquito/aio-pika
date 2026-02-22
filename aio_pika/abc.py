@@ -9,9 +9,23 @@ from enum import Enum, IntEnum, unique
 from functools import singledispatch
 from types import TracebackType
 from typing import (
-    Any, AsyncContextManager, AsyncIterable, Awaitable, Callable, Dict,
-    Generator, Iterator, Literal, Mapping, Optional, Tuple, Type, TypedDict,
-    TypeVar, Union, overload,
+    Any,
+    AsyncContextManager,
+    AsyncIterable,
+    Awaitable,
+    Callable,
+    Dict,
+    Generator,
+    Iterator,
+    Literal,
+    Mapping,
+    Optional,
+    Tuple,
+    Type,
+    TypedDict,
+    TypeVar,
+    Union,
+    overload,
 )
 
 import aiormq.abc
@@ -21,7 +35,10 @@ from yarl import URL
 
 from .pool import PoolInstance
 from .tools import (
-    CallbackCollection, CallbackSetType, CallbackType, OneShotCallback,
+    CallbackCollection,
+    CallbackSetType,
+    CallbackType,
+    OneShotCallback,
 )
 
 
@@ -80,18 +97,21 @@ class AbstractTransaction:
 
     @abstractmethod
     async def select(
-        self, timeout: TimeoutType = None,
+        self,
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Tx.SelectOk:
         raise NotImplementedError
 
     @abstractmethod
     async def rollback(
-        self, timeout: TimeoutType = None,
+        self,
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Tx.RollbackOk:
         raise NotImplementedError
 
     async def commit(
-        self, timeout: TimeoutType = None,
+        self,
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Tx.CommitOk:
         raise NotImplementedError
 
@@ -280,7 +300,8 @@ class AbstractQueue:
 
     @abstractmethod
     async def declare(
-        self, timeout: TimeoutType = None,
+        self,
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Queue.DeclareOk:
         raise NotImplementedError
 
@@ -319,7 +340,8 @@ class AbstractQueue:
 
     @abstractmethod
     async def cancel(
-        self, consumer_tag: ConsumerTag,
+        self,
+        consumer_tag: ConsumerTag,
         timeout: TimeoutType = None,
         nowait: bool = False,
     ) -> aiormq.spec.Basic.CancelOk:
@@ -327,34 +349,46 @@ class AbstractQueue:
 
     @overload
     async def get(
-        self, *, no_ack: bool = False,
-        fail: Literal[True] = ..., timeout: TimeoutType = ...,
-    ) -> AbstractIncomingMessage:
-        ...
+        self,
+        *,
+        no_ack: bool = False,
+        fail: Literal[True] = ...,
+        timeout: TimeoutType = ...,
+    ) -> AbstractIncomingMessage: ...
 
     @overload
     async def get(
-        self, *, no_ack: bool = False,
-        fail: Literal[False] = ..., timeout: TimeoutType = ...,
-    ) -> Optional[AbstractIncomingMessage]:
-        ...
+        self,
+        *,
+        no_ack: bool = False,
+        fail: Literal[False] = ...,
+        timeout: TimeoutType = ...,
+    ) -> Optional[AbstractIncomingMessage]: ...
 
     @abstractmethod
     async def get(
-        self, *, no_ack: bool = False,
-        fail: bool = True, timeout: TimeoutType = 5,
+        self,
+        *,
+        no_ack: bool = False,
+        fail: bool = True,
+        timeout: TimeoutType = 5,
     ) -> Optional[AbstractIncomingMessage]:
         raise NotImplementedError
 
     @abstractmethod
     async def purge(
-        self, no_wait: bool = False, timeout: TimeoutType = None,
+        self,
+        no_wait: bool = False,
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Queue.PurgeOk:
         raise NotImplementedError
 
     @abstractmethod
     async def delete(
-        self, *, if_unused: bool = True, if_empty: bool = True,
+        self,
+        *,
+        if_unused: bool = True,
+        if_empty: bool = True,
         timeout: TimeoutType = None,
     ) -> aiormq.spec.Queue.DeleteOk:
         raise NotImplementedError
@@ -424,7 +458,8 @@ class AbstractExchange(ABC):
 
     @abstractmethod
     async def declare(
-        self, timeout: TimeoutType = None,
+        self,
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.DeclareOk:
         raise NotImplementedError
 
@@ -463,7 +498,9 @@ class AbstractExchange(ABC):
 
     @abstractmethod
     async def delete(
-        self, if_unused: bool = False, timeout: TimeoutType = None,
+        self,
+        if_unused: bool = False,
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.DeleteOk:
         raise NotImplementedError
 
@@ -475,8 +512,10 @@ class UnderlayChannel:
 
     @classmethod
     async def create(
-        cls, connection: aiormq.abc.AbstractConnection,
-        close_callback: Callable[..., Awaitable[Any]], **kwargs: Any,
+        cls,
+        connection: aiormq.abc.AbstractConnection,
+        close_callback: Callable[..., Awaitable[Any]],
+        **kwargs: Any,
     ) -> "UnderlayChannel":
         close_callback = OneShotCallback(close_callback)
 
@@ -586,7 +625,10 @@ class AbstractChannel(PoolInstance, ABC):
 
     @abstractmethod
     async def get_exchange(
-        self, name: str, *, ensure: bool = True,
+        self,
+        name: str,
+        *,
+        ensure: bool = True,
     ) -> AbstractExchange:
         raise NotImplementedError
 
@@ -606,7 +648,10 @@ class AbstractChannel(PoolInstance, ABC):
 
     @abstractmethod
     async def get_queue(
-        self, name: str, *, ensure: bool = True,
+        self,
+        name: str,
+        *,
+        ensure: bool = True,
     ) -> AbstractQueue:
         raise NotImplementedError
 
@@ -662,22 +707,31 @@ class UnderlayConnection:
 
     @classmethod
     async def make_connection(
-        cls, url: URL, timeout: TimeoutType = None, **kwargs: Any,
+        cls,
+        url: URL,
+        timeout: TimeoutType = None,
+        **kwargs: Any,
     ) -> aiormq.abc.AbstractConnection:
         connection: aiormq.abc.AbstractConnection = await asyncio.wait_for(
-            aiormq.connect(url, **kwargs), timeout=timeout,
+            aiormq.connect(url, **kwargs),
+            timeout=timeout,
         )
         await connection.ready()
         return connection
 
     @classmethod
     async def connect(
-        cls, url: URL, close_callback: Callable[..., Awaitable[Any]],
-        timeout: TimeoutType = None, **kwargs: Any,
+        cls,
+        url: URL,
+        close_callback: Callable[..., Awaitable[Any]],
+        timeout: TimeoutType = None,
+        **kwargs: Any,
     ) -> "UnderlayConnection":
         try:
             connection = await cls.make_connection(
-                url, timeout=timeout, **kwargs,
+                url,
+                timeout=timeout,
+                **kwargs,
             )
             close_callback = OneShotCallback(close_callback)
             connection.closing.add_done_callback(close_callback)
@@ -736,7 +790,9 @@ class AbstractConnection(PoolInstance, ABC):
 
     @abstractmethod
     def __init__(
-        self, url: URL, loop: Optional[asyncio.AbstractEventLoop] = None,
+        self,
+        url: URL,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
         **kwargs: Any,
     ):
         raise NotImplementedError(
@@ -793,8 +849,11 @@ class AbstractConnection(PoolInstance, ABC):
 
     @abstractmethod
     async def update_secret(
-        self, new_secret: str, *,
-        reason: str = "", timeout: TimeoutType = None,
+        self,
+        new_secret: str,
+        *,
+        reason: str = "",
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Connection.UpdateSecretOk:
         raise NotImplementedError
 
@@ -916,10 +975,12 @@ class AbstractRobustConnection(AbstractConnection):
 
 
 ChannelCloseCallback = Callable[
-    [Optional[AbstractChannel], Optional[BaseException]], Any,
+    [Optional[AbstractChannel], Optional[BaseException]],
+    Any,
 ]
 ConnectionCloseCallback = Callable[
-    [Optional[AbstractConnection], Optional[BaseException]], Any,
+    [Optional[AbstractConnection], Optional[BaseException]],
+    Any,
 ]
 ConnectionType = TypeVar("ConnectionType", bound=AbstractConnection)
 
@@ -927,8 +988,7 @@ ConnectionType = TypeVar("ConnectionType", bound=AbstractConnection)
 @singledispatch
 def get_exchange_name(value: Any) -> str:
     raise ValueError(
-        "exchange argument must be an exchange "
-        f"instance or str not {value!r}",
+        f"exchange argument must be an exchange instance or str not {value!r}",
     )
 
 

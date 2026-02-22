@@ -40,7 +40,7 @@ class Base:
     CONTENT_TYPE = "application/python-pickle"
 
     def serialize(self, data: Any) -> bytes:
-        """ Serialize data to the bytes.
+        """Serialize data to the bytes.
         Uses `pickle` by default.
         You should overlap this method when you want to change serializer
 
@@ -49,7 +49,7 @@ class Base:
         return self.SERIALIZER.dumps(data)
 
     def deserialize(self, data: bytes) -> Any:
-        """ Deserialize data from bytes.
+        """Deserialize data from bytes.
         Uses `pickle` by default.
         You should overlap this method when you want to change serializer
 

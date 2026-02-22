@@ -9,8 +9,11 @@ from pamqp.common import FieldTable
 from yarl import URL
 
 from .abc import (
-    AbstractRobustChannel, AbstractRobustConnection, ConnectionParameter,
-    SSLOptions, TimeoutType,
+    AbstractRobustChannel,
+    AbstractRobustConnection,
+    ConnectionParameter,
+    SSLOptions,
+    TimeoutType,
 )
 from .connection import Connection, make_url
 from .exceptions import CONNECTION_EXCEPTIONS
@@ -30,11 +33,13 @@ class RobustConnection(Connection, AbstractRobustConnection):
     PARAMETERS: Tuple[ConnectionParameter, ...] = Connection.PARAMETERS + (
         ConnectionParameter(
             name="reconnect_interval",
-            parser=parse_timeout, default="5",
+            parser=parse_timeout,
+            default="5",
         ),
         ConnectionParameter(
             name="fail_fast",
-            parser=parse_bool, default="1",
+            parser=parse_bool,
+            default="1",
         ),
     )
 
@@ -75,14 +80,21 @@ class RobustConnection(Connection, AbstractRobustConnection):
         )
 
     async def _on_connection_close(self, closing: asyncio.Future) -> None:
-        await super()._on_connection_close(closing)
+        try:
+            await super()._on_connection_close(closing)
+        except Exception:
+            log.exception(
+                "Failed to execute close callbacks for %s",
+                self,
+            )
 
         if self._close_called or self.is_closed:
             return
 
         log.info(
             "Connection to %s closed. Reconnecting after %r seconds.",
-            self, self.reconnect_interval,
+            self,
+            self.reconnect_interval,
         )
 
         self.__connection_close_event.set()
@@ -154,7 +166,18 @@ class RobustConnection(Connection, AbstractRobustConnection):
                 log.warning(
                     'Connection attempt to "%s" failed: %s. '
                     "Reconnecting after %r seconds.",
-                    self, e, self.reconnect_interval,
+                    self,
+                    e,
+                    self.reconnect_interval,
+                )
+            except asyncio.CancelledError:
+                if self._close_called or self.is_closed:
+                    raise
+                log.warning(
+                    'Connection attempt to "%s" cancelled. '
+                    "Reconnecting after %r seconds.",
+                    self,
+                    self.reconnect_interval,
                 )
             except Exception as exc:
                 log.error(
@@ -219,12 +242,16 @@ class RobustConnection(Connection, AbstractRobustConnection):
         return channel
 
     async def close(
-        self, exc: Optional[aiormq.abc.ExceptionType] = asyncio.CancelledError,
+        self,
+        exc: Optional[aiormq.abc.ExceptionType] = asyncio.CancelledError,
     ) -> None:
+        self._close_called = True
+
         if self.__reconnection_task is not None:
             self.__reconnection_task.cancel()
             await asyncio.gather(
-                self.__reconnection_task, return_exceptions=True,
+                self.__reconnection_task,
+                return_exceptions=True,
             )
             self.__reconnection_task = None
 
@@ -248,7 +275,6 @@ async def connect_robust(
     connection_class: Type[AbstractRobustConnection] = RobustConnection,
     **kwargs: Any,
 ) -> AbstractRobustConnection:
-
     """Make connection to the broker.
 
     Example:
@@ -343,7 +369,9 @@ async def connect_robust(
             client_properties=client_properties,
             **kwargs,
         ),
-        loop=loop, ssl_context=ssl_context, **kwargs,
+        loop=loop,
+        ssl_context=ssl_context,
+        **kwargs,
     )
 
     await connection.connect(timeout=timeout)

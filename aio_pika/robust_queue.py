@@ -8,8 +8,13 @@ from aiormq import ChannelInvalidStateError
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractExchange, AbstractIncomingMessage,
-    AbstractQueueIterator, AbstractRobustQueue, ConsumerTag, TimeoutType,
+    AbstractChannel,
+    AbstractExchange,
+    AbstractIncomingMessage,
+    AbstractQueueIterator,
+    AbstractRobustQueue,
+    ConsumerTag,
+    TimeoutType,
 )
 from .exchange import ExchangeParamType
 from .log import get_logger
@@ -80,8 +85,10 @@ class RobustQueue(Queue, AbstractRobustQueue):
             routing_key = self.name
 
         result = await super().bind(
-            exchange=exchange, routing_key=routing_key,
-            arguments=arguments, timeout=timeout,
+            exchange=exchange,
+            routing_key=routing_key,
+            arguments=arguments,
+            timeout=timeout,
         )
 
         if robust:
@@ -102,7 +109,10 @@ class RobustQueue(Queue, AbstractRobustQueue):
             routing_key = self.name
 
         result = await super().unbind(
-            exchange, routing_key, arguments, timeout,
+            exchange,
+            routing_key,
+            arguments,
+            timeout,
         )
         self._bindings.pop((exchange, routing_key), None)
 
@@ -235,7 +245,8 @@ class RobustQueueIterator(QueueIterator):
                         )
                         log.info(
                             "%r closing with timeout %d seconds",
-                            self, timeout_val,
+                            self,
+                            timeout_val,
                         )
 
                     task = asyncio.create_task(self.close())
@@ -288,7 +299,8 @@ class RobustQueueIterator(QueueIterator):
                         try:
                             # Wait for channel to become ready
                             await asyncio.wait_for(
-                                channel.ready(), timeout=60.0,
+                                channel.ready(),
+                                timeout=60.0,
                             )
 
                             # Re-establish consumer if needed

@@ -4,8 +4,13 @@ import aiormq
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractExchange, AbstractMessage, ExchangeParamType,
-    ExchangeType, TimeoutType, get_exchange_name,
+    AbstractChannel,
+    AbstractExchange,
+    AbstractMessage,
+    ExchangeParamType,
+    ExchangeType,
+    TimeoutType,
+    get_exchange_name,
 )
 from .log import get_logger
 
@@ -14,7 +19,8 @@ log = get_logger(__name__)
 
 
 class Exchange(AbstractExchange):
-    """ Exchange abstraction """
+    """Exchange abstraction"""
+
     channel: AbstractChannel
 
     def __init__(
@@ -50,7 +56,8 @@ class Exchange(AbstractExchange):
         )
 
     async def declare(
-        self, timeout: TimeoutType = None,
+        self,
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.DeclareOk:
         channel = await self.channel.get_underlay_channel()
         return await channel.exchange_declare(
@@ -72,8 +79,7 @@ class Exchange(AbstractExchange):
         arguments: Arguments = None,
         timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.BindOk:
-
-        """ A binding can also be a relationship between two exchanges.
+        """A binding can also be a relationship between two exchanges.
         This can be simply read as: this exchange is interested in messages
         from another exchange.
 
@@ -131,8 +137,7 @@ class Exchange(AbstractExchange):
         arguments: Arguments = None,
         timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.UnbindOk:
-
-        """ Remove exchange-to-exchange binding for this
+        """Remove exchange-to-exchange binding for this
         :class:`Exchange` instance
 
         :param exchange: :class:`aio_pika.exchange.Exchange` instance
@@ -169,8 +174,7 @@ class Exchange(AbstractExchange):
         immediate: bool = False,
         timeout: TimeoutType = None,
     ) -> Optional[aiormq.abc.ConfirmationFrameType]:
-
-        """ Publish the message to the queue. `aio-pika` uses
+        """Publish the message to the queue. `aio-pika` uses
         `publisher confirms`_ extension for message delivery.
 
         .. _publisher confirms: https://www.rabbitmq.com/confirms.html
@@ -207,10 +211,11 @@ class Exchange(AbstractExchange):
         )
 
     async def delete(
-        self, if_unused: bool = False, timeout: TimeoutType = None,
+        self,
+        if_unused: bool = False,
+        timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.DeleteOk:
-
-        """ Delete the queue
+        """Delete the queue
 
         :param timeout: operation timeout
         :param if_unused: perform deletion when queue has no bindings.
@@ -219,7 +224,9 @@ class Exchange(AbstractExchange):
         log.info("Deleting %r", self)
         channel = await self.channel.get_underlay_channel()
         result = await channel.exchange_delete(
-            self.name, if_unused=if_unused, timeout=timeout,
+            self.name,
+            if_unused=if_unused,
+            timeout=timeout,
         )
         del self.channel
         return result

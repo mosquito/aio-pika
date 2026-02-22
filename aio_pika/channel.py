@@ -4,7 +4,13 @@ import warnings
 from abc import ABC
 from types import TracebackType
 from typing import (
-    Any, AsyncContextManager, Awaitable, Generator, Literal, Optional, Type,
+    Any,
+    AsyncContextManager,
+    Awaitable,
+    Generator,
+    Literal,
+    Optional,
+    Type,
     Union,
 )
 from warnings import warn
@@ -14,8 +20,12 @@ import aiormq.abc
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractConnection, AbstractExchange, AbstractQueue,
-    TimeoutType, UnderlayChannel,
+    AbstractChannel,
+    AbstractConnection,
+    AbstractExchange,
+    AbstractQueue,
+    TimeoutType,
+    UnderlayChannel,
 )
 from .exceptions import ChannelInvalidStateError
 from .exchange import Exchange, ExchangeType
@@ -210,8 +220,7 @@ class Channel(ChannelContext):
         )
 
     async def _on_close(
-        self,
-        closing: asyncio.Future
+        self, closing: asyncio.Future
     ) -> Optional[BaseException]:
         try:
             exc = closing.exception()
@@ -305,7 +314,10 @@ class Channel(ChannelContext):
         return exchange
 
     async def get_exchange(
-        self, name: str, *, ensure: bool = True,
+        self,
+        name: str,
+        *,
+        ensure: bool = True,
     ) -> AbstractExchange:
         """
         With ``ensure=True``, it's a shortcut for
@@ -382,7 +394,10 @@ class Channel(ChannelContext):
         return queue
 
     async def get_queue(
-        self, name: str, *, ensure: bool = True,
+        self,
+        name: str,
+        *,
+        ensure: bool = True,
     ) -> AbstractQueue:
         """
         With ``ensure=True``, it's a shortcut for
@@ -470,8 +485,7 @@ class Channel(ChannelContext):
     def transaction(self) -> Transaction:
         if self.publisher_confirms:
             raise RuntimeError(
-                "Cannot create transaction when publisher "
-                "confirms are enabled",
+                "Cannot create transaction when publisher confirms are enabled",
             )
 
         return Transaction(self)

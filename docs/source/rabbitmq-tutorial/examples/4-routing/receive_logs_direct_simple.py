@@ -24,7 +24,8 @@ async def main() -> None:
 
         # Declare an exchange
         direct_logs_exchange = await channel.declare_exchange(
-            "logs", ExchangeType.DIRECT,
+            "logs",
+            ExchangeType.DIRECT,
         )
 
         # Declaring random queue

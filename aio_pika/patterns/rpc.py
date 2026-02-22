@@ -10,8 +10,12 @@ from typing import Any, Callable, Dict, Optional, Tuple
 from aiormq.abc import ExceptionType
 
 from aio_pika.abc import (
-    AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
-    ConsumerTag, DeliveryMode,
+    AbstractChannel,
+    AbstractExchange,
+    AbstractIncomingMessage,
+    AbstractQueue,
+    ConsumerTag,
+    DeliveryMode,
 )
 from aio_pika.exceptions import MessageProcessError
 from aio_pika.exchange import ExchangeType
@@ -36,7 +40,7 @@ class RPCMessageType(str, Enum):
 
 # This needed only for migration from 6.x to 7.x
 # TODO: Remove this in 8.x release
-RPCMessageTypes = RPCMessageType    # noqa
+RPCMessageTypes = RPCMessageType  # noqa
 
 
 class RPC(Base):
@@ -92,7 +96,8 @@ class RPC(Base):
     rpc_exchange: Optional[AbstractExchange]
 
     def __init__(
-        self, channel: AbstractChannel,
+        self,
+        channel: AbstractChannel,
         host_exceptions: bool = False,
     ) -> None:
         self.channel = channel
@@ -105,11 +110,13 @@ class RPC(Base):
         self.host_exceptions = host_exceptions
 
     def __remove_future(
-        self, correlation_id: str,
+        self,
+        correlation_id: str,
     ) -> Callable[[asyncio.Future], None]:
         def do_remove(future: asyncio.Future) -> None:
             log.debug("Remove done future %r", future)
             self.futures.pop(correlation_id, None)
+
         return do_remove
 
     def create_future(self) -> Tuple[asyncio.Future, str]:
@@ -138,7 +145,8 @@ class RPC(Base):
 
         log.debug("Unbinding %r", self.result_queue)
         await self.result_queue.unbind(
-            self.dlx_exchange, "",
+            self.dlx_exchange,
+            "",
             arguments={"From": self.result_queue.name, "x-match": "any"},
         )
 
@@ -158,25 +166,37 @@ class RPC(Base):
             del self.rpc_exchange
 
     async def initialize(
-        self, auto_delete: bool = True,
-        durable: bool = False, exchange: str = "", **kwargs: Any,
+        self,
+        auto_delete: bool = True,
+        durable: bool = False,
+        exchange: str = "",
+        **kwargs: Any,
     ) -> None:
         if hasattr(self, "result_queue"):
             return
 
-        self.rpc_exchange = await self.channel.declare_exchange(
-            exchange,
-            type=ExchangeType.DIRECT,
-            auto_delete=True,
-            durable=durable,
-        ) if exchange else None
+        self.rpc_exchange = (
+            await self.channel.declare_exchange(
+                exchange,
+                type=ExchangeType.DIRECT,
+                auto_delete=True,
+                durable=durable,
+            )
+            if exchange
+            else None
+        )
 
         self.result_queue = await self.channel.declare_queue(
-            None, auto_delete=auto_delete, durable=durable, **kwargs,
+            None,
+            auto_delete=auto_delete,
+            durable=durable,
+            **kwargs,
         )
 
         self.dlx_exchange = await self.channel.declare_exchange(
-            self.DLX_NAME, type=ExchangeType.HEADERS, auto_delete=True,
+            self.DLX_NAME,
+            type=ExchangeType.HEADERS,
+            auto_delete=True,
         )
 
         await self.result_queue.bind(
@@ -186,7 +206,9 @@ class RPC(Base):
         )
 
         self.result_consumer_tag = await self.result_queue.consume(
-            self.on_result_message, exclusive=True, no_ack=True,
+            self.on_result_message,
+            exclusive=True,
+            no_ack=True,
         )
 
         self.channel.close_callbacks.add(self.on_close)
@@ -206,7 +228,7 @@ class RPC(Base):
 
     @classmethod
     async def create(cls, channel: AbstractChannel, **kwargs: Any) -> "RPC":
-        """ Creates a new instance of :class:`aio_pika.patterns.RPC`.
+        """Creates a new instance of :class:`aio_pika.patterns.RPC`.
         You should use this method instead of :func:`__init__`,
         because :func:`create` returns coroutine and makes async initialize
 
@@ -225,7 +247,8 @@ class RPC(Base):
     ) -> None:
         if message.correlation_id is None:
             log.warning(
-                "Message without correlation_id was returned: %r", message,
+                "Message without correlation_id was returned: %r",
+                message,
             )
             return
 
@@ -242,7 +265,8 @@ class RPC(Base):
     async def on_result_message(self, message: AbstractIncomingMessage) -> None:
         if message.correlation_id is None:
             log.warning(
-                "Message without correlation_id was received: %r", message,
+                "Message without correlation_id was received: %r",
+                message,
             )
             return
 
@@ -275,7 +299,9 @@ class RPC(Base):
             )
 
     async def on_call_message(
-        self, method_name: str, message: IncomingMessage,
+        self,
+        method_name: str,
+        message: IncomingMessage,
     ) -> None:
 
         routing_key = self._format_routing_key(method_name)
@@ -324,7 +350,9 @@ class RPC(Base):
 
         try:
             await self.channel.default_exchange.publish(
-                result_message, message.reply_to, mandatory=False,
+                result_message,
+                message.reply_to,
+                mandatory=False,
             )
         except Exception as exc:
             log.error(
@@ -347,21 +375,25 @@ class RPC(Base):
         await message.ack()
 
     def serialize_exception(self, exception: Exception) -> Any:
-        """ Make python exception serializable """
+        """Make python exception serializable"""
         return exception
 
     async def execute(self, func: CallbackType, payload: Dict[str, Any]) -> T:
-        """ Executes rpc call. Might be overlapped. """
+        """Executes rpc call. Might be overlapped."""
         return await func(**payload)
 
     async def deserialize_message(
-        self, message: AbstractIncomingMessage,
+        self,
+        message: AbstractIncomingMessage,
     ) -> Any:
         return self.deserialize(message.body)
 
     async def serialize_message(
-        self, payload: Any, message_type: RPCMessageType,
-        correlation_id: Optional[str], delivery_mode: DeliveryMode,
+        self,
+        payload: Any,
+        message_type: RPCMessageType,
+        correlation_id: Optional[str],
+        delivery_mode: DeliveryMode,
         **kwargs: Any,
     ) -> Message:
         return Message(
@@ -383,7 +415,7 @@ class RPC(Base):
         priority: int = 5,
         delivery_mode: DeliveryMode = DELIVERY_MODE,
     ) -> Any:
-        """ Call remote method and awaiting result.
+        """Call remote method and awaiting result.
 
         :param method_name: Name of method
         :param kwargs: Methos kwargs
@@ -417,7 +449,8 @@ class RPC(Base):
         log.debug("Publishing calls for %s(%r)", routing_key, kwargs)
         exchange = self.rpc_exchange or self.channel.default_exchange
         await exchange.publish(
-            message, routing_key=routing_key,
+            message,
+            routing_key=routing_key,
             mandatory=True,
         )
 
@@ -425,9 +458,12 @@ class RPC(Base):
         return await future
 
     async def register(
-        self, method_name: str, func: CallbackType, **kwargs: Any,
+        self,
+        method_name: str,
+        func: CallbackType,
+        **kwargs: Any,
     ) -> Any:
-        """ Method creates a queue with name which equal of
+        """Method creates a queue with name which equal of
         `method_name` argument. Then subscribes this queue.
 
         :param method_name: Method name
@@ -471,7 +507,7 @@ class RPC(Base):
         self.queues[func] = queue
 
     async def unregister(self, func: CallbackType) -> None:
-        """ Cancels subscription to the method-queue.
+        """Cancels subscription to the method-queue.
 
         :param func: Function
         """
@@ -496,7 +532,9 @@ class JsonRPC(RPC):
 
     def serialize(self, data: Any) -> bytes:
         return self.SERIALIZER.dumps(
-            data, ensure_ascii=False, default=repr,
+            data,
+            ensure_ascii=False,
+            default=repr,
         ).encode()
 
     def serialize_exception(self, exception: Exception) -> Any:
@@ -509,7 +547,8 @@ class JsonRPC(RPC):
         }
 
     async def deserialize_message(
-        self, message: AbstractIncomingMessage,
+        self,
+        message: AbstractIncomingMessage,
     ) -> Any:
         payload = await super().deserialize_message(message)
         if message.type == RPCMessageType.ERROR:

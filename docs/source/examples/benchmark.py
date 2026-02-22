@@ -37,9 +37,7 @@ async def main() -> None:
         async with connect.channel() as channel:
             queue = await channel.declare_queue(auto_delete=True)
 
-            with timeit(
-                "Sequential publisher confirms", iterations=iterations
-            ):
+            with timeit("Sequential publisher confirms", iterations=iterations):
                 for _ in range(iterations):
                     await channel.default_exchange.publish(
                         message, routing_key=queue.name

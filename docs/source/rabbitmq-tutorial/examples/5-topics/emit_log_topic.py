@@ -15,14 +15,15 @@ async def main() -> None:
         channel = await connection.channel()
 
         topic_logs_exchange = await channel.declare_exchange(
-            "topic_logs", ExchangeType.TOPIC,
+            "topic_logs",
+            ExchangeType.TOPIC,
         )
 
         routing_key = sys.argv[1] if len(sys.argv) > 2 else "anonymous.info"
 
-        message_body = b" ".join(
-            arg.encode() for arg in sys.argv[2:]
-        ) or b"Hello World!"
+        message_body = (
+            b" ".join(arg.encode() for arg in sys.argv[2:]) or b"Hello World!"
+        )
 
         message = Message(
             message_body,

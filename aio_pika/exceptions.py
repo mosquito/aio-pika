@@ -2,12 +2,24 @@ import asyncio
 
 import pamqp.exceptions
 from aiormq.exceptions import (
-    AMQPChannelError, AMQPConnectionError, AMQPError, AMQPException,
-    AuthenticationError, ChannelClosed, ChannelInvalidStateError,
-    ChannelNotFoundEntity, ChannelPreconditionFailed, ConnectionClosed,
-    DeliveryError, DuplicateConsumerTag, IncompatibleProtocolError,
-    InvalidFrameError, MethodNotImplemented, ProbableAuthenticationError,
-    ProtocolSyntaxError, PublishError,
+    AMQPChannelError,
+    AMQPConnectionError,
+    AMQPError,
+    AMQPException,
+    AuthenticationError,
+    ChannelClosed,
+    ChannelInvalidStateError,
+    ChannelNotFoundEntity,
+    ChannelPreconditionFailed,
+    ConnectionClosed,
+    DeliveryError,
+    DuplicateConsumerTag,
+    IncompatibleProtocolError,
+    InvalidFrameError,
+    MethodNotImplemented,
+    ProbableAuthenticationError,
+    ProtocolSyntaxError,
+    PublishError,
 )
 
 

@@ -15,12 +15,14 @@ async def main() -> None:
 
     # Declare an exchange
     topic_logs_exchange = await channel.declare_exchange(
-        "topic_logs", ExchangeType.TOPIC,
+        "topic_logs",
+        ExchangeType.TOPIC,
     )
 
     # Declaring queue
     queue = await channel.declare_queue(
-        "task_queue", durable=True,
+        "task_queue",
+        durable=True,
     )
 
     binding_keys = sys.argv[1:]

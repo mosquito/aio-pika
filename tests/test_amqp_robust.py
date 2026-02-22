@@ -9,7 +9,9 @@ import aio_pika
 from aio_pika import RobustChannel
 from tests import get_random_name
 from tests.test_amqp import (
-    TestCaseAmqp, TestCaseAmqpNoConfirms, TestCaseAmqpWithConfirms,
+    TestCaseAmqp,
+    TestCaseAmqpNoConfirms,
+    TestCaseAmqpWithConfirms,
 )
 
 
@@ -23,13 +25,13 @@ def create_connection(connection_fabric, event_loop, amqp_url):
     return partial(connection_fabric, amqp_url, loop=event_loop)
 
 
-class TestCaseNoRobust(TestCaseAmqp):   # type: ignore
+class TestCaseNoRobust(TestCaseAmqp):  # type: ignore
     PARAMS = [{"robust": True}, {"robust": False}]
     IDS = ["robust=1", "robust=0"]
 
     @staticmethod
     @pytest.fixture(name="declare_queue", params=PARAMS, ids=IDS)
-    def declare_queue_(request, declare_queue):     # type: ignore
+    def declare_queue_(request, declare_queue):  # type: ignore
         async def fabric(*args, **kwargs) -> aio_pika.Queue:
             kwargs.update(request.param)
             return await declare_queue(*args, **kwargs)
@@ -38,7 +40,7 @@ class TestCaseNoRobust(TestCaseAmqp):   # type: ignore
 
     @staticmethod
     @pytest.fixture(name="declare_exchange", params=PARAMS, ids=IDS)
-    def declare_exchange_(request, declare_exchange):   # type: ignore
+    def declare_exchange_(request, declare_exchange):  # type: ignore
         async def fabric(*args, **kwargs) -> aio_pika.Queue:
             kwargs.update(request.param)
             return await declare_exchange(*args, **kwargs)
@@ -57,7 +59,7 @@ class TestCaseNoRobust(TestCaseAmqp):   # type: ignore
         assert len(connection.reconnect_callbacks) == 1
 
     async def test_channel_blocking_timeout_reopen(self, connection):
-        channel: RobustChannel = await connection.channel()     # type: ignore
+        channel: RobustChannel = await connection.channel()  # type: ignore
         close_reasons = []
         close_event = asyncio.Event()
         reopen_event = asyncio.Event()
@@ -85,7 +87,7 @@ class TestCaseNoRobust(TestCaseAmqp):   # type: ignore
         await channel.declare_queue(queue_name, auto_delete=True)
 
     async def test_get_queue_fail(self, connection):
-        channel: RobustChannel = await connection.channel()     # type: ignore
+        channel: RobustChannel = await connection.channel()  # type: ignore
         close_event = asyncio.Event()
         reopen_event = asyncio.Event()
         channel.close_callbacks.add(lambda *_: close_event.set())
@@ -138,7 +140,9 @@ class TestCaseNoRobust(TestCaseAmqp):   # type: ignore
 
         channel = await self.create_channel(connection)
         exchange = await declare_exchange(
-            name, auto_delete=True, channel=channel,
+            name,
+            auto_delete=True,
+            channel=channel,
         )
         exchange_passive = await channel.get_exchange(name)
 
@@ -159,7 +163,8 @@ class TestCaseNoRobust(TestCaseAmqp):   # type: ignore
 
         # Declare exchange with robust=True (default) so it gets cached
         exchange = await channel.declare_exchange(
-            name, auto_delete=True,
+            name,
+            auto_delete=True,
         )
 
         # Get the exchange multiple times - should return the same instance
@@ -187,7 +192,8 @@ class TestCaseNoRobust(TestCaseAmqp):   # type: ignore
 
         # Declare queue with robust=True (default) so it gets cached
         queue = await channel.declare_queue(
-            name, auto_delete=True,
+            name,
+            auto_delete=True,
         )
 
         # Get the queue multiple times using passive=True - should return same

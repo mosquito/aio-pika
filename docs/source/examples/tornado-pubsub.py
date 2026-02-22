@@ -23,7 +23,8 @@ class PublisherHandler(tornado.web.RequestHandler):
 
         try:
             await channel.default_exchange.publish(
-                Message(body=self.request.body), routing_key="test",
+                Message(body=self.request.body),
+                routing_key="test",
             )
         finally:
             await channel.close()

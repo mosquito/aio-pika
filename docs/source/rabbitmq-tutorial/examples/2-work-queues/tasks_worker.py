@@ -8,8 +8,10 @@ from aio_pika.abc import AbstractIncomingMessage
 async def on_message(message: AbstractIncomingMessage) -> None:
     async with message.process():
         print(f" [x] Received message {message!r}")
-        await asyncio.sleep(message.body.count(b'.'))
+        await asyncio.sleep(message.body.count(b"."))
         print(f"     Message body is: {message.body!r}")
+
+
 # docs: end-on-message
 
 

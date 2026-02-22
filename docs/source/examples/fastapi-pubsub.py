@@ -32,7 +32,8 @@ async def publish_message(message: str) -> dict:
 @app.get("/consume")
 async def consume_message() -> dict:
     queue = await app.state.channel.declare_queue(
-        "test_queue", auto_delete=True,
+        "test_queue",
+        auto_delete=True,
     )
     message = await queue.get(timeout=5, fail=False)
 

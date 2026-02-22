@@ -6,8 +6,11 @@ import aiormq
 from pamqp.common import Arguments
 
 from .abc import (
-    AbstractChannel, AbstractExchange, AbstractRobustExchange,
-    ExchangeParamType, TimeoutType,
+    AbstractChannel,
+    AbstractExchange,
+    AbstractRobustExchange,
+    ExchangeParamType,
+    TimeoutType,
 )
 from .exchange import Exchange, ExchangeType
 from .log import get_logger
@@ -17,7 +20,7 @@ log = get_logger(__name__)
 
 
 class RobustExchange(Exchange, AbstractRobustExchange):
-    """ Exchange abstraction """
+    """Exchange abstraction"""
 
     _bindings: Dict[Union[AbstractExchange, str], Dict[str, Any]]
 
@@ -99,7 +102,10 @@ class RobustExchange(Exchange, AbstractRobustExchange):
         timeout: TimeoutType = None,
     ) -> aiormq.spec.Exchange.UnbindOk:
         result = await super().unbind(
-            exchange, routing_key, arguments=arguments, timeout=timeout,
+            exchange,
+            routing_key,
+            arguments=arguments,
+            timeout=timeout,
         )
         self._bindings.pop(exchange, None)
         return result
