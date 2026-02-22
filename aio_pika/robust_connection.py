@@ -1,6 +1,6 @@
 import asyncio
 from ssl import SSLContext
-from typing import Any, Optional, Tuple, Type, Union
+from typing import Any, Optional, Tuple, Type, TypeVar, Union
 from weakref import WeakSet
 
 import aiormq.abc
@@ -20,6 +20,7 @@ from .tools import CallbackCollection
 
 
 log = get_logger(__name__)
+CT = TypeVar("CT", bound=AbstractRobustConnection)
 
 
 class RobustConnection(Connection, AbstractRobustConnection):
@@ -245,9 +246,9 @@ async def connect_robust(
     ssl_context: Optional[SSLContext] = None,
     timeout: TimeoutType = None,
     client_properties: Optional[FieldTable] = None,
-    connection_class: Type[AbstractRobustConnection] = RobustConnection,
+    connection_class: Type[CT] = RobustConnection,
     **kwargs: Any,
-) -> AbstractRobustConnection:
+) -> CT:
 
     """Make connection to the broker.
 
@@ -330,7 +331,7 @@ async def connect_robust(
 
     """
 
-    connection: AbstractRobustConnection = connection_class(
+    connection: CT = connection_class(
         make_url(
             url,
             host=host,
