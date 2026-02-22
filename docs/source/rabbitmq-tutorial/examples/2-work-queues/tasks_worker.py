@@ -10,6 +10,8 @@ async def on_message(message: AbstractIncomingMessage) -> None:
         print(f" [x] Received message {message!r}")
         await asyncio.sleep(message.body.count(b"."))
         print(f"     Message body is: {message.body!r}")
+
+
 # docs: end-on-message
 
 
