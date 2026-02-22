@@ -23,7 +23,7 @@ from .tools import CallbackCollection
 
 
 log = get_logger(__name__)
-T = TypeVar("T")
+CT = TypeVar("CT", bound=AbstractConnection)
 
 
 class Connection(AbstractConnection):
@@ -296,9 +296,9 @@ async def connect(
     ssl_context: Optional[SSLContext] = None,
     timeout: TimeoutType = None,
     client_properties: Optional[FieldTable] = None,
-    connection_class: Type[AbstractConnection] = Connection,
+    connection_class: Type[CT] = Connection,
     **kwargs: Any,
-) -> AbstractConnection:
+) -> CT:
     """ Make connection to the broker.
 
     Example:
@@ -379,7 +379,7 @@ async def connect(
 
     """
 
-    connection: AbstractConnection = connection_class(
+    connection: CT = connection_class(
         make_url(
             url,
             host=host,
