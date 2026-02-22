@@ -96,14 +96,17 @@ class TestCase:
         await rpc.close()
 
     async def test_send_unknown_message(
-        self, channel: aio_pika.Channel, caplog,
+        self,
+        channel: aio_pika.Channel,
+        caplog,
     ):
         rpc = await RPC.create(channel, auto_delete=True)
 
         body = b"test body"
         with caplog.at_level(logging.WARNING, logger=rpc_logger.name):
             await channel.default_exchange.publish(
-                Message(body), routing_key=rpc.result_queue.name,
+                Message(body),
+                routing_key=rpc.result_queue.name,
             )
 
             await asyncio.sleep(0.5)
@@ -125,7 +128,8 @@ class TestCase:
 
         with caplog.at_level(logging.WARNING, logger=rpc_logger.name):
             await channel.default_exchange.publish(
-                Message(body), routing_key="should-returned",
+                Message(body),
+                routing_key="should-returned",
             )
 
             await asyncio.sleep(0.5)
@@ -147,7 +151,9 @@ class TestCase:
         await rpc.close()
 
     async def test_close_cancelling(
-        self, channel: aio_pika.Channel, event_loop,
+        self,
+        channel: aio_pika.Channel,
+        event_loop,
     ):
         rpc = await RPC.create(channel, auto_delete=True)
 
@@ -180,7 +186,9 @@ class TestCase:
 
         with pytest.raises(RuntimeError):
             await rpc.register(
-                "test.sleeper", bypass, auto_delete=True,
+                "test.sleeper",
+                bypass,
+                auto_delete=True,
             )
 
         await rpc.register("test.one", rpc_func, auto_delete=True)
@@ -202,7 +210,7 @@ class TestCase:
         with pytest.deprecated_call():
             await rpc.register(
                 "test.non-coroutine",
-                bypass,         # type: ignore
+                bypass,  # type: ignore
                 auto_delete=True,
             )
 
@@ -235,6 +243,7 @@ class TestCase:
         async def bad_func():
             async def inner():
                 await asyncio.sleep(0)
+
             return inner()
 
         await rpc.register(

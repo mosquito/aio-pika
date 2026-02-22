@@ -22,7 +22,8 @@ async def main() -> None:
         # Or using create_task method
         for task_id in range(1000):
             await master.create_task(
-                "my_task_name", kwargs=dict(task_id=task_id),
+                "my_task_name",
+                kwargs=dict(task_id=task_id),
             )
 
 

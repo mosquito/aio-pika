@@ -96,14 +96,14 @@ def test_headers_set():
     msg = Message(b"", headers={"header": "value"})
 
     data = (
-        ["header-1", 42,  42],
+        ["header-1", 42, 42],
         ["header-2", b"foo", b"foo"],
         ["header-3", b"\00", b"\00"],
         ["header-4", {"foo": "bar"}, {"foo": "bar"}],
     )
 
-    for name, src, value in data:           # type: ignore
-        msg.headers[name] = value           # type: ignore
-        assert msg.headers[name] == value   # type: ignore
+    for name, src, value in data:  # type: ignore
+        msg.headers[name] = value  # type: ignore
+        assert msg.headers[name] == value  # type: ignore
 
     assert msg.headers["header"] == "value"

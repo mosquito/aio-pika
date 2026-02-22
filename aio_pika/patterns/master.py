@@ -9,8 +9,12 @@ from typing import Any, Awaitable, Mapping, Optional
 import aiormq
 
 from aio_pika.abc import (
-    AbstractChannel, AbstractExchange, AbstractIncomingMessage, AbstractQueue,
-    ConsumerTag, DeliveryMode,
+    AbstractChannel,
+    AbstractExchange,
+    AbstractIncomingMessage,
+    AbstractQueue,
+    ConsumerTag,
+    DeliveryMode,
 )
 from aio_pika.message import Message
 
@@ -43,7 +47,9 @@ class Worker:
     )
 
     def __init__(
-        self, queue: AbstractQueue, consumer_tag: ConsumerTag,
+        self,
+        queue: AbstractQueue,
+        consumer_tag: ConsumerTag,
         loop: asyncio.AbstractEventLoop,
     ):
         self.queue = queue
@@ -51,7 +57,7 @@ class Worker:
         self.loop = loop
 
     def close(self) -> Awaitable[None]:
-        """ Cancel subscription to the channel
+        """Cancel subscription to the channel
 
         :return: :class:`asyncio.Task`
         """
@@ -94,7 +100,7 @@ class Master(Base):
         requeue: bool = True,
         reject_on_redelivered: bool = False,
     ):
-        """ Creates a new :class:`Master` instance.
+        """Creates a new :class:`Master` instance.
 
         :param channel: Initialized instance of :class:`aio_pika.Channel`
         """
@@ -122,7 +128,7 @@ class Master(Base):
         )
 
     def serialize(self, data: Any) -> bytes:
-        """ Serialize data to the bytes.
+        """Serialize data to the bytes.
         Uses `pickle` by default.
         You should overlap this method when you want to change serializer
 
@@ -132,7 +138,7 @@ class Master(Base):
         return super().serialize(data)
 
     def deserialize(self, data: bytes) -> Any:
-        """ Deserialize data from bytes.
+        """Deserialize data from bytes.
         Uses `pickle` by default.
         You should overlap this method when you want to change serializer
 
@@ -143,7 +149,9 @@ class Master(Base):
 
     @classmethod
     async def execute(
-        cls, func: CallbackType, kwargs: Any,
+        cls,
+        func: CallbackType,
+        kwargs: Any,
     ) -> T:
         kwargs = kwargs or {}
 
@@ -154,7 +162,8 @@ class Master(Base):
         return await func(**kwargs)
 
     async def on_message(
-        self, func: CallbackType,
+        self,
+        func: CallbackType,
         message: AbstractIncomingMessage,
     ) -> None:
         async with message.process(
@@ -170,16 +179,19 @@ class Master(Base):
                 await message.nack(requeue=e.requeue)
 
     async def create_queue(
-        self, queue_name: str, **kwargs: Any,
+        self,
+        queue_name: str,
+        **kwargs: Any,
     ) -> AbstractQueue:
         return await self.channel.declare_queue(queue_name, **kwargs)
 
     async def create_worker(
-        self, queue_name: str,
+        self,
+        queue_name: str,
         func: CallbackType,
         **kwargs: Any,
     ) -> Worker:
-        """ Creates a new :class:`Worker` instance. """
+        """Creates a new :class:`Worker` instance."""
         queue = await self.create_queue(queue_name, **kwargs)
         consumer_tag = await queue.consume(
             partial(self.on_message, ensure_awaitable(func)),
@@ -188,12 +200,12 @@ class Master(Base):
         return Worker(queue, consumer_tag, self.loop)
 
     async def create_task(
-        self, channel_name: str,
+        self,
+        channel_name: str,
         kwargs: Mapping[str, Any] = MappingProxyType({}),
         **message_kwargs: Any,
     ) -> Optional[aiormq.abc.ConfirmationFrameType]:
-
-        """ Creates a new task for the worker """
+        """Creates a new task for the worker"""
         message = Message(
             body=self.serialize(kwargs),
             content_type=self.CONTENT_TYPE,
@@ -202,7 +214,9 @@ class Master(Base):
         )
 
         return await self.exchange.publish(
-            message, channel_name, mandatory=True,
+            message,
+            channel_name,
+            mandatory=True,
         )
 
 

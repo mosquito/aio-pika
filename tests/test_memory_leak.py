@@ -73,7 +73,8 @@ async def test_get_exchange_no_memory_leak(create_robust_connection):
 
         # Declare the exchange
         exchange = await channel.declare_exchange(
-            name, auto_delete=True,
+            name,
+            auto_delete=True,
         )
         weakset.add(exchange)
 
@@ -89,8 +90,7 @@ async def test_get_exchange_no_memory_leak(create_robust_connection):
         assert name in channel._exchanges
         # Should be a single exchange, not a set/list of exchanges
         assert isinstance(
-            channel._exchanges[name],
-            aio_pika.abc.AbstractExchange
+            channel._exchanges[name], aio_pika.abc.AbstractExchange
         )
 
 
@@ -111,7 +111,8 @@ async def test_get_queue_no_memory_leak(create_robust_connection):
 
         # Declare the queue
         queue = await channel.declare_queue(
-            name, auto_delete=True,
+            name,
+            auto_delete=True,
         )
         weakset.add(queue)
 

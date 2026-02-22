@@ -12,9 +12,9 @@ async def main() -> None:
         # Creating a channel
         channel = await connection.channel()
 
-        message_body = b" ".join(
-            arg.encode() for arg in sys.argv[1:]
-        ) or b"Hello World!"
+        message_body = (
+            b" ".join(arg.encode() for arg in sys.argv[1:]) or b"Hello World!"
+        )
 
         # Sending the message
         await channel.default_exchange.publish(

@@ -14,14 +14,15 @@ async def main() -> None:
 
         # docs: begin-declare-exchange
         logs_exchange = await channel.declare_exchange(
-            "logs", ExchangeType.FANOUT,
+            "logs",
+            ExchangeType.FANOUT,
         )
         # docs: end-declare-exchange
 
         # docs: begin-publish-message
-        message_body = b" ".join(
-            arg.encode() for arg in sys.argv[1:]
-        ) or b"Hello World!"
+        message_body = (
+            b" ".join(arg.encode() for arg in sys.argv[1:]) or b"Hello World!"
+        )
 
         message = Message(
             message_body,

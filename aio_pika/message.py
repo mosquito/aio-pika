@@ -10,8 +10,15 @@ from aiormq.abc import DeliveredMessage
 from pamqp.common import FieldValue
 
 from .abc import (
-    MILLISECONDS, AbstractChannel, AbstractIncomingMessage, AbstractMessage,
-    AbstractProcessContext, DateType, DeliveryMode, HeadersType, MessageInfo,
+    MILLISECONDS,
+    AbstractChannel,
+    AbstractIncomingMessage,
+    AbstractMessage,
+    AbstractProcessContext,
+    DateType,
+    DeliveryMode,
+    HeadersType,
+    MessageInfo,
     NoneType,
 )
 from .exceptions import ChannelInvalidStateError, MessageProcessError
@@ -118,11 +125,11 @@ def optional(
     func: Union[Callable[[V], T], Type[T]],
     default: Optional[D] = None,
 ) -> Union[T, D]:
-    return func(value) if value else default    # type: ignore
+    return func(value) if value else default  # type: ignore
 
 
 class Message(AbstractMessage):
-    """ AMQP message abstraction """
+    """AMQP message abstraction"""
 
     __slots__ = (
         "app_id",
@@ -162,8 +169,7 @@ class Message(AbstractMessage):
         user_id: Optional[str] = None,
         app_id: Optional[str] = None,
     ):
-
-        """ Creates a new instance of Message
+        """Creates a new instance of Message
 
         :param body: message body
         :param headers: message headers
@@ -189,7 +195,9 @@ class Message(AbstractMessage):
         self.content_encoding = content_encoding
         self.delivery_mode: DeliveryMode = DeliveryMode(
             optional(
-                delivery_mode, int, DeliveryMode.NOT_PERSISTENT,
+                delivery_mode,
+                int,
+                DeliveryMode.NOT_PERSISTENT,
             ),
         )
         self.priority = optional(priority, int, 0)
@@ -248,7 +256,7 @@ class Message(AbstractMessage):
 
     @property
     def locked(self) -> bool:
-        """ is message locked
+        """is message locked
 
         :return: :class:`bool`
         """
@@ -256,7 +264,7 @@ class Message(AbstractMessage):
 
     @property
     def properties(self) -> aiormq.spec.Basic.Properties:
-        """ Build :class:`aiormq.spec.Basic.Properties` object """
+        """Build :class:`aiormq.spec.Basic.Properties` object"""
         return aiormq.spec.Basic.Properties(
             app_id=self.app_id,
             content_encoding=self.content_encoding,
@@ -275,7 +283,8 @@ class Message(AbstractMessage):
 
     def __repr__(self) -> str:
         return "{name}:{repr}".format(
-            name=self.__class__.__name__, repr=pformat(self.info()),
+            name=self.__class__.__name__,
+            repr=pformat(self.info()),
         )
 
     def __setattr__(self, key: str, value: FieldValue) -> None:
@@ -288,7 +297,7 @@ class Message(AbstractMessage):
         return iter(self.body)
 
     def lock(self) -> None:
-        """ Set lock flag to `True`"""
+        """Set lock flag to `True`"""
         self.__lock = True
 
     def __copy__(self) -> "Message":
@@ -311,7 +320,7 @@ class Message(AbstractMessage):
 
 
 class IncomingMessage(Message, AbstractIncomingMessage):
-    """ Incoming message is seems like Message but has additional methods for
+    """Incoming message is seems like Message but has additional methods for
     message acknowledgement.
 
     Depending on the acknowledgement mode used, RabbitMQ can consider a
@@ -350,7 +359,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
     )
 
     def __init__(self, message: DeliveredMessage, no_ack: bool = False):
-        """ Create an instance of :class:`IncomingMessage` """
+        """Create an instance of :class:`IncomingMessage`"""
 
         self.__channel = message.channel
         self.__no_ack = no_ack
@@ -397,7 +406,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
         reject_on_redelivered: bool = False,
         ignore_processed: bool = False,
     ) -> AbstractProcessContext:
-        """ Context manager for processing the message
+        """Context manager for processing the message
 
             >>> async def on_message_received(message: IncomingMessage):
             ...    async with message.process():
@@ -430,7 +439,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
         )
 
     async def ack(self, multiple: bool = False) -> None:
-        """ Send basic.ack is used for positive acknowledgements
+        """Send basic.ack is used for positive acknowledgements
 
         .. note::
             This method looks like a blocking-method, but actually it just
@@ -451,7 +460,8 @@ class IncomingMessage(Message, AbstractIncomingMessage):
 
         if self.delivery_tag is not None:
             await self.channel.basic_ack(
-                delivery_tag=self.delivery_tag, multiple=multiple,
+                delivery_tag=self.delivery_tag,
+                multiple=multiple,
             )
 
         self.__processed = True
@@ -460,7 +470,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             self.lock()
 
     async def reject(self, requeue: bool = False) -> None:
-        """ When `requeue=True` the message will be returned to queue.
+        """When `requeue=True` the message will be returned to queue.
         Otherwise, message will be dropped.
 
         .. note::
@@ -487,7 +497,9 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             self.lock()
 
     async def nack(
-        self, multiple: bool = False, requeue: bool = True,
+        self,
+        multiple: bool = False,
+        requeue: bool = True,
     ) -> None:
 
         if not self.channel.connection.basic_nack:
@@ -512,7 +524,7 @@ class IncomingMessage(Message, AbstractIncomingMessage):
             self.lock()
 
     def info(self) -> MessageInfo:
-        """ Method returns dict representation of the message """
+        """Method returns dict representation of the message"""
 
         info = super().info()
         info["cluster_id"] = self.cluster_id
@@ -585,4 +597,8 @@ class ProcessContext(AbstractProcessContext):
                 log.warning("Reject is not sent since channel is closed")
 
 
-__all__ = "Message", "IncomingMessage", "ReturnedMessage",
+__all__ = (
+    "Message",
+    "IncomingMessage",
+    "ReturnedMessage",
+)

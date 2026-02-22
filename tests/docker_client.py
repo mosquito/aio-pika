@@ -16,6 +16,7 @@ class DockerNotAvailableError(Exception):
 @dataclass
 class DockerHostInfo:
     """Parsed DOCKER_HOST connection info."""
+
     is_tcp: bool
     # For Unix socket
     socket_path: str | None = None
@@ -177,13 +178,17 @@ class DockerClient:
         return UnixHTTPConnection(self.docker_host_info.socket_path)
 
     def _request(
-        self, method: str, path: str, body: dict | None = None,
+        self,
+        method: str,
+        path: str,
+        body: dict | None = None,
     ) -> dict | list | None:
         conn = self._get_connection()
         try:
             headers = {"Content-Type": "application/json"} if body else {}
             conn.request(
-                method, path,
+                method,
+                path,
                 body=json.dumps(body) if body else None,
                 headers=headers,
             )
@@ -224,7 +229,9 @@ class DockerClient:
         self._request_stream("POST", path)
 
     def create(
-        self, image: str, ports: list[str],
+        self,
+        image: str,
+        ports: list[str],
         environment: dict[str, str] | None = None,
     ) -> str:
         """Create a container and return its ID."""
@@ -291,7 +298,9 @@ class DockerClient:
         return ports
 
     def run(
-        self, image: str, ports: list[str],
+        self,
+        image: str,
+        ports: list[str],
         environment: dict[str, str] | None = None,
     ) -> ContainerInfo:
         """Pull, create, start, inspect - return ContainerInfo."""

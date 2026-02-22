@@ -92,7 +92,10 @@ class TestCase:
         await collection()
 
     async def test_awaitable_callback(
-        self, event_loop, collection, instance,
+        self,
+        event_loop,
+        collection,
+        instance,
     ):
         future = event_loop.create_future()
 
@@ -114,7 +117,10 @@ class TestCase:
         assert await future == instance
 
     async def test_collection_create_tasks(
-        self, event_loop, collection, instance,
+        self,
+        event_loop,
+        collection,
+        instance,
     ):
         future = event_loop.create_future()
 
@@ -162,6 +168,7 @@ class TestEnsureAwaitable:
     async def test_coroutine(self):
         async def square(x):
             return x * x
+
         func = ensure_awaitable(square)
         assert await func(2) == 4
         assert await func(4) == 16

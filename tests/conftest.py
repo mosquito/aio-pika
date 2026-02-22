@@ -104,7 +104,8 @@ def docker() -> Generator[Callable[..., ContainerInfo], Any, Any]:
     _docker_client = DockerClient(_docker_host_info)
 
     def docker_run(
-        image: str, ports: list[str],
+        image: str,
+        ports: list[str],
         environment: dict[str, str] | None = None,
     ) -> ContainerInfo:
         info = _docker_client.run(image, ports, environment=environment)
@@ -142,7 +143,10 @@ def rabbitmq_container(docker) -> ContainerInfo:
 @pytest.fixture(scope="session")
 def amqp_direct_url(rabbitmq_container: ContainerInfo) -> URL:
     return URL.build(
-        scheme="amqp", user="guest", password="guest", path="//",
+        scheme="amqp",
+        user="guest",
+        password="guest",
+        path="//",
         host=rabbitmq_container.host,
         port=rabbitmq_container.ports["5672/tcp"],
     )
@@ -195,7 +199,7 @@ async def connection(create_connection) -> aio_pika.Connection:  # type: ignore
 
 # noinspection PyTypeChecker
 @pytest.fixture
-async def channel(      # type: ignore
+async def channel(  # type: ignore
     connection: aio_pika.Connection,
 ) -> aio_pika.Channel:
     async with connection.channel() as ch:
@@ -207,7 +211,10 @@ def declare_queue(connection, channel, add_cleanup):
     ch = channel
 
     async def fabric(
-        *args, cleanup=True, channel=None, **kwargs,
+        *args,
+        cleanup=True,
+        channel=None,
+        **kwargs,
     ) -> aio_pika.Queue:
         if channel is None:
             channel = ch
@@ -227,7 +234,10 @@ def declare_exchange(connection, channel, add_cleanup):
     ch = channel
 
     async def fabric(
-        *args, channel=None, cleanup=True, **kwargs,
+        *args,
+        channel=None,
+        cleanup=True,
+        **kwargs,
     ) -> aio_pika.Exchange:
         if channel is None:
             channel = ch
@@ -264,7 +274,9 @@ def memory_tracer():
         snapshot_after = tracemalloc.take_snapshot().filter_traces(filters)
 
         top_stats = snapshot_after.compare_to(
-            snapshot_before, "lineno", cumulative=True,
+            snapshot_before,
+            "lineno",
+            cumulative=True,
         )
 
         assert not top_stats

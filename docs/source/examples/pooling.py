@@ -23,7 +23,9 @@ async def main() -> None:
             await channel.set_qos(10)
 
             queue = await channel.declare_queue(
-                queue_name, durable=False, auto_delete=False,
+                queue_name,
+                durable=False,
+                auto_delete=False,
             )
 
             async with queue.iterator() as queue_iter:

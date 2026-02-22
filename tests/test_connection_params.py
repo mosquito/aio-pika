@@ -44,11 +44,11 @@ VALUE_GENERATORS = {
         "1000:": 0,
     },
     float: {
-        "0": 0.,
-        "0.0": 0.,
-        ".0": 0.,
+        "0": 0.0,
+        "0.0": 0.0,
+        ".0": 0.0,
         "0.1": 0.1,
-        "1": 1.,
+        "1": 1.0,
         "hello": None,
     },
 }
@@ -58,8 +58,10 @@ class TestCase:
     CONNECTION_CLASS: Type[AbstractConnection] = MockConnection
 
     async def get_instance(self, url, **kwargs) -> AbstractConnection:
-        return await connect(       # type: ignore
-            url, connection_class=self.CONNECTION_CLASS, **kwargs,
+        return await connect(  # type: ignore
+            url,
+            connection_class=self.CONNECTION_CLASS,
+            **kwargs,
         )
 
     async def test_kwargs(self):
@@ -70,9 +72,8 @@ class TestCase:
                 continue
 
             assert hasattr(instance, parameter.name)
-            assert (
-                getattr(instance, parameter.name) is
-                parameter.parse(parameter.default)
+            assert getattr(instance, parameter.name) is parameter.parse(
+                parameter.default
             )
 
     async def test_kwargs_values(self):
@@ -92,7 +93,8 @@ class TestCase:
                     assert getattr(instance, parameter.name) == expected
 
                     instance = await self.get_instance(
-                        "amqp://localhost", **{parameter.name: example},
+                        "amqp://localhost",
+                        **{parameter.name: example},
                     )
                     assert hasattr(instance, parameter.name)
                     assert getattr(instance, parameter.name) == expected
@@ -102,7 +104,7 @@ class TestCaseRobust(TestCase):
     CONNECTION_CLASS: Type[MockConnectionRobust] = MockConnectionRobust
 
     async def get_instance(self, url, **kwargs) -> AbstractConnection:
-        return await connect_robust(        # type: ignore
+        return await connect_robust(  # type: ignore
             url,
             connection_class=self.CONNECTION_CLASS,  # type: ignore
             **kwargs,

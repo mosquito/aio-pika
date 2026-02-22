@@ -7,8 +7,21 @@ from functools import wraps
 from itertools import chain
 from threading import Lock
 from typing import (
-    AbstractSet, Any, Awaitable, Callable, Coroutine, Generator, Generic,
-    Iterator, List, MutableSet, Optional, ParamSpec, Protocol, TypeVar, Union,
+    AbstractSet,
+    Any,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Generator,
+    Generic,
+    Iterator,
+    List,
+    MutableSet,
+    Optional,
+    ParamSpec,
+    Protocol,
+    TypeVar,
+    Union,
 )
 from weakref import ReferenceType, WeakSet, ref
 
@@ -80,8 +93,7 @@ class CallbackType(Protocol[_Sender, _Params, _Return]):
         /,
         *args: _Params.args,
         **kwargs: _Params.kwargs,
-    ) -> Union[_Return, Awaitable[_Return]]:
-        ...
+    ) -> Union[_Return, Awaitable[_Return]]: ...
 
 
 class StubAwaitable:
@@ -133,7 +145,7 @@ class CallbackCollection(
             CallbackType[_Sender, _Params, Any],
             CallbackCollection[Any, _Params],
         ],
-        weak: bool = False
+        weak: bool = False,
     ) -> None:
         if self.is_frozen:
             raise RuntimeError("Collection frozen")
@@ -144,7 +156,7 @@ class CallbackCollection(
             if weak or isinstance(callback, CallbackCollection):
                 self.__weak_callbacks.add(callback)
             else:
-                self.__callbacks.add(callback)      # type: ignore
+                self.__callbacks.add(callback)  # type: ignore
 
     def remove(
         self,
@@ -158,7 +170,7 @@ class CallbackCollection(
 
         with self.__lock:
             try:
-                self.__callbacks.remove(callback)    # type: ignore
+                self.__callbacks.remove(callback)  # type: ignore
             except KeyError:
                 self.__weak_callbacks.remove(callback)
 
@@ -174,7 +186,7 @@ class CallbackCollection(
 
         with self.__lock:
             if callback in self.__callbacks:
-                self.__callbacks.remove(callback)    # type: ignore
+                self.__callbacks.remove(callback)  # type: ignore
             elif callback in self.__weak_callbacks:
                 self.__weak_callbacks.remove(callback)
 
@@ -183,7 +195,7 @@ class CallbackCollection(
             raise RuntimeError("Collection frozen")
 
         with self.__lock:
-            self.__callbacks.clear()        # type: ignore
+            self.__callbacks.clear()  # type: ignore
             self.__weak_callbacks.clear()
 
     @property
@@ -212,7 +224,9 @@ class CallbackCollection(
     def __len__(self) -> int:
         return len(self.__callbacks) + len(self.__weak_callbacks)
 
-    def __iter__(self) -> Iterator[
+    def __iter__(
+        self,
+    ) -> Iterator[
         Union[
             CallbackType[_Sender, _Params, Any],
             CallbackCollection[_Sender, _Params],
@@ -348,7 +362,7 @@ def ensure_awaitable(
 
     @wraps(func)
     async def wrapper(*args: _Params.args, **kwargs: _Params.kwargs) -> T:
-        nonlocal func       # noqa
+        nonlocal func  # noqa
 
         result = func(*args, **kwargs)
         if not hasattr(result, "__await__"):

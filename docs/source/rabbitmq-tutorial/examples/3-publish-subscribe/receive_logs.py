@@ -20,7 +20,8 @@ async def main() -> None:
 
         # docs: begin-exchange-and-binding
         logs_exchange = await channel.declare_exchange(
-            "logs", ExchangeType.FANOUT,
+            "logs",
+            ExchangeType.FANOUT,
         )
 
         # Declaring queue

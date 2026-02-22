@@ -3,7 +3,11 @@ from typing import Any, List
 
 import aio_pika
 from aio_pika.patterns.master import (
-    CompressedJsonMaster, JsonMaster, Master, NackMessage, RejectMessage,
+    CompressedJsonMaster,
+    JsonMaster,
+    Master,
+    NackMessage,
+    RejectMessage,
 )
 
 
@@ -21,7 +25,9 @@ class TestMaster:
             event.set()
 
         worker = await master.create_worker(
-            "worker.foo", worker_func, auto_delete=True,
+            "worker.foo",
+            worker_func,
+            auto_delete=True,
         )
 
         await master.proxy.worker.foo(foo=1, bar=2)
@@ -43,7 +49,9 @@ class TestMaster:
             event.set()
 
         worker = await master.create_worker(
-            "worker.foo", worker_func, auto_delete=True,
+            "worker.foo",
+            worker_func,
+            auto_delete=True,
         )
 
         await master.proxy.worker.foo(foo=1, bar=2)
@@ -66,7 +74,9 @@ class TestMaster:
             tasks -= 1
 
         worker = await master.create_worker(
-            "worker.foo", worker_func, auto_delete=True,
+            "worker.foo",
+            worker_func,
+            auto_delete=True,
         )
 
         for item in range(100):
@@ -97,7 +107,9 @@ class TestMaster:
             self.state.append(foo)
 
         worker = await master.create_worker(
-            "worker.foo", worker_func, auto_delete=True,
+            "worker.foo",
+            worker_func,
+            auto_delete=True,
         )
 
         for item in range(200):
