@@ -12,7 +12,6 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -37,8 +36,6 @@ from .tools import CallbackCollection
 
 
 log = get_logger(__name__)
-T = TypeVar("T")
-ConnectionType = TypeVar("ConnectionType", bound=AbstractConnection)
 
 
 class Connection(AbstractConnection):
@@ -99,7 +96,7 @@ class Connection(AbstractConnection):
     def __init__(
         self,
         url: URL,
-        loop: Optional[asyncio.AbstractEventLoop] = None,
+        loop: asyncio.AbstractEventLoop | None = None,
         ssl_context: SSLContext | None = None,
         client_properties: FieldTable | None = None,
         **kwargs: Any,
@@ -317,45 +314,53 @@ def make_url(
     )
 
 
-@overload
-async def connect(
-    url: Union[str, URL, None] = None,
-    *,
-    host: str = "localhost",
-    port: int = 5672,
-    login: str = "guest",
-    password: str = "guest",
-    virtualhost: str = "/",
-    ssl: bool = False,
-    loop: Optional[asyncio.AbstractEventLoop] = None,
-    ssl_options: Optional[SSLOptions] = None,
-    ssl_context: Optional[SSLContext] = None,
-    timeout: TimeoutType = None,
-    client_properties: Optional[FieldTable] = None,
-) -> Connection: ...
+ConnectionType = TypeVar(
+    "ConnectionType",
+    bound=AbstractConnection,
+)
 
 
 @overload
 async def connect(
-    url: Union[str, URL, None] = None,
+    url: str | URL | None = ...,
     *,
-    host: str = "localhost",
-    port: int = 5672,
-    login: str = "guest",
-    password: str = "guest",
-    virtualhost: str = "/",
-    ssl: bool = False,
-    loop: Optional[asyncio.AbstractEventLoop] = None,
-    ssl_options: Optional[SSLOptions] = None,
-    ssl_context: Optional[SSLContext] = None,
-    timeout: TimeoutType = None,
-    client_properties: Optional[FieldTable] = None,
-    connection_class: Type[ConnectionType] = ...,
+    host: str = ...,
+    port: int = ...,
+    login: str = ...,
+    password: str = ...,
+    virtualhost: str = ...,
+    ssl: bool = ...,
+    loop: asyncio.AbstractEventLoop | None = ...,
+    ssl_options: SSLOptions | None = ...,
+    ssl_context: SSLContext | None = ...,
+    timeout: TimeoutType = ...,
+    client_properties: FieldTable | None = ...,
+    connection_class: type[ConnectionType],
+    **kwargs: Any,
 ) -> ConnectionType: ...
 
 
+@overload
 async def connect(
-    url: Union[str, URL, None] = None,
+    url: str | URL | None = ...,
+    *,
+    host: str = ...,
+    port: int = ...,
+    login: str = ...,
+    password: str = ...,
+    virtualhost: str = ...,
+    ssl: bool = ...,
+    loop: asyncio.AbstractEventLoop | None = ...,
+    ssl_options: SSLOptions | None = ...,
+    ssl_context: SSLContext | None = ...,
+    timeout: TimeoutType = ...,
+    client_properties: FieldTable | None = ...,
+    **kwargs: Any,
+) -> Connection: ...
+
+
+async def connect(
+    url: str | URL | None = None,
     *,
     host: str = "localhost",
     port: int = 5672,
@@ -363,11 +368,11 @@ async def connect(
     password: str = "guest",
     virtualhost: str = "/",
     ssl: bool = False,
-    loop: Optional[asyncio.AbstractEventLoop] = None,
-    ssl_options: Optional[SSLOptions] = None,
-    ssl_context: Optional[SSLContext] = None,
+    loop: asyncio.AbstractEventLoop | None = None,
+    ssl_options: SSLOptions | None = None,
+    ssl_context: SSLContext | None = None,
     timeout: TimeoutType = None,
-    client_properties: Optional[FieldTable] = None,
+    client_properties: FieldTable | None = None,
     connection_class: Type[AbstractConnection] = Connection,
     **kwargs: Any,
 ) -> AbstractConnection:
@@ -451,7 +456,7 @@ async def connect(
 
     """
 
-    connection: AbstractConnection = connection_class(
+    connection = connection_class(
         make_url(
             url,
             host=host,
