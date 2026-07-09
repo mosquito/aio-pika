@@ -22,11 +22,6 @@ from .robust_channel import RobustChannel
 from .tools import CallbackCollection
 
 
-RobustConnectionType = TypeVar(
-    "RobustConnectionType",
-    bound=AbstractRobustConnection,
-)
-
 log = get_logger(__name__)
 
 
@@ -263,41 +258,50 @@ class RobustConnection(Connection, AbstractRobustConnection):
         return await super().close(exc)
 
 
-@overload
-async def connect_robust(
-    url: Union[str, URL, None] = None,
-    *,
-    host: str = "localhost",
-    port: int = 5672,
-    login: str = "guest",
-    password: str = "guest",
-    virtualhost: str = "/",
-    ssl: bool = False,
-    loop: Optional[asyncio.AbstractEventLoop] = None,
-    ssl_options: Optional[SSLOptions] = None,
-    ssl_context: Optional[SSLContext] = None,
-    timeout: TimeoutType = None,
-    client_properties: Optional[FieldTable] = None,
-) -> RobustConnection: ...
+RobustConnectionType = TypeVar(
+    "RobustConnectionType",
+    bound=AbstractRobustConnection,
+    default=RobustConnection,
+)
 
 
 @overload
 async def connect_robust(
-    url: Union[str, URL, None] = None,
+    url: Union[str, URL, None] = ...,
     *,
-    host: str = "localhost",
-    port: int = 5672,
-    login: str = "guest",
-    password: str = "guest",
-    virtualhost: str = "/",
-    ssl: bool = False,
-    loop: Optional[asyncio.AbstractEventLoop] = None,
-    ssl_options: Optional[SSLOptions] = None,
-    ssl_context: Optional[SSLContext] = None,
-    timeout: TimeoutType = None,
-    client_properties: Optional[FieldTable] = None,
+    host: str = ...,
+    port: int = ...,
+    login: str = ...,
+    password: str = ...,
+    virtualhost: str = ...,
+    ssl: bool = ...,
+    loop: Optional[asyncio.AbstractEventLoop] = ...,
+    ssl_options: Optional[SSLOptions] = ...,
+    ssl_context: Optional[SSLContext] = ...,
+    timeout: TimeoutType = ...,
+    client_properties: Optional[FieldTable] = ...,
     connection_class: Type[RobustConnectionType] = ...,
+    **kwargs: Any,
 ) -> RobustConnectionType: ...
+
+
+@overload
+async def connect_robust(
+    url: Union[str, URL, None] = ...,
+    *,
+    host: str = ...,
+    port: int = ...,
+    login: str = ...,
+    password: str = ...,
+    virtualhost: str = ...,
+    ssl: bool = ...,
+    loop: Optional[asyncio.AbstractEventLoop] = ...,
+    ssl_options: Optional[SSLOptions] = ...,
+    ssl_context: Optional[SSLContext] = ...,
+    timeout: TimeoutType = ...,
+    client_properties: Optional[FieldTable] = ...,
+    **kwargs: Any,
+) -> RobustConnection: ...
 
 
 async def connect_robust(
@@ -398,7 +402,7 @@ async def connect_robust(
 
     """
 
-    connection: AbstractRobustConnection = connection_class(
+    connection = connection_class(
         make_url(
             url,
             host=host,
