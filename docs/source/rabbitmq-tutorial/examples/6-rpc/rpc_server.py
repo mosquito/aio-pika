@@ -27,7 +27,7 @@ async def main() -> None:
 
     print(" [x] Awaiting RPC requests")
 
-    # Start listening the queue with name 'hello'
+    # Start listening the queue with name 'rpc_queue'
     async with queue.iterator() as qiterator:
         message: AbstractIncomingMessage
         async for message in qiterator:
