@@ -44,7 +44,28 @@ async def consumer(
     no_ack: bool,
 ) -> Any:
     message = IncomingMessage(msg, no_ack=no_ack)
-    return await create_task(callback, message)
+    try:
+        return await create_task(callback, message)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        # aiormq wraps this coroutine in an asyncio.Task via
+        # ``Channel._on_deliver_frame``; any uncaught exception there is
+        # reported as ``Task exception was never retrieved`` and the
+        # exception itself is lost.  Log it explicitly so callers (e.g.
+        # taskiq workers) can diagnose why prefetched messages appear to
+        # get stuck after a network error.  See issue #688.
+        log.error(
+            "Consumer callback %r raised an exception: %s: %s",
+            callback,
+            type(exc).__name__,
+            exc,
+        )
+        log.debug(
+            "Full traceback for consumer callback %r error",
+            callback,
+            exc_info=True,
+        )
 
 
 class Queue(AbstractQueue):
