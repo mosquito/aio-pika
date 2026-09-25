@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Callable, Optional, List
 from unittest import mock
 
+import aiormq.abc
 import aiormq.exceptions
 import pytest
 import shortuuid
@@ -318,6 +319,42 @@ class TestCaseAmqp(TestCaseAmqpBase):
         assert incoming_message.body == body
 
         await queue.unbind(exchange, routing_key)
+
+    async def test_publish_result_with_confirms(
+        self,
+        connection: aio_pika.Connection,
+        declare_queue: Callable,
+    ):
+        channel = await connection.channel(
+            publisher_confirms=True,
+            on_return_raises=False,
+        )
+        queue = await declare_queue(auto_delete=True, channel=channel)
+        body = bytes(shortuuid.uuid(), "utf-8")
+
+        routed = await channel.default_exchange.publish(
+            Message(body),
+            routing_key=queue.name,
+        )
+        assert isinstance(routed, aiormq.spec.Basic.Ack)
+
+        returned = await channel.default_exchange.publish(
+            Message(body),
+            routing_key=get_random_name("unroutable"),
+            mandatory=True,
+        )
+        assert isinstance(returned, aiormq.abc.DeliveredMessage)
+        assert returned.body == body
+
+        # The annotation makes mypy check the mandatory=False overload.
+        dropped: (
+            aiormq.spec.Basic.Ack | None
+        ) = await channel.default_exchange.publish(
+            Message(body),
+            routing_key=get_random_name("unroutable"),
+            mandatory=False,
+        )
+        assert isinstance(dropped, aiormq.spec.Basic.Ack)
 
     async def test_simple_publish_and_receive_delivery_mode_explicitly(
         self,
