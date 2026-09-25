@@ -346,6 +346,16 @@ class TestCaseAmqp(TestCaseAmqpBase):
         assert isinstance(returned, aiormq.abc.DeliveredMessage)
         assert returned.body == body
 
+        # The annotation makes mypy check the mandatory=False overload.
+        dropped: (
+            aiormq.spec.Basic.Ack | None
+        ) = await channel.default_exchange.publish(
+            Message(body),
+            routing_key=get_random_name("unroutable"),
+            mandatory=False,
+        )
+        assert isinstance(dropped, aiormq.spec.Basic.Ack)
+
     async def test_simple_publish_and_receive_delivery_mode_explicitly(
         self,
         channel: aio_pika.Channel,

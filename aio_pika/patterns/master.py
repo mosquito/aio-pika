@@ -204,7 +204,7 @@ class Master(Base):
         channel_name: str,
         kwargs: Mapping[str, Any] = MappingProxyType({}),
         **message_kwargs: Any,
-    ) -> Optional[PublishResultType]:
+    ) -> PublishResultType | None:
         """Creates a new task for the worker"""
         message = Message(
             body=self.serialize(kwargs),

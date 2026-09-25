@@ -1,4 +1,4 @@
-from typing import Optional, Union, cast
+from typing import Literal, Union, cast, overload
 
 import aiormq
 from pamqp.common import Arguments
@@ -166,6 +166,18 @@ class Exchange(AbstractExchange):
             timeout=timeout,
         )
 
+    @overload
+    async def publish(
+        self,
+        message: AbstractMessage,
+        routing_key: str,
+        *,
+        mandatory: Literal[False],
+        immediate: bool = False,
+        timeout: TimeoutType = None,
+    ) -> aiormq.spec.Basic.Ack | None: ...
+
+    @overload
     async def publish(
         self,
         message: AbstractMessage,
@@ -174,7 +186,17 @@ class Exchange(AbstractExchange):
         mandatory: bool = True,
         immediate: bool = False,
         timeout: TimeoutType = None,
-    ) -> Optional[PublishResultType]:
+    ) -> PublishResultType | None: ...
+
+    async def publish(
+        self,
+        message: AbstractMessage,
+        routing_key: str,
+        *,
+        mandatory: bool = True,
+        immediate: bool = False,
+        timeout: TimeoutType = None,
+    ) -> PublishResultType | None:
         """Publish the message to the exchange. `aio-pika` uses the
         `publisher confirms`_ extension for message delivery.
 
@@ -186,11 +208,13 @@ class Exchange(AbstractExchange):
           returns the ``Basic.Ack`` frame. When the broker answers with
           ``Basic.Nack`` or ``Basic.Reject``, raises
           :class:`aio_pika.exceptions.DeliveryError`.
-        * ``mandatory=True`` and the broker can not route the message: with
-          ``on_return_raises=True`` raises
+        * ``mandatory=True`` (default) and the broker can not route the
+          message: with ``on_return_raises=True`` raises
           :class:`aio_pika.exceptions.PublishError`. Otherwise calls
           ``channel.return_callbacks`` and returns the returned
           :class:`aiormq.abc.DeliveredMessage`.
+        * ``mandatory=False``: the broker drops an unroutable message
+          silently, so the result is only ``Basic.Ack`` or ``None``.
 
         .. _publisher confirms: https://www.rabbitmq.com/confirms.html
 
@@ -227,7 +251,7 @@ class Exchange(AbstractExchange):
         # aiormq annotates the result with all confirmation frames, but
         # Basic.Nack and Basic.Reject are raised as DeliveryError, and a
         # Basic.Return yields the DeliveredMessage instead of a frame.
-        return cast(Optional[PublishResultType], result)
+        return cast(PublishResultType | None, result)
 
     async def delete(
         self,
