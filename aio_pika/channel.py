@@ -10,6 +10,7 @@ from typing import (
     Generator,
     Literal,
     Optional,
+    Self,
     Type,
     Union,
 )
@@ -40,7 +41,7 @@ log = get_logger(__name__)
 
 
 class ChannelContext(AsyncContextManager, AbstractChannel, ABC):
-    async def __aenter__(self) -> "AbstractChannel":
+    async def __aenter__(self) -> Self:
         if not self.is_initialized:
             await self.initialize()
         return self
@@ -53,7 +54,7 @@ class ChannelContext(AsyncContextManager, AbstractChannel, ABC):
     ) -> None:
         return await self.close(exc_val)
 
-    def __await__(self) -> Generator[Any, Any, AbstractChannel]:
+    def __await__(self) -> Generator[Any, Any, Self]:
         yield from self.initialize().__await__()
         return self
 
