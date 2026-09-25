@@ -198,7 +198,8 @@ class Exchange(AbstractExchange):
         timeout: TimeoutType = None,
     ) -> PublishResultType | None:
         """Publish the message to the exchange. `aio-pika` uses the
-        `publisher confirms`_ extension for message delivery.
+        `publisher confirms <https://www.rabbitmq.com/confirms.html>`_
+        extension for message delivery.
 
         The result depends on how the channel was opened:
 
@@ -215,9 +216,6 @@ class Exchange(AbstractExchange):
           :class:`aiormq.abc.DeliveredMessage`.
         * ``mandatory=False``: the broker drops an unroutable message
           silently, so the result is only ``Basic.Ack`` or ``None``.
-
-        .. _publisher confirms: https://www.rabbitmq.com/confirms.html
-
         """
 
         log.debug(
