@@ -20,6 +20,7 @@ from typing import (
     Literal,
     Mapping,
     Optional,
+    Self,
     Tuple,
     Type,
     TypedDict,
@@ -588,7 +589,7 @@ class AbstractChannel(PoolInstance, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def __aenter__(self) -> "AbstractChannel":
+    async def __aenter__(self) -> Self:
         raise NotImplementedError
 
     @abstractmethod
@@ -696,7 +697,7 @@ class AbstractChannel(PoolInstance, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def __await__(self) -> Generator[Any, Any, "AbstractChannel"]:
+    def __await__(self) -> Generator[Any, Any, Self]:
         raise NotImplementedError
 
 
@@ -835,7 +836,7 @@ class AbstractConnection(PoolInstance, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def __aenter__(self) -> "AbstractConnection":
+    async def __aenter__(self) -> Self:
         raise NotImplementedError
 
     @abstractmethod
@@ -918,6 +919,11 @@ class AbstractRobustChannel(AbstractChannel):
 
     @abstractmethod
     async def restore(self) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def ready(self) -> None:
+        """Wait until the connection is ready and the channel is restored."""
         raise NotImplementedError
 
     @abstractmethod

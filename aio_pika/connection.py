@@ -8,6 +8,7 @@ from typing import (
     Dict,
     Literal,
     Optional,
+    Self,
     Tuple,
     Type,
     TypeVar,
@@ -237,7 +238,7 @@ class Connection(AbstractConnection):
 
             asyncio.ensure_future(self.close())
 
-    async def __aenter__(self) -> "Connection":
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(
