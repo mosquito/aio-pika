@@ -65,6 +65,10 @@ class Channel(ChannelContext):
     QUEUE_CLASS = Queue
     EXCHANGE_CLASS = Exchange
 
+    default_exchange: Exchange
+    """The default exchange of the broker. See
+    :attr:`aio_pika.abc.AbstractChannel.default_exchange`."""
+
     _channel: Optional[UnderlayChannel]
 
     def __init__(
@@ -209,7 +213,7 @@ class Channel(ChannelContext):
         await self._on_initialized()
 
     async def _on_open(self) -> None:
-        self.default_exchange: Exchange = self.EXCHANGE_CLASS(
+        self.default_exchange = self.EXCHANGE_CLASS(
             channel=self,
             arguments=None,
             auto_delete=False,

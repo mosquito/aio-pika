@@ -15,7 +15,8 @@ context manager exits successfully.
 ## Simple publisher
 
 Connect to RabbitMQ and publish a single message to a queue through the
-default exchange.
+default exchange. The default exchange is available as
+`channel.default_exchange`; the routing key is the queue name.
 
 ```{literalinclude} examples/simple_publisher.py
 :language: python
