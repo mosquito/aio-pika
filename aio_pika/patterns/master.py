@@ -6,7 +6,6 @@ from functools import partial
 from types import MappingProxyType
 from typing import Any, Awaitable, Mapping, Optional
 
-import aiormq
 
 from aio_pika.abc import (
     AbstractChannel,
@@ -15,6 +14,7 @@ from aio_pika.abc import (
     AbstractQueue,
     ConsumerTag,
     DeliveryMode,
+    PublishResultType,
 )
 from aio_pika.message import Message
 
@@ -204,7 +204,7 @@ class Master(Base):
         channel_name: str,
         kwargs: Mapping[str, Any] = MappingProxyType({}),
         **message_kwargs: Any,
-    ) -> Optional[aiormq.abc.ConfirmationFrameType]:
+    ) -> Optional[PublishResultType]:
         """Creates a new task for the worker"""
         message = Message(
             body=self.serialize(kwargs),

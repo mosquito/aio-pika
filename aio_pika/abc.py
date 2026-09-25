@@ -44,6 +44,14 @@ from .tools import (
 
 TimeoutType = Optional[Union[int, float]]
 
+# Result of a confirmed publish: the Basic.Ack frame, or the returned
+# message when the broker can not route a mandatory message and the
+# channel was opened with on_return_raises=False.
+PublishResultType = Union[
+    aiormq.spec.Basic.Ack,
+    aiormq.abc.DeliveredMessage,
+]
+
 NoneType = type(None)
 DateType = Optional[Union[int, datetime, float, timedelta]]
 ExchangeParamType = Union["AbstractExchange", str]
@@ -493,7 +501,7 @@ class AbstractExchange(ABC):
         mandatory: bool = True,
         immediate: bool = False,
         timeout: TimeoutType = None,
-    ) -> Optional[aiormq.abc.ConfirmationFrameType]:
+    ) -> Optional[PublishResultType]:
         raise NotImplementedError
 
     @abstractmethod
@@ -1033,6 +1041,7 @@ __all__ = (
     "MessageInfo",
     "NoneType",
     "SSLOptions",
+    "PublishResultType",
     "TimeoutType",
     "TransactionState",
     "UnderlayChannel",

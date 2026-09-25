@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional, Union, cast
 
 import aiormq
 from pamqp.common import Arguments
@@ -9,6 +9,7 @@ from .abc import (
     AbstractMessage,
     ExchangeParamType,
     ExchangeType,
+    PublishResultType,
     TimeoutType,
     get_exchange_name,
 )
@@ -173,9 +174,23 @@ class Exchange(AbstractExchange):
         mandatory: bool = True,
         immediate: bool = False,
         timeout: TimeoutType = None,
-    ) -> Optional[aiormq.abc.ConfirmationFrameType]:
-        """Publish the message to the queue. `aio-pika` uses
+    ) -> Optional[PublishResultType]:
+        """Publish the message to the exchange. `aio-pika` uses the
         `publisher confirms`_ extension for message delivery.
+
+        The result depends on how the channel was opened:
+
+        * ``publisher_confirms=False``: returns ``None`` as soon as the
+          message is written to the socket. The broker does not confirm it.
+        * ``publisher_confirms=True`` (default): waits for the broker and
+          returns the ``Basic.Ack`` frame. When the broker answers with
+          ``Basic.Nack`` or ``Basic.Reject``, raises
+          :class:`aio_pika.exceptions.DeliveryError`.
+        * ``mandatory=True`` and the broker can not route the message: with
+          ``on_return_raises=True`` raises
+          :class:`aio_pika.exceptions.PublishError`. Otherwise calls
+          ``channel.return_callbacks`` and returns the returned
+          :class:`aiormq.abc.DeliveredMessage`.
 
         .. _publisher confirms: https://www.rabbitmq.com/confirms.html
 
@@ -200,7 +215,7 @@ class Exchange(AbstractExchange):
             )
 
         channel = await self.channel.get_underlay_channel()
-        return await channel.basic_publish(
+        result = await channel.basic_publish(
             exchange=self.name,
             routing_key=routing_key,
             body=message.body,
@@ -209,6 +224,10 @@ class Exchange(AbstractExchange):
             immediate=immediate,
             timeout=timeout,
         )
+        # aiormq annotates the result with all confirmation frames, but
+        # Basic.Nack and Basic.Reject are raised as DeliveryError, and a
+        # Basic.Return yields the DeliveredMessage instead of a frame.
+        return cast(Optional[PublishResultType], result)
 
     async def delete(
         self,
