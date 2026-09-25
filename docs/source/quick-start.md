@@ -63,6 +63,36 @@ independently see following example:
 :language: python
 ```
 
+## Connection and channel callbacks
+
+Connections, channels and queues expose callback collections. A callback
+is a plain function, a coroutine function or a bound method. The first
+argument is always the object that owns the collection (the *sender*),
+the other arguments depend on the collection:
+
+| Collection | Sender | Extra arguments |
+|---|---|---|
+| `connection.close_callbacks` | connection | `exc: BaseException \| None` |
+| `connection.reconnect_callbacks` (robust) | connection | none |
+| `channel.close_callbacks` | channel | `exc: BaseException \| None` |
+| `channel.return_callbacks` | channel | `message: AbstractIncomingMessage` |
+| `channel.reopen_callbacks` (robust) | channel | none |
+| `queue.close_callbacks` | queue | `exc: BaseException \| None` |
+
+The sender can be `None` when the owner was garbage collected before the
+callback ran. The `exc` argument is the exception that closed the object.
+It is set for a close requested by your code too: `ChannelClosed` for a
+channel and `ConnectionClosed` for a connection. Use
+`connection.close_called` to tell an intentional close from a failure.
+
+A callback with a wrong number of arguments is not called; the error is
+logged as `Callback ... error`. The collections are typed, so `mypy`
+reports such a mismatch before you run the code.
+
+```{literalinclude} examples/callbacks.py
+:language: python
+```
+
 ## External credentials example
 
 Connect to RabbitMQ using TLS client certificates (x509) for
