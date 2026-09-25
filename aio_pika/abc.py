@@ -585,6 +585,11 @@ class AbstractChannel(PoolInstance, ABC):
         [AbstractIncomingMessage],
     ]
     default_exchange: AbstractExchange
+    """The default exchange of the broker: a direct exchange with the
+    empty name. Every queue is bound to it with its own name as the
+    routing key, so ``channel.default_exchange.publish(message,
+    routing_key=queue.name)`` delivers the message to that queue.
+    The attribute is set when the channel is opened."""
 
     publisher_confirms: bool
 
