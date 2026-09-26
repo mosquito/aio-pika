@@ -210,7 +210,7 @@ async def test_restore_topology_and_consumers(
 
                         # Drop server traffic without closing TCP. The client
                         # must detect missing heartbeats itself.
-                        proxy.set_content_processors(drop_frames, None)
+                        proxy.set_content_processors(None, drop_frames)
                         try:
                             await asyncio.wait_for(disconnected.wait(), 15)
                         finally:

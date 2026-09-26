@@ -1234,3 +1234,107 @@ async def test_process_error_during_reconnection(
         finally:
             cleanup_queue = await publisher.get_queue(queue.name)
             await cleanup_queue.delete(if_unused=False, if_empty=False)
+
+
+@pytest.mark.parametrize("publisher_confirms", [False, True])
+@pytest.mark.parametrize("default_exchange", [False, True])
+@aiomisc.timeout(30)
+async def test_publish_after_disconnected_failure(
+    connection, proxy, proxy_port, publisher_confirms, default_exchange
+):
+    channel = await connection.channel(publisher_confirms=publisher_confirms)
+    queue = await channel.declare_queue(get_random_name())
+    exchange = channel.default_exchange
+    if not default_exchange:
+        exchange = await channel.declare_exchange(get_random_name())
+        await queue.bind(exchange, queue.name)
+
+    restored = asyncio.Event()
+    connection.reconnect_callbacks.add(lambda *_: restored.set())
+    target_port = proxy.target_port
+
+    for attempt in range(3):
+        await exchange.publish(Message(b"before"), queue.name, timeout=2)
+        message = await queue.get(no_ack=True, timeout=2)
+        assert message.body == b"before"
+        old_channel = await channel.get_underlay_channel()
+        restored.clear()
+        proxy.target_port = proxy_port
+        try:
+            await proxy.disconnect_all()
+            async with asyncio.timeout(5):
+                while not channel.is_closed:
+                    await asyncio.sleep(0.01)
+
+            # A known closed channel must fail promptly, without implicitly
+            # waiting for the broker or queuing this message for replay.
+            with pytest.raises(aiormq.exceptions.ChannelInvalidStateError):
+                await asyncio.wait_for(
+                    exchange.publish(Message(b"offline"), queue.name), 1
+                )
+            assert not restored.is_set()
+        finally:
+            proxy.target_port = target_port
+
+        await asyncio.wait_for(restored.wait(), 5)
+        await asyncio.wait_for(channel.ready(), 2)
+        assert await channel.get_underlay_channel() is not old_channel
+        body = f"after-{attempt}".encode()
+        await exchange.publish(Message(body), queue.name, timeout=2)
+        message = await queue.get(timeout=2)
+        assert message.body == body
+        await message.ack()
+        assert await queue.get(fail=False, timeout=2) is None
+
+
+@pytest.mark.parametrize("default_exchange", [False, True])
+@aiomisc.timeout(30)
+async def test_publish_lost_confirmation_is_not_replayed(
+    connection, direct_connection, proxy, default_exchange
+):
+    channel = await connection.channel()
+    queue = await channel.declare_queue(get_random_name())
+    exchange = channel.default_exchange
+    if not default_exchange:
+        exchange = await channel.declare_exchange(get_random_name())
+        await queue.bind(exchange, queue.name)
+    direct_channel = await direct_connection.channel()
+    direct_queue = await direct_channel.get_queue(queue.name)
+    restored = asyncio.Event()
+    connection.reconnect_callbacks.add(lambda *_: restored.set())
+
+    async def drop_server_frames(_):
+        return b""
+
+    # Let the broker accept the publication, but hide its confirmation from
+    # the publisher. Receiving through a separate connection proves delivery.
+    proxy.set_content_processors(None, drop_server_frames)
+    publishing = asyncio.create_task(
+        exchange.publish(Message(b"unconfirmed"), queue.name, timeout=10)
+    )
+    try:
+        async with asyncio.timeout(3):
+            while True:
+                message = await direct_queue.get(fail=False, timeout=1)
+                if message is not None:
+                    break
+                await asyncio.sleep(0.01)
+        assert message.body == b"unconfirmed"
+        await message.ack()
+        assert not publishing.done()
+        await proxy.disconnect_all()
+        with pytest.raises(aiormq.exceptions.AMQPConnectionError):
+            await asyncio.wait_for(publishing, 3)
+    finally:
+        proxy.set_content_processors(None, None)
+        if not publishing.done():
+            publishing.cancel()
+        await asyncio.gather(publishing, return_exceptions=True)
+
+    await asyncio.wait_for(restored.wait(), 5)
+    await asyncio.wait_for(channel.ready(), 2)
+    await exchange.publish(Message(b"after"), queue.name, timeout=2)
+    message = await direct_queue.get(timeout=2)
+    assert message.body == b"after"
+    await message.ack()
+    assert await direct_queue.get(fail=False, timeout=2) is None
