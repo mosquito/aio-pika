@@ -1338,3 +1338,67 @@ async def test_publish_lost_confirmation_is_not_replayed(
     assert message.body == b"after"
     await message.ack()
     assert await direct_queue.get(fail=False, timeout=2) is None
+
+
+@pytest.mark.parametrize(
+    "connection_fabric", [aio_pika.connect, aio_pika.connect_robust]
+)
+@pytest.mark.parametrize("use_context", [False, True])
+@aiomisc.timeout(15)
+async def test_iterator_cancellation_survives_close_timeout(
+    connection, proxy, use_context
+):
+    from contextlib import AsyncExitStack
+
+    channel = await connection.channel()
+    queue = await channel.declare_queue(get_random_name())
+    iterator = queue.iterator(timeout=0.05)
+    await iterator.consume()
+    reading = asyncio.Event()
+    cancelling = asyncio.Event()
+    release = asyncio.Event()
+
+    async def hold_server_frames(data):
+        cancelling.set()
+        await release.wait()
+        return data
+
+    async def consume():
+        async with AsyncExitStack() as stack:
+            if use_context:
+                await stack.enter_async_context(iterator)
+            reading.set()
+            while True:
+                try:
+                    await anext(iterator)
+                except asyncio.TimeoutError:
+                    # This is the application pattern from #623: replacing
+                    # cancellation with TimeoutError would keep it running.
+                    continue
+
+    proxy.set_content_processors(None, hold_server_frames)
+    task = asyncio.create_task(consume())
+    try:
+        await reading.wait()
+        task.cancel("stop consumer")
+        await asyncio.wait_for(cancelling.wait(), 2)
+        done, _ = await asyncio.wait({task}, timeout=1)
+        assert task in done, "Iterator swallowed task cancellation"
+        assert task.cancelled()
+        closing = getattr(iterator, "_QueueIterator__closing", None)
+        assert closing is not None
+        assert not closing.done()
+        with pytest.raises(asyncio.CancelledError, match="stop consumer"):
+            await task
+    finally:
+        release.set()
+        proxy.set_content_processors(None, None)
+        if not task.done():
+            task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        # __anext__ shields close after its timeout. Let Basic.CancelOk finish
+        # that operation before tearing down the connection and event loop.
+        closing = getattr(iterator, "_QueueIterator__closing", None)
+        if closing is not None:
+            await asyncio.wait_for(closing, 2)
+        await iterator.close()
