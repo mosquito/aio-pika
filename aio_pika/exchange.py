@@ -216,6 +216,13 @@ class Exchange(AbstractExchange):
           :class:`aiormq.abc.DeliveredMessage`.
         * ``mandatory=False``: the broker drops an unroutable message
           silently, so the result is only ``Basic.Ack`` or ``None``.
+
+        Connection or channel loss can make publication fail, including on
+        robust connections. Robust connections restore state in the background;
+        they do not automatically replay failed publications. The application
+        decides whether to wait for ``channel.ready()`` and retry. A lost
+        confirmation does not mean the broker rejected the message, so retrying
+        can produce duplicates.
         """
 
         log.debug(
