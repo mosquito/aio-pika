@@ -60,7 +60,7 @@ uvloop = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiormq", specifier = ">=7,<8" },
+    { name = "aiormq", specifier = ">=7.1.3,<8" },
     { name = "yarl" },
 ]
 
@@ -119,15 +119,15 @@ wheels = [
 
 [[package]]
 name = "aiormq"
-version = "7.0.0"
+version = "7.1.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pamqp" },
     { name = "yarl" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/00/16/7e1c2bb887db6cbad191db9a1562e1cf5c0c61ad93f194ddc7baf5661f02/aiormq-7.0.0.tar.gz", hash = "sha256:f524121f1afbb875f50235b2748f81331e3be47542ee600e83c321c4e97ea168", size = 49231, upload-time = "2026-07-09T11:40:51.775Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/21/c0/a8634a724157f2a4d4f070d6d3c331aa5f94aa8d49afc2cac588953c4ab9/aiormq-7.1.3.tar.gz", hash = "sha256:f8447b89d9c593bc14647db8daa3e836015a5c054be707161e971da21726c65c", size = 62482, upload-time = "2026-09-26T10:48:25.539Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/53/88/8da3627882f6bd75f780f87e46d0b58da99332c1b71d038db7a127a80648/aiormq-7.0.0-py3-none-any.whl", hash = "sha256:df49bb2282e5374a28507c4c43948e8c8e5321590f2998781c2d90a34e100789", size = 32152, upload-time = "2026-07-09T11:40:50.508Z" },
+    { url = "https://files.pythonhosted.org/packages/49/65/628792b87786a0bea5bbf801a3545308b6a5e86b95dd53097b0ecd1211df/aiormq-7.1.3-py3-none-any.whl", hash = "sha256:ecff5c9c028149f876da92ce91bfb1ce23b6e6e62aa6926f5e3d7d510db5f2c0", size = 36180, upload-time = "2026-09-26T10:48:24.33Z" },
 ]
 
 [[package]]

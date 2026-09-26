@@ -55,6 +55,58 @@ the `prefetch_count` setting.
 ```
 
 
+## Publishing from a consumer callback
+
+With publisher confirms enabled (the default), await `exchange.publish()`
+inside the callback to handle broker errors such as `ChannelAccessRefused`.
+An exception in a consumer callback does not propagate to the earlier
+`queue.consume()` call: that call registers the consumer. Handle the error
+inside the callback or report it to your application's supervisor.
+
+Use `async with message.process():` instead of unconditionally calling
+`message.ack()` in a `finally` block. If publishing closes the delivery
+channel, that acknowledgement raises `ChannelInvalidStateError` and can
+hide the original publishing error. The processing context preserves it.
+
+A dedicated publishing channel isolates broker channel errors from the
+consumer's delivery channel:
+
+```python
+import logging
+
+import aio_pika
+from aiormq.exceptions import ChannelAccessRefused
+
+logger = logging.getLogger(__name__)
+publisher = await connection.channel()
+
+async def consume(message):
+    try:
+        async with message.process():
+            await publisher.default_exchange.publish(
+                aio_pika.Message(b"reply"), routing_key="replies",
+            )
+    except ChannelAccessRefused:
+        logger.exception("Publishing denied; check exchange permissions")
+
+await queue.consume(consume)
+```
+
+Here `queue` uses a different channel from `publisher`. If the broker
+closes only the publishing channel, `process()` can still reject the
+request on its delivery channel. Its default `requeue=False` discards the
+request or routes it to a configured dead-letter exchange; choose this
+policy deliberately. A connection failure can still close both channels.
+
+When publishing on the delivery channel itself, a broker channel error
+also prevents rejecting or acknowledging the request. RabbitMQ requeues
+it, and a robust consumer may receive it again after restoration.
+`requeue=False` and `reject_on_redelivered=True` cannot send a rejection
+through a closed channel. Repeating the same forbidden publication on
+every delivery can therefore loop. Fix the permissions, stop the consumer,
+or apply a retry/dead-letter policy before repeating the publication.
+
+
 ## Working with RabbitMQ transactions
 
 Publish messages atomically using AMQP transactions. Messages are only
