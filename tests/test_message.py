@@ -1,12 +1,20 @@
+import asyncio
 import time
 from copy import copy
 from datetime import datetime, timezone
 from typing import List, Tuple
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+from aiormq.abc import DeliveredMessage
+from pamqp.commands import Basic
+from pamqp.header import ContentHeader
 
 import shortuuid
 
-from aio_pika import DeliveryMode, Message
+from aio_pika import DeliveryMode, IncomingMessage, Message
 from aio_pika.abc import FieldValue, HeadersType, MessageInfo
+from aio_pika.exceptions import ChannelInvalidStateError
 
 
 def test_message_copy():
@@ -107,3 +115,73 @@ def test_headers_set():
         assert msg.headers[name] == value  # type: ignore
 
     assert msg.headers["header"] == "value"
+
+
+@pytest.fixture
+def delivered_message():
+    channel = Mock(
+        is_closed=False,
+        basic_ack=AsyncMock(),
+        basic_reject=AsyncMock(),
+    )
+    return DeliveredMessage(
+        delivery=Basic.Deliver(delivery_tag=1, redelivered=True),
+        header=ContentHeader(properties=Basic.Properties()),
+        body=b"message",
+        channel=channel,
+    )
+
+
+@pytest.mark.parametrize("reject_on_redelivered", [False, True])
+@pytest.mark.parametrize("error_type", [ValueError, asyncio.CancelledError])
+async def test_process_preserves_error_on_closed_channel(
+    delivered_message,
+    reject_on_redelivered,
+    error_type,
+    caplog,
+):
+    message = IncomingMessage(delivered_message)
+    error = error_type("original processing error")
+    with pytest.raises(error_type) as raised:
+        async with message.process(reject_on_redelivered=reject_on_redelivered):
+            delivered_message.channel.is_closed = True
+            raise error
+    assert raised.value is error
+    delivered_message.channel.basic_ack.assert_not_awaited()
+    delivered_message.channel.basic_reject.assert_not_awaited()
+    assert not message.processed
+    assert "Reject is not sent since channel is closed" in caplog.text
+
+
+@pytest.mark.parametrize("reject_on_redelivered", [False, True])
+async def test_process_preserves_error_when_reject_channel_closes(
+    delivered_message,
+    reject_on_redelivered,
+):
+    message = IncomingMessage(delivered_message)
+    delivered_message.channel.basic_reject.side_effect = (
+        ChannelInvalidStateError
+    )
+    error = ValueError("original processing error")
+    with pytest.raises(ValueError) as raised:
+        async with message.process(reject_on_redelivered=reject_on_redelivered):
+            raise error
+    assert raised.value is error
+    assert not message.processed
+
+
+async def test_process_success_on_closed_channel_still_fails(delivered_message):
+    message = IncomingMessage(delivered_message)
+    with pytest.raises(ChannelInvalidStateError):
+        async with message.process():
+            delivered_message.channel.is_closed = True
+    assert not message.processed
+    delivered_message.channel.basic_ack.assert_not_awaited()
+
+
+async def test_process_does_not_hide_other_reject_errors(delivered_message):
+    message = IncomingMessage(delivered_message)
+    delivered_message.channel.basic_reject.side_effect = RuntimeError("reject")
+    with pytest.raises(RuntimeError, match="reject"):
+        async with message.process():
+            raise ValueError("processing")

@@ -12,6 +12,28 @@ context manager exits successfully.
 :language: python
 ```
 
+## Messages interrupted by a disconnection
+
+An `IncomingMessage` belongs to the channel on which it was delivered.
+After that channel closes, its `ack()`, `reject()`, and `nack()` methods
+raise `ChannelInvalidStateError`. Reconnecting with `connect_robust()`
+does not make an old message valid on the replacement channel.
+
+If the body of `async with message.process():` raises an exception and
+the delivery channel is closed, the context manager logs that rejection
+could not be sent and preserves the original exception. If processing
+succeeds but the channel has closed, automatic acknowledgement still
+raises `ChannelInvalidStateError`; the message is not marked processed.
+`ignore_processed=True` only skips automatic handling of a message that
+has already been acknowledged or rejected. It does not revive its channel.
+
+With manual acknowledgements, RabbitMQ requeues unacknowledged deliveries
+when their channel closes. A robust queue iterator can continue consuming
+after restoration and receive these messages again. Messages already held
+by application code or buffered before the disconnection still belong to
+the old channel. Handle failed acknowledgements and make processing
+idempotent so that a redelivery does not repeat completed side effects.
+
 ## Simple publisher
 
 Connect to RabbitMQ and publish a single message to a queue through the
