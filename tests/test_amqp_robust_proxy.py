@@ -1130,3 +1130,95 @@ async def test_close_does_not_hang_during_reconnect(event_loop):
     connect_task.cancel()
     with suppress(asyncio.CancelledError):
         await connect_task
+
+
+@pytest.mark.parametrize("buffered", [False, True])
+@pytest.mark.parametrize("reject_on_redelivered", [False, True])
+@pytest.mark.parametrize("redelivered", [False, True])
+@aiomisc.timeout(30)
+async def test_process_error_during_reconnection(
+    create_connection, direct_connection, proxy, create_task,
+    reject_on_redelivered, redelivered, buffered,
+):
+    connection = await create_connection()
+    restored = asyncio.Event()
+    connection.reconnect_callbacks.add(lambda *_: restored.set())
+
+    async with connection:
+        channel = await connection.channel()
+        await channel.set_qos(prefetch_count=2)
+        queue = await channel.declare_queue(auto_delete=False)
+        publisher = await direct_connection.channel()
+        try:
+            async with queue.iterator() as iterator:
+                await publisher.default_exchange.publish(
+                    Message(b"interrupted"), routing_key=queue.name,
+                )
+                message = await asyncio.wait_for(anext(iterator), 5)
+                if redelivered:
+                    await message.reject(requeue=True)
+                    message = await asyncio.wait_for(anext(iterator), 5)
+                assert message.redelivered is redelivered
+
+                if buffered:
+                    await publisher.default_exchange.publish(
+                        Message(b"buffered"), routing_key=queue.name,
+                    )
+                    async with asyncio.timeout(5):
+                        while iterator._queue.empty():
+                            await asyncio.sleep(0.01)
+                    pending = None
+                else:
+                    # Keep the next iteration waiting across the disconnect.
+                    pending = create_task(anext(iterator))
+                    await asyncio.sleep(0)
+                error = ValueError("processing interrupted")
+                with pytest.raises(ValueError) as raised:
+                    async with message.process(
+                        reject_on_redelivered=reject_on_redelivered,
+                    ):
+                        await proxy.disconnect_all()
+                        await asyncio.wait_for(restored.wait(), 10)
+                        await asyncio.wait_for(channel.ready(), 5)
+                        raise error
+                assert raised.value is error
+                assert not message.processed
+
+                # Restoring the channel does not revive old delivery tags.
+                for method in (message.ack, message.reject, message.nack):
+                    with pytest.raises(
+                        aiormq.exceptions.ChannelInvalidStateError,
+                    ):
+                        await asyncio.wait_for(method(), 1)
+
+                if buffered:
+                    stale = await asyncio.wait_for(anext(iterator), 5)
+                    assert stale.body == b"buffered"
+                    with pytest.raises(
+                        aiormq.exceptions.ChannelInvalidStateError,
+                    ):
+                        await stale.ack()
+                    pending = create_task(anext(iterator))
+
+                assert pending is not None
+                retries = [await asyncio.wait_for(pending, 5)]
+                if buffered:
+                    retries.append(await asyncio.wait_for(anext(iterator), 5))
+                expected = {b"interrupted", b"buffered"} if buffered else {
+                    b"interrupted",
+                }
+                assert {retry.body for retry in retries} == expected
+                for retry in retries:
+                    assert retry.redelivered
+                    async with retry.process():
+                        pass
+
+                await publisher.default_exchange.publish(
+                    Message(b"after reconnect"), routing_key=queue.name,
+                )
+                following = await asyncio.wait_for(anext(iterator), 5)
+                assert following.body == b"after reconnect"
+                await following.ack()
+        finally:
+            cleanup_queue = await publisher.get_queue(queue.name)
+            await cleanup_queue.delete(if_unused=False, if_empty=False)

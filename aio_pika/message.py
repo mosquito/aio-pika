@@ -577,23 +577,18 @@ class ProcessContext(AbstractProcessContext):
             return
 
         if not self.ignore_processed or not self.message.processed:
-            if self.reject_on_redelivered and self.message.redelivered:
-                if not self.message.channel.is_closed:
+            try:
+                if self.reject_on_redelivered and self.message.redelivered:
                     log.info(
                         "Message %r was redelivered and will be rejected",
                         self.message,
                     )
                     await self.message.reject(requeue=False)
-                    return
-                log.warning(
-                    "Message %r was redelivered and reject is not sent "
-                    "since channel is closed",
-                    self.message,
-                )
-            else:
-                if not self.message.channel.is_closed:
+                else:
                     await self.message.reject(requeue=self.requeue)
-                    return
+            except ChannelInvalidStateError:
+                # A closed delivery channel cannot reject the message.
+                # Preserve the exception raised by the processing block.
                 log.warning("Reject is not sent since channel is closed")
 
 
