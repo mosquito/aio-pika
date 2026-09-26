@@ -9,7 +9,9 @@ from aiomisc_pytest import TCPProxy  # type: ignore
 from yarl import URL
 
 from aio_pika import Message, connect_robust
+from aio_pika.abc import AbstractRobustChannel, AbstractRobustConnection
 from aio_pika.patterns import Master
+from aio_pika.pool import Pool
 from tests.docker_client import DockerClient
 
 
@@ -299,3 +301,92 @@ async def test_missing_external_queue_retries_until_recreated(recovery_broker):
             await admin.declare_queue(external.name, robust=False)
             await asyncio.wait_for(restored.wait(), 10)
             await asyncio.wait_for(channel.ready(), 5)
+
+
+@aiomisc.timeout(120)
+async def test_pool_consumer_survives_broker_restart(recovery_broker):
+    client, container, url = recovery_broker
+    restored = asyncio.Event()
+    disconnected = asyncio.Event()
+    connections_created = 0
+    channels_created = 0
+    received: asyncio.Queue[bytes] = asyncio.Queue()
+
+    async def get_connection() -> AbstractRobustConnection:
+        nonlocal connections_created
+        connection = await connect_robust(
+            url.update_query(reconnect_interval=0.1),
+            timeout=3,
+        )
+        connections_created += 1
+        connection.close_callbacks.add(lambda *_: disconnected.set())
+        connection.reconnect_callbacks.add(lambda *_: restored.set())
+        return connection
+
+    connection_pool: Pool[AbstractRobustConnection] = Pool(
+        get_connection,
+        max_size=2,
+    )
+
+    async def get_channel() -> AbstractRobustChannel:
+        nonlocal channels_created
+        async with connection_pool.acquire() as connection:
+            channels_created += 1
+            return await connection.channel()
+
+    channel_pool: Pool[AbstractRobustChannel] = Pool(
+        get_channel,
+        max_size=10,
+    )
+    queue_name = "pool-consumer-recovery"
+
+    async def callback(message):
+        async with message.process():
+            body = message.body
+        await received.put(body)
+
+    async def register_consumer():
+        async with channel_pool.acquire() as channel:
+            await channel.set_qos(prefetch_count=10)
+            queue = await channel.declare_queue(
+                queue_name,
+                durable=True,
+                auto_delete=False,
+            )
+            await queue.consume(callback)
+        # The application keeps no reference to the queue or consumer here.
+
+    async def check_delivery(body):
+        async with channel_pool.acquire() as channel:
+            underlay = await channel.get_underlay_channel()
+            state = await underlay.queue_declare(queue_name, passive=True)
+            assert state.consumer_count == 1
+            await channel.default_exchange.publish(
+                Message(body),
+                queue_name,
+                timeout=5,
+            )
+            assert await asyncio.wait_for(received.get(), 5) == body
+            # An RPC on the same channel ensures the ack reached the broker
+            # before the next stop_app, so redelivery is not needed here.
+            await underlay.queue_declare(queue_name, passive=True)
+            return underlay
+
+    async with connection_pool, channel_pool:
+        await register_consumer()
+        gc.collect()
+        previous = await check_delivery(b"before restart")
+        for attempt in (1, 2):
+            restored.clear()
+            disconnected.clear()
+            await rabbitmqctl(client, container, "stop_app")
+            try:
+                await asyncio.wait_for(disconnected.wait(), 5)
+            finally:
+                await rabbitmqctl(client, container, "start_app")
+            await asyncio.wait_for(restored.wait(), 30)
+            gc.collect()
+            current = await check_delivery(str(attempt).encode())
+            assert current is not previous
+            previous = current
+            assert connections_created == channels_created == 1
