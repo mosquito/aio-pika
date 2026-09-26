@@ -16,7 +16,7 @@ from .abc import (
     TimeoutType,
 )
 from .connection import Connection, make_url
-from .exceptions import CONNECTION_EXCEPTIONS
+from .exceptions import CONNECTION_EXCEPTIONS, ChannelNotFoundEntity
 from .log import get_logger
 from .robust_channel import RobustChannel
 from .tools import CallbackCollection
@@ -112,22 +112,28 @@ class RobustConnection(Connection, AbstractRobustConnection):
             raise RuntimeError("No active transport for connection %r", self)
 
         try:
-            # Make a copy of the channels to iterate on, to guard from
-            # concurrent updates to the set.
-            for channel in tuple(self.__channels):
-                try:
-                    await channel.restore()
-                except Exception as exc:
-                    log.error(
-                        "Failed to reopen channel due to %s: %s",
-                        type(exc).__name__,
-                        exc,
-                    )
-                    log.debug(
-                        "Full traceback for failure to reopen channel",
-                        exc_info=True,
-                    )
-                    raise
+            # A queue may depend on an exchange declared on another channel.
+            # Retry missing entities after other channels have been restored;
+            # WeakSet iteration order must not prevent their declaration.
+            pending = tuple(self.__channels)
+            while pending:
+                failed = []
+                errors = []
+                for channel in pending:
+                    try:
+                        await channel.restore()
+                    except ChannelNotFoundEntity as exc:
+                        failed.append(channel)
+                        errors.append(exc)
+                        log.debug(
+                            "Deferring channel with a missing entity",
+                            exc_info=True,
+                        )
+                if len(failed) == len(pending):
+                    # No progress: leave permanent failures to the connection
+                    # retry loop, which applies the configured backoff.
+                    raise errors[0]
+                pending = tuple(failed)
         except Exception as e:
             await self.close_callbacks(e)
             await asyncio.gather(
