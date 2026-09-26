@@ -1,3 +1,5 @@
+from contextlib import AbstractAsyncContextManager
+
 import aio_pika
 import aio_pika.abc
 import aio_pika.exceptions
@@ -89,3 +91,21 @@ async def test_callback_signatures(amqp_url) -> None:
     assert isinstance(calls[1][2], aio_pika.exceptions.ChannelClosed)
     assert calls[2][1] is connection
     assert calls[2][2] is None or isinstance(calls[2][2], BaseException)
+
+
+async def test_queue_iterator_is_async_context_manager(amqp_url) -> None:
+    async with await aio_pika.connect(amqp_url) as connection:
+        channel = await connection.channel()
+        queue = await channel.declare_queue(auto_delete=True)
+
+        # The annotation makes mypy check the abstract signatures
+        # against contextlib.AbstractAsyncContextManager.
+        iterator: AbstractAsyncContextManager[
+            aio_pika.abc.AbstractQueueIterator
+        ] = queue.iterator()
+
+        async with iterator as queue_iterator:
+            assert isinstance(
+                queue_iterator,
+                aio_pika.abc.AbstractQueueIterator,
+            )

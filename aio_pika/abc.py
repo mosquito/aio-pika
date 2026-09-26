@@ -427,7 +427,7 @@ class AbstractQueueIterator(AsyncIterable[AbstractIncomingMessage]):
         raise NotImplementedError
 
     @abstractmethod
-    def __aenter__(self) -> Awaitable["AbstractQueueIterator"]:
+    async def __aenter__(self) -> "AbstractQueueIterator":
         raise NotImplementedError
 
     @abstractmethod
