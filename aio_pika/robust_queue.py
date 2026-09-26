@@ -153,9 +153,10 @@ class RobustQueue(Queue, AbstractRobustQueue):
         timeout: TimeoutType = None,
         nowait: bool = False,
     ) -> aiormq.spec.Basic.CancelOk:
-        result = await super().cancel(consumer_tag, timeout, nowait)
+        # A requested cancellation must also prevent restoration if the RPC
+        # times out or is cancelled before Basic.CancelOk arrives.
         self._consumers.pop(consumer_tag, None)
-        return result
+        return await super().cancel(consumer_tag, timeout, nowait)
 
     def iterator(self, **kwargs: Any) -> AbstractQueueIterator:
         return RobustQueueIterator(self, **kwargs)

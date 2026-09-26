@@ -1346,7 +1346,7 @@ async def test_publish_lost_confirmation_is_not_replayed(
 @pytest.mark.parametrize("use_context", [False, True])
 @aiomisc.timeout(15)
 async def test_iterator_cancellation_survives_close_timeout(
-    connection, proxy, use_context
+    connection, direct_connection, proxy, use_context
 ):
     from contextlib import AsyncExitStack
 
@@ -1386,8 +1386,12 @@ async def test_iterator_cancellation_survives_close_timeout(
         assert task in done, "Iterator swallowed task cancellation"
         assert task.cancelled()
         closing = getattr(iterator, "_QueueIterator__closing", None)
-        assert closing is not None
-        assert not closing.done()
+        if use_context:
+            assert closing is None
+            assert iterator._closed.done()
+        else:
+            assert closing is not None
+            assert not closing.done()
         with pytest.raises(asyncio.CancelledError, match="stop consumer"):
             await task
     finally:
@@ -1402,3 +1406,11 @@ async def test_iterator_cancellation_survives_close_timeout(
         if closing is not None:
             await asyncio.wait_for(closing, 2)
         await iterator.close()
+
+    if use_context:
+        if isinstance(connection, RobustConnection):
+            await connection.reconnect()
+            await asyncio.wait_for(channel.ready(), 3)
+        direct_channel = await direct_connection.channel()
+        declared = await direct_channel.declare_queue(queue.name, passive=True)
+        assert declared.declaration_result.consumer_count == 0

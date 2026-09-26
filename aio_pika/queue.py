@@ -569,13 +569,31 @@ class QueueIterator(AbstractQueueIterator):
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
-        if hasattr(self, "__closing"):
-            try:
-                await self.__closing
-            finally:
-                del self.__closing
-        else:
+        closing = getattr(self, "_QueueIterator__closing", None)
+        if closing is None:
             await self.close()
+            return
+
+        del self.__closing
+        # __anext__ already exhausted the close timeout. Do not start another
+        # close or wait indefinitely for a broker that is still unavailable.
+        if not closing.done():
+            closing.cancel()
+        try:
+            result = (await asyncio.gather(closing, return_exceptions=True))[0]
+        finally:
+            if not self._closed.done():
+                self._closed.set_result(True)
+        if isinstance(result, asyncio.CancelledError):
+            return
+        if isinstance(result, BaseException):
+            if exc_val is None:
+                raise result
+            log.warning(
+                "Failed to close queue iterator %r",
+                self,
+                exc_info=result,
+            )
 
     async def __anext__(self) -> AbstractIncomingMessage:
         if self._closed.done():
