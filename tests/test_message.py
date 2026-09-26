@@ -120,7 +120,9 @@ def test_headers_set():
 @pytest.fixture
 def delivered_message():
     channel = Mock(
-        is_closed=False, basic_ack=AsyncMock(), basic_reject=AsyncMock(),
+        is_closed=False,
+        basic_ack=AsyncMock(),
+        basic_reject=AsyncMock(),
     )
     return DeliveredMessage(
         delivery=Basic.Deliver(delivery_tag=1, redelivered=True),
@@ -133,7 +135,10 @@ def delivered_message():
 @pytest.mark.parametrize("reject_on_redelivered", [False, True])
 @pytest.mark.parametrize("error_type", [ValueError, asyncio.CancelledError])
 async def test_process_preserves_error_on_closed_channel(
-    delivered_message, reject_on_redelivered, error_type, caplog,
+    delivered_message,
+    reject_on_redelivered,
+    error_type,
+    caplog,
 ):
     message = IncomingMessage(delivered_message)
     error = error_type("original processing error")
@@ -150,7 +155,8 @@ async def test_process_preserves_error_on_closed_channel(
 
 @pytest.mark.parametrize("reject_on_redelivered", [False, True])
 async def test_process_preserves_error_when_reject_channel_closes(
-    delivered_message, reject_on_redelivered,
+    delivered_message,
+    reject_on_redelivered,
 ):
     message = IncomingMessage(delivered_message)
     delivered_message.channel.basic_reject.side_effect = (

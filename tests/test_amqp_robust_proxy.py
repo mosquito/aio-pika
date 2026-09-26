@@ -1137,8 +1137,13 @@ async def test_close_does_not_hang_during_reconnect(event_loop):
 @pytest.mark.parametrize("redelivered", [False, True])
 @aiomisc.timeout(30)
 async def test_process_error_during_reconnection(
-    create_connection, direct_connection, proxy, create_task,
-    reject_on_redelivered, redelivered, buffered,
+    create_connection,
+    direct_connection,
+    proxy,
+    create_task,
+    reject_on_redelivered,
+    redelivered,
+    buffered,
 ):
     connection = await create_connection()
     restored = asyncio.Event()
@@ -1152,7 +1157,8 @@ async def test_process_error_during_reconnection(
         try:
             async with queue.iterator() as iterator:
                 await publisher.default_exchange.publish(
-                    Message(b"interrupted"), routing_key=queue.name,
+                    Message(b"interrupted"),
+                    routing_key=queue.name,
                 )
                 message = await asyncio.wait_for(anext(iterator), 5)
                 if redelivered:
@@ -1162,7 +1168,8 @@ async def test_process_error_during_reconnection(
 
                 if buffered:
                     await publisher.default_exchange.publish(
-                        Message(b"buffered"), routing_key=queue.name,
+                        Message(b"buffered"),
+                        routing_key=queue.name,
                     )
                     async with asyncio.timeout(5):
                         while iterator._queue.empty():
@@ -1204,9 +1211,13 @@ async def test_process_error_during_reconnection(
                 retries = [await asyncio.wait_for(pending, 5)]
                 if buffered:
                     retries.append(await asyncio.wait_for(anext(iterator), 5))
-                expected = {b"interrupted", b"buffered"} if buffered else {
-                    b"interrupted",
-                }
+                expected = (
+                    {b"interrupted", b"buffered"}
+                    if buffered
+                    else {
+                        b"interrupted",
+                    }
+                )
                 assert {retry.body for retry in retries} == expected
                 for retry in retries:
                     assert retry.redelivered
@@ -1214,7 +1225,8 @@ async def test_process_error_during_reconnection(
                         pass
 
                 await publisher.default_exchange.publish(
-                    Message(b"after reconnect"), routing_key=queue.name,
+                    Message(b"after reconnect"),
+                    routing_key=queue.name,
                 )
                 following = await asyncio.wait_for(anext(iterator), 5)
                 assert following.body == b"after reconnect"
