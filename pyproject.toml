@@ -35,7 +35,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "aiormq>=7,<8",
+    "aiormq>=7.1.3,<8",
     "yarl",
 ]
 
