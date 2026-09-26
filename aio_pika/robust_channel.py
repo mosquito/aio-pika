@@ -91,15 +91,17 @@ class RobustChannel(Channel, AbstractRobustChannel):
             )
 
         async with self.__restore_lock:
-            if self.__restored.is_set():
+            if (
+                self.__restored.is_set()
+                or self._connection.close_called
+                or self._connection.is_closed
+            ):
                 return
 
             await self.reopen()
             self.__restored.set()
 
-    async def _on_close(
-        self, closing: asyncio.Future
-    ) -> Optional[BaseException]:
+    async def _on_close(self, closing: asyncio.Future) -> BaseException | None:
         exc = await super()._on_close(closing)
 
         if isinstance(exc, asyncio.CancelledError):
@@ -113,10 +115,23 @@ class RobustChannel(Channel, AbstractRobustChannel):
         in_restore_state = not self.__restored.is_set()
         self.__restored.clear()
 
-        if self._closed.done() or in_restore_state:
+        if (
+            self._closed.done()
+            or in_restore_state
+            or self._connection.close_called
+            or self._connection.is_closed
+        ):
             return exc
 
-        await self.restore()
+        try:
+            await self.restore()
+        except Exception:
+            # Shutdown may start while reopening is awaiting the transport.
+            # Recovery is no longer needed once the connection is closing.
+            if not (
+                self._connection.close_called or self._connection.is_closed
+            ):
+                raise
 
         return exc
 
