@@ -18,6 +18,12 @@ from importlib.metadata import Distribution
 __version__ = Distribution.from_name("aio-pika").version
 
 
+def _py_installer_hook() -> list[str]:
+    from pathlib import Path
+
+    return [str(Path(__file__).resolve().parent)]
+
+
 __all__ = (
     "AMQPException",
     "Channel",
