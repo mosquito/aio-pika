@@ -1,11 +1,12 @@
 import asyncio
 from unittest.mock import AsyncMock, Mock
+from typing import assert_type
 
 import aiormq.connection
 import pytest
 from yarl import URL
 
-from aio_pika import RobustConnection, connect, connect_robust
+from aio_pika import Connection, RobustConnection, connect, connect_robust
 from aio_pika.abc import SSLOptions
 from aio_pika.connection import make_url
 
@@ -120,3 +121,32 @@ async def test_custom_connection_without_client_properties(factory):
         )
         is fake
     )
+
+
+async def test_typed_connection_options(amqp_url: URL) -> None:
+    class CustomConnection(Connection):
+        pass
+
+    class CustomRobustConnection(RobustConnection):
+        pass
+
+    ordinary = await connect(amqp_url, heartbeat=30)
+    assert_type(ordinary, Connection)
+    await ordinary.close()
+    robust = await connect_robust(amqp_url, reconnect_interval=0.1)
+    assert_type(robust, RobustConnection)
+    await robust.close()
+    custom = await connect(
+        amqp_url,
+        connection_class=CustomConnection,
+        heartbeat=30,
+    )
+    assert_type(custom, CustomConnection)
+    await custom.close()
+    custom_robust = await connect_robust(
+        amqp_url,
+        connection_class=CustomRobustConnection,
+        reconnect_interval=0.1,
+    )
+    assert_type(custom_robust, CustomRobustConnection)
+    await custom_robust.close()
