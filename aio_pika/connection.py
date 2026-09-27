@@ -100,7 +100,8 @@ class Connection(AbstractConnection):
         self,
         url: URL,
         loop: Optional[asyncio.AbstractEventLoop] = None,
-        ssl_context: Optional[SSLContext] = None,
+        ssl_context: SSLContext | None = None,
+        client_properties: FieldTable | None = None,
         **kwargs: Any,
     ):
         self.loop = loop or asyncio.get_event_loop()
@@ -111,9 +112,18 @@ class Connection(AbstractConnection):
         self.url = URL(url)
 
         self.kwargs: Dict[str, Any] = self._parse_parameters(
-            kwargs or dict(self.url.query),
+            {
+                **dict(self.url.query),
+                **{
+                    key: value
+                    for key, value in kwargs.items()
+                    if value is not None
+                },
+            },
         )
         self.kwargs["context"] = ssl_context
+        if client_properties is not None:
+            self.kwargs["client_properties"] = dict(client_properties)
         self.close_callbacks = CallbackCollection(self)
         self.connected: asyncio.Event = asyncio.Event()
 
@@ -269,7 +279,7 @@ class Connection(AbstractConnection):
 
 
 def make_url(
-    url: Union[str, URL, None] = None,
+    url: str | URL | None = None,
     *,
     host: str = "localhost",
     port: int = 5672,
@@ -277,21 +287,23 @@ def make_url(
     password: str = "guest",
     virtualhost: str = "/",
     ssl: bool = False,
-    ssl_options: Optional[SSLOptions] = None,
-    client_properties: Optional[FieldTable] = None,
+    ssl_options: SSLOptions | None = None,
+    client_properties: FieldTable | None = None,
     **kwargs: Any,
 ) -> URL:
-    if url is not None:
-        if not isinstance(url, URL):
-            return URL(url)
-        return url
-
     kw = kwargs
     kw.update(ssl_options or {})
     kw.update(client_properties or {})
 
     # sanitize keywords
-    kw = {k: v for k, v in kw.items() if v is not None}
+    kw = {
+        k: int(v) if isinstance(v, bool) else v
+        for k, v in kw.items()
+        if v is not None
+    }
+
+    if url is not None:
+        return URL(url).update_query(kw)
 
     return URL.build(
         scheme="amqps" if ssl else "amqp",
@@ -449,11 +461,15 @@ async def connect(
             virtualhost=virtualhost,
             ssl=ssl,
             ssl_options=ssl_options,
-            client_properties=client_properties,
             **kwargs,
         ),
         loop=loop,
         ssl_context=ssl_context,
+        **(
+            {"client_properties": client_properties}
+            if client_properties is not None
+            else {}
+        ),
         **kwargs,
     )
 

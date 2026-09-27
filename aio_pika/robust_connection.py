@@ -414,11 +414,15 @@ async def connect_robust(
             virtualhost=virtualhost,
             ssl=ssl,
             ssl_options=ssl_options,
-            client_properties=client_properties,
             **kwargs,
         ),
         loop=loop,
         ssl_context=ssl_context,
+        **(
+            {"client_properties": client_properties}
+            if client_properties is not None
+            else {}
+        ),
         **kwargs,
     )
 

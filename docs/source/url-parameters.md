@@ -4,6 +4,36 @@ URL is the supported way to configure a connection.
 For customisation of connection behaviour you might
 pass parameters in URL query-string format.
 
+
+## Combining a URL with keyword arguments
+
+`connect()` and `connect_robust()` accept extra connection options alongside
+an AMQP URL. Non-`None` keyword options, such as `heartbeat`,
+`reconnect_interval`, and `fail_fast`, override matching query parameters;
+other query parameters are preserved. `None` leaves the URL value unchanged.
+Boolean query options are encoded as `0` or `1`.
+
+`ssl_options` is merged into the query too. Its entries take precedence over
+matching URL parameters and extra keyword options. The URL supplies the
+scheme, host, port, credentials, and virtual host; the separate `host`,
+`port`, `login`, `password`, `virtualhost`, and `ssl` arguments are used only
+when no URL is supplied.
+
+`client_properties` is an AMQP field table passed separately to the broker,
+so it can contain nested values. Its `connection_name` overrides the URL's
+`name`. `timeout` and `ssl_context` are also passed separately, not encoded
+into the URL.
+
+```python
+connection = await aio_pika.connect_robust(
+    "amqp://guest:guest@localhost/?heartbeat=60&name=default",
+    heartbeat=30,
+    reconnect_interval=2,
+    timeout=5,
+    client_properties={"connection_name": "worker"},
+)
+```
+
 ## `aiormq` specific
 
 * `name` (`str` url encoded) - A string that will be visible in the RabbitMQ management console and in
