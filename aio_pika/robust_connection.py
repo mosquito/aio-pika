@@ -60,14 +60,18 @@ class RobustConnection(Connection, AbstractRobustConnection):
             self.__fail_fast_future.set_result(None)
 
         self.__channels: WeakSet[AbstractRobustChannel] = WeakSet()
-        self.__connection_close_event = asyncio.Event()
+        self.__restore_event = asyncio.Event()
         self.__connect_timeout: Optional[TimeoutType] = None
         self.__reconnection_task: Optional[asyncio.Task] = None
 
         self._reconnect_lock = asyncio.Lock()
         self.reconnect_callbacks = CallbackCollection(self)
 
-        self.__connection_close_event.set()
+        self.__restore_event.set()
+
+    def _request_recovery(self) -> None:
+        if not self.is_closed and not self._close_called:
+            self.__restore_event.set()
 
     @property
     def reconnecting(self) -> bool:
@@ -97,7 +101,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
             self.reconnect_interval,
         )
 
-        self.__connection_close_event.set()
+        self.__restore_event.set()
 
     async def _on_connected(self) -> None:
         await super()._on_connected()
@@ -141,30 +145,29 @@ class RobustConnection(Connection, AbstractRobustConnection):
             await self.reconnect_callbacks()
 
         self.connection_attempt += 1
-        self.__connection_close_event.clear()
 
     async def __connection_factory(self) -> None:
         log.debug("Starting connection factory for %r", self)
         while not self.is_closed and not self._close_called:
-            log.debug("Waiting for connection close event for %r", self)
-            await self.__connection_close_event.wait()
+            log.debug("Waiting for recovery event for %r", self)
+            await self.__restore_event.wait()
+            self.__restore_event.clear()
 
             if self.is_closed or self._close_called:
                 return
 
             # noinspection PyBroadException
             try:
-                self.transport = None
-                self.connected.clear()
-
-                log.debug("Connection attempt for %r", self)
-                await Connection.connect(self, self.__connect_timeout)
-
-                if not self.__fail_fast_future.done():
-                    self.__fail_fast_future.set_result(None)
-
-                log.debug("Connection made on %r", self)
+                transport = self.transport
+                if transport is not None and not transport.connection.is_closed:
+                    for channel in tuple(self.__channels):
+                        if isinstance(channel, RobustChannel):
+                            if await channel._restore_consumers():
+                                self.__restore_event.set()
+                else:
+                    await self.__connect_transport()
             except CONNECTION_EXCEPTIONS as e:
+                self.__restore_event.set()
                 if not self.__fail_fast_future.done():
                     self.__fail_fast_future.set_exception(e)
                     return
@@ -177,6 +180,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
                     self.reconnect_interval,
                 )
             except asyncio.CancelledError:
+                self.__restore_event.set()
                 if self._close_called or self.is_closed:
                     raise
                 log.warning(
@@ -186,6 +190,7 @@ class RobustConnection(Connection, AbstractRobustConnection):
                     self.reconnect_interval,
                 )
             except Exception as exc:
+                self.__restore_event.set()
                 log.error(
                     "Reconnect attempt failed %s due to %s: %s. "
                     "Retrying after %r seconds.",
@@ -200,6 +205,15 @@ class RobustConnection(Connection, AbstractRobustConnection):
                 )
 
             await asyncio.sleep(self.reconnect_interval)
+
+    async def __connect_transport(self) -> None:
+        self.transport = None
+        self.connected.clear()
+        log.debug("Connection attempt for %r", self)
+        await Connection.connect(self, self.__connect_timeout)
+        if not self.__fail_fast_future.done():
+            self.__fail_fast_future.set_result(None)
+        log.debug("Connection made on %r", self)
 
     async def connect(self, timeout: TimeoutType = None) -> None:
         self.__connect_timeout = timeout
@@ -249,10 +263,9 @@ class RobustConnection(Connection, AbstractRobustConnection):
 
     async def close(
         self,
-        exc: Optional[aiormq.abc.ExceptionType] = asyncio.CancelledError,
+        exc: aiormq.abc.ExceptionType | None = asyncio.CancelledError,
     ) -> None:
         self._close_called = True
-
         if self.__reconnection_task is not None:
             self.__reconnection_task.cancel()
             await asyncio.gather(

@@ -15,6 +15,7 @@ from .abc import (
     AbstractRobustQueue,
     ConsumerTag,
     TimeoutType,
+    get_exchange_name,
 )
 from .exchange import ExchangeParamType
 from .log import get_logger
@@ -71,6 +72,40 @@ class RobustQueue(Queue, AbstractRobustQueue):
 
         for consumer_tag, kwargs in consumers:
             await self.consume(consumer_tag=consumer_tag, **kwargs)
+
+    async def _probe(self, channel: aiormq.abc.AbstractChannel) -> None:
+        await channel.queue_declare(
+            queue=self.name,
+            durable=self.durable,
+            exclusive=self.exclusive,
+            auto_delete=self.auto_delete,
+            arguments=self.arguments,
+            passive=self.passive,
+            timeout=5,
+        )
+        for (exchange, routing_key), kwargs in tuple(self._bindings.items()):
+            await channel.queue_bind(
+                queue=self.name,
+                exchange=get_exchange_name(exchange),
+                routing_key=routing_key,
+                timeout=5,
+                **kwargs,
+            )
+
+    async def delete(
+        self,
+        *,
+        if_unused: bool = True,
+        if_empty: bool = True,
+        timeout: TimeoutType = None,
+    ) -> aiormq.spec.Queue.DeleteOk:
+        self._consumers.clear()
+        return await self.channel.queue_delete(
+            self.name,
+            if_unused=if_unused,
+            if_empty=if_empty,
+            timeout=timeout,
+        )
 
     async def bind(
         self,

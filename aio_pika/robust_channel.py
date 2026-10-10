@@ -71,6 +71,7 @@ class RobustChannel(Channel, AbstractRobustChannel):
         self.reopen_callbacks = CallbackCollection(self)
         self.__restore_lock = asyncio.Lock()
         self.__restored = asyncio.Event()
+        self._close_called = False
 
         self.close_callbacks.remove(self._set_closed_callback)
 
@@ -93,6 +94,7 @@ class RobustChannel(Channel, AbstractRobustChannel):
         async with self.__restore_lock:
             if (
                 self.__restored.is_set()
+                or self._close_called
                 or self._connection.close_called
                 or self._connection.is_closed
             ):
@@ -137,13 +139,14 @@ class RobustChannel(Channel, AbstractRobustChannel):
 
     async def close(
         self,
-        exc: Optional[aiormq.abc.ExceptionType] = None,
+        exc: aiormq.abc.ExceptionType | None = None,
     ) -> None:
-        # Avoid recovery when channel is explicitely closed using this method
+        self._close_called = True
         self.__restored.clear()
         await super().close(exc)
 
     async def reopen(self) -> None:
+        self._close_called = False
         await super().reopen()
         await self.reopen_callbacks()
 
@@ -154,6 +157,7 @@ class RobustChannel(Channel, AbstractRobustChannel):
         exchanges = self._exchanges.values()
         queues = tuple(chain(*self._queues.values()))
         channel = await self.get_underlay_channel()
+        channel.on_consumer_cancel_callbacks.add(self._on_consumer_cancel)
 
         await channel.basic_qos(
             prefetch_count=self._prefetch_count,
@@ -171,6 +175,78 @@ class RobustChannel(Channel, AbstractRobustChannel):
             self.default_exchange.channel = self
 
         self.__restored.set()
+
+    def _on_consumer_cancel(self, frame: aiormq.spec.Basic.Cancel) -> None:
+        from .robust_connection import RobustConnection
+
+        if isinstance(self._connection, RobustConnection) and any(
+            frame.consumer_tag in queue._consumers
+            for queue in chain(*self._queues.values())
+        ):
+            self._connection._request_recovery()
+
+    async def _restore_consumers(self) -> bool:
+        if self._close_called or self._closed.done():
+            return False
+        try:
+            await self.restore()
+        except Exception:
+            log.debug("Channel recovery failed; retrying", exc_info=True)
+            return True
+        channel = cast(aiormq.Channel, await self.get_underlay_channel())
+        recovery = asyncio.create_task(self._restore_missing_consumers(channel))
+        try:
+            await asyncio.wait(
+                (recovery, self._closed, channel.closing),
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if self._close_called or self._closed.done():
+                return False
+            if channel.closing.done():
+                return True
+            return await recovery
+        finally:
+            recovery.cancel()
+            await asyncio.gather(recovery, return_exceptions=True)
+
+    async def _restore_missing_consumers(self, channel: aiormq.Channel) -> bool:
+        retry = False
+        async with self.__restore_lock:
+            for queue in tuple(chain(*self._queues.values())):
+                tags = queue._consumers.keys() - channel.consumers.keys()
+                if not tags:
+                    continue
+                try:
+                    probe = await channel.connection.channel(
+                        publisher_confirms=False,
+                        timeout=5,
+                    )
+                    try:
+                        await queue._probe(probe)
+                    finally:
+                        await probe.close()
+                    if not self.__restored.is_set() or channel.is_closed:
+                        return False
+                    for tag in tags:
+                        kwargs = queue._consumers.get(tag)
+                        if kwargs is None or tag in channel.consumers:
+                            continue
+                        await Queue.consume(
+                            queue,
+                            consumer_tag=tag,
+                            timeout=5,
+                            **kwargs,
+                        )
+                        if queue._consumers.get(tag) is not kwargs:
+                            await channel.basic_cancel(tag)
+                except Exception:
+                    log.debug(
+                        "Consumer recovery failed for %r; retrying",
+                        queue,
+                        exc_info=True,
+                    )
+                    retry = True
+        return retry
 
     async def set_qos(
         self,
@@ -301,6 +377,9 @@ class RobustChannel(Channel, AbstractRobustChannel):
         nowait: bool = False,
     ) -> aiormq.spec.Queue.DeleteOk:
         await self.ready()
+        queues = self._queues.pop(queue_name, set())
+        for queue in queues:
+            queue._consumers.clear()
         result = await super().queue_delete(
             queue_name=queue_name,
             timeout=timeout,
@@ -308,7 +387,6 @@ class RobustChannel(Channel, AbstractRobustChannel):
             if_empty=if_empty,
             nowait=nowait,
         )
-        self._queues.pop(queue_name, None)
         return result
 
 
