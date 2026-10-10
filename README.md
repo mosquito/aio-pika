@@ -33,6 +33,21 @@ If you are a newcomer to RabbitMQ, please start with the [adopted official Rabbi
 * Complete type-hints coverage.
 
 
+## Consumer recovery
+
+With `connect_robust`, consumers registered with `robust=True` on robust
+queues recover after a broker `basic.cancel`, including when a classic queue's
+node restarts. Recovery retries with a delay and restores the queue's bindings
+before registering the cancelled consumers again. Other consumers stay active.
+
+A queue declared normally is recreated if it was deleted by the broker or
+another client. A queue declared with `passive=True` waits until it exists again.
+Explicit `queue.cancel()`, deleting the queue through its own channel with
+`queue.delete()` or `channel.queue_delete()`, and closing the channel or
+connection stop recovery. Consumers or queues registered with `robust=False`
+do not recover automatically.
+
+
 ## Installation
 
 ```shell
