@@ -431,31 +431,38 @@ class RPC(Base):
 
         future, correlation_id = self.create_future()
 
-        message = await self.serialize_message(
-            payload=kwargs or {},
-            message_type=RPCMessageType.CALL,
-            correlation_id=correlation_id,
-            delivery_mode=delivery_mode,
-            reply_to=self.result_queue.name,
-            headers={"From": self.result_queue.name},
-            priority=priority,
-        )
+        try:
+            message = await self.serialize_message(
+                payload=kwargs or {},
+                message_type=RPCMessageType.CALL,
+                correlation_id=correlation_id,
+                delivery_mode=delivery_mode,
+                reply_to=self.result_queue.name,
+                headers={"From": self.result_queue.name},
+                priority=priority,
+            )
 
-        if expiration is not None:
-            message.expiration = expiration
+            if expiration is not None:
+                message.expiration = expiration
 
-        routing_key = self._format_routing_key(method_name)
+            routing_key = self._format_routing_key(method_name)
 
-        log.debug("Publishing calls for %s(%r)", routing_key, kwargs)
-        exchange = self.rpc_exchange or self.channel.default_exchange
-        await exchange.publish(
-            message,
-            routing_key=routing_key,
-            mandatory=True,
-        )
+            log.debug("Publishing calls for %s(%r)", routing_key, kwargs)
+            exchange = self.rpc_exchange or self.channel.default_exchange
+            await exchange.publish(
+                message,
+                routing_key=routing_key,
+                mandatory=True,
+            )
 
-        log.debug("Waiting RPC result for %s(%r)", routing_key, kwargs)
-        return await future
+            log.debug("Waiting RPC result for %s(%r)", routing_key, kwargs)
+            return await future
+        finally:
+            if not future.done():
+                future.cancel()
+            elif not future.cancelled():
+                # Publishing may fail after a close callback rejects the future.
+                future.exception()
 
     async def register(
         self,
