@@ -1,6 +1,6 @@
 import asyncio
 import warnings
-from typing import Any, Dict, Union
+from typing import Any, Dict, Tuple, Union
 
 import aiormq
 from pamqp.common import Arguments
@@ -11,6 +11,7 @@ from .abc import (
     AbstractRobustExchange,
     ExchangeParamType,
     TimeoutType,
+    get_exchange_name,
 )
 from .exchange import Exchange, ExchangeType
 from .log import get_logger
@@ -22,7 +23,7 @@ log = get_logger(__name__)
 class RobustExchange(Exchange, AbstractRobustExchange):
     """Exchange abstraction"""
 
-    _bindings: Dict[Union[AbstractExchange, str], Dict[str, Any]]
+    _bindings: Dict[Tuple[Union[AbstractExchange, str], str], Dict[str, Any]]
 
     def __init__(
         self,
@@ -65,8 +66,10 @@ class RobustExchange(Exchange, AbstractRobustExchange):
 
                 await self.declare()
 
-                for exchange, kwargs in tuple(self._bindings.items()):
-                    await self.bind(exchange, **kwargs)
+                for (exchange, routing_key), kwargs in tuple(
+                    self._bindings.items()
+                ):
+                    await self.bind(exchange, routing_key, **kwargs)
             except Exception:
                 raise
 
@@ -87,8 +90,7 @@ class RobustExchange(Exchange, AbstractRobustExchange):
         )
 
         if robust:
-            self._bindings[exchange] = dict(
-                routing_key=routing_key,
+            self._bindings[(exchange, routing_key)] = dict(
                 arguments=arguments,
             )
 
@@ -107,7 +109,13 @@ class RobustExchange(Exchange, AbstractRobustExchange):
             arguments=arguments,
             timeout=timeout,
         )
-        self._bindings.pop(exchange, None)
+        exchange_name = get_exchange_name(exchange)
+        for bound_exchange, bound_key in tuple(self._bindings):
+            if (
+                get_exchange_name(bound_exchange) == exchange_name
+                and bound_key == routing_key
+            ):
+                self._bindings.pop((bound_exchange, bound_key), None)
         return result
 
 
