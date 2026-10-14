@@ -149,7 +149,13 @@ class RobustQueue(Queue, AbstractRobustQueue):
             arguments,
             timeout,
         )
-        self._bindings.pop((exchange, routing_key), None)
+        exchange_name = get_exchange_name(exchange)
+        for bound_exchange, bound_key in tuple(self._bindings):
+            if (
+                get_exchange_name(bound_exchange) == exchange_name
+                and bound_key == routing_key
+            ):
+                self._bindings.pop((bound_exchange, bound_key), None)
 
         return result
 
