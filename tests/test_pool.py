@@ -3,7 +3,7 @@ from collections import Counter
 
 import pytest
 
-from aio_pika.pool import Pool, PoolInstance
+from aio_pika.pool import Pool, PoolInstance, PoolInvalidStateError
 
 
 @pytest.mark.parametrize("max_size", [50, 10, 5, 1])
@@ -31,6 +31,86 @@ async def test_simple(max_size, event_loop):
         assert total > -1
 
     assert counter == max_size
+
+
+async def test_close_while_acquisition_waits_for_released_item():
+    creation_started = asyncio.Event()
+    finish_creation = asyncio.Event()
+    waiter_started = asyncio.Event()
+    instance = TestInstanceBase.Instance()
+
+    async def create_instance():
+        creation_started.set()
+        await finish_creation.wait()
+        return instance
+
+    pool: Pool[TestInstanceBase.Instance] = Pool(create_instance, max_size=1)
+    first = pool.acquire()
+    first_task = asyncio.create_task(first.__aenter__())
+    await creation_started.wait()
+
+    async def acquire_second():
+        waiter_started.set()
+        async with pool.acquire():
+            pass
+
+    waiter = asyncio.create_task(acquire_second())
+    await waiter_started.wait()
+    finish_creation.set()
+    await first_task
+
+    try:
+        await asyncio.wait_for(pool.close(), timeout=1)
+        assert pool.is_closed
+        assert instance.closed
+    finally:
+        waiter.cancel()
+        await asyncio.gather(waiter, return_exceptions=True)
+        if not pool.is_closed:
+            await pool.close()
+
+
+async def test_acquisition_queued_after_close_does_not_create_item():
+    creation_started = asyncio.Event()
+    finish_creation = asyncio.Event()
+    close_started = asyncio.Event()
+    waiter_started = asyncio.Event()
+    instances = []
+
+    async def create_instance():
+        creation_started.set()
+        await finish_creation.wait()
+        instance = TestInstanceBase.Instance()
+        instances.append(instance)
+        return instance
+
+    pool: Pool[TestInstanceBase.Instance] = Pool(create_instance, max_size=2)
+    first = pool.acquire()
+    first_task = asyncio.create_task(first.__aenter__())
+    await creation_started.wait()
+
+    async def close_pool():
+        close_started.set()
+        await pool.close()
+
+    close_task = asyncio.create_task(close_pool())
+    await close_started.wait()
+
+    async def acquire_second():
+        waiter_started.set()
+        return await pool.acquire().__aenter__()
+
+    waiter = asyncio.create_task(acquire_second())
+    await waiter_started.wait()
+    finish_creation.set()
+    await first_task
+    await close_task
+
+    with pytest.raises(PoolInvalidStateError):
+        await waiter
+
+    assert len(instances) == 1
+    assert instances[0].closed
 
 
 class TestInstanceBase:

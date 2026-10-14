@@ -89,18 +89,20 @@ class Pool(Generic[T]):
         return self._has_released
 
     async def _create_item(self) -> T:
-        if self.__closed:
-            raise PoolInvalidStateError("create item operation on closed pool")
-
         async with self.__lock:
-            if self._is_overflow:
-                return await self.__items.get()
+            if self.__closed:
+                raise PoolInvalidStateError(
+                    "create item operation on closed pool"
+                )
 
-            log.debug("Creating a new instance of %r", self.__constructor)
-            item = await self.__constructor(*self.__constructor_args)
-            self.__created += 1
-            self.__item_set.add(item)
-            return item
+            if not self._is_overflow:
+                log.debug("Creating a new instance of %r", self.__constructor)
+                item = await self.__constructor(*self.__constructor_args)
+                self.__created += 1
+                self.__item_set.add(item)
+                return item
+
+        return await self.__items.get()
 
     async def _get(self) -> T:
         if self.__closed:
