@@ -257,31 +257,33 @@ class CallbackCollection(
         *args: _Params.args,
         **kwargs: _Params.kwargs,
     ) -> Awaitable[Any]:
+        """Invoke a snapshot of callbacks outside the collection lock."""
         futures: List[asyncio.Future] = []
 
         with self.__lock:
             sender = self.__sender()
+            callbacks = tuple(self)
 
-            for cb in self:
-                try:
-                    if isinstance(cb, CallbackCollection):
-                        result = cb(*args, **kwargs)
-                    else:
-                        result = cb(sender, *args, **kwargs)
-                    if inspect.isawaitable(result):
-                        futures.append(asyncio.ensure_future(result))
-                except Exception as exc:
-                    log.error(
-                        "Callback %r error: %s: %s",
-                        cb,
-                        type(exc).__name__,
-                        exc,
-                    )
-                    log.debug(
-                        "Full traceback for callback %r error",
-                        cb,
-                        exc_info=True,
-                    )
+        for cb in callbacks:
+            try:
+                if isinstance(cb, CallbackCollection):
+                    result = cb(*args, **kwargs)
+                else:
+                    result = cb(sender, *args, **kwargs)
+                if inspect.isawaitable(result):
+                    futures.append(asyncio.ensure_future(result))
+            except Exception as exc:
+                log.error(
+                    "Callback %r error: %s: %s",
+                    cb,
+                    type(exc).__name__,
+                    exc,
+                )
+                log.debug(
+                    "Full traceback for callback %r error",
+                    cb,
+                    exc_info=True,
+                )
 
         if not futures:
             return STUB_AWAITABLE
