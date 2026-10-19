@@ -56,6 +56,8 @@ class Connection(AbstractConnection):
     )
 
     _closed: asyncio.Future
+    _close_called: bool
+    _close_in_progress: bool
 
     @property
     def is_closed(self) -> bool:
@@ -69,13 +71,19 @@ class Connection(AbstractConnection):
         self,
         exc: Optional[aiormq.abc.ExceptionType] = ConnectionClosed,
     ) -> None:
+        """Close the connection, including when no transport was created."""
+        if self._close_in_progress:
+            return
+        self._close_in_progress = True
         transport, self.transport = self.transport, None
         self._close_called = True
-        if not transport:
-            return
-        await transport.close(exc)
-        if not self._closed.done():
-            self._closed.set_result(True)
+        try:
+            if transport is not None:
+                await transport.close(exc)
+            if not self._closed.done():
+                self._closed.set_result(True)
+        finally:
+            self._close_in_progress = False
 
     def closed(self) -> Awaitable[Literal[True]]:
         return self._closed
@@ -105,6 +113,7 @@ class Connection(AbstractConnection):
         self.transport = None
         self._closed = self.loop.create_future()
         self._close_called = False
+        self._close_in_progress = False
 
         self.url = URL(url)
 
