@@ -227,16 +227,26 @@ class RPC(Base):
             future.set_exception(exc or Exception)
 
     @classmethod
-    async def create(cls, channel: AbstractChannel, **kwargs: Any) -> "RPC":
+    async def create(
+        cls,
+        channel: AbstractChannel,
+        *,
+        host_exceptions: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> "RPC":
         """Creates a new instance of :class:`aio_pika.patterns.RPC`.
         You should use this method instead of :func:`__init__`,
         because :func:`create` returns coroutine and makes async initialize
 
         :param channel: initialized instance of :class:`aio_pika.Channel`
+        :param host_exceptions: override logging of exceptions raised by RPC
+            handlers, or keep the constructor setting when omitted
         :returns: :class:`RPC`
 
         """
         rpc = cls(channel)
+        if host_exceptions is not None:
+            rpc.host_exceptions = host_exceptions
         await rpc.initialize(**kwargs)
         return rpc
 
