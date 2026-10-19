@@ -78,7 +78,8 @@ class Connection(AbstractConnection):
             self._closed.set_result(True)
 
     def closed(self) -> Awaitable[Literal[True]]:
-        return self._closed
+        """Return a closure notification isolated from waiter cancellation."""
+        return asyncio.shield(self._closed)
 
     @classmethod
     def _parse_parameters(cls, kwargs: Dict[str, Any]) -> Dict[str, Any]:
