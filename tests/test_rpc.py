@@ -2,6 +2,7 @@ import asyncio
 import logging
 import warnings
 from functools import partial
+from threading import Lock
 
 import pytest
 
@@ -29,6 +30,96 @@ async def rpc_func2(*, foo, bar):
 
 
 class TestCase:
+    async def test_unserializable_call_removes_future(
+        self,
+        channel: aio_pika.Channel,
+    ):
+        rpc = await RPC.create(channel, auto_delete=True)
+        try:
+            with pytest.raises(TypeError):
+                await rpc.call("test.rpc", {"lock": Lock()})
+
+            await asyncio.sleep(0)
+            assert not rpc.futures
+        finally:
+            for future in rpc.futures.values():
+                future.cancel()
+            await rpc.close()
+
+    @pytest.mark.parametrize("channel_closed", [False, True])
+    async def test_failed_publish_finishes_future(
+        self,
+        channel: aio_pika.Channel,
+        monkeypatch,
+        channel_closed,
+    ):
+        rpc = await RPC.create(channel, auto_delete=True)
+        futures: list[asyncio.Future] = []
+        error = RuntimeError("publish failed")
+
+        async def fail_publish(exchange, *args, **kwargs):
+            futures.extend(rpc.futures.values())
+            if channel_closed:
+                rpc.on_close(channel, error)
+            raise error
+
+        monkeypatch.setattr(
+            type(channel.default_exchange), "publish", fail_publish
+        )
+        try:
+            with pytest.raises(RuntimeError) as exc_info:
+                await rpc.call("test.rpc")
+
+            assert exc_info.value is error
+            await asyncio.sleep(0)
+            assert not rpc.futures
+            assert all(future.done() for future in futures)
+            assert all(not future._log_traceback for future in futures)
+        finally:
+            for future in futures:
+                if not future.done():
+                    future.cancel()
+                elif not future.cancelled():
+                    future.exception()
+            await rpc.close()
+
+    @pytest.mark.parametrize("stage", ["serialize", "publish"])
+    async def test_cancelled_call_finishes_future(
+        self,
+        channel: aio_pika.Channel,
+        monkeypatch,
+        stage,
+    ):
+        rpc = await RPC.create(channel, auto_delete=True)
+        started = asyncio.Event()
+
+        async def wait_forever(*args, **kwargs):
+            started.set()
+            await asyncio.Future()
+
+        if stage == "serialize":
+            monkeypatch.setattr(type(rpc), "serialize_message", wait_forever)
+        else:
+            monkeypatch.setattr(
+                type(channel.default_exchange), "publish", wait_forever
+            )
+
+        task = asyncio.create_task(rpc.call("test.rpc"))
+        try:
+            await started.wait()
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+            await asyncio.sleep(0)
+            assert not rpc.futures
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            for future in rpc.futures.values():
+                future.cancel()
+            await rpc.close()
+
     async def test_simple(self, channel: aio_pika.Channel):
         rpc = await RPC.create(channel, auto_delete=True)
 
