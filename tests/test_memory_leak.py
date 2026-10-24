@@ -1,3 +1,4 @@
+import asyncio
 import gc
 import weakref
 from functools import partial
@@ -127,3 +128,68 @@ async def test_get_queue_no_memory_leak(create_robust_connection):
         # Verify internal storage has only one queue for this name
         assert name in channel._queues
         assert len(channel._queues[name]) == 1
+
+
+async def test_queue_iterator_no_memory_leak(create_connection):
+    """Closed iterators must not stay in memory while the channel is open.
+
+    The channel keeps its closed future until the channel closes, and a
+    strong done callback on that future kept every iterator alive.
+    """
+    connection = await create_connection()
+
+    weakset: weakref.WeakSet[aio_pika.abc.AbstractQueueIterator] = (
+        weakref.WeakSet()
+    )
+
+    async with connection:
+        channel = await connection.channel()
+        # An exclusive queue lives while the connection lives, therefore
+        # the iterators consume the same queue one after another.
+        queue = await channel.declare_queue(
+            get_random_name("memory", "leak", "iterator"),
+            exclusive=True,
+        )
+
+        async def consume() -> None:
+            async with queue.iterator() as iterator:
+                weakset.add(iterator)
+
+        for _ in range(5):
+            await consume()
+
+        # The close future schedules its done callbacks, which hold the
+        # last references until the loop runs them.
+        await asyncio.sleep(0)
+        gc.collect()
+
+        assert len(tuple(weakset)) == 0
+        assert not channel.is_closed
+
+
+async def test_unused_queue_iterator_no_memory_leak(create_connection):
+    """An iterator which never consumes must not stay in memory.
+
+    The "async for message in queue" form abandons the iterator instead
+    of closing it.
+    """
+    connection = await create_connection()
+
+    weakset: weakref.WeakSet[aio_pika.abc.AbstractQueueIterator] = (
+        weakref.WeakSet()
+    )
+
+    async with connection:
+        channel = await connection.channel()
+        queue = await channel.declare_queue(
+            get_random_name("memory", "leak", "unused", "iterator"),
+            exclusive=True,
+        )
+
+        for _ in range(5):
+            weakset.add(queue.iterator())
+
+        gc.collect()
+
+        assert len(tuple(weakset)) == 0
+        assert not channel.is_closed

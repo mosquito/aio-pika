@@ -6,8 +6,10 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    List,
     Literal,
     Optional,
+    Tuple,
     Type,
     cast,
     overload,
@@ -31,7 +33,12 @@ from .exceptions import QueueEmpty
 from .exchange import ExchangeParamType
 from .log import get_logger
 from .message import IncomingMessage
-from .tools import CallbackCollection, create_task, ensure_awaitable
+from .tools import (
+    CallbackCollection,
+    create_task,
+    ensure_awaitable,
+    weak_method_callback,
+)
 
 
 log = get_logger(__name__)
@@ -593,16 +600,45 @@ class QueueIterator(AbstractQueueIterator):
         self._timeout_event = asyncio.Event()
         self._consume_kwargs = kwargs
 
-        cast(
-            asyncio.Future, self._amqp_queue.channel.closed()
-        ).add_done_callback(self._propagate_closed)
+        self.__wakeups: List[Tuple[asyncio.Future, Callable[[Future], None]]]
+        self.__wakeups = []
+        self._wake_up_on(
+            cast(asyncio.Future, self._amqp_queue.channel.closed()),
+            self._propagate_closed,
+        )
         self._closed.add_done_callback(self._propagate_closed)
 
         self._amqp_queue.close_callbacks.add(self._on_close, weak=True)
         self._amqp_queue.close_callbacks.add(self._set_closed, weak=True)
 
-    def _propagate_closed(self, _: Future) -> None:
+    def _wake_up_on(
+        self,
+        future: asyncio.Future,
+        method: Callable[[Future], None],
+    ) -> None:
+        """Call the method when the future completes.
+
+        The future outlives the iterator, for example the closed future
+        of a channel or of a connection. A bound method as a done
+        callback would keep the iterator in memory until that future
+        completes, therefore the callback holds a weak reference, and the
+        iterator removes it as soon as the iterator closes.
+        """
+        callback = weak_method_callback(method)
+        self.__wakeups.append((future, callback))
+        future.add_done_callback(callback)
+
+    def _propagate_closed(self, future: Future) -> None:
         self._message_or_closed.set()
+
+        if future is not self._closed:
+            return
+
+        # Every close path completes this future, therefore the longer
+        # living futures forget the iterator here.
+        while self.__wakeups:
+            target, callback = self.__wakeups.pop()
+            target.remove_done_callback(callback)
 
     async def on_message(self, message: AbstractIncomingMessage) -> None:
         await self._queue.put(message)

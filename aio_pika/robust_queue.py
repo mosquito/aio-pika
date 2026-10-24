@@ -11,6 +11,7 @@ from typing import (
     Optional,
     Tuple,
     Union,
+    cast,
 )
 
 import aiormq
@@ -251,7 +252,10 @@ class RobustQueueIterator(QueueIterator):
         channel = self._amqp_queue.channel
         if hasattr(channel, "_connection"):
             connection = channel._connection
-            connection.closed().add_done_callback(self._on_connection_closed)
+            self._wake_up_on(
+                cast(asyncio.Future, connection.closed()),
+                self._on_connection_closed,
+            )
 
     def _on_connection_closed(self, _: asyncio.Future) -> None:
         """Handle connection closed - set _closed to stop iteration."""
