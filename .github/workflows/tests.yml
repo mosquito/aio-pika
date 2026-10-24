@@ -40,28 +40,68 @@ jobs:
           FORCE_COLOR: 1
 
   tests:
+    name: Python ${{ matrix.python }} / ${{ matrix.loop }}
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: ${{ matrix.python }}
 
     strategy:
       fail-fast: false
 
       matrix:
-        python:
-          - '3.11'
-          - '3.12'
-          - '3.13'
-          - '3.14'
+        include:
+          - python: '3.11'
+            loop: uvloop
+          - python: '3.12'
+            loop: uvloop
+          - python: '3.13'
+            loop: uvloop
+          # uvloop wheels for free-threaded builds start at Python 3.14.
+          - python: '3.13t'
+            loop: asyncio
+          - python: '3.14'
+            loop: uvloop
+          - python: '3.14t'
+            loop: uvloop
+          - python: '3.15'
+            loop: uvloop
+          - python: '3.15t'
+            loop: uvloop
     steps:
       - uses: actions/checkout@v6
       - name: Setup python${{ matrix.python }}
         uses: actions/setup-python@v6
         with:
           python-version: "${{ matrix.python }}"
+          allow-prereleases: true
       - uses: astral-sh/setup-uv@v5
-      - run: uv sync --group uvloop
+      - run: >-
+          uv sync --locked --no-default-groups
+          --group test --group ${{ matrix.loop }}
+      - name: Verify test environment
+        env:
+          TEST_LOOP: ${{ matrix.loop }}
+          FREE_THREADED: ${{ endsWith(matrix.python, 't') && '1' || '0' }}
+        run: |
+          uv run --no-sync python - <<'PY'
+          import os
+          import sys
+          import sysconfig
+
+          import aiomisc_pytest
+          import aio_pika
+
+          if os.environ["TEST_LOOP"] == "uvloop":
+              import uvloop
+
+          free_threaded = os.environ["FREE_THREADED"] == "1"
+          assert bool(sysconfig.get_config_var("Py_GIL_DISABLED")) == free_threaded
+          if free_threaded:
+              assert not sys._is_gil_enabled()
+          PY
       - name: pytest
         run: >-
-          uv run pytest \
+          uv run --no-sync pytest \
             -vv \
             --cov=aio_pika \
             --cov-report=term-missing \
@@ -70,7 +110,7 @@ jobs:
             tests
         env:
           FORCE_COLOR: 1
-      - run: uv run coveralls
+      - run: uv run --no-sync coveralls
         env:
           COVERALLS_PARALLEL: 'true'
           COVERALLS_SERVICE_NAME: github
