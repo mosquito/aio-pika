@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from copy import copy
+from threading import Event, Thread
 from typing import Any, List
 from unittest import mock
 
@@ -87,6 +88,49 @@ class TestCase:
 
         assert l1 == l2
         assert l1 == [1, 2]
+
+    @pytest.mark.parametrize("operation", ["remove", "clear", "add"])
+    @pytest.mark.parametrize("weak", [False, True])
+    def test_callback_can_mutate_collection(self, collection, operation, weak):
+        entered = Event()
+        calls: List[str] = []
+        errors: List[Exception] = []
+
+        def added(sender):
+            calls.append("added")
+
+        def callback(sender):
+            calls.append("callback")
+            entered.set()
+            if operation == "remove":
+                collection.remove(callback)
+            elif operation == "clear":
+                collection.clear()
+            else:
+                collection.add(added)
+
+        def dispatch():
+            try:
+                collection()
+            except Exception as exc:
+                errors.append(exc)
+
+        collection.add(callback, weak=weak)
+        worker = Thread(target=dispatch, daemon=True)
+        worker.start()
+        assert entered.wait(1)
+        worker.join(1)
+        assert not worker.is_alive()
+        assert not errors
+        assert calls == ["callback"]
+
+        collection()
+        if operation == "add":
+            assert calls.count("callback") == 2
+            assert calls.count("added") == 1
+        else:
+            assert not collection
+            assert calls == ["callback"]
 
     async def test_blank_awaitable_callback(self, collection):
         await collection()
