@@ -1,7 +1,10 @@
+import asyncio
+
 import pytest
 
 import aio_pika
 from aio_pika.patterns.rpc import JsonRPC, JsonRPCError
+from tests import get_random_name
 
 
 async def rpc_func(*, foo, bar):
@@ -61,4 +64,67 @@ class TestCase:
             await rpc.proxy.test.rpc_error(foo=True, bar=None)
 
         await rpc.unregister(rpc_raise_exception)
+        await rpc.close()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        pytest.param({"text": "Привет, 世界 👋"}, id="unicode"),
+        pytest.param(
+            {
+                "error": {
+                    "type": "ValueError",
+                    "message": "ordinary result",
+                    "args": [],
+                },
+            },
+            id="result-with-error-key",
+        ),
+    ],
+)
+async def test_jsonrpc_result(channel: aio_pika.Channel, payload):
+    async def echo(*, value):
+        return value
+
+    rpc = await JsonRPC.create(channel, auto_delete=True)
+    method = get_random_name("jsonrpc")
+    await rpc.register(method, echo, auto_delete=True)
+    try:
+        result = await asyncio.wait_for(
+            rpc.call(method, kwargs={"value": payload}), timeout=5
+        )
+        assert result == payload
+    finally:
+        await rpc.unregister(echo)
+        await rpc.close()
+
+
+@pytest.mark.parametrize("exception_type", [ValueError, CustomException])
+async def test_jsonrpc_remote_error(channel: aio_pika.Channel, exception_type):
+    original = exception_type("Ошибка 👋", 42)
+
+    async def fail():
+        raise original
+
+    rpc = await JsonRPC.create(channel, auto_delete=True)
+    method = get_random_name("jsonrpc")
+    await rpc.register(method, fail, auto_delete=True)
+    try:
+        with pytest.raises(JsonRPCError) as error:
+            await asyncio.wait_for(rpc.call(method), timeout=5)
+
+        assert type(error.value) is JsonRPCError
+        assert error.value.args == (
+            "RPC exception",
+            {
+                "error": {
+                    "type": exception_type.__name__,
+                    "message": repr(original),
+                    "args": list(original.args),
+                },
+            },
+        )
+    finally:
+        await rpc.unregister(fail)
         await rpc.close()
