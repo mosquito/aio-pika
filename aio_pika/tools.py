@@ -23,7 +23,7 @@ from typing import (
     TypeVar,
     Union,
 )
-from weakref import ReferenceType, WeakSet, ref
+from weakref import ReferenceType, WeakMethod, WeakSet, ref
 
 from aio_pika.log import get_logger
 
@@ -348,6 +348,32 @@ class OneShotCallback:
         return self.__task
 
 
+def weak_method_callback(
+    method: Callable[_Params, Any],
+) -> Callable[_Params, Any]:
+    """Wrap a bound method into a callable without a strong reference.
+
+    A future keeps its done callbacks until it completes. A bound method
+    as a callback keeps its instance in memory for that whole time. The
+    wrapper does nothing when the instance is already collected.
+
+    functools.wraps is not used here, because it stores the wrapped
+    method and that reference would keep the instance in memory.
+    """
+    reference = WeakMethod(method)
+
+    def wrapper(
+        *args: _Params.args,
+        **kwargs: _Params.kwargs,
+    ) -> Any:
+        target = reference()
+        if target is None:
+            return None
+        return target(*args, **kwargs)
+
+    return wrapper
+
+
 def ensure_awaitable(
     func: Callable[_Params, Union[T, Awaitable[T]]],
 ) -> Callable[_Params, Awaitable[T]]:
@@ -400,4 +426,5 @@ __all__ = (
     "create_task",
     "ensure_awaitable",
     "iscoroutinepartial",
+    "weak_method_callback",
 )
