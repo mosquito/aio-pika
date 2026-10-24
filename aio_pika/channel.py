@@ -147,7 +147,8 @@ class Channel(ChannelContext):
             self._closed.set_result(True)
 
     def closed(self) -> Awaitable[Literal[True]]:
-        return self._closed
+        """Return a closure notification isolated from waiter cancellation."""
+        return asyncio.shield(self._closed)
 
     async def get_underlay_channel(self) -> aiormq.abc.AbstractChannel:
 
