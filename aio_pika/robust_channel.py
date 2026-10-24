@@ -2,7 +2,18 @@ import asyncio
 import warnings
 from collections import defaultdict
 from itertools import chain
-from typing import Any, DefaultDict, Dict, Optional, Set, Type, Union, cast
+from typing import (
+    Literal,
+    overload,
+    Any,
+    DefaultDict,
+    Dict,
+    Optional,
+    Set,
+    Type,
+    Union,
+    cast,
+)
 from warnings import warn
 
 import aiormq
@@ -313,13 +324,40 @@ class RobustChannel(Channel, AbstractRobustChannel):
 
         return exchange
 
+    @overload
+    async def exchange_delete(
+        self,
+        exchange_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        nowait: Literal[False] = False,
+    ) -> aiormq.spec.Exchange.DeleteOk: ...
+
+    @overload
+    async def exchange_delete(
+        self,
+        exchange_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        nowait: Literal[True] = True,
+    ) -> None: ...
+
+    @overload
     async def exchange_delete(
         self,
         exchange_name: str,
         timeout: TimeoutType = None,
         if_unused: bool = False,
         nowait: bool = False,
-    ) -> aiormq.spec.Exchange.DeleteOk:
+    ) -> aiormq.spec.Exchange.DeleteOk | None: ...
+
+    async def exchange_delete(
+        self,
+        exchange_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        nowait: bool = False,
+    ) -> aiormq.spec.Exchange.DeleteOk | None:
         await self.ready()
         result = await super().exchange_delete(
             exchange_name=exchange_name,
@@ -368,6 +406,27 @@ class RobustChannel(Channel, AbstractRobustChannel):
             self._queues[queue.name].add(queue)
         return queue
 
+    @overload
+    async def queue_delete(
+        self,
+        queue_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        if_empty: bool = False,
+        nowait: Literal[False] = False,
+    ) -> aiormq.spec.Queue.DeleteOk: ...
+
+    @overload
+    async def queue_delete(
+        self,
+        queue_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        if_empty: bool = False,
+        nowait: Literal[True] = True,
+    ) -> None: ...
+
+    @overload
     async def queue_delete(
         self,
         queue_name: str,
@@ -375,7 +434,16 @@ class RobustChannel(Channel, AbstractRobustChannel):
         if_unused: bool = False,
         if_empty: bool = False,
         nowait: bool = False,
-    ) -> aiormq.spec.Queue.DeleteOk:
+    ) -> aiormq.spec.Queue.DeleteOk | None: ...
+
+    async def queue_delete(
+        self,
+        queue_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        if_empty: bool = False,
+        nowait: bool = False,
+    ) -> aiormq.spec.Queue.DeleteOk | None:
         await self.ready()
         queues = self._queues.pop(queue_name, set())
         for queue in queues:

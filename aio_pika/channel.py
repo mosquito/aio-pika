@@ -13,6 +13,7 @@ from typing import (
     Self,
     Type,
     Union,
+    overload,
 )
 from warnings import warn
 
@@ -455,6 +456,27 @@ class Channel(ChannelContext):
             timeout=timeout,
         )
 
+    @overload
+    async def queue_delete(
+        self,
+        queue_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        if_empty: bool = False,
+        nowait: Literal[False] = False,
+    ) -> aiormq.spec.Queue.DeleteOk: ...
+
+    @overload
+    async def queue_delete(
+        self,
+        queue_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        if_empty: bool = False,
+        nowait: Literal[True] = True,
+    ) -> None: ...
+
+    @overload
     async def queue_delete(
         self,
         queue_name: str,
@@ -462,15 +484,60 @@ class Channel(ChannelContext):
         if_unused: bool = False,
         if_empty: bool = False,
         nowait: bool = False,
-    ) -> aiormq.spec.Queue.DeleteOk:
+    ) -> aiormq.spec.Queue.DeleteOk | None: ...
+
+    async def queue_delete(
+        self,
+        queue_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        if_empty: bool = False,
+        nowait: bool = False,
+    ) -> aiormq.spec.Queue.DeleteOk | None:
         channel = await self.get_underlay_channel()
+        if nowait:
+            await channel.queue_delete(
+                queue=queue_name,
+                if_unused=if_unused,
+                if_empty=if_empty,
+                nowait=True,
+                timeout=timeout,
+            )
+            return None
         return await channel.queue_delete(
             queue=queue_name,
             if_unused=if_unused,
             if_empty=if_empty,
-            nowait=nowait,
+            nowait=False,
             timeout=timeout,
         )
+
+    @overload
+    async def exchange_delete(
+        self,
+        exchange_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        nowait: Literal[False] = False,
+    ) -> aiormq.spec.Exchange.DeleteOk: ...
+
+    @overload
+    async def exchange_delete(
+        self,
+        exchange_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        nowait: Literal[True] = True,
+    ) -> None: ...
+
+    @overload
+    async def exchange_delete(
+        self,
+        exchange_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        nowait: bool = False,
+    ) -> aiormq.spec.Exchange.DeleteOk | None: ...
 
     async def exchange_delete(
         self,
@@ -478,12 +545,20 @@ class Channel(ChannelContext):
         timeout: TimeoutType = None,
         if_unused: bool = False,
         nowait: bool = False,
-    ) -> aiormq.spec.Exchange.DeleteOk:
+    ) -> aiormq.spec.Exchange.DeleteOk | None:
         channel = await self.get_underlay_channel()
+        if nowait:
+            await channel.exchange_delete(
+                exchange=exchange_name,
+                if_unused=if_unused,
+                nowait=True,
+                timeout=timeout,
+            )
+            return None
         return await channel.exchange_delete(
             exchange=exchange_name,
             if_unused=if_unused,
-            nowait=nowait,
+            nowait=False,
             timeout=timeout,
         )
 
