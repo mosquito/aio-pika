@@ -17,6 +17,46 @@ async def ignore_message(message):
     pass
 
 
+async def test_consumer_timeout_restores_same_tag(amqp_url):
+    async with await connect_robust(
+        amqp_url, reconnect_interval=0.05
+    ) as connection:
+        channel = await connection.channel()
+        underlay = cast(aiormq.Channel, await channel.get_underlay_channel())
+        if not underlay.connection.accept_consumer_cancel_ok:
+            pytest.skip("Broker without accept_consumer_cancel_ok")
+        queue = await channel.declare_queue(
+            uuid.uuid4().hex,
+            durable=True,
+            arguments={
+                "x-queue-type": "quorum",
+                "x-consumer-timeout": 1000,
+            },
+        )
+        received: asyncio.Queue[AbstractIncomingMessage] = asyncio.Queue()
+        cancelled: asyncio.Queue[aiormq.spec.Basic.Cancel] = asyncio.Queue()
+        underlay.on_consumer_cancel_callbacks.add(cancelled.put_nowait)
+        try:
+            tag = await queue.consume(received.put)
+            await channel.default_exchange.publish(
+                Message(b"timeout"), queue.name
+            )
+            first = await asyncio.wait_for(received.get(), 5)
+            assert not first.redelivered
+            frame = await asyncio.wait_for(cancelled.get(), 30)
+            message = await asyncio.wait_for(received.get(), 10)
+            assert frame.consumer_tag == tag
+            assert message.redelivered and message.body == first.body
+            await message.ack()
+            assert await channel.get_underlay_channel() is underlay
+            assert connection.transport is not None
+            assert connection.transport.connection is underlay.connection
+            assert tag in underlay.consumers
+            await queue.cancel(tag)
+        finally:
+            await queue.delete(if_unused=False, if_empty=False)
+
+
 async def wait_for(predicate):
     async with asyncio.timeout(5):
         while not predicate():

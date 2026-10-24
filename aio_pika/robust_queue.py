@@ -1,7 +1,17 @@
 import asyncio
 import uuid
 import warnings
-from typing import Any, Awaitable, Callable, Dict, Optional, Tuple, Union
+from typing import (
+    Literal,
+    overload,
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import aiormq
 from aiormq import ChannelInvalidStateError
@@ -182,12 +192,36 @@ class RobustQueue(Queue, AbstractRobustQueue):
 
         return consumer_tag
 
+    @overload
+    async def cancel(
+        self,
+        consumer_tag: ConsumerTag,
+        timeout: TimeoutType = None,
+        nowait: Literal[False] = False,
+    ) -> aiormq.spec.Basic.CancelOk: ...
+
+    @overload
+    async def cancel(
+        self,
+        consumer_tag: ConsumerTag,
+        timeout: TimeoutType = None,
+        nowait: Literal[True] = True,
+    ) -> None: ...
+
+    @overload
     async def cancel(
         self,
         consumer_tag: ConsumerTag,
         timeout: TimeoutType = None,
         nowait: bool = False,
-    ) -> aiormq.spec.Basic.CancelOk:
+    ) -> aiormq.spec.Basic.CancelOk | None: ...
+
+    async def cancel(
+        self,
+        consumer_tag: ConsumerTag,
+        timeout: TimeoutType = None,
+        nowait: bool = False,
+    ) -> aiormq.spec.Basic.CancelOk | None:
         # A requested cancellation must also prevent restoration if the RPC
         # times out or is cancelled before Basic.CancelOk arrives.
         self._consumers.pop(consumer_tag, None)

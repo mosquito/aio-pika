@@ -291,7 +291,7 @@ async def test_missing_external_queue_retries_until_recreated(recovery_broker):
 
             connection.close_callbacks.add(on_close)
             connection.reconnect_callbacks.add(lambda *_: restored.set())
-            await external.delete()
+            await external.delete(if_unused=False, if_empty=False)
             await proxy.disconnect_all()
             await asyncio.wait_for(failed_twice.wait(), 10)
             assert not restored.is_set()

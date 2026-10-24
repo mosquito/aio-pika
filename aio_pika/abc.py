@@ -344,13 +344,37 @@ class AbstractQueue:
     ) -> ConsumerTag:
         raise NotImplementedError
 
+    @overload
+    async def cancel(
+        self,
+        consumer_tag: ConsumerTag,
+        timeout: TimeoutType = None,
+        nowait: Literal[False] = False,
+    ) -> aiormq.spec.Basic.CancelOk: ...
+
+    @overload
+    async def cancel(
+        self,
+        consumer_tag: ConsumerTag,
+        timeout: TimeoutType = None,
+        nowait: Literal[True] = True,
+    ) -> None: ...
+
+    @overload
+    async def cancel(
+        self,
+        consumer_tag: ConsumerTag,
+        timeout: TimeoutType = None,
+        nowait: bool = False,
+    ) -> aiormq.spec.Basic.CancelOk | None: ...
+
     @abstractmethod
     async def cancel(
         self,
         consumer_tag: ConsumerTag,
         timeout: TimeoutType = None,
         nowait: bool = False,
-    ) -> aiormq.spec.Basic.CancelOk:
+    ) -> aiormq.spec.Basic.CancelOk | None:
         raise NotImplementedError
 
     @overload
@@ -381,12 +405,33 @@ class AbstractQueue:
     ) -> Optional[AbstractIncomingMessage]:
         raise NotImplementedError
 
+    @overload
+    async def purge(
+        self,
+        no_wait: Literal[False] = False,
+        timeout: TimeoutType = None,
+    ) -> aiormq.spec.Queue.PurgeOk: ...
+
+    @overload
+    async def purge(
+        self,
+        no_wait: Literal[True] = True,
+        timeout: TimeoutType = None,
+    ) -> None: ...
+
+    @overload
+    async def purge(
+        self,
+        no_wait: bool = False,
+        timeout: TimeoutType = None,
+    ) -> aiormq.spec.Queue.PurgeOk | None: ...
+
     @abstractmethod
     async def purge(
         self,
         no_wait: bool = False,
         timeout: TimeoutType = None,
-    ) -> aiormq.spec.Queue.PurgeOk:
+    ) -> aiormq.spec.Queue.PurgeOk | None:
         raise NotImplementedError
 
     @abstractmethod
@@ -699,6 +744,36 @@ class AbstractChannel(PoolInstance, ABC):
     ) -> aiormq.spec.Basic.QosOk:
         raise NotImplementedError
 
+    @overload
+    async def queue_delete(
+        self,
+        queue_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        if_empty: bool = False,
+        nowait: Literal[False] = False,
+    ) -> aiormq.spec.Queue.DeleteOk: ...
+
+    @overload
+    async def queue_delete(
+        self,
+        queue_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        if_empty: bool = False,
+        nowait: Literal[True] = True,
+    ) -> None: ...
+
+    @overload
+    async def queue_delete(
+        self,
+        queue_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        if_empty: bool = False,
+        nowait: bool = False,
+    ) -> aiormq.spec.Queue.DeleteOk | None: ...
+
     @abstractmethod
     async def queue_delete(
         self,
@@ -707,8 +782,35 @@ class AbstractChannel(PoolInstance, ABC):
         if_unused: bool = False,
         if_empty: bool = False,
         nowait: bool = False,
-    ) -> aiormq.spec.Queue.DeleteOk:
+    ) -> aiormq.spec.Queue.DeleteOk | None:
         raise NotImplementedError
+
+    @overload
+    async def exchange_delete(
+        self,
+        exchange_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        nowait: Literal[False] = False,
+    ) -> aiormq.spec.Exchange.DeleteOk: ...
+
+    @overload
+    async def exchange_delete(
+        self,
+        exchange_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        nowait: Literal[True] = True,
+    ) -> None: ...
+
+    @overload
+    async def exchange_delete(
+        self,
+        exchange_name: str,
+        timeout: TimeoutType = None,
+        if_unused: bool = False,
+        nowait: bool = False,
+    ) -> aiormq.spec.Exchange.DeleteOk | None: ...
 
     @abstractmethod
     async def exchange_delete(
@@ -717,7 +819,7 @@ class AbstractChannel(PoolInstance, ABC):
         timeout: TimeoutType = None,
         if_unused: bool = False,
         nowait: bool = False,
-    ) -> aiormq.spec.Exchange.DeleteOk:
+    ) -> aiormq.spec.Exchange.DeleteOk | None:
         raise NotImplementedError
 
     @abstractmethod

@@ -263,12 +263,36 @@ class Queue(AbstractQueue):
 
         return consume_result.consumer_tag
 
+    @overload
+    async def cancel(
+        self,
+        consumer_tag: ConsumerTag,
+        timeout: TimeoutType = None,
+        nowait: Literal[False] = False,
+    ) -> aiormq.spec.Basic.CancelOk: ...
+
+    @overload
+    async def cancel(
+        self,
+        consumer_tag: ConsumerTag,
+        timeout: TimeoutType = None,
+        nowait: Literal[True] = True,
+    ) -> None: ...
+
+    @overload
     async def cancel(
         self,
         consumer_tag: ConsumerTag,
         timeout: TimeoutType = None,
         nowait: bool = False,
-    ) -> aiormq.spec.Basic.CancelOk:
+    ) -> aiormq.spec.Basic.CancelOk | None: ...
+
+    async def cancel(
+        self,
+        consumer_tag: ConsumerTag,
+        timeout: TimeoutType = None,
+        nowait: bool = False,
+    ) -> aiormq.spec.Basic.CancelOk | None:
         """This method cancels a consumer. This does not affect already
         delivered messages, but it does mean the server will not send any more
         messages for that consumer. The client may receive an arbitrary number
@@ -283,13 +307,20 @@ class Queue(AbstractQueue):
             consumer tag returned by :func:`~aio_pika.Queue.consume`
         :param timeout: execution timeout
         :param bool nowait: Do not expect a Basic.CancelOk response
-        :return: Basic.CancelOk when operation completed successfully
+        :return: Basic.CancelOk, or None when nowait=True
         """
 
         channel = await self.channel.get_underlay_channel()
+        if nowait:
+            await channel.basic_cancel(
+                consumer_tag=consumer_tag,
+                nowait=True,
+                timeout=timeout,
+            )
+            return None
         return await channel.basic_cancel(
             consumer_tag=consumer_tag,
-            nowait=nowait,
+            nowait=False,
             timeout=timeout,
         )
 
@@ -342,24 +373,52 @@ class Queue(AbstractQueue):
 
         return IncomingMessage(msg, no_ack=no_ack)
 
+    @overload
+    async def purge(
+        self,
+        no_wait: Literal[False] = False,
+        timeout: TimeoutType = None,
+    ) -> aiormq.spec.Queue.PurgeOk: ...
+
+    @overload
+    async def purge(
+        self,
+        no_wait: Literal[True] = True,
+        timeout: TimeoutType = None,
+    ) -> None: ...
+
+    @overload
     async def purge(
         self,
         no_wait: bool = False,
         timeout: TimeoutType = None,
-    ) -> aiormq.spec.Queue.PurgeOk:
+    ) -> aiormq.spec.Queue.PurgeOk | None: ...
+
+    async def purge(
+        self,
+        no_wait: bool = False,
+        timeout: TimeoutType = None,
+    ) -> aiormq.spec.Queue.PurgeOk | None:
         """Purge all messages from the queue.
 
         :param no_wait: no wait response
         :param timeout: execution timeout
-        :return: :class:`None`
+        :return: Queue.PurgeOk, or None when no_wait=True
         """
 
         log.info("Purging queue: %r", self)
 
         channel = await self.channel.get_underlay_channel()
+        if no_wait:
+            await channel.queue_purge(
+                self.name,
+                nowait=True,
+                timeout=timeout,
+            )
+            return None
         return await channel.queue_purge(
             self.name,
-            nowait=no_wait,
+            nowait=False,
             timeout=timeout,
         )
 
