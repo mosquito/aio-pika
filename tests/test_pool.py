@@ -63,9 +63,55 @@ async def test_close_while_acquisition_waits_for_released_item():
         await asyncio.wait_for(pool.close(), timeout=1)
         assert pool.is_closed
         assert instance.closed
+        with pytest.raises(PoolInvalidStateError):
+            await asyncio.wait_for(waiter, timeout=1)
     finally:
         waiter.cancel()
         await asyncio.gather(waiter, return_exceptions=True)
+        if not pool.is_closed:
+            await pool.close()
+
+
+@pytest.mark.parametrize("waiter_count", [1, 3])
+@pytest.mark.parametrize("release_before_close", [False, True])
+async def test_close_wakes_waiting_acquisitions(
+    waiter_count,
+    release_before_close,
+):
+    instance = TestInstanceBase.Instance()
+    waiting: asyncio.Queue[None] = asyncio.Queue()
+
+    async def create_instance():
+        return instance
+
+    pool: Pool[TestInstanceBase.Instance] = Pool(create_instance, max_size=1)
+    assert await pool.acquire().__aenter__() is instance
+
+    async def acquire():
+        waiting.put_nowait(None)
+        return await pool.acquire().__aenter__()
+
+    waiters = [asyncio.create_task(acquire()) for _ in range(waiter_count + 1)]
+    try:
+        for _ in waiters:
+            await waiting.get()
+        cancelled = waiters.pop()
+        cancelled.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await cancelled
+        if release_before_close:
+            pool.put(instance)
+        await pool.close()
+        done, pending = await asyncio.wait(waiters, timeout=1)
+        assert not pending
+        assert all(
+            isinstance(task.exception(), PoolInvalidStateError) for task in done
+        )
+        assert instance.closed
+    finally:
+        for waiter in waiters:
+            waiter.cancel()
+        await asyncio.gather(*waiters, return_exceptions=True)
         if not pool.is_closed:
             await pool.close()
 
