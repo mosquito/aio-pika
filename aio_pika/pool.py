@@ -102,14 +102,21 @@ class Pool(Generic[T]):
                 self.__item_set.add(item)
                 return item
 
-        return await self.__items.get()
+        return await self._get_released()
+
+    async def _get_released(self) -> T:
+        item = await self.__items.get()
+        if self.__closed:
+            self.__items.put_nowait(None)
+            raise PoolInvalidStateError("get operation on closed pool")
+        return item
 
     async def _get(self) -> T:
         if self.__closed:
             raise PoolInvalidStateError("get operation on closed pool")
 
         if self._is_overflow:
-            return await self.__items.get()
+            return await self._get_released()
 
         return await self._create_item()
 
@@ -122,6 +129,8 @@ class Pool(Generic[T]):
     async def close(self) -> None:
         async with self.__lock:
             self.__closed = True
+            # Each waiting acquisition forwards the wakeup to the next one.
+            self.__items.put_nowait(None)
             tasks = []
 
             for item in self.__item_set:
