@@ -135,6 +135,8 @@ class Channel(ChannelContext):
     ) -> None:
         if not self.is_initialized:
             log.warning("Channel not opened")
+            if not self._closed.done():
+                self._closed.set_result(True)
             return
 
         if not self._channel:
