@@ -284,6 +284,11 @@ class RobustQueueIterator(QueueIterator):
 
                 return await super().consume()
             except ChannelInvalidStateError:
+                # A connection closed on purpose is never restored
+                if hasattr(channel, "_connection"):
+                    connection = channel._connection
+                    if connection.is_closed or connection.close_called:
+                        raise
                 log.debug(
                     "Channel invalid state in %r, waiting for restoration",
                     self,
