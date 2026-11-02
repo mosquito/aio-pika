@@ -7,6 +7,7 @@ from yarl import URL
 
 from aio_pika.channel import Channel
 from aio_pika.connection import Connection
+from aio_pika.exceptions import ChannelInvalidStateError
 from aio_pika.robust_channel import RobustChannel
 from aio_pika.robust_connection import RobustConnection
 
@@ -63,3 +64,35 @@ async def test_close_waiter_cancellation_is_isolated(
         await resource.close()
         if resource is not connection:
             await connection.close()
+
+
+@pytest.mark.parametrize("channel_class", [Channel, RobustChannel])
+async def test_channel_close_before_initialize(channel_class):
+    channel = channel_class(Connection(URL("amqp://localhost/")))
+    assert not channel.closed().done()
+
+    await channel.close()
+
+    assert channel.is_closed
+    assert channel.closed().done()
+    assert await channel.closed() is True
+
+    await channel.close()
+    assert await channel.closed() is True
+
+    with pytest.raises(RuntimeError, match="Can't initialize closed channel"):
+        await channel.initialize()
+
+
+@pytest.mark.parametrize("channel_class", [Channel, RobustChannel])
+async def test_channel_close_after_initialize_failure(channel_class):
+    channel = channel_class(Connection(URL("amqp://localhost/")))
+
+    try:
+        with pytest.raises(ChannelInvalidStateError, match="No active"):
+            await channel.initialize()
+    finally:
+        await channel.close()
+
+    assert channel.closed().done()
+    assert await channel.closed() is True
