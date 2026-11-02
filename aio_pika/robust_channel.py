@@ -26,6 +26,7 @@ from .abc import (
     TimeoutType,
 )
 from .channel import Channel
+from .exceptions import ChannelInvalidStateError
 from .exchange import Exchange, ExchangeType
 from .log import get_logger
 from .queue import Queue
@@ -86,11 +87,18 @@ class RobustChannel(Channel, AbstractRobustChannel):
 
         self.close_callbacks.remove(self._set_closed_callback)
 
+    def __check_connection(self) -> None:
+        # A closed connection is never ready again, so waiting would hang
+        if self._connection.close_called or self._connection.is_closed:
+            raise ChannelInvalidStateError("Connection is closed")
+
     async def ready(self) -> None:
+        self.__check_connection()
         await self._connection.ready()
         await self.__restored.wait()
 
     async def get_underlay_channel(self) -> aiormq.abc.AbstractChannel:
+        self.__check_connection()
         await self._connection.ready()
         return await super().get_underlay_channel()
 

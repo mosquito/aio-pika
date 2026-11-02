@@ -3,9 +3,9 @@ import logging
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from aiormq.exceptions import ConnectionClosed
+from aiormq.exceptions import ChannelInvalidStateError, ConnectionClosed
 
-from aio_pika import RobustChannel, connect_robust
+from aio_pika import RobustChannel, RobustQueue, connect_robust
 
 
 @pytest.mark.parametrize("closed", [False, True])
@@ -26,6 +26,35 @@ async def test_restore_waiting_for_lock_stops_on_connection_close(
     lock.release()
     await asyncio.wait_for(task, 1)
     reopen.assert_not_awaited()
+
+
+@pytest.mark.parametrize("closed", [False, True])
+async def test_channel_operations_fail_after_connection_close(closed):
+    # A closed RobustConnection never becomes ready again (#253)
+    connection = Mock(is_closed=closed, close_called=not closed)
+    connection.ready = AsyncMock(side_effect=asyncio.Event().wait)
+    channel = RobustChannel(connection)
+    with pytest.raises(ChannelInvalidStateError):
+        await asyncio.wait_for(channel.get_underlay_channel(), 1)
+    with pytest.raises(ChannelInvalidStateError):
+        await asyncio.wait_for(channel.ready(), 1)
+
+
+@pytest.mark.parametrize("closed", [False, True])
+async def test_queue_iterator_fails_after_connection_close(closed):
+    # The iterator must not retry forever after a deliberate close (#253)
+    connection = Mock(is_closed=closed, close_called=not closed)
+    connection.ready = AsyncMock(side_effect=asyncio.Event().wait)
+    queue = RobustQueue(RobustChannel(connection), "test")
+
+    async def enter():
+        async with queue.iterator():
+            pass
+
+    with pytest.raises(ChannelInvalidStateError):
+        await asyncio.wait_for(enter(), 1)
+    with pytest.raises(ChannelInvalidStateError):
+        await asyncio.wait_for(anext(queue.iterator()), 1)
 
 
 @pytest.mark.parametrize("explicit_reason", [False, True])
