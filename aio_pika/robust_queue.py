@@ -269,6 +269,20 @@ class RobustQueueIterator(QueueIterator):
             self._closed.set_result(True)
         self._message_or_closed.set()
 
+    async def close(self) -> None:
+        """Close the iterator and stop restoring its consumer.
+
+        While the channel is closed, Basic.Cancel cannot be sent, so the
+        consumer would stay registered for recovery and the next
+        reconnection would subscribe this closed iterator again.
+        """
+        consumer_tag = self.consumer_tag
+        if consumer_tag is not None and isinstance(
+            self._amqp_queue, RobustQueue
+        ):
+            self._amqp_queue._consumers.pop(consumer_tag, None)
+        await super().close()
+
     async def consume(self) -> None:
         """Consume with retry on channel errors.
 
