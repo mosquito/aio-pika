@@ -995,6 +995,73 @@ async def test_iterator_survives_reconnection(
 
 
 @aiomisc.timeout(30)
+async def test_iterator_closed_while_disconnected_is_not_restored(
+    create_connection,
+    direct_connection,
+    proxy: TCPProxy,
+):
+    connection = await create_connection()
+    restored = asyncio.Event()
+    connection.reconnect_callbacks.add(lambda *_: restored.set())
+    release = asyncio.Event()
+
+    async def hold_server_frames(data):
+        await release.wait()
+        return data
+
+    async with connection:
+        channel = await connection.channel()
+        queue = await channel.declare_queue(
+            get_random_name("iterator", "closed", "offline"),
+            auto_delete=False,
+        )
+        publisher = await direct_connection.channel()
+        try:
+            # The acknowledgement fails while the connection is down and
+            # the error leaves the iterator before reconnection.
+            with pytest.raises(aiormq.exceptions.ChannelInvalidStateError):
+                async with queue.iterator() as iterator:
+                    await publisher.default_exchange.publish(
+                        Message(b"interrupted"),
+                        routing_key=queue.name,
+                    )
+                    message = await asyncio.wait_for(anext(iterator), 5)
+                    proxy.set_content_processors(None, hold_server_frames)
+                    await proxy.disconnect_all()
+                    async with asyncio.timeout(5):
+                        while not channel.is_closed:
+                            await asyncio.sleep(0.01)
+                    async with message.process():
+                        pass
+            proxy.set_content_processors(None, None)
+            release.set()
+            await asyncio.wait_for(restored.wait(), 10)
+            await asyncio.wait_for(channel.ready(), 5)
+
+            # Reconnection must not subscribe the closed iterator again,
+            # otherwise its deliveries are never processed or acknowledged.
+            declared = await publisher.declare_queue(queue.name, passive=True)
+            assert declared.declaration_result.consumer_count == 0
+
+            await publisher.default_exchange.publish(
+                Message(b"after reconnect"),
+                routing_key=queue.name,
+            )
+            received = set()
+            async with queue.iterator() as iterator:
+                for _ in range(2):
+                    message = await asyncio.wait_for(anext(iterator), 5)
+                    received.add(message.body)
+                    await message.ack()
+            assert received == {b"interrupted", b"after reconnect"}
+        finally:
+            proxy.set_content_processors(None, None)
+            release.set()
+            cleanup_queue = await publisher.get_queue(queue.name)
+            await cleanup_queue.delete(if_unused=False, if_empty=False)
+
+
+@aiomisc.timeout(30)
 async def test_consumer_resumes_after_connection_close(
     create_connection,
     direct_connection,
