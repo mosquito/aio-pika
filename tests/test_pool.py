@@ -275,3 +275,34 @@ class TestCaseItemReuse(TestInstanceBase):
         assert sum(counter.values()) == call_count
         assert set(counter) == set(instances)
         assert len(set(counter.values())) == 1
+
+
+async def test_release_after_pool_close():
+    instance = TestInstanceBase.Instance()
+
+    async def create_instance():
+        return instance
+
+    pool: Pool[TestInstanceBase.Instance] = Pool(create_instance, max_size=1)
+    async with pool.acquire() as acquired:
+        assert acquired is instance
+        await pool.close()
+
+    assert instance.closed
+    with pytest.raises(PoolInvalidStateError):
+        pool.put(instance)
+
+
+async def test_release_after_pool_close_preserves_body_error():
+    instance = TestInstanceBase.Instance()
+
+    async def create_instance():
+        return instance
+
+    pool: Pool[TestInstanceBase.Instance] = Pool(create_instance, max_size=1)
+    with pytest.raises(ValueError, match="body failed"):
+        async with pool.acquire():
+            await pool.close()
+            raise ValueError("body failed")
+
+    assert instance.closed
