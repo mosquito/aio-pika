@@ -172,5 +172,5 @@ class PoolItemContextManager(Generic[T], AsyncContextManager):
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
-        if self.item is not None:
+        if self.item is not None and not self.pool.is_closed:
             self.pool.put(self.item)
