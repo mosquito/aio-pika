@@ -393,7 +393,7 @@ def ensure_awaitable(
         nonlocal func  # noqa
 
         result = func(*args, **kwargs)
-        if not hasattr(result, "__await__"):
+        if not inspect.isawaitable(result):
             warnings.warn(
                 f"Function {func!r} returned a non awaitable result."
                 "This may be bad for performance or may blocks the "
