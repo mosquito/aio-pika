@@ -2,6 +2,7 @@ import asyncio
 import logging
 from copy import copy
 from threading import Event, Thread
+from types import coroutine
 from typing import Any, List
 from unittest import mock
 
@@ -216,6 +217,17 @@ class TestEnsureAwaitable:
         func = ensure_awaitable(square)
         assert await func(2) == 4
         assert await func(4) == 16
+
+    async def test_generator_based_coroutine(self):
+        @coroutine
+        def square(x):
+            yield from asyncio.sleep(0).__await__()
+            return x * x
+
+        with pytest.deprecated_call(match="You probably registering the"):
+            func = ensure_awaitable(square)
+
+        assert await func(2) == 4
 
     async def test_something_awaitable_returned(self):
 
