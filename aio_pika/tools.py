@@ -43,12 +43,18 @@ def iscoroutinepartial(fn: Callable[..., Any]) -> bool:
 
 
 def _task_done(future: asyncio.Future) -> None:
-    try:
-        exc = future.exception()
-        if exc is not None:
-            raise exc
-    except asyncio.CancelledError:
-        pass
+    """Retrieve the result of a task, so asyncio reports no warning.
+
+    The callback must not raise the exception again. asyncio would then
+    report "Exception in callback" with the location of this callback,
+    which hides where the exception comes from.
+    """
+    if future.cancelled():
+        return
+
+    exception = future.exception()
+    if exception is not None:
+        log.debug("Task %r failed", future, exc_info=exception)
 
 
 def create_task(
