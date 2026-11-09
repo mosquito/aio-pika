@@ -16,7 +16,11 @@ from .abc import (
     TimeoutType,
 )
 from .connection import Connection, make_url
-from .exceptions import CONNECTION_EXCEPTIONS, ChannelNotFoundEntity
+from .exceptions import (  # noqa: F401
+    CONNECTION_EXCEPTIONS,
+    ChannelNotFoundEntity,
+    ConnectionClosed,
+)
 from .log import get_logger
 from .robust_channel import RobustChannel
 from .tools import CallbackCollection
@@ -68,6 +72,9 @@ class RobustConnection(Connection, AbstractRobustConnection):
         self.reconnect_callbacks = CallbackCollection(self)
 
         self.__restore_event.set()
+        # Resolved when close() runs, so tasks waiting for the connection
+        # to become ready wake up with an error instead of hanging forever.
+        self.__close_signal: asyncio.Future = self.loop.create_future()
 
     def _request_recovery(self) -> None:
         if not self.is_closed and not self._close_called:
@@ -235,8 +242,45 @@ class RobustConnection(Connection, AbstractRobustConnection):
                 self.__connection_factory(),
             )
 
+        if not self.__fail_fast_future.done():
+            # Race the first connection attempt against close(), so a
+            # close() while connecting cannot leave this coroutine pending.
+            await asyncio.wait(
+                (self.__fail_fast_future, self.__close_signal),
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+
+            if self.__close_signal.done():
+                raise ConnectionClosed(0, "Connection closed by client")
+
         await self.__fail_fast_future
-        await self.connected.wait()
+        await self.ready()
+
+    async def ready(self) -> None:
+        """Wait for the connection to become ready.
+
+        Raises `ConnectionClosed` if `close()` is called while waiting,
+        so callers do not stay pending on a connection that will never
+        come back.
+        """
+        waiter = self.loop.create_task(self.connected.wait())
+        try:
+            await asyncio.wait(
+                (waiter, self.__close_signal),
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+        finally:
+            if not waiter.done():
+                waiter.cancel()
+            # Retrieve the result to avoid "exception was never retrieved"
+            # warnings from a cancelled waiter task.
+            try:
+                await waiter
+            except asyncio.CancelledError:
+                pass
+
+        if self.__close_signal.done():
+            raise ConnectionClosed(0, "Connection closed by client")
 
     async def reconnect(self) -> None:
         if self.transport:
@@ -273,6 +317,10 @@ class RobustConnection(Connection, AbstractRobustConnection):
                 return_exceptions=True,
             )
             self.__reconnection_task = None
+
+        # Wake tasks waiting for the connection to become ready.
+        if not self.__close_signal.done():
+            self.__close_signal.set_result(None)
 
         return await super().close(exc)
 
