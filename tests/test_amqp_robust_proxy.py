@@ -1092,44 +1092,77 @@ async def test_consumer_resumes_after_connection_close(
             await queue.delete()
 
 
-async def test_close_does_not_hang_during_reconnect(event_loop):
-    """Test that close() does not hang when reconnection loop is active.
+@pytest.mark.parametrize("fail_fast", [True, False])
+async def test_pending_connect_fails_on_close(fail_fast, create_task):
+    """Verify that close() unblocks connect() during the first attempt.
 
-    Reproduces the race condition where close() cancels __reconnection_task
-    while __connection_factory is inside Connection.connect(). Without the
-    fix (_close_called set before cancel), CancelledError would be swallowed
-    by the except block and close() would hang waiting for the task to finish.
+    Stall the first network attempt and call close() once it has started.
+    With fail_fast enabled, connect() waits for the attempt's result.
+    With fail_fast disabled, connect() waits for the connected event.
+
+    After close() returns, observe the task with asyncio.wait() so the
+    timeout does not cancel it. The task must finish with RuntimeError.
     """
     connect_entered = asyncio.Event()
 
-    async def slow_connect(self, timeout=None):
+    async def stalled_connect(self, timeout=None):
         connect_entered.set()
-        # Simulate a long connection attempt that will be cancelled
-        await asyncio.sleep(3600)
+        await asyncio.Event().wait()
 
-    url = URL(
-        "amqp://guest:guest@localhost/?reconnect_interval=0.1&fail_fast=0"
-    )
-    conn = RobustConnection(url, loop=event_loop)
+    url = URL("amqp://guest:guest@localhost/?reconnect_interval=0.1")
+    async with RobustConnection(url, fail_fast=fail_fast) as conn:
+        with patch.object(Connection, "connect", stalled_connect):
+            task = create_task(conn.connect())
+            await asyncio.wait_for(connect_entered.wait(), timeout=5)
+            await asyncio.wait_for(conn.close(), timeout=5)
 
-    with patch.object(Connection, "connect", slow_connect):
-        # Start the connection (launches __connection_factory task).
-        # connect() will await connected.wait() which never resolves
-        # since Connection.connect is mocked, so run it as a task.
-        connect_task = event_loop.create_task(conn.connect())
+            done, _ = await asyncio.wait({task}, timeout=1)
+            assert task in done, "connect() is still pending after close()"
+            with pytest.raises(RuntimeError, match="connection closed"):
+                await task
 
-        # Wait until __connection_factory enters Connection.connect()
-        await asyncio.wait_for(connect_entered.wait(), timeout=5)
 
-        # Now close() should cancel the reconnection task and return
-        # promptly. Before the fix this would hang because CancelledError
-        # was swallowed (_close_called was not yet set when cancel arrived).
-        await asyncio.wait_for(conn.close(), timeout=5)
+async def test_pending_reconnect_fails_on_close(amqp_direct_url, create_task):
+    """Verify that close() unblocks reconnect() during a new attempt.
 
-    # Cancel connect_task which is stuck on connected.wait()
-    connect_task.cancel()
-    with suppress(asyncio.CancelledError):
-        await connect_task
+    Establish the initial connection to RabbitMQ, then stall the
+    replacement attempt. Wait for reconnect() to enter connect() and
+    for the replacement attempt to start before calling close().
+
+    After close() returns, the reconnect() task must finish on its own
+    with RuntimeError. The timeout only bounds the observation.
+    """
+    connect_entered = asyncio.Event()
+    reconnect_waiting = asyncio.Event()
+
+    async def stalled_connect(self, timeout=None):
+        connect_entered.set()
+        await asyncio.Event().wait()
+
+    async with await aio_pika.connect_robust(
+        amqp_direct_url,
+        timeout=5,
+        reconnect_interval=0.1,
+    ) as conn:
+        connect = conn.connect
+
+        async def observe_connect():
+            reconnect_waiting.set()
+            await connect()
+
+        with (
+            patch.object(Connection, "connect", stalled_connect),
+            patch.object(conn, "connect", observe_connect),
+        ):
+            task = create_task(conn.reconnect())
+            await asyncio.wait_for(reconnect_waiting.wait(), timeout=5)
+            await asyncio.wait_for(connect_entered.wait(), timeout=5)
+            await asyncio.wait_for(conn.close(), timeout=5)
+
+            done, _ = await asyncio.wait({task}, timeout=1)
+            assert task in done, "reconnect() is still pending after close()"
+            with pytest.raises(RuntimeError, match="connection closed"):
+                await task
 
 
 @pytest.mark.parametrize("buffered", [False, True])

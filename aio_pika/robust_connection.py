@@ -170,6 +170,8 @@ class RobustConnection(Connection, AbstractRobustConnection):
                 self.__restore_event.set()
                 if not self.__fail_fast_future.done():
                     self.__fail_fast_future.set_exception(e)
+                    # All connect() callers may have stopped waiting.
+                    self.__fail_fast_future.exception()
                     return
 
                 log.warning(
@@ -235,8 +237,30 @@ class RobustConnection(Connection, AbstractRobustConnection):
                 self.__connection_factory(),
             )
 
-        await self.__fail_fast_future
-        await self.connected.wait()
+        await self.__wait_or_closed(self.__fail_fast_future)
+        if self.connected.is_set():
+            return
+
+        connected = self.loop.create_task(self.connected.wait())
+        try:
+            await self.__wait_or_closed(connected)
+        finally:
+            if not connected.done():
+                connected.cancel()
+                await asyncio.gather(connected, return_exceptions=True)
+
+    async def __wait_or_closed(self, future: asyncio.Future[Any]) -> None:
+        """Wait for a connection milestone or raise if it closes."""
+        if not future.done():
+            await asyncio.wait(
+                (future, self._closed),
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+
+        if self.is_closed:
+            raise RuntimeError(f"{self!r} connection closed")
+
+        future.result()
 
     async def reconnect(self) -> None:
         if self.transport:
