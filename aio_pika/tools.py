@@ -307,9 +307,10 @@ class OneShotCallback:
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}: cb={self.callback!r}>"
 
-    def wait(self) -> Awaitable[Any]:
+    async def wait(self) -> bool:
+        """Wait for completion, cancelling the callback on cancellation."""
         try:
-            return self.finished.wait()
+            return await self.finished.wait()
         except asyncio.CancelledError:
             if self.__task is not None:
                 self.__task.cancel()
@@ -335,8 +336,15 @@ class OneShotCallback:
                     exc_info=True,
                 )
             finally:
-                self.loop.call_soon(self.finished.set)
-                del self.callback
+                self.__task_done()
+
+    def __task_done(
+        self,
+        _future: Optional[asyncio.Future[Any]] = None,
+    ) -> None:
+        if hasattr(self, "callback"):
+            self.loop.call_soon(self.finished.set)
+            del self.callback
 
     def __call__(self, *args: Any, **kwargs: Any) -> Awaitable[Any]:
         if self.finished.is_set() or self.__task is not None:
@@ -345,6 +353,7 @@ class OneShotCallback:
         self.__task = self.loop.create_task(
             self.__task_inner(*args, **kwargs),
         )
+        self.__task.add_done_callback(self.__task_done)
         return self.__task
 
 
