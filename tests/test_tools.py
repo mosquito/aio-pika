@@ -8,7 +8,7 @@ from unittest import mock
 
 import pytest
 
-from aio_pika.tools import CallbackCollection, ensure_awaitable
+from aio_pika.tools import CallbackCollection, OneShotCallback, ensure_awaitable
 
 
 log = logging.getLogger(__name__)
@@ -255,3 +255,53 @@ class TestEnsureAwaitable:
 
         with pytest.deprecated_call(match="Function"):
             assert await func(2) == 4
+
+
+async def test_one_shot_wait_cancellation_cancels_callback():
+    started = asyncio.Event()
+
+    async def callback():
+        started.set()
+        await asyncio.Event().wait()
+
+    one_shot = OneShotCallback(callback)
+    callback_task = asyncio.ensure_future(one_shot())
+    await started.wait()
+    waiter = asyncio.create_task(one_shot.wait())
+    try:
+        await asyncio.sleep(0)
+        waiter.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiter
+        await asyncio.sleep(0)
+        assert callback_task.cancelled()
+    finally:
+        waiter.cancel()
+        callback_task.cancel()
+        await asyncio.gather(waiter, callback_task, return_exceptions=True)
+
+
+async def test_one_shot_wait_returns_completion_result():
+    async def callback():
+        pass
+
+    one_shot = OneShotCallback(callback)
+    await one_shot()
+    assert await one_shot.wait() is True
+
+
+async def test_one_shot_cancelled_before_start_still_finishes():
+    async def callback():
+        await asyncio.Event().wait()
+
+    one_shot = OneShotCallback(callback)
+    waiter = asyncio.create_task(one_shot.wait())
+    await asyncio.sleep(0)
+    waiter.cancel()
+    callback_task = asyncio.ensure_future(one_shot())
+    await asyncio.gather(waiter, callback_task, return_exceptions=True)
+    await asyncio.sleep(0)
+
+    assert callback_task.cancelled()
+    assert one_shot.finished.is_set()
+    assert not hasattr(one_shot, "callback")
