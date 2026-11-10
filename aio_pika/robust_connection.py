@@ -263,6 +263,14 @@ class RobustConnection(Connection, AbstractRobustConnection):
         so callers do not stay pending on a connection that will never
         come back.
         """
+        if self.connected.is_set():
+            # Fast path: return without yielding to the event loop, so
+            # callers see the same scheduling behavior as
+            # `Connection.ready()` and don't observe callbacks scheduled
+            # by pending close frames (e.g. a robust channel that has not
+            # processed an unexpected close yet).
+            return
+
         waiter = self.loop.create_task(self.connected.wait())
         try:
             await asyncio.wait(

@@ -5,7 +5,12 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from aiormq.exceptions import ChannelInvalidStateError, ConnectionClosed
 
-from aio_pika import RobustChannel, RobustConnection, RobustQueue, connect_robust
+from aio_pika import (
+    RobustChannel,
+    RobustConnection,
+    RobustQueue,
+    connect_robust,
+)
 
 
 @pytest.mark.parametrize("closed", [False, True])
