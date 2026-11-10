@@ -5,7 +5,12 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from aiormq.exceptions import ChannelInvalidStateError, ConnectionClosed
 
-from aio_pika import RobustChannel, RobustQueue, connect_robust
+from aio_pika import (
+    RobustChannel,
+    RobustConnection,
+    RobustQueue,
+    connect_robust,
+)
 
 
 @pytest.mark.parametrize("closed", [False, True])
@@ -147,3 +152,73 @@ async def test_connection_close_during_channel_reopen(
         release.set()
         await connection.close()
         await asyncio.gather(closing_channel, return_exceptions=True)
+
+
+async def test_close_wakes_pending_connect(monkeypatch):
+    # close() must not leave a pending connect() hanging forever (#746)
+    from yarl import URL
+
+    from aio_pika.connection import Connection
+
+    started = asyncio.Event()
+
+    async def stalled_connect(self, timeout=None):
+        started.set()
+        await asyncio.Event().wait()
+
+    connection = RobustConnection(
+        URL("amqp://guest:guest@127.0.0.1/"),
+        fail_fast=False,
+    )
+    monkeypatch.setattr(Connection, "connect", stalled_connect)
+
+    task = asyncio.create_task(connection.connect())
+    await asyncio.wait_for(started.wait(), 1)
+    await asyncio.sleep(0)
+    await asyncio.wait_for(connection.close(), 1)
+
+    with pytest.raises(ConnectionClosed):
+        await asyncio.wait_for(task, 1)
+
+
+async def test_close_wakes_pending_connect_fail_fast(monkeypatch):
+    # ... and the same with fail_fast=True, where connect() first waits
+    # for the verdict of the very first connection attempt (#746)
+    from yarl import URL
+
+    from aio_pika.connection import Connection
+
+    started = asyncio.Event()
+
+    async def stalled_connect(self, timeout=None):
+        started.set()
+        await asyncio.Event().wait()
+
+    connection = RobustConnection(
+        URL("amqp://guest:guest@127.0.0.1/"),
+        fail_fast=True,
+    )
+    monkeypatch.setattr(Connection, "connect", stalled_connect)
+
+    task = asyncio.create_task(connection.connect())
+    await asyncio.wait_for(started.wait(), 1)
+    await asyncio.sleep(0)
+    await asyncio.wait_for(connection.close(), 1)
+
+    with pytest.raises(ConnectionClosed):
+        await asyncio.wait_for(task, 1)
+
+
+async def test_close_wakes_pending_ready_waiters():
+    # Callers blocked in ready() (e.g. declare_queue during recovery)
+    # must fail instead of staying pending after close() (#746)
+    from yarl import URL
+
+    connection = RobustConnection(URL("amqp://guest:guest@127.0.0.1/"))
+
+    waiter = asyncio.create_task(connection.ready())
+    await asyncio.sleep(0)
+    await asyncio.wait_for(connection.close(), 1)
+
+    with pytest.raises(ConnectionClosed):
+        await asyncio.wait_for(waiter, 1)
