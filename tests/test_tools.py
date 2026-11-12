@@ -8,7 +8,7 @@ from unittest import mock
 
 import pytest
 
-from aio_pika.tools import CallbackCollection, ensure_awaitable
+from aio_pika.tools import CallbackCollection, create_task, ensure_awaitable
 
 
 log = logging.getLogger(__name__)
@@ -255,3 +255,63 @@ class TestEnsureAwaitable:
 
         with pytest.deprecated_call(match="Function"):
             assert await func(2) == 4
+
+
+@pytest.mark.filterwarnings("error::RuntimeWarning")
+async def test_create_task_async_callable(event_loop):
+    class Callback:
+        async def __call__(self, value, *, increment):
+            await asyncio.sleep(0)
+            return value + increment
+
+    assert (
+        await create_task(
+            Callback(),
+            40,
+            increment=2,
+            loop=event_loop,
+        )
+        == 42
+    )
+
+
+@pytest.mark.filterwarnings("error::RuntimeWarning")
+async def test_create_task_async_callable_exception():
+    error = ValueError("callback failed")
+
+    class Callback:
+        async def __call__(self):
+            await asyncio.sleep(0)
+            raise error
+
+    with pytest.raises(ValueError) as caught:
+        await create_task(Callback())
+
+    assert caught.value is error
+
+
+async def test_create_task_callable_class():
+    class Callback:
+        def __init__(self, value):
+            self.value = value
+
+        async def __call__(self):
+            return self.value
+
+    # Exercise the existing synchronous factory path.
+    callback: Callback = await create_task(Callback, 42)  # type: ignore[arg-type]
+
+    assert isinstance(callback, Callback)
+    assert await callback() == 42
+
+
+@pytest.mark.parametrize("shadow", [False, True])
+async def test_create_task_sync_callable(shadow):
+    class Callback:
+        def __call__(self, value):
+            return value + 1
+
+    callback = Callback()
+    call = mock.AsyncMock() if shadow else callback.__call__
+    with mock.patch.object(callback, "__call__", call):
+        assert await create_task(callback, 41) == 42

@@ -59,8 +59,10 @@ def create_task(
 ) -> Awaitable[T]:
     loop = loop or asyncio.get_event_loop()
 
-    if inspect.iscoroutinefunction(func):
-        task = loop.create_task(func(*args, **kwargs))
+    if inspect.iscoroutinefunction(func) or inspect.iscoroutinefunction(
+        getattr(type(func), "__call__", None),
+    ):
+        task = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
         task.add_done_callback(_task_done)
         return task
 
