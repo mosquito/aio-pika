@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import re
 from ssl import SSLContext
 from types import TracebackType
 from typing import (
@@ -36,6 +37,12 @@ from .tools import CallbackCollection
 
 
 log = get_logger(__name__)
+
+# Matches credentials ("login:password@") in URLs that could not be parsed
+# as an authority by yarl, e.g. "guest:secret@host" or "amqp:/guest:secret@h".
+# Such URLs have no ``url.password``, but are serialized with the credentials
+# intact and would leak them through logging.
+_CREDENTIALS_RE = re.compile(r"([^/\s:@]+):([^/\s@]+)@")
 
 
 class Connection(AbstractConnection):
@@ -138,7 +145,7 @@ class Connection(AbstractConnection):
         url = self.url
         if url.password:
             url = url.with_password("******")
-        return str(url)
+        return _CREDENTIALS_RE.sub(r"\1:******@", str(url))
 
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}: "{self}">'
