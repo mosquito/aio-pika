@@ -131,6 +131,30 @@ def test_connection_happy_eyeballs_delay(amqp_url: URL):
     assert "happy_eyeballs_delay" not in connection.kwargs
 
 
+def test_connection_str_masks_password():
+    url = URL("amqp://guest:secret@localhost:5672/vhost")
+    assert "secret" not in str(Connection(url=url))
+    assert "guest:******@localhost" in str(Connection(url=url))
+
+
+def test_connection_str_masks_unparsed_password():
+    # yarl can not parse these URLs as an authority, so ``url.password`` is
+    # None and the previous masking did not apply (#753)
+    for raw in ("guest:secret@host", "amqp:/guest:secret@host"):
+        connection = Connection(url=URL(raw))
+        assert "secret" not in str(connection), raw
+        assert "guest:******@" in str(connection), raw
+
+
+def test_connection_str_without_credentials_untouched():
+    for raw in (
+        "amqp://user@localhost",
+        "amqp://localhost/vhost",
+        "amqp://localhost:5672/vhost?timeout=5",
+    ):
+        assert str(Connection(url=URL(raw))) == raw
+
+
 def test_robust_connection_interleave(amqp_url: URL):
     url = amqp_url.update_query(interleave="1")
     connection = RobustConnection(url=url)
