@@ -185,3 +185,10 @@ async def test_process_does_not_hide_other_reject_errors(delivered_message):
     with pytest.raises(RuntimeError, match="reject"):
         async with message.process():
             raise ValueError("processing")
+
+
+def test_encode_expiration_rejects_unsupported_type():
+    # passing e.g. a str expiration is rejected; the error used to
+    # misleadingly say "timestamp"
+    with pytest.raises(ValueError, match="Invalid expiration type"):
+        Message(body=b"x", expiration="100").properties

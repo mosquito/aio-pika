@@ -34,7 +34,7 @@ def to_milliseconds(seconds: Union[float, int]) -> int:
 
 @singledispatch
 def encode_expiration(value: Any) -> Optional[str]:
-    raise ValueError("Invalid timestamp type: %r" % type(value), value)
+    raise ValueError("Invalid expiration type: %r" % type(value), value)
 
 
 @encode_expiration.register(datetime)
