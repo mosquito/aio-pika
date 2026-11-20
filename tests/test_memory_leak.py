@@ -47,6 +47,25 @@ async def test_leak_closed_channel(create_connection):
     assert len(tuple(weakset)) == 0
 
 
+async def test_closed_channels_release_connection_observers(create_connection):
+    """Closed channels must not leave callbacks on a live connection."""
+    connection = await create_connection()
+
+    async with connection:
+        closing = connection.transport.connection._closing
+        callbacks_before = len(closing._callbacks or ())
+
+        for _ in range(20):
+            async with connection.channel():
+                pass
+
+        # Cancelling an aiormq observer schedules its removal from the
+        # source future on the next loop turn.
+        await asyncio.sleep(0)
+        assert len(closing._callbacks or ()) == callbacks_before
+        assert not connection.is_closed
+
+
 @pytest.fixture
 def robust_connection_fabric():
     return aio_pika.connect_robust

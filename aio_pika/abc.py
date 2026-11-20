@@ -590,31 +590,41 @@ class UnderlayChannel:
         close_callback: Callable[..., Awaitable[Any]],
         **kwargs: Any,
     ) -> "UnderlayChannel":
-        close_callback = OneShotCallback(close_callback)
-
         await connection.ready()
-        connection.closing.add_done_callback(close_callback)
-        channel = await connection.channel(**kwargs)
-        channel.closing.add_done_callback(close_callback)
+        connection_closing = connection.closing
+
+        async def on_close(closing: asyncio.Future) -> Any:
+            try:
+                return await close_callback(closing)
+            finally:
+                # aiormq 7 returns a new observer on each access. Cancel
+                # this observer, not the connection's closure future.
+                connection_closing.remove_done_callback(on_close_callback)
+                connection_closing.cancel()
+
+        on_close_callback = OneShotCallback(on_close)
+        connection_closing.add_done_callback(on_close_callback)
+        try:
+            channel = await connection.channel(**kwargs)
+        except BaseException:
+            connection_closing.remove_done_callback(on_close_callback)
+            connection_closing.cancel()
+            raise
+        channel.closing.add_done_callback(on_close_callback)
 
         return cls(
             channel=channel,
-            close_callback=close_callback,
+            close_callback=on_close_callback,
         )
 
     async def close(self, exc: Optional[ExceptionType] = None) -> Any:
         if self.close_callback.finished.is_set():
             return
 
-        # close callbacks must be fired when closing
-        # and should be deleted later to prevent memory leaks
+        # The callback releases its connection observer even when the
+        # channel closes from the broker side, without an explicit close.
         await self.channel.close(exc)
         await self.close_callback.wait()
-
-        self.channel.closing.remove_done_callback(self.close_callback)
-        self.channel.connection.closing.remove_done_callback(
-            self.close_callback,
-        )
 
 
 class AbstractChannel(PoolInstance, ABC):
