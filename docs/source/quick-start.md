@@ -172,7 +172,9 @@ reports such a mismatch before you run the code.
 
 Connect to RabbitMQ using TLS client certificates (x509) for
 authentication instead of username/password. Requires CA certificate,
-client certificate, and private key files.
+client certificate, and private key files. The `auth="external"`
+argument selects the EXTERNAL SASL mechanism, where RabbitMQ uses the
+client certificate as the identity.
 
 ```{literalinclude} examples/external-credentials.py
 :language: python
