@@ -180,9 +180,14 @@ class RobustConnection(Connection, AbstractRobustConnection):
                     self.reconnect_interval,
                 )
             except asyncio.CancelledError:
-                self.__restore_event.set()
-                if self._close_called or self.is_closed:
+                task = asyncio.current_task()
+                if (
+                    self._close_called
+                    or self.is_closed
+                    or (task is not None and task.cancelling() > 0)
+                ):
                     raise
+                self.__restore_event.set()
                 log.warning(
                     'Connection attempt to "%s" cancelled. '
                     "Reconnecting after %r seconds.",
